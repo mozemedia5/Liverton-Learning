@@ -12,4 +12,19 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    headers: {
+      'Service-Worker-Allowed': '/',
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // Ensure service worker is not bundled with app code
+        manualChunks: {
+          'sw': ['./public/sw.js'],
+        },
+      },
+    },
+  },
 });
