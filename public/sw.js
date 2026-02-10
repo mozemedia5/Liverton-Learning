@@ -1,4 +1,7 @@
 const CACHE_NAME = 'liverton-learning-v1';
+const STATIC_CACHE = 'liverton-learning-static-v1';
+
+// Files to cache on install
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -11,17 +14,26 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       try {
-        const cache = await caches.open(CACHE_NAME);
-        console.log('[SW] Caching essential assets');
-        // Cache important files, but don't fail if some aren't available yet
-        await cache.addAll(STATIC_ASSETS).catch((err) => {
-          console.warn('[SW] Some assets could not be cached during install:', err);
-        });
+        // Cache static assets
+        const cache = await caches.open(STATIC_CACHE);
+        console.log('[SW] Caching static assets');
+        
+        // Try to cache files, but don't fail on errors
+        for (const asset of STATIC_ASSETS) {
+          try {
+            await cache.add(asset);
+            console.log('[SW] Cached:', asset);
+          } catch (err) {
+            console.warn('[SW] Could not cache:', asset, err);
+          }
+        }
       } catch (err) {
         console.error('[SW] Install error:', err);
       }
     })()
   );
+  
+  // Force the waiting service worker to become the active service worker
   self.skipWaiting();
 });
 
@@ -32,9 +44,11 @@ self.addEventListener('activate', (event) => {
     (async () => {
       try {
         const cacheNames = await caches.keys();
+        const validCaches = [CACHE_NAME, STATIC_CACHE];
+        
         await Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
+            if (!validCaches.includes(cacheName)) {
               console.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -45,7 +59,9 @@ self.addEventListener('activate', (event) => {
       }
     })()
   );
-  self.clients.claim();
+  
+  // Claim any existing clients
+  return self.clients.claim();
 });
 
 // Fetch event - network first, fall back to cache

@@ -33,6 +33,7 @@ import About from '@/pages/about/About';
 import AboutSchools from '@/pages/about/AboutSchools';
 import AboutTeachers from '@/pages/about/AboutTeachers';
 import AboutStudents from '@/pages/about/AboutStudents';
+import PWADebug from '@/pages/PWADebug';
 
 import './App.css';
 
@@ -170,6 +171,9 @@ function AppRoutes() {
           <Settings />
         </ProtectedRoute>
       } />
+
+      {/* PWA Debug */}
+      <Route path="/pwa-debug" element={<PWADebug />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
