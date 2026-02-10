@@ -5,7 +5,7 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [inspectAttr(), react()],
   resolve: {
     alias: {
@@ -16,15 +16,16 @@ export default defineConfig({
     headers: {
       'Service-Worker-Allowed': '/',
     },
+    middlewareMode: false,
   },
   build: {
+    outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
-      output: {
-        // Ensure service worker is not bundled with app code
-        manualChunks: {
-          'sw': ['./public/sw.js'],
-        },
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
       },
     },
   },
+  publicDir: 'public',
 });

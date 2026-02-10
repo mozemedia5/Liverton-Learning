@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 
 // Pages
 import LandingPage from '@/pages/LandingPage';
@@ -183,6 +184,7 @@ function App() {
         <Router>
           <AppRoutes />
           <Toaster position="top-right" />
+          <PWAInstallPrompt />
         </Router>
       </AuthProvider>
     </ThemeProvider>
