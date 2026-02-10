@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 
 // Pages
 import LandingPage from '@/pages/LandingPage';
@@ -32,6 +33,7 @@ import About from '@/pages/about/About';
 import AboutSchools from '@/pages/about/AboutSchools';
 import AboutTeachers from '@/pages/about/AboutTeachers';
 import AboutStudents from '@/pages/about/AboutStudents';
+import PWADebug from '@/pages/PWADebug';
 
 import './App.css';
 
@@ -170,6 +172,9 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      {/* PWA Debug */}
+      <Route path="/pwa-debug" element={<PWADebug />} />
+
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -183,6 +188,7 @@ function App() {
         <Router>
           <AppRoutes />
           <Toaster position="top-right" />
+          <PWAInstallPrompt />
         </Router>
       </AuthProvider>
     </ThemeProvider>
