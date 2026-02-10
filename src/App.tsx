@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
+import { Analytics } from '@vercel/analytics/react';
 
 // Pages
 import LandingPage from '@/pages/LandingPage';
@@ -189,6 +190,7 @@ function App() {
           <AppRoutes />
           <Toaster position="top-right" />
           <PWAInstallPrompt />
+          <Analytics />
         </Router>
       </AuthProvider>
     </ThemeProvider>
