@@ -1,7 +1,8 @@
 const CACHE_NAME = 'liverton-learning-v1';
 const STATIC_CACHE = 'liverton-learning-static-v1';
+const RUNTIME_CACHE = 'liverton-learning-runtime-v1';
 
-// Files to cache on install
+// Files to cache on install - minimal set to avoid install failures
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -11,30 +12,29 @@ const STATIC_ASSETS = [
 // Install event - cache essential assets
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
+  
+  // Don't block on cache failures during install
+  self.skipWaiting();
+  
   event.waitUntil(
     (async () => {
       try {
-        // Cache static assets
         const cache = await caches.open(STATIC_CACHE);
         console.log('[SW] Caching static assets');
         
-        // Try to cache files, but don't fail on errors
-        for (const asset of STATIC_ASSETS) {
-          try {
-            await cache.add(asset);
-            console.log('[SW] Cached:', asset);
-          } catch (err) {
-            console.warn('[SW] Could not cache:', asset, err);
-          }
-        }
+        // Cache files individually without failing on errors
+        await Promise.allSettled(
+          STATIC_ASSETS.map(asset => 
+            cache.add(asset).catch(err => {
+              console.warn('[SW] Could not cache:', asset, err.message);
+            })
+          )
+        );
       } catch (err) {
-        console.error('[SW] Install error:', err);
+        console.error('[SW] Install error:', err.message);
       }
     })()
   );
-  
-  // Force the waiting service worker to become the active service worker
-  self.skipWaiting();
 });
 
 // Activate event - clean up old caches
@@ -64,48 +64,63 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Fetch event - network first, fall back to cache
+// Fetch event - network first with cache fallback
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Skip non-GET requests
+  // Only handle GET requests
   if (request.method !== 'GET') {
     return;
   }
 
-  const url = new URL(request.url);
-
-  // Skip requests to external domains (APIs, etc.) - let them go through normally
-  if (url.origin !== location.origin) {
+  // Handle same-origin requests
+  if (!request.url.startsWith(self.location.origin)) {
     return;
   }
 
   event.respondWith(
     (async () => {
       try {
-        // Try network first
+        // Try to fetch from network first
         const networkResponse = await fetch(request);
         
-        // If successful, cache it
-        if (networkResponse && networkResponse.status === 200) {
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(request, networkResponse.clone());
+        // If successful (200-299), cache it and return
+        if (networkResponse.ok) {
+          try {
+            const cache = await caches.open(RUNTIME_CACHE);
+            cache.put(request, networkResponse.clone());
+          } catch (cacheErr) {
+            console.warn('[SW] Could not cache response:', cacheErr.message);
+          }
+          return networkResponse;
         }
         
-        return networkResponse;
-      } catch (error) {
-        console.log('[SW] Fetch failed, trying cache for:', request.url);
-        // Fall back to cache
-        const cachedResponse = await caches.match(request);
-        if (cachedResponse) {
-          return cachedResponse;
+        // If not ok but got a response, try cache
+        throw new Error(`Network response not ok: ${networkResponse.status}`);
+      } catch (networkError) {
+        // Network failed, try cache
+        try {
+          const cachedResponse = await caches.match(request);
+          if (cachedResponse) {
+            console.log('[SW] Serving from cache:', request.url);
+            return cachedResponse;
+          }
+        } catch (cacheErr) {
+          console.warn('[SW] Cache lookup failed:', cacheErr.message);
         }
         
-        // Return a basic offline response
-        return new Response('Offline - content not available', {
-          status: 503,
-          statusText: 'Service Unavailable',
-        });
+        // Both network and cache failed
+        console.log('[SW] No network or cache for:', request.url);
+        
+        // Return offline page for navigation requests
+        if (request.mode === 'navigate') {
+          return caches.match('/index.html').catch(() => {
+            return new Response('Offline', { status: 503 });
+          });
+        }
+        
+        // For other requests, return offline response
+        return new Response('Offline', { status: 503 });
       }
     })()
   );

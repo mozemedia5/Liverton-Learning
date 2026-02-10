@@ -31,29 +31,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let isMounted = true;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!isMounted) return;
+
       setCurrentUser(user);
       
       if (user) {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
+          if (userDoc.exists() && isMounted) {
             const data = userDoc.data() as User;
             setUserData(data);
             setUserRole(data.role);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
+          if (isMounted) {
+            setUserData(null);
+            setUserRole(null);
+          }
         }
       } else {
-        setUserData(null);
-        setUserRole(null);
+        if (isMounted) {
+          setUserData(null);
+          setUserRole(null);
+        }
       }
       
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     });
 
-    return unsubscribe;
+    // Safety timeout - prevent infinite loading
+    timeoutId = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn('[Auth] Loading timeout reached, forcing completion');
+        setLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

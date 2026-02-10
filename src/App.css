@@ -1,10 +1,25 @@
 /* Liverton Learning - Global Styles */
 
+/* Cross-browser compatibility reset */
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  overflow-x: hidden;
+}
+
 /* Smooth transitions for theme switching */
 * {
   transition-property: background-color, border-color;
   transition-duration: 200ms;
   transition-timing-function: ease-in-out;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Custom scrollbar */
@@ -125,5 +140,72 @@ select:focus {
 @media print {
   .no-print {
     display: none !important;
+  }
+}
+
+/* Firefox specific styles */
+@-moz-document url-prefix() {
+  input, textarea, select {
+    background-color: #fff;
+  }
+  
+  .dark input, .dark textarea, .dark select {
+    background-color: #1f2937;
+  }
+}
+
+/* Safari specific styles */
+@supports (-webkit-appearance: none) {
+  input[type="search"] {
+    -webkit-appearance: textfield;
+  }
+  
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}
+
+/* Edge/IE specific fallbacks */
+@supports (display: grid) {
+  /* CSS Grid is supported */
+}
+
+/* Mobile viewport optimization for all browsers */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px; /* Prevent auto-zoom on iOS Safari */
+  }
+  
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Tablet optimization */
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+}
+
+/* Desktop optimization */
+@media (min-width: 1025px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Touch device optimization */
+@media (hover: none) and (pointer: coarse) {
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* High DPI screens */
+@media (min-resolution: 192dpi) {
+  body {
+    font-size: 16px;
   }
 }

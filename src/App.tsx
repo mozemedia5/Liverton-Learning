@@ -56,7 +56,7 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to="/" replace />;
   }
 
-  return <>{children}</>;
+  return children;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -81,7 +81,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to={dashboardRoutes[userRole] || '/'} replace />;
   }
 
-  return <>{children}</>;
+  return children;
 }
 
 function AppRoutes() {

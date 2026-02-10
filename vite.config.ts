@@ -15,17 +15,31 @@ export default defineConfig({
   server: {
     headers: {
       'Service-Worker-Allowed': '/',
+      'Cache-Control': 'public, max-age=3600',
     },
     middlewareMode: false,
   },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    target: 'es2015',
+    minify: 'terser',
+    sourcemap: false,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
       },
+      output: {
+        entryFileNames: '[name]-[hash].js',
+        chunkFileNames: '[name]-[hash].js',
+        assetFileNames: '[name]-[hash][extname]',
+      },
     },
   },
   publicDir: 'public',
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'es2015',
+    },
+  },
 });
