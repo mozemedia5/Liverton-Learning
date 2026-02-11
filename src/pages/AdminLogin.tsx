@@ -1,22 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, Lock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Eye, EyeOff, Loader2, Shield } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 
 export default function AdminLogin() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login, userRole } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,129 +23,98 @@ export default function AdminLogin() {
     try {
       await login(email, password);
       
-      // Verify admin role on backend
-      // For now, we'll assume the login validates the admin role
-      toast.success('Admin login successful!');
-      
+      // Check if user is platform_admin after login
+      // The userRole will be updated by AuthContext
       setTimeout(() => {
-        navigate('/admin/dashboard');
+        if (userRole === 'platform_admin') {
+          navigate('/admin/dashboard');
+        } else {
+          setError('Access denied. Platform Admin credentials required.');
+        }
       }, 500);
     } catch (err: any) {
-      setError(err.message || 'Invalid admin credentials');
-      toast.error('Admin login failed. Please check your credentials.');
+      setError(err.message || 'Login failed. Please try again.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 text-black dark:text-white transition-colors duration-300">
-      {/* Header */}
-      <header className="w-full px-6 py-4 flex items-center border-b border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/50 backdrop-blur">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate('/login')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Login
-        </Button>
-        <div className="flex-1 flex justify-center">
-          <span className="text-lg font-semibold">Liverton Learning - Admin Portal</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Lock className="w-8 h-8 text-blue-500" />
+            <h1 className="text-3xl font-bold text-white">Liverton Admin</h1>
+          </div>
+          <p className="text-slate-400">Platform Administration Portal</p>
         </div>
-        <div className="w-20"></div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <Card className="w-full max-w-md border-2 border-red-300 dark:border-red-700 bg-white dark:bg-black shadow-lg">
-          <CardHeader className="space-y-1 border-b border-red-200 dark:border-red-800">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Shield className="w-6 h-6 text-red-600 dark:text-red-400" />
-              <CardTitle className="text-2xl font-bold text-center text-red-600 dark:text-red-400">Admin Access</CardTitle>
-            </div>
-            <CardDescription className="text-center">
-              Restricted access for platform administrators only
-            </CardDescription>
+        {/* Login Card */}
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white">Admin Login</CardTitle>
+            <CardDescription>Enter your platform admin credentials</CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <Alert variant="destructive" className="border-red-500 bg-red-50 dark:bg-red-950">
-                  <AlertDescription className="text-red-800 dark:text-red-200">{error}</AlertDescription>
+                <Alert variant="destructive" className="bg-red-900/20 border-red-800">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-red-700 dark:text-red-300 font-semibold">Admin Email</Label>
+                <label className="text-sm font-medium text-slate-200">Email</label>
                 <Input
-                  id="email"
                   type="email"
-                  placeholder="admin@liverton.edu"
+                  placeholder="admin@liverton.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
                   required
-                  className="border-2 border-red-300 dark:border-red-700 focus:border-red-500 dark:focus:border-red-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-red-700 dark:text-red-300 font-semibold">Admin Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your admin password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="border-2 border-red-300 dark:border-red-700 focus:border-red-500 dark:focus:border-red-500 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-red-600 dark:text-red-400 hover:text-red-700"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+                <label className="text-sm font-medium text-slate-200">Password</label>
+                <Input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                  required
+                />
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors"
                 disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Verifying Admin Access...
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-4 h-4 mr-2" />
-                    Access Admin Portal
-                  </>
-                )}
+                {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
-            <div className="mt-6 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-xs text-red-700 dark:text-red-300 text-center">
-                ⚠️ This is a restricted area. Unauthorized access attempts are logged and monitored.
+            <div className="mt-6 pt-6 border-t border-slate-700">
+              <p className="text-xs text-slate-400 text-center">
+                This is a restricted area. Only authorized platform administrators can access this portal.
               </p>
             </div>
           </CardContent>
         </Card>
-      </main>
 
-      {/* Footer */}
-      <footer className="w-full px-6 py-6 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/50 backdrop-blur">
-        <div className="max-w-6xl mx-auto text-center text-sm text-red-600 dark:text-red-400">
-          © 2026 Liverton Learning Admin Portal. All rights reserved.
+        {/* Footer */}
+        <div className="mt-8 text-center text-slate-400 text-sm">
+          <p>© 2026 Liverton Learning. All rights reserved.</p>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
