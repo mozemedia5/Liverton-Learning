@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
-import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';
 import { registerServiceWorker } from '@/lib/pwa';
 
 // Pages
@@ -211,7 +210,6 @@ function App() {
         <Router>
           <AppRoutes />
           <Toaster position="top-right" />
-          <PWAUpdatePrompt />
         </Router>
       </AuthProvider>
     </ThemeProvider>
