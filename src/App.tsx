@@ -44,9 +44,10 @@ import AboutStudents from '@/pages/about/AboutStudents';
 import './App.css';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
-  const { isAuthenticated, userRole, loading } = useAuth();
+  const { isAuthenticated, userRole, initialLoadComplete } = useAuth();
 
-  if (loading) {
+  // Only show loading during initial auth check, not on every navigation
+  if (!initialLoadComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
         <div className="flex flex-col items-center gap-3">
@@ -69,11 +70,11 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, userRole, loading } = useAuth();
+  const { isAuthenticated, userRole, initialLoadComplete } = useAuth();
 
   // Don't show anything while loading - just render the page
   // The page will handle redirects if needed
-  if (loading) {
+  if (!initialLoadComplete) {
     return <>{children}</>;
   }
 

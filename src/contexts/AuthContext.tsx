@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
@@ -15,6 +15,7 @@ interface AuthContextType {
   userData: User | null;
   userRole: UserRole | null;
   loading: boolean;
+  initialLoadComplete: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
@@ -29,31 +30,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data() as User;
-            setUserData(data);
-            setUserRole(data.role);
+    // Set up auth state listener only once
+    unsubscribeRef.current = onAuthStateChanged(auth, async (user) => {
+      try {
+        setCurrentUser(user);
+        
+        if (user) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+              const data = userDoc.data() as User;
+              setUserData(data);
+              setUserRole(data.role);
+            }
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+            setUserData(null);
+            setUserRole(null);
           }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
+        } else {
+          setUserData(null);
+          setUserRole(null);
         }
-      } else {
-        setUserData(null);
-        setUserRole(null);
+      } finally {
+        setLoading(false);
+        setInitialLoadComplete(true);
       }
-      
-      setLoading(false);
     });
 
-    return unsubscribe;
+    // Cleanup on unmount
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -91,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
     setUserData(null);
     setUserRole(null);
+    setCurrentUser(null);
   };
 
   const updateUserProfile = async (data: Partial<User>) => {
@@ -118,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userData,
     userRole,
     loading,
+    initialLoadComplete,
     login,
     register,
     logout,
