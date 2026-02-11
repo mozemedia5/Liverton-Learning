@@ -12,14 +12,9 @@ import {
   User, 
   Settings, 
   LogOut,
-  TrendingUp,
-  Award,
-  Play,
-  FileText,
   CheckCircle,
   Menu,
   X,
-  Brain,
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +22,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useCourses } from '@/hooks/useCourses';
 import { useQuizzes } from '@/hooks/useQuizzes';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
-import { CardSkeleton, DashboardSkeleton } from '@/components/LoadingSkeleton';
+import { DashboardSkeleton } from '@/components/LoadingSkeleton';
 import { toast } from 'sonner';
 
 export default function StudentDashboard() {
@@ -35,7 +30,6 @@ export default function StudentDashboard() {
   const { logout, userData } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showHanna, setShowHanna] = useState(false);
 
   // Fetch real data from Firebase
   const { courses, loading: coursesLoading, error: coursesError } = useCourses();
@@ -72,7 +66,6 @@ export default function StudentDashboard() {
       : 0,
   };
 
-  const isLoading = coursesLoading || quizzesLoading || announcementsLoading;
   const hasError = coursesError || quizzesError || announcementsError;
 
   return (
@@ -104,17 +97,16 @@ export default function StudentDashboard() {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'block' : 'hidden'} lg:block w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 p-4 min-h-screen`}>
+        <aside className={`${
+          sidebarOpen ? 'block' : 'hidden'
+        } lg:block w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 p-4 min-h-screen`}>
           <nav className="space-y-2">
             {navItems.map((item) => (
               <Button
                 key={item.path}
                 variant={item.active ? 'default' : 'ghost'}
                 className="w-full justify-start gap-3"
-                onClick={() => {
-                  navigate(item.path);
-                  setSidebarOpen(false);
-                }}
+                onClick={() => navigate(item.path)}
               >
                 {item.icon}
                 {item.label}
@@ -124,20 +116,20 @@ export default function StudentDashboard() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-8">
+        <main className="flex-1 p-6">
           {/* Welcome Section */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-2">Welcome back, {userData?.fullName || 'Student'}!</h2>
-            <p className="text-gray-600 dark:text-gray-400">Here's your learning progress overview</p>
+            <h2 className="text-3xl font-bold mb-2">Welcome back, {userData?.name || 'Student'}!</h2>
+            <p className="text-gray-600 dark:text-gray-400">Here's your learning dashboard</p>
           </div>
 
-          {/* Error Display */}
+          {/* Error Alert */}
           {hasError && (
-            <Card className="mb-6 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20">
+            <Card className="mb-6 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950">
               <CardContent className="pt-6 flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                <p className="text-red-600 dark:text-red-400">
-                  {coursesError || quizzesError || announcementsError}
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <p className="text-red-800 dark:text-red-200">
+                  Failed to load some data. Please refresh the page.
                 </p>
               </CardContent>
             </Card>
@@ -153,7 +145,7 @@ export default function StudentDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{stats.enrolledCourses}</div>
-                <p className="text-xs text-gray-500 mt-1">Active courses</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Active courses</p>
               </CardContent>
             </Card>
 
@@ -165,7 +157,7 @@ export default function StudentDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{stats.quizzesTaken}</div>
-                <p className="text-xs text-gray-500 mt-1">Completed assessments</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Completed</p>
               </CardContent>
             </Card>
 
@@ -184,37 +176,36 @@ export default function StudentDashboard() {
 
           {/* Courses Section */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold">Your Courses</h3>
-              <Button onClick={() => navigate('/student/courses')} variant="outline">
-                View All
-              </Button>
-            </div>
-            
+            <h3 className="text-2xl font-bold mb-4">Your Courses</h3>
             {coursesLoading ? (
               <DashboardSkeleton />
             ) : courses.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {courses.slice(0, 4).map((course) => (
-                  <Card key={course.id}>
+                {courses.map((course) => (
+                  <Card key={course.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
-                      <CardTitle className="text-lg">{course.title}</CardTitle>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle>{course.title}</CardTitle>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {course.instructor}
+                          </p>
+                        </div>
+                        <Badge variant="secondary">{course.students} students</Badge>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         {course.description}
                       </p>
-                      <div className="mb-3">
-                        <div className="flex justify-between text-sm mb-1">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
                           <span>Progress</span>
-                          <span>{course.progress || 0}%</span>
+                          <span className="font-semibold">{course.progress || 0}%</span>
                         </div>
                         <Progress value={course.progress || 0} />
                       </div>
-                      <Button 
-                        className="w-full" 
-                        onClick={() => navigate(`/student/courses/${course.id}`)}
-                      >
+                      <Button className="w-full mt-4" onClick={() => navigate(`/course/${course.id}`)}>
                         Continue Learning
                       </Button>
                     </CardContent>
@@ -223,15 +214,8 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <Card>
-                <CardContent className="pt-6 text-center">
-                  <BookOpen className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                  <p className="text-gray-600 dark:text-gray-400">No courses enrolled yet</p>
-                  <Button 
-                    className="mt-4"
-                    onClick={() => navigate('/student/courses')}
-                  >
-                    Browse Courses
-                  </Button>
+                <CardContent className="pt-6 text-center text-gray-600 dark:text-gray-400">
+                  No courses enrolled yet. Start learning today!
                 </CardContent>
               </Card>
             )}
@@ -239,31 +223,25 @@ export default function StudentDashboard() {
 
           {/* Announcements Section */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold">Recent Announcements</h3>
-              <Button onClick={() => navigate('/announcements')} variant="outline">
-                View All
-              </Button>
-            </div>
-
+            <h3 className="text-2xl font-bold mb-4">Latest Announcements</h3>
             {announcementsLoading ? (
               <DashboardSkeleton />
             ) : announcements.length > 0 ? (
               <div className="space-y-3">
                 {announcements.map((announcement) => (
-                  <Card key={announcement.id}>
+                  <Card key={announcement.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-6">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <Bell className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1" />
                         <div className="flex-1">
                           <h4 className="font-semibold">{announcement.title}</h4>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {announcement.message}
+                            {announcement.content}
                           </p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            From: {announcement.senderName}
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                            {new Date(announcement.createdAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <Badge variant="outline">{announcement.category}</Badge>
                       </div>
                     </CardContent>
                   </Card>
@@ -271,9 +249,43 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <Card>
-                <CardContent className="pt-6 text-center">
-                  <Bell className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                  <p className="text-gray-600 dark:text-gray-400">No announcements yet</p>
+                <CardContent className="pt-6 text-center text-gray-600 dark:text-gray-400">
+                  No announcements yet.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Quizzes Section */}
+          <div>
+            <h3 className="text-2xl font-bold mb-4">Recent Quizzes</h3>
+            {quizzesLoading ? (
+              <DashboardSkeleton />
+            ) : quizzes.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {quizzes.map((quiz) => (
+                  <Card key={quiz.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <CardTitle>{quiz.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        {quiz.description}
+                      </p>
+                      <div className="flex justify-between items-center">
+                        <Badge variant="outline">{quiz.questions} questions</Badge>
+                        <Button onClick={() => navigate(`/quiz/${quiz.id}`)}>
+                          Take Quiz
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="pt-6 text-center text-gray-600 dark:text-gray-400">
+                  No quizzes available yet.
                 </CardContent>
               </Card>
             )}

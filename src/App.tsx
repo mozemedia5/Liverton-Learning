@@ -1,7 +1,10 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
+import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';
+import { registerServiceWorker } from '@/lib/pwa';
 
 // Pages
 import LandingPage from '@/pages/LandingPage';
@@ -177,12 +180,18 @@ function AppRoutes() {
 }
 
 function App() {
+  useEffect(() => {
+    // Register service worker on app load
+    registerServiceWorker();
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
           <AppRoutes />
           <Toaster position="top-right" />
+          <PWAUpdatePrompt />
         </Router>
       </AuthProvider>
     </ThemeProvider>

@@ -51,6 +51,7 @@ export interface User {
     country: number;
     global: number;
   };
+  name?: string;
 }
 
 export interface Student extends User {
@@ -132,6 +133,9 @@ export interface Course {
   enrolledStudents: string[];
   createdAt: Date;
   updatedAt: Date;
+  instructor?: string;
+  students?: number;
+  progress?: number;
 }
 
 export interface Lesson {
@@ -147,8 +151,9 @@ export interface Lesson {
 export interface Quiz {
   id: string;
   title: string;
+  description?: string;
   courseId: string;
-  questions: Question[];
+  questions: number;
   timeLimit?: number;
   passingScore: number;
 }
@@ -189,7 +194,8 @@ export interface Payment {
 export interface Announcement {
   id: string;
   title: string;
-  message: string;
+  content: string;
+  message?: string;
   senderId: string;
   senderName: string;
   senderRole: UserRole;

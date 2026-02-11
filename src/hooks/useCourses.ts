@@ -1,63 +1,46 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, QueryConstraint } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/contexts/AuthContext';
-import type { Course } from '@/types';
 
-interface UseCourseOptions {
-  userId?: string;
-  role?: string;
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  students: number;
+  progress?: number;
 }
 
-export function useCourses(options?: UseCourseOptions) {
-  const { userData } = useAuth();
+export const useCourses = (userId?: string) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userData?.uid) {
+    if (!userId) {
       setLoading(false);
       return;
     }
 
     try {
-      const constraints: QueryConstraint[] = [];
-      
-      // Build query based on user role
-      if (userData.role === 'student' || userData.role === 'parent') {
-        constraints.push(where('enrolledStudents', 'array-contains', userData.uid));
-      } else if (userData.role === 'teacher') {
-        constraints.push(where('teacherId', '==', userData.uid));
-      }
+      const coursesRef = collection(db, 'courses');
+      const q = query(coursesRef, where('students', 'array-contains', userId));
 
-      const q = query(collection(db, 'courses'), ...constraints);
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Course[];
+        setCourses(data);
+        setLoading(false);
+      });
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const coursesData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Course[];
-          setCourses(coursesData);
-          setLoading(false);
-          setError(null);
-        },
-        (err) => {
-          console.error('Error fetching courses:', err);
-          setError(err.message);
-          setLoading(false);
-        }
-      );
-
-      return unsubscribe;
+      return () => unsubscribe();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Failed to fetch courses');
       setLoading(false);
     }
-  }, [userData?.uid, userData?.role]);
+  }, [userId]);
 
   return { courses, loading, error };
-}
+};
