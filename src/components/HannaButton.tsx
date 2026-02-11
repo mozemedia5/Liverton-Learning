@@ -1,57 +1,145 @@
-import { useEffect, useState } from 'react';
-import { Bot, X } from 'lucide-react';
+import { useState } from 'react';
+import { Bot, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export function HannaButton() {
+  const { userRole } = useAuth();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const onOpen = () => setOpen(true);
-    window.addEventListener('open-hanna', onOpen as any);
-    return () => window.removeEventListener('open-hanna', onOpen as any);
-  }, []);
+  const getHannaDescription = () => {
+    switch (userRole) {
+      case 'student':
+        return {
+          title: 'Hanna - Your AI Learning Assistant',
+          description: 'Hanna helps you with:',
+          features: [
+            '📚 Homework help and explanations',
+            '❓ Answer questions about course materials',
+            '✍️ Essay writing assistance and feedback',
+            '📊 Study tips and learning strategies',
+            '🎯 Personalized learning recommendations',
+            '⏰ Assignment deadline reminders',
+          ],
+        };
+      case 'teacher':
+        return {
+          title: 'Hanna - Your AI Teaching Assistant',
+          description: 'Hanna helps you with:',
+          features: [
+            '📝 Lesson plan creation and suggestions',
+            '✅ Automated grading assistance',
+            '📊 Student performance analytics',
+            '💡 Teaching methodology recommendations',
+            '📧 Automated communication templates',
+            '🎓 Curriculum development support',
+          ],
+        };
+      case 'school_admin':
+        return {
+          title: 'Hanna - Your AI Administrative Assistant',
+          description: 'Hanna helps you with:',
+          features: [
+            '📊 School performance analytics',
+            '👥 Student and staff management insights',
+            '📋 Report generation and analysis',
+            '💼 Administrative task automation',
+            '📈 Enrollment and retention predictions',
+            '🔍 Data-driven decision support',
+          ],
+        };
+      case 'platform_admin':
+        return {
+          title: 'Hanna - Your AI Platform Assistant',
+          description: 'Hanna helps you with:',
+          features: [
+            '🌐 Platform-wide analytics and insights',
+            '👥 User management and support',
+            '🔒 Security monitoring and alerts',
+            '📊 System performance metrics',
+            '💡 Feature recommendations',
+            '🚀 Platform optimization suggestions',
+          ],
+        };
+      default:
+        return {
+          title: 'Hanna - Your AI Assistant',
+          description: 'Coming soon!',
+          features: ['🚀 Advanced AI features coming soon'],
+        };
+    }
+  };
+
+  const hannaInfo = getHannaDescription();
 
   return (
     <>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="fixed bottom-20 right-4 md:bottom-24 md:right-6 z-50 w-14 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black shadow-lg hover:shadow-xl transition-shadow"
-              aria-label="Ask Hanna"
-            >
-              <div className="w-full h-full flex items-center justify-center">
-                <Bot className="w-7 h-7" />
-              </div>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="left">Ask Hanna</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-24 right-6 rounded-full w-14 h-14 p-0 bg-gradient-to-br from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 z-30 flex items-center justify-center group"
+        title="Open Hanna AI Assistant"
+      >
+        <div className="relative">
+          <Bot className="w-6 h-6" />
+          <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300 animate-pulse" />
+        </div>
+      </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-gray-950 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xl overflow-hidden">
-            <div className="px-4 py-3 bg-black text-white dark:bg-white dark:text-black flex items-center justify-between">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md border-2 border-purple-300 dark:border-purple-700">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="w-5 h-5" />
-                <h3 className="font-semibold">Hanna</h3>
+                <div className="relative">
+                  <Bot className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400" />
+                </div>
+                <DialogTitle className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                  {hannaInfo.title}
+                </DialogTitle>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="text-white dark:text-black">
-                <X className="w-5 h-5" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpen(false)}
+                className="h-auto p-1"
+              >
+                <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="p-4">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Hanna AI is coming soon. This panel is wired for future integration.
-              </p>
-            </div>
+            <DialogDescription className="text-base font-semibold text-gray-700 dark:text-gray-300 pt-2">
+              {hannaInfo.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            {hannaInfo.features.map((feature, index) => (
+              <div
+                key={index}
+                className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800"
+              >
+                <span className="text-lg flex-shrink-0">{feature.split(' ')[0]}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {feature.substring(feature.indexOf(' ') + 1)}
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>🚀 Coming Soon:</strong> Hanna AI will be fully integrated into your dashboard soon. Stay tuned for advanced AI-powered features!
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,91 +1,92 @@
-import { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
+import { Home, MessageSquare, Settings, LogOut, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Home, BookOpen, FileText, MessageSquare, Bell, Bot } from 'lucide-react';
+import type { UserRole } from '@/types';
 
-const NAV_ITEMS = [
-  { key: 'home', label: 'Home', icon: Home },
-  { key: 'courses', label: 'Courses', icon: BookOpen },
-  { key: 'documents', label: 'Documents', icon: FileText },
-  { key: 'chat', label: 'Chat', icon: MessageSquare },
-  { key: 'announcements', label: 'Announcements', icon: Bell },
-  { key: 'hanna', label: 'Hanna', icon: Bot },
-] as const;
+interface BottomNavProps {
+  userRole: UserRole | null;
+}
 
-function computeHomePath(role?: string | null) {
-  if (role === 'teacher') return '/teacher/dashboard';
-  if (role === 'school_admin') return '/school-admin/dashboard';
+type NavItem = {
+  icon: any;
+  label: string;
+  path: string;
+};
+
+function getHomePath(role: UserRole | null) {
+  if (!role) return '/';
   if (role === 'platform_admin') return '/admin/dashboard';
+  if (role === 'school_admin') return '/school-admin/dashboard';
+  if (role === 'teacher') return '/teacher/dashboard';
+  // parent currently shares student dashboard in this app
   return '/student/dashboard';
 }
 
-function computeCoursesPath(role?: string | null) {
-  if (role === 'teacher') return '/teacher/courses';
-  return '/student/courses';
-}
-
-export function BottomNav(props: { userRole?: string | null }) {
+export function BottomNav({ userRole }: BottomNavProps) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { logout } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const routes = useMemo(() => {
-    const home = computeHomePath(props.userRole);
-    return {
-      home,
-      courses: computeCoursesPath(props.userRole),
-      documents: '/dashboard/documents',
-      chat: '/chat',
-      announcements: '/announcements',
-    };
-  }, [props.userRole]);
+  const navItems: NavItem[] = useMemo(
+    () => [
+      { icon: Home, label: 'Home', path: getHomePath(userRole) },
+      { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
+      { icon: MessageSquare, label: 'Chat', path: '/chat' },
+      { icon: Settings, label: 'Settings', path: '/settings' },
+    ],
+    [userRole]
+  );
 
-  const activeKey = useMemo(() => {
-    const p = location.pathname;
-    if (p.startsWith('/dashboard/documents')) return 'documents';
-    if (p.startsWith('/chat')) return 'chat';
-    if (p.startsWith('/announcements')) return 'announcements';
-    if (p.includes('/courses')) return 'courses';
-    if (p.includes('/dashboard')) return 'home';
-    return 'home';
-  }, [location.pathname]);
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      setShowLogoutDialog(false);
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-black/95 border-t border-gray-200 dark:border-gray-800 backdrop-blur">
-      <div className="mx-auto max-w-5xl grid grid-cols-6">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeKey === item.key;
-
-          const onClick = () => {
-            if (item.key === 'home') return navigate(routes.home);
-            if (item.key === 'courses') return navigate(routes.courses);
-            if (item.key === 'documents') return navigate(routes.documents);
-            if (item.key === 'chat') return navigate(routes.chat);
-            if (item.key === 'announcements') return navigate(routes.announcements);
-            if (item.key === 'hanna') {
-              window.dispatchEvent(new CustomEvent('open-hanna'));
-              return;
-            }
-          };
-
-          return (
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 shadow-lg z-40">
+        <div className="flex items-center justify-around h-20 px-2">
+          {navItems.map((item) => (
             <Button
-              key={item.key}
-              type="button"
+              key={item.path}
               variant="ghost"
-              className={cn(
-                'h-16 rounded-none flex flex-col items-center justify-center gap-1',
-                isActive ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'
-              )}
-              onClick={onClick}
+              size="sm"
+              onClick={() => navigate(item.path)}
+              className="flex flex-col items-center gap-1 h-auto py-2 px-3 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg transition-colors"
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[11px] leading-none">{item.label}</span>
+              <item.icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{item.label}</span>
             </Button>
-          );
-        })}
-      </div>
-    </nav>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowLogoutDialog(true)}
+            className="flex flex-col items-center gap-1 h-auto py-2 px-3 hover:bg-red-100 dark:hover:bg-red-950 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-xs font-medium">Logout</span>
+          </Button>
+        </div>
+      </nav>
+
+      <LogoutConfirmDialog
+        open={showLogoutDialog}
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutDialog(false)}
+        isLoading={isLoggingOut}
+      />
+    </>
   );
 }

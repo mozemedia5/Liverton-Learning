@@ -1,295 +1,344 @@
-import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  FileDown,
+  ArrowLeft,
+  Download,
+  Edit2,
+  Loader2,
+  MoreVertical,
   Plus,
-  Minus,
-  Bold,
-  Italic,
-  Underline,
-  Sigma,
+  Save,
+  Share2,
+  Sheet,
+  Trash2,
 } from 'lucide-react';
-import type { DocumentContent } from '@/types';
 
-function colName(idx: number) {
-  // 0 -> A, 25 -> Z, 26 -> AA
-  let n = idx;
-  let s = '';
-  while (n >= 0) {
-    s = String.fromCharCode((n % 26) + 65) + s;
-    n = Math.floor(n / 26) - 1;
-  }
-  return s;
-}
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-function parseCellRef(ref: string) {
-  const m = ref.toUpperCase().match(/^([A-Z]+)(\d+)$/);
-  if (!m) return null;
-  return { col: m[1], row: Number(m[2]) };
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { deleteDocument, getDocument, renameDocument, updateDocumentContent } from '@/lib/documents';
+import { ShareWithHannaDialog } from '@/components/ShareWithHannaDialog';
+import type { DocumentContent, DocumentRecord } from '@/types';
 
-function toIndexFromCol(col: string) {
-  // A -> 0, Z -> 25, AA -> 26
-  let idx = 0;
-  for (let i = 0; i < col.length; i++) {
-    idx = idx * 26 + (col.charCodeAt(i) - 64);
-  }
-  return idx - 1;
-}
+import './editorStyles.css';
 
-function cellKey(colIdx: number, rowIdx: number) {
-  return `${colName(colIdx)}${rowIdx + 1}`;
-}
+export default function SpreadsheetEditor() {
+  const { docId } = useParams<{ docId: string }>();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
-function getNumber(val: string) {
-  const n = Number(val);
-  return Number.isFinite(n) ? n : 0;
-}
+  const [record, setRecord] = useState<DocumentRecord | null>(null);
+  const [title, setTitle] = useState('Untitled Spreadsheet');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
-function evaluateFormula(formula: string, cells: Record<string, string>) {
-  const f = formula.trim().toUpperCase();
-  const m = f.match(/^=(SUM|AVERAGE|MIN|MAX)\(([^\)]+)\)$/);
-  if (!m) return null;
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
-  const fn = m[1];
-  const range = m[2].trim();
+  const cols = useMemo(() => ['A', 'B', 'C', 'D', 'E', 'F'], []);
+  const [rowCount, setRowCount] = useState(20);
+  const [cells, setCells] = useState<Record<string, string>>({});
 
-  // Support A1:B3 range
-  const parts = range.split(':').map((s) => s.trim());
-  if (parts.length !== 2) return null;
+  const canEdit = useMemo(() => !!currentUser && !!docId, [currentUser, docId]);
 
-  const a = parseCellRef(parts[0]);
-  const b = parseCellRef(parts[1]);
-  if (!a || !b) return null;
+  useEffect(() => {
+    const loadDoc = async () => {
+      if (!docId || !currentUser) return;
+      try {
+        const doc = await getDocument(docId);
+        if (!doc) throw new Error('Document not found');
 
-  const c1 = toIndexFromCol(a.col);
-  const c2 = toIndexFromCol(b.col);
-  const r1 = a.row - 1;
-  const r2 = b.row - 1;
+        setRecord(doc);
+        setTitle(doc.title);
+        setNewTitle(doc.title);
 
-  const minC = Math.min(c1, c2);
-  const maxC = Math.max(c1, c2);
-  const minR = Math.min(r1, r2);
-  const maxR = Math.max(r1, r2);
+        if (doc.content?.kind === 'sheet') {
+          setCells(doc.content.cells || {});
+        } else {
+          setCells({});
+        }
+      } catch {
+        toast.error('Failed to load spreadsheet');
+        navigate('/dashboard/documents');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const values: number[] = [];
-  for (let r = minR; r <= maxR; r++) {
-    for (let c = minC; c <= maxC; c++) {
-      const k = cellKey(c, r);
-      values.push(getNumber(cells[k] ?? '0'));
+    loadDoc();
+  }, [docId, currentUser, navigate]);
+
+  useEffect(() => {
+    if (!hasChanges || !record || !docId || !currentUser) return;
+
+    const timer = setTimeout(async () => {
+      setSaving(true);
+      try {
+        const content: DocumentContent = { kind: 'sheet', cells };
+        await updateDocumentContent({
+          docId,
+          updatedBy: currentUser.uid,
+          content,
+          newTitle: title,
+          bumpVersion: false,
+        });
+        setHasChanges(false);
+      } catch {
+        toast.error('Failed to save spreadsheet');
+      } finally {
+        setSaving(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [hasChanges, record, docId, currentUser, title, cells]);
+
+  const setCell = (addr: string, value: string) => {
+    setCells((prev) => ({ ...prev, [addr]: value }));
+    setHasChanges(true);
+  };
+
+  const addRow = () => {
+    setRowCount((r) => r + 10);
+  };
+
+  const handleRename = async () => {
+    if (!newTitle.trim() || !docId) return;
+    try {
+      await renameDocument(docId, newTitle.trim());
+      setTitle(newTitle.trim());
+      setShowRenameDialog(false);
+      toast.success('Spreadsheet renamed');
+    } catch {
+      toast.error('Failed to rename spreadsheet');
     }
-  }
+  };
 
-  if (values.length === 0) return 0;
+  const handleDelete = async () => {
+    if (!docId) return;
+    const ok = window.confirm('Are you sure you want to delete this spreadsheet? This cannot be undone.');
+    if (!ok) return;
 
-  if (fn === 'SUM') return values.reduce((a2, b2) => a2 + b2, 0);
-  if (fn === 'AVERAGE') return values.reduce((a2, b2) => a2 + b2, 0) / values.length;
-  if (fn === 'MIN') return Math.min(...values);
-  if (fn === 'MAX') return Math.max(...values);
-  return null;
-}
-
-function toCsv(cols: number, rows: number, cells: Record<string, string>) {
-  const lines: string[] = [];
-  for (let r = 0; r < rows; r++) {
-    const rowVals: string[] = [];
-    for (let c = 0; c < cols; c++) {
-      const v = cells[cellKey(c, r)] ?? '';
-      const safe = `"${String(v).replace(/\"/g, '""')}"`;
-      rowVals.push(safe);
+    try {
+      await deleteDocument(docId);
+      toast.success('Spreadsheet deleted');
+      navigate('/dashboard/documents');
+    } catch {
+      toast.error('Failed to delete spreadsheet');
     }
-    lines.push(rowVals.join(','));
-  }
-  return lines.join('\n');
-}
+  };
 
-export function SpreadsheetEditor(props: {
-  content: Extract<DocumentContent, { kind: 'sheet' }>;
-  onChange: (next: Extract<DocumentContent, { kind: 'sheet' }>) => void;
-  saving: boolean;
-}) {
-  const [cols, setCols] = useState(10);
-  const [rows, setRows] = useState(30);
-  const [selected, setSelected] = useState<string>('A1');
+  const exportCsv = () => {
+    const lines: string[] = [];
+    lines.push(cols.join(','));
 
-  const cells = props.content.cells;
-
-  const formulaValue = useMemo(() => {
-    const raw = cells[selected] ?? '';
-    if (raw.startsWith('=')) {
-      const computed = evaluateFormula(raw, cells);
-      if (computed == null) return '';
-      return String(computed);
+    for (let r = 1; r <= rowCount; r++) {
+      const row = cols.map((c) => {
+        const v = cells[`${c}${r}`] ?? '';
+        return `"${String(v).replaceAll('"', '""')}"`;
+      });
+      lines.push(row.join(','));
     }
-    return '';
-  }, [cells, selected]);
 
-  const setCell = (key: string, value: string) => {
-    props.onChange({ kind: 'sheet', cells: { ...cells, [key]: value } });
+    const csv = lines.join('\n');
+    const el = window.document.createElement('a');
+    el.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv));
+    el.setAttribute('download', `${title}.csv`);
+    el.style.display = 'none';
+    window.document.body.appendChild(el);
+    el.click();
+    window.document.body.removeChild(el);
+
+    toast.success('Exported CSV');
   };
 
-  const onExportCsv = () => {
-    const csv = toCsv(cols, rows, cells);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sheet.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const saveVersionNow = async () => {
+    if (!docId || !currentUser) return;
+    try {
+      setSaving(true);
+      await updateDocumentContent({
+        docId,
+        updatedBy: currentUser.uid,
+        content: { kind: 'sheet', cells },
+        newTitle: title,
+        bumpVersion: true,
+      });
+      setHasChanges(false);
+      toast.success('Saved (new version)');
+    } catch {
+      toast.error('Save failed');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const onExportExcel = () => {
-    // A true .xlsx needs a library. Provide CSV fallback for now.
-    toast.message('Excel export uses CSV for now.');
-    onExportCsv();
-  };
-
-  const onFormat = (kind: 'bold' | 'italic' | 'underline') => {
-    const v = cells[selected] ?? '';
-    if (!v) return;
-    // Simple markdown-like formatting inside cell.
-    if (kind === 'bold') setCell(selected, `**${v}**`);
-    if (kind === 'italic') setCell(selected, `*${v}*`);
-    if (kind === 'underline') setCell(selected, `__${v}__`);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <p>Loading spreadsheet...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Ribbon */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black">
-        <div className="flex flex-wrap items-center gap-2 p-2">
+    <div className="min-h-screen bg-white dark:bg-black pb-24">
+      <header className="sticky top-0 z-40 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="px-4 lg:px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/documents')}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2 min-w-0">
+              <Sheet className="w-5 h-5 flex-shrink-0" />
+              <Input
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setHasChanges(true);
+                }}
+                className="border-0 text-lg font-semibold focus-visible:ring-0 focus-visible:bg-gray-100 dark:focus-visible:bg-gray-900"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
-            <div className="text-sm font-medium">{selected}</div>
-            <Input
-              value={cells[selected] ?? ''}
-              onChange={(e) => setCell(selected, e.target.value)}
-              className="w-64 h-9"
-              placeholder="Value or =SUM(A1:B2)"
-            />
-            {formulaValue ? (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                <Sigma className="w-3.5 h-3.5 inline-block mr-1" />
-                {formulaValue}
+            {saving && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
               </div>
-            ) : null}
-          </div>
+            )}
+            {hasChanges && !saving && <div className="text-sm text-orange-500">Unsaved changes</div>}
 
-          <Separator orientation="vertical" className="h-6" />
+            <Button variant="outline" size="sm" onClick={saveVersionNow} disabled={!canEdit}>
+              <Save className="w-4 h-4 mr-2" />
+              Save
+            </Button>
 
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => onFormat('bold')}>
-              <Bold className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onFormat('italic')}>
-              <Italic className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onFormat('underline')}>
-              <Underline className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setRows((r) => r + 1)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Row
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setRows((r) => Math.max(1, r - 1))}>
-              <Minus className="w-4 h-4 mr-2" />
-              Row
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setCols((c) => c + 1)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Col
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setCols((c) => Math.max(1, c - 1))}>
-              <Minus className="w-4 h-4 mr-2" />
-              Col
-            </Button>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onExportCsv}>
-              <FileDown className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={onExportExcel}>
-              <FileDown className="w-4 h-4 mr-2" />
-              Export Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowRenameDialog(true)}>
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportCsv}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+      </header>
 
-        <div className="px-3 pb-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <div>
-            Tip: formulas like <span className="font-mono">=SUM(A1:B3)</span>, <span className="font-mono">=AVERAGE(A1:A5)</span>
-          </div>
-          <div className="font-medium">{props.saving ? 'Saving…' : 'Saved'}</div>
-        </div>
-      </div>
-
-      {/* Grid */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black overflow-auto">
-        <table className="min-w-[900px] border-collapse text-sm">
-          <thead className="sticky top-0 bg-white dark:bg-black z-10">
-            <tr>
-              <th className="w-12 border-b border-gray-200 dark:border-gray-800"></th>
-              {Array.from({ length: cols }).map((_, c) => (
-                <th
-                  key={c}
-                  className="min-w-[120px] border-b border-gray-200 dark:border-gray-800 px-2 py-2 text-left font-medium text-gray-600 dark:text-gray-300"
-                >
-                  {colName(c)}
+      <main className="px-4 lg:px-6 py-6">
+        <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100 dark:bg-gray-900">
+                <th className="border border-gray-200 dark:border-gray-800 px-3 py-2 text-left text-sm font-semibold w-12">
+                  #
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: rows }).map((_, r) => (
-              <tr key={r}>
-                <td className="w-12 border-b border-gray-200 dark:border-gray-800 px-2 py-2 text-xs text-gray-500 dark:text-gray-400">
-                  {r + 1}
-                </td>
-                {Array.from({ length: cols }).map((_, c) => {
-                  const k = cellKey(c, r);
-                  const v = cells[k] ?? '';
-                  const isSelected = selected === k;
-                  const computed = v.startsWith('=') ? evaluateFormula(v, cells) : null;
-
-                  return (
-                    <td
-                      key={k}
-                      className="border-b border-gray-200 dark:border-gray-800 px-1 py-1"
-                      onClick={() => setSelected(k)}
-                    >
-                      <input
-                        value={v}
-                        onChange={(e) => setCell(k, e.target.value)}
-                        className={
-                          'w-full h-9 px-2 rounded-md bg-transparent outline-none ' +
-                          (isSelected
-                            ? 'ring-2 ring-black/40 dark:ring-white/40'
-                            : 'focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20')
-                        }
-                      />
-                      {computed != null && (
-                        <div className="px-2 -mt-1 pb-1 text-[11px] text-gray-400 dark:text-gray-500">
-                          = {computed}
-                        </div>
-                      )}
-                    </td>
-                  );
-                })}
+                {cols.map((col) => (
+                  <th
+                    key={col}
+                    className="border border-gray-200 dark:border-gray-800 px-3 py-2 text-left text-sm font-semibold min-w-32"
+                  >
+                    {col}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {Array.from({ length: rowCount }).map((_, idx) => {
+                const r = idx + 1;
+                return (
+                  <tr key={r} className="hover:bg-gray-50 dark:hover:bg-gray-900">
+                    <td className="border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm text-gray-500 bg-gray-50 dark:bg-gray-900">
+                      {r}
+                    </td>
+                    {cols.map((c) => {
+                      const addr = `${c}${r}`;
+                      return (
+                        <td key={addr} className="border border-gray-200 dark:border-gray-800 p-0">
+                          <Input
+                            value={cells[addr] ?? ''}
+                            onChange={(e) => setCell(addr, e.target.value)}
+                            className="border-0 rounded-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0"
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <Button onClick={addRow} variant="outline" className="mt-4">
+          <Plus className="w-4 h-4 mr-2" />
+          Add rows
+        </Button>
+      </main>
+
+      <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Spreadsheet</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Spreadsheet title" />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleRename}>Rename</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ShareWithHannaDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        documentTitle={title}
+        documentId={docId || ''}
+      />
     </div>
   );
 }

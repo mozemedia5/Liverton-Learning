@@ -11,6 +11,7 @@ import { registerServiceWorker } from '@/lib/pwa';
 import LandingPage from '@/pages/LandingPage';
 import RoleSelection from '@/pages/RoleSelection';
 import Login from '@/pages/Login';
+import AdminLogin from '@/pages/AdminLogin';
 import StudentRegister from '@/pages/register/StudentRegister';
 import TeacherRegister from '@/pages/register/TeacherRegister';
 import SchoolAdminRegister from '@/pages/register/SchoolAdminRegister';
@@ -96,6 +97,7 @@ function AppRoutes() {
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
       <Route path="/get-started" element={<PublicRoute><RoleSelection /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/register/student" element={<PublicRoute><StudentRegister /></PublicRoute>} />
       <Route path="/register/teacher" element={<PublicRoute><TeacherRegister /></PublicRoute>} />
       <Route path="/register/school-admin" element={<PublicRoute><SchoolAdminRegister /></PublicRoute>} />
