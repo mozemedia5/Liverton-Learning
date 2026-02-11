@@ -10,7 +10,6 @@ import { registerServiceWorker } from '@/lib/pwa';
 import LandingPage from '@/pages/LandingPage';
 import RoleSelection from '@/pages/RoleSelection';
 import Login from '@/pages/Login';
-import AdminLogin from '@/pages/AdminLogin';
 import StudentRegister from '@/pages/register/StudentRegister';
 import TeacherRegister from '@/pages/register/TeacherRegister';
 import SchoolAdminRegister from '@/pages/register/SchoolAdminRegister';
@@ -20,7 +19,6 @@ import ParentRegister from '@/pages/register/ParentRegister';
 import StudentDashboard from '@/dashboards/StudentDashboard';
 import TeacherDashboard from '@/dashboards/TeacherDashboard';
 import SchoolAdminDashboard from '@/dashboards/SchoolAdminDashboard';
-import PlatformAdminDashboard from '@/dashboards/PlatformAdminDashboard';
 
 // Feature Pages
 import Courses from '@/pages/features/Courses';
@@ -82,7 +80,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
       student: '/student/dashboard',
       teacher: '/teacher/dashboard',
       school_admin: '/school-admin/dashboard',
-      platform_admin: '/admin/dashboard',
       parent: '/student/dashboard',
     };
     return <Navigate to={dashboardRoutes[userRole] || '/'} replace />;
@@ -98,7 +95,6 @@ function AppRoutes() {
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
       <Route path="/get-started" element={<PublicRoute><RoleSelection /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/register/student" element={<PublicRoute><StudentRegister /></PublicRoute>} />
       <Route path="/register/teacher" element={<PublicRoute><TeacherRegister /></PublicRoute>} />
       <Route path="/register/school-admin" element={<PublicRoute><SchoolAdminRegister /></PublicRoute>} />
@@ -146,47 +142,40 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Platform Admin Routes */}
-      <Route path="/admin/dashboard" element={
-        <ProtectedRoute allowedRoles={['platform_admin']}>
-          <AuthenticatedLayout><PlatformAdminDashboard /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-
       {/* Shared Feature Routes */}
       <Route path="/announcements" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/chat" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Chat /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/payments" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin']}>
           <AuthenticatedLayout><Payments /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/profile" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Profile /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/settings" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Settings /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
       <Route path="/dashboard/documents" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Documents /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/dashboard/documents/:docId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><DocumentEditor /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
