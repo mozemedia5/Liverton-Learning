@@ -32,6 +32,12 @@ import Documents from '@/pages/features/Documents';
 import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
 
+// New Global Features
+import DocumentManagement from '@/pages/features/DocumentManagement';
+import Calculator from '@/pages/features/Calculator';
+import ProfileSystem from '@/pages/features/ProfileSystem';
+import HannaAI from '@/pages/features/HannaAI';
+
 // About Pages
 import About from '@/pages/about/About';
 import AboutSchools from '@/pages/about/AboutSchools';
@@ -180,6 +186,28 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/documents/public/:token" element={<PublicDocument />} />
+
+      {/* Global Feature Routes */}
+      <Route path="/features/document-management" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <AuthenticatedLayout><DocumentManagement /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/features/calculator" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <AuthenticatedLayout><Calculator /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/features/profile" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <AuthenticatedLayout><ProfileSystem /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/features/hanna-ai" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <AuthenticatedLayout><HannaAI /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
