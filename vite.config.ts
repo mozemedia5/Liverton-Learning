@@ -86,10 +86,25 @@ export default defineConfig({
           }
         ],
         categories: ['education', 'learning', 'productivity'],
+        screenshots: [
+          {
+            src: '/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            form_factor: 'narrow'
+          },
+          {
+            src: '/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            form_factor: 'wide'
+          }
+        ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         runtimeCaching: [
+          // Cache static assets
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
@@ -104,11 +119,13 @@ export default defineConfig({
               }
             }
           },
+          // Cache Firebase Storage with network fallback
           {
             urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'firebase-storage-cache',
+              networkTimeoutSeconds: 5,
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
@@ -118,22 +135,40 @@ export default defineConfig({
               }
             }
           },
+          // Cache Firebase Firestore with network fallback
           {
             urlPattern: /^https:\/\/.*\.firebaseio\.com\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'firebase-data-cache',
-              networkTimeoutSeconds: 10,
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 30,
                 maxAgeSeconds: 60 * 5 // 5 minutes
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          // Cache API calls with network fallback
+          {
+            urlPattern: /^https:\/\/.*\.firebaseapp\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'firebase-api-cache',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 10 // 10 minutes
               }
             }
           }
         ],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
-        clientsClaim: true
+        clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB
       },
       devOptions: {
         enabled: true,
