@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
 import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';
 import { registerServiceWorker } from '@/lib/pwa';
@@ -29,6 +30,9 @@ import Payments from '@/pages/features/Payments';
 import Profile from '@/pages/features/Profile';
 import Settings from '@/pages/features/Settings';
 import Quizzes from '@/pages/features/Quizzes';
+import Documents from '@/pages/features/Documents';
+import DocumentEditor from '@/pages/features/DocumentEditor';
+import PublicDocument from '@/pages/features/PublicDocument';
 
 // About Pages
 import About from '@/pages/about/About';
@@ -106,72 +110,84 @@ function AppRoutes() {
       {/* Student Routes */}
       <Route path="/student/dashboard" element={
         <ProtectedRoute allowedRoles={['student', 'parent']}>
-          <StudentDashboard />
+          <AuthenticatedLayout><StudentDashboard /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/student/courses" element={
         <ProtectedRoute allowedRoles={['student', 'parent']}>
-          <Courses />
+          <AuthenticatedLayout><Courses /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/student/quizzes" element={
         <ProtectedRoute allowedRoles={['student', 'parent']}>
-          <Quizzes />
+          <AuthenticatedLayout><Quizzes /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
       {/* Teacher Routes */}
       <Route path="/teacher/dashboard" element={
         <ProtectedRoute allowedRoles={['teacher']}>
-          <TeacherDashboard />
+          <AuthenticatedLayout><TeacherDashboard /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/teacher/courses" element={
         <ProtectedRoute allowedRoles={['teacher']}>
-          <Courses />
+          <AuthenticatedLayout><Courses /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
       {/* School Admin Routes */}
       <Route path="/school-admin/dashboard" element={
         <ProtectedRoute allowedRoles={['school_admin']}>
-          <SchoolAdminDashboard />
+          <AuthenticatedLayout><SchoolAdminDashboard /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
       {/* Platform Admin Routes */}
       <Route path="/admin/dashboard" element={
         <ProtectedRoute allowedRoles={['platform_admin']}>
-          <PlatformAdminDashboard />
+          <AuthenticatedLayout><PlatformAdminDashboard /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
       {/* Shared Feature Routes */}
       <Route path="/announcements" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Announcements />
+          <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/chat" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Chat />
+          <AuthenticatedLayout><Chat /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/payments" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'platform_admin']}>
-          <Payments />
+          <AuthenticatedLayout><Payments /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/profile" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Profile />
+          <AuthenticatedLayout><Profile /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/settings" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Settings />
+          <AuthenticatedLayout><Settings /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+
+      <Route path="/dashboard/documents" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><Documents /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/documents/:docId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><DocumentEditor /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/documents/public/:token" element={<PublicDocument />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

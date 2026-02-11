@@ -1,5 +1,9 @@
 export type UserRole = 'student' | 'teacher' | 'school_admin' | 'parent' | 'platform_admin';
 
+export type DocumentType = 'doc' | 'sheet' | 'presentation';
+export type DocumentVisibility = 'private' | 'internal' | 'public';
+export type DocumentSharePermission = 'view' | 'edit';
+
 export interface User {
   uid: string;
   email: string;
@@ -254,4 +258,99 @@ export interface School {
   subscriptionStatus: 'active' | 'inactive' | 'pending';
   subscriptionExpiry?: Date;
   createdAt: Date;
+}
+
+// --- Document Management System (DMS) Types ---
+export interface DocumentFolder {
+  id: string;
+  title: string;
+  ownerId: string;
+  parentId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DocumentMeta {
+  id: string;
+  title: string;
+  type: DocumentType;
+  ownerId: string;
+  role: UserRole;
+  schoolId?: string;
+  folderId?: string | null;
+  sharedWith: string[];
+  sharedWithPermissions?: Record<string, DocumentSharePermission>;
+  visibility: DocumentVisibility;
+  publicToken?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+}
+
+export type DocumentContent =
+  | { kind: 'doc'; html: string }
+  | { kind: 'sheet'; cells: Record<string, string> }
+  | { kind: 'presentation'; slides: PresentationSlide[] };
+
+export interface PresentationSlide {
+  id: string;
+  title?: string;
+  elements: PresentationElement[];
+  layout?: 'title' | 'title_content' | 'blank';
+}
+
+export type PresentationElement =
+  | {
+      id: string;
+      type: 'text';
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      text: string;
+      fontSize?: number;
+      bold?: boolean;
+      italic?: boolean;
+      align?: 'left' | 'center' | 'right';
+    }
+  | {
+      id: string;
+      type: 'image';
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      url: string;
+    }
+  | {
+      id: string;
+      type: 'shape';
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      shape: 'rect' | 'ellipse';
+    };
+
+export interface DocumentRecord extends DocumentMeta {
+  content?: DocumentContent;
+  fileUrl?: string;
+}
+
+export interface DocumentVersion {
+  id: string;
+  documentId: string;
+  version: number;
+  createdAt: Date;
+  createdBy: string;
+  content: DocumentContent;
+}
+
+export interface HannaQueueItem {
+  id: string;
+  status: 'pending' | 'processing' | 'done' | 'failed';
+  userId: string;
+  documentId: string;
+  createdAt: Date;
+  payload: DocumentContent;
 }
