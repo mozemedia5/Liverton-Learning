@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -92,6 +92,7 @@ export default function PresentationEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState<number>(0);
 
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -160,6 +161,7 @@ export default function PresentationEditor() {
           bumpVersion: false,
         });
         setHasChanges(false);
+        setLastSavedTime(Date.now());
       } catch {
         toast.error('Failed to save presentation');
       } finally {
@@ -170,15 +172,15 @@ export default function PresentationEditor() {
     return () => clearTimeout(timer);
   }, [hasChanges, record, docId, currentUser, title, slides]);
 
-  const updateSlide = (id: string, patch: Partial<PresentationSlide>) => {
+  const updateSlide = useCallback((id: string, patch: Partial<PresentationSlide>) => {
     setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
     setHasChanges(true);
-  };
+  }, []);
 
-  const updateSelectedBody = (body: string) => {
+  const updateSelectedBody = useCallback((body: string) => {
     setSlides((prev) => prev.map((s) => (s.id === selected.id ? setSlideBody(s, body) : s)));
     setHasChanges(true);
-  };
+  }, [selected.id]);
 
   const addSlide = () => {
     const s = createSlide();
@@ -267,7 +269,8 @@ ${slides
         bumpVersion: true,
       });
       setHasChanges(false);
-      toast.success('Saved (new version)');
+      setLastSavedTime(Date.now());
+      toast.success('Version saved successfully');
     } catch {
       toast.error('Save failed');
     } finally {
@@ -321,9 +324,16 @@ ${slides
             )}
             {hasChanges && !saving && <div className="text-sm text-orange-500">Unsaved changes</div>}
 
-            <Button variant="outline" size="sm" onClick={saveVersionNow} disabled={!canEdit}>
+            {!hasChanges && !saving && lastSavedTime > 0 && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <Save className="w-4 h-4" />
+                All saved
+              </div>
+            )}
+
+            <Button variant="outline" size="sm" onClick={saveVersionNow} disabled={!canEdit || saving}>
               <Save className="w-4 h-4 mr-2" />
-              Save
+              Save Version
             </Button>
 
             <Button variant="outline" size="sm" onClick={startPresent} disabled={!docId}>
