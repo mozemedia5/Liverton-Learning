@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { BottomNav } from '@/components/BottomNav';
+import SideNavbar from '@/components/SideNavbar';
 import { HannaButton } from '@/components/HannaButton';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function AuthenticatedLayout(props: { children?: React.ReactNode }) {
-  const { isAuthenticated, userRole } = useAuth();
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
 
   // When not authenticated, this layout should not be used (routes are protected),
@@ -21,9 +21,14 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen pb-24">
-      {props.children ?? <Outlet />}
-      {show && <BottomNav userRole={userRole} />}
+    <div className="min-h-screen bg-white dark:bg-black">
+      {show && <SideNavbar />}
+      
+      {/* Main Content Area */}
+      <main className="lg:ml-0">
+        {props.children ?? <Outlet />}
+      </main>
+
       {show && !hideHanna && <HannaButton />}
     </div>
   );
