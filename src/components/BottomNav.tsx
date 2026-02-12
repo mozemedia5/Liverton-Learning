@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogoutConfirmDialog } from '@/components/LogoutConfirmDialog';
+import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { Home, MessageSquare, Settings, LogOut, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/types';
@@ -84,7 +84,7 @@ export function BottomNav({ userRole }: BottomNavProps) {
       <LogoutConfirmDialog
         open={showLogoutDialog}
         onConfirm={handleLogout}
-        onCancel={() => setShowLogoutDialog(false)}
+        onOpenChange={(open) => setShowLogoutDialog(open)}
         isLoading={isLoggingOut}
       />
     </>

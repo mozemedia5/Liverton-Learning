@@ -1,305 +1,290 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SideNavbar from '@/components/SideNavbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
   BookOpen, 
-  MessageSquare, 
   Bell, 
-  CreditCard, 
-  User, 
-  Settings, 
-  LogOut,
-  CheckCircle,
-  AlertCircle,
-  FileText,
-  Plus,
-  Sparkles
+  User,
+  TrendingUp,
+
+  Calendar,
+  Award,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useCourses } from '@/hooks/useCourses';
-import { useQuizzes } from '@/hooks/useQuizzes';
-import { useAnnouncements } from '@/hooks/useAnnouncements';
-import { DashboardSkeleton } from '@/components/LoadingSkeleton';
-import SideNavbar from '@/components/SideNavbar';
-import { toast } from 'sonner';
 
 /**
  * StudentDashboard Component
  * 
- * Main dashboard for student users with:
- * - Sliding overlay navigation (SideNavbar)
- * - Course management and progress tracking
- * - Quiz management
- * - Announcements feed
- * - Document management integration
- * - Hanna AI integration
- * - Real-time data from Firebase
+ * Features:
+ * - Uses SideNavbar for sliding overlay navigation with Hanna AI integration
+ * - Displays student-specific statistics (courses, progress, grades)
+ * - Course enrollment and progress tracking
+ * - Responsive design with mobile support
+ * - Dark mode support
+ * - Hanna AI integration (unique to student dashboard)
  */
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const { logout, userData } = useAuth();
+  const { userData } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  // Fetch real data from Firebase
-  const { courses, loading: coursesLoading, error: coursesError } = useCourses();
-  const { quizzes, loading: quizzesLoading, error: quizzesError } = useQuizzes();
-  const { announcements, loading: announcementsLoading, error: announcementsError } = useAnnouncements({ maxResults: 5 });
+  // Mock data for student dashboard
+  const enrolledCourses = [
+    { id: 1, title: 'Advanced Mathematics', instructor: 'Mr. Smith', progress: 75, status: 'active' },
+    { id: 2, title: 'Physics Fundamentals', instructor: 'Ms. Johnson', progress: 60, status: 'active' },
+    { id: 3, title: 'English Literature', instructor: 'Mr. Brown', progress: 85, status: 'active' },
+  ];
 
-  /**
-   * Handle logout with confirmation
-   * Prevents accidental logout by requiring user confirmation
-   */
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success('Logged out successfully');
-      navigate('/');
-    } catch (error) {
-      toast.error('Failed to logout');
-    }
+  const studentStats = {
+    totalCourses: 3,
+    averageGrade: 'A-',
+    attendanceRate: 92,
+    completedAssignments: 24,
   };
 
-  /**
-   * Calculate dashboard statistics from real data
-   * Provides overview of student progress and engagement
-   */
-  const stats = {
-    enrolledCourses: courses.length,
-    quizzesTaken: quizzes.length,
-    averageProgress: courses.length > 0 
-      ? Math.round(courses.reduce((sum, c) => sum + (c.progress || 0), 0) / courses.length)
-      : 0,
-  };
+  const upcomingAssignments = [
+    { id: 1, title: 'Math Problem Set 5', course: 'Advanced Mathematics', dueDate: '2026-02-15', status: 'pending' },
+    { id: 2, title: 'Physics Lab Report', course: 'Physics Fundamentals', dueDate: '2026-02-18', status: 'pending' },
+    { id: 3, title: 'Essay on Shakespeare', course: 'English Literature', dueDate: '2026-02-20', status: 'pending' },
+  ];
 
-  // Check if any data loading errors occurred
-  const hasError = coursesError || quizzesError || announcementsError;
+  const recentGrades = [
+    { id: 1, assignment: 'Algebra Quiz', course: 'Advanced Mathematics', grade: 'A', date: '2026-02-08' },
+    { id: 2, assignment: 'Physics Midterm', course: 'Physics Fundamentals', grade: 'B+', date: '2026-02-07' },
+    { id: 3, assignment: 'Reading Assignment', course: 'English Literature', grade: 'A-', date: '2026-02-06' },
+  ];
+
+  const announcements = [
+    { id: 1, title: 'New Course Materials Available', course: 'Advanced Mathematics', date: '2026-02-09' },
+    { id: 2, title: 'Exam Schedule Released', course: 'Physics Fundamentals', date: '2026-02-08' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
-      {/* Sliding Overlay Navigation - Firebase Console Style */}
+      {/* Use SideNavbar for overlay navigation with Hanna AI */}
       <SideNavbar />
 
-      {/* Top Navigation Header */}
+      {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-              <span className="text-white dark:text-black font-bold text-sm">LL</span>
-            </div>
-            <h1 className="text-xl font-bold hidden sm:inline">Liverton Learning</h1>
-          </div>
+        <div className="flex items-center justify-between px-4 py-3 lg:pl-64">
           <div className="flex items-center gap-2">
-            {/* Theme Toggle Button */}
+            <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-white dark:text-black" />
+            </div>
+            <span className="font-semibold hidden sm:inline">Liverton Learning</span>
+          </div>
+
+          {/* Top Right Actions */}
+          <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'light' ? '🌙' : '☀️'}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/announcements')}>
+              <Bell className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
+              <User className="w-5 h-5" />
             </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <main className="p-4 lg:p-6 space-y-6 lg:ml-0">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Welcome back, {userData?.fullName || 'Student'}!</h2>
-          <p className="text-gray-600 dark:text-gray-400">Here's your learning dashboard</p>
-        </div>
-
-        {/* Error Alert - Displayed if data loading fails */}
-        {hasError && (
-          <Card className="mb-6 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950">
-            <CardContent className="pt-6 flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-              <p className="text-red-800 dark:text-red-200">
-                Failed to load some data. Please refresh the page.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Statistics Grid - Overview of student progress */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* Enrolled Courses Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Enrolled Courses
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.enrolledCourses}</div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Active courses</p>
-            </CardContent>
-          </Card>
-
-          {/* Quizzes Taken Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Quizzes Taken
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.quizzesTaken}</div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Completed</p>
-            </CardContent>
-          </Card>
-
-          {/* Average Progress Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Average Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.averageProgress}%</div>
-              <Progress value={stats.averageProgress} className="mt-2" />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Courses Section - Display enrolled courses with progress tracking */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold">Your Courses</h3>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/student/courses')}
-            >
-              View All
-            </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Welcome, {userData?.fullName || 'Student'}!</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track your courses and assignments</p>
           </div>
-          {coursesLoading ? (
-            <DashboardSkeleton />
-          ) : courses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {courses.map((course) => (
-                <Card key={course.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle>{course.title}</CardTitle>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {course.instructor}
-                        </p>
-                      </div>
-                      <Badge variant="secondary">{course.students} students</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {course.description}
+          <Button 
+            onClick={() => navigate('/student/courses')}
+            className="bg-black dark:bg-white text-white dark:text-black"
+          >
+            Browse Courses
+          </Button>
+        </div>
+
+        {/* Student Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Total Courses Card */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
+                  <p className="text-xl font-bold">{studentStats.totalCourses}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Average Grade Card */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                  <Award className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Average Grade</p>
+                  <p className="text-xl font-bold">{studentStats.averageGrade}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attendance Rate Card */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Attendance</p>
+                  <p className="text-xl font-bold">{studentStats.attendanceRate}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Completed Assignments Card */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Assignments Done</p>
+                  <p className="text-xl font-bold">{studentStats.completedAssignments}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Enrolled Courses Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              My Courses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {enrolledCourses.map((course) => (
+                <div 
+                  key={course.id}
+                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/student/courses/${course.id}`)}
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{course.title}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {course.instructor} • {course.progress}% complete
                     </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span className="font-semibold">{course.progress || 0}%</span>
-                      </div>
-                      <Progress value={course.progress || 0} />
-                    </div>
-                    <Button 
-                      className="w-full mt-4" 
-                      onClick={() => navigate(`/course/${course.id}`)}
-                    >
-                      Continue Learning
-                    </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
+                    {course.status}
+                  </Badge>
+                </div>
               ))}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center text-gray-600 dark:text-gray-400">
-                No courses enrolled yet. Start learning today!
-              </CardContent>
-            </Card>
-          )}
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Announcements Section - Latest updates and notifications */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold mb-4">Latest Announcements</h3>
-          {announcementsLoading ? (
-            <DashboardSkeleton />
-          ) : announcements.length > 0 ? (
+        {/* Upcoming Assignments Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Upcoming Assignments
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {upcomingAssignments.map((assignment) => (
+                <div 
+                  key={assignment.id}
+                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{assignment.title}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {assignment.course} • Due {assignment.dueDate}
+                    </p>
+                  </div>
+                  <Badge variant={assignment.status === 'pending' ? 'secondary' : 'default'}>
+                    {assignment.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Grades Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5" />
+              Recent Grades
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentGrades.map((grade) => (
+                <div 
+                  key={grade.id}
+                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{grade.assignment}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {grade.course} • {grade.date}
+                    </p>
+                  </div>
+                  <span className="text-lg font-bold text-green-600">{grade.grade}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Announcements Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Course Announcements
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               {announcements.map((announcement) => (
-                <Card key={announcement.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
-                      <Bell className="w-5 h-5 text-blue-500 flex-shrink-0 mt-1" />
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{announcement.title}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {announcement.content}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                          {new Date(announcement.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div 
+                  key={announcement.id}
+                  className="p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                >
+                  <h3 className="font-semibold">{announcement.title}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {announcement.course} • {announcement.date}
+                  </p>
+                </div>
               ))}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center text-gray-600 dark:text-gray-400">
-                No announcements yet.
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Quizzes Section - Available quizzes for student assessment */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-bold">Recent Quizzes</h3>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/student/quizzes')}
-            >
-              View All
-            </Button>
-          </div>
-          {quizzesLoading ? (
-            <DashboardSkeleton />
-          ) : quizzes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {quizzes.map((quiz) => (
-                <Card key={quiz.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle>{quiz.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {quiz.description}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <Badge variant="outline">{quiz.questions} questions</Badge>
-                      <Button onClick={() => navigate(`/quiz/${quiz.id}`)}>
-                        Take Quiz
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center text-gray-600 dark:text-gray-400">
-                No quizzes available yet.
-              </CardContent>
-            </Card>
-          )}
-        </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

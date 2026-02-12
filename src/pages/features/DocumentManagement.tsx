@@ -11,7 +11,7 @@ import {
   doc as firestoreDoc, 
   Timestamp, 
   orderBy,
-  updateDoc 
+  
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '../../components/ui/button';
@@ -28,7 +28,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from '../../components/ui/alert-dialog';
-import { FileText, Sheet, Presentation, Download, Trash2, Plus, X, Loader2 } from 'lucide-react';
+import { FileText, Sheet, Presentation, Download, Trash2, Plus,  Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**

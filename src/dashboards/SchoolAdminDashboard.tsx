@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SchoolAdminSideNavbar from '@/components/SchoolAdminSideNavbar';
 import { Button } from '@/components/ui/button';
@@ -7,27 +6,19 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   BookOpen, 
-  MessageSquare, 
   Bell, 
   CreditCard, 
-  User, 
-  Settings, 
-  LogOut,
+  User,
   Users,
   GraduationCap,
   Calendar,
-  Menu,
-  X,
-  Brain,
   Plus,
   CheckCircle,
   TrendingUp,
-  DollarSign,
-  BarChart3
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { toast } from 'sonner';
 
 /**
  * SchoolAdminDashboard Component
@@ -44,7 +35,7 @@ import { toast } from 'sonner';
  */
 export default function SchoolAdminDashboard() {
   const navigate = useNavigate();
-  const { logout, userData } = useAuth();
+  const { userData } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   // Mock data for school admin dashboard

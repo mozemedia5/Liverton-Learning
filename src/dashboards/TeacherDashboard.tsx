@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TeacherSideNavbar from '@/components/TeacherSideNavbar';
 import { Button } from '@/components/ui/button';
@@ -6,25 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   BookOpen, 
-  MessageSquare, 
   Bell, 
   CreditCard, 
-  User, 
-  Settings, 
-  LogOut,
+  User,
   TrendingUp,
   DollarSign,
   Users,
-  Upload,
   Plus,
-  Menu,
-  X,
-  Brain,
   CheckCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { toast } from 'sonner';
 
 /**
  * TeacherDashboard Component
@@ -40,7 +31,7 @@ import { toast } from 'sonner';
  */
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const { logout, userData } = useAuth();
+  const { userData } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   // Mock data for teacher dashboard
