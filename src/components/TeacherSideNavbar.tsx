@@ -195,14 +195,14 @@ export default function TeacherSideNavbar() {
             <div className="ml-4 mt-2 space-y-2 border-l-2 border-gray-200 dark:border-gray-800 pl-4">
               <button
                 onClick={() => handleNavigate('/features/document-management')}
-                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
               >
                 <FileText className="w-4 h-4" />
                 <span>My Documents</span>
               </button>
               <button
                 onClick={handleAddDocument}
-                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Document</span>
