@@ -1,10 +1,8 @@
-import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
-import { registerServiceWorker } from '@/lib/pwa';
 
 // Pages
 import LandingPage from '@/pages/LandingPage';
@@ -160,7 +158,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/payments" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin']}> 
           <AuthenticatedLayout><Payments /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
@@ -216,10 +214,8 @@ function AppRoutes() {
 }
 
 function App() {
-  useEffect(() => {
-    // Register service worker on app load
-    registerServiceWorker();
-  }, []);
+  // PWA service worker registration disabled to prevent MIME type errors
+  // Will be re-enabled once service worker configuration is fixed
 
   return (
     <ThemeProvider>

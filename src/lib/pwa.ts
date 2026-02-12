@@ -9,9 +9,9 @@ export async function registerServiceWorker() {
   }
 
   try {
+    // Register without type: 'module' to avoid MIME type issues
     const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      type: 'module'
+      scope: '/'
     });
 
     console.log('✅ Service Worker registered successfully:', registration);
