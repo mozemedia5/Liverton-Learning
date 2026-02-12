@@ -1,75 +1,68 @@
-import { Flame } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { LogOut } from 'lucide-react';
 
+/**
+ * LogoutConfirmDialog Component
+ * 
+ * Features:
+ * - Prevents accidental logout with confirmation dialog
+ * - Clear messaging about logout consequences
+ * - Accessible dialog with proper focus management
+ * - Customizable callbacks for logout action
+ * 
+ * Props:
+ * - open: Whether dialog is open
+ * - onOpenChange: Callback when dialog open state changes
+ * - onConfirm: Callback when user confirms logout
+ * - isLoading: Whether logout is in progress
+ */
 interface LogoutConfirmDialogProps {
   open: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void>;
   isLoading?: boolean;
 }
 
-export function LogoutConfirmDialog({ open, onConfirm, onCancel, isLoading = false }: LogoutConfirmDialogProps) {
+export default function LogoutConfirmDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  isLoading = false,
+}: LogoutConfirmDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-      <AlertDialogContent className="border-2 border-red-500 dark:border-red-600 bg-white dark:bg-black max-w-md">
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
-          <div className="flex items-center justify-center mb-4">
-            <div className="text-5xl animate-bounce">😈</div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-red-100 dark:bg-red-950 rounded-lg">
+              <LogOut className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <AlertDialogTitle className="text-lg">Logout Confirmation</AlertDialogTitle>
           </div>
-          <AlertDialogTitle className="text-center text-2xl font-bold text-red-600 dark:text-red-400">
-            Confirm Logout
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-center space-y-3 pt-4">
-            <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400">
-              <Flame className="w-5 h-5" />
-              <span className="font-semibold">Please confirm you want to log out</span>
-              <Flame className="w-5 h-5" />
-            </div>
-            <p className="text-gray-700 dark:text-gray-300">
-              You will be signed out and returned to the login screen. Any unsaved work may be lost.
-            </p>
-            <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-3">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                Tip: Save your work before logging out.
-              </p>
-            </div>
+          <AlertDialogDescription className="text-base">
+            Are you sure you want to logout? You will need to login again to access your account.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex gap-3 pt-6">
-          <AlertDialogCancel
-            onClick={onCancel}
-            className="border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900"
-            disabled={isLoading}
-          >
+        <div className="flex gap-4 justify-end pt-4">
+          <AlertDialogCancel disabled={isLoading}>
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold"
             disabled={isLoading}
+            className="bg-red-600 hover:bg-red-700 text-white"
           >
-            {isLoading ? (
-              <>
-                <span className="animate-spin mr-2">⏳</span>
-                Logging out...
-              </>
-            ) : (
-              <>
-                <Flame className="w-4 h-4 mr-2" />
-                Confirm Logout
-              </>
-            )}
+            {isLoading ? 'Logging out...' : 'Logout'}
           </AlertDialogAction>
-        </AlertDialogFooter>
+        </div>
       </AlertDialogContent>
     </AlertDialog>
   );

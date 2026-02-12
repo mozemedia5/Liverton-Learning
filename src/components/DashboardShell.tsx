@@ -11,6 +11,10 @@ import {
   Bot,
 } from 'lucide-react';
 
+/**
+ * Navigation items for the bottom navigation bar
+ * These are the main sections accessible from any dashboard
+ */
 const NAV_ITEMS = [
   { key: 'home', label: 'Home', icon: Home },
   { key: 'courses', label: 'Courses', icon: BookOpen },
@@ -20,6 +24,10 @@ const NAV_ITEMS = [
   { key: 'hanna', label: 'Hanna', icon: Bot },
 ] as const;
 
+/**
+ * Compute the home path based on user role
+ * Ensures users are directed to their appropriate dashboard
+ */
 function computeHomePath(role?: string | null) {
   if (role === 'teacher') return '/teacher/dashboard';
   if (role === 'school_admin') return '/school-admin/dashboard';
@@ -27,11 +35,30 @@ function computeHomePath(role?: string | null) {
   return '/student/dashboard';
 }
 
+/**
+ * Compute the courses path based on user role
+ */
 function computeCoursesPath(role?: string | null) {
   if (role === 'teacher') return '/teacher/courses';
   return '/student/courses';
 }
 
+/**
+ * DashboardShell Component
+ * 
+ * Features:
+ * - Full-width layout (sidebar overlays, doesn't partition)
+ * - Bottom navigation for mobile-first design
+ * - Sticky header with title and optional right content
+ * - Responsive padding to accommodate bottom nav
+ * - Dark mode support
+ * 
+ * Props:
+ * - title: Page title displayed in header
+ * - children: Main content
+ * - userRole: User's role for path computation
+ * - headerRight: Optional content for header right side
+ */
 export function DashboardShell(props: {
   title: string;
   children: React.ReactNode;
@@ -41,20 +68,26 @@ export function DashboardShell(props: {
   const navigate = useNavigate();
   const location = useLocation();
 
+  /**
+   * Compute navigation routes based on user role
+   */
   const routes = useMemo(() => {
     const home = computeHomePath(props.userRole);
     return {
       home,
       courses: computeCoursesPath(props.userRole),
-      documents: '/dashboard/documents',
+      documents: '/features/document-management',
       chat: '/chat',
       announcements: '/announcements',
     };
   }, [props.userRole]);
 
+  /**
+   * Determine which navigation item is currently active
+   */
   const activeKey = useMemo(() => {
     const p = location.pathname;
-    if (p.startsWith('/dashboard/documents')) return 'documents';
+    if (p.startsWith('/features/document-management')) return 'documents';
     if (p.startsWith('/chat')) return 'chat';
     if (p.startsWith('/announcements')) return 'announcements';
     if (p.includes('/courses')) return 'courses';
@@ -64,6 +97,7 @@ export function DashboardShell(props: {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white">
+      {/* Sticky Header - Always visible at top */}
       <header className="sticky top-0 z-40 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
@@ -73,15 +107,30 @@ export function DashboardShell(props: {
         </div>
       </header>
 
-      <main className="pb-24">{props.children}</main>
+      {/* Main Content Area
+          Full width - sidebar overlays on top, doesn't partition the layout
+          Padding bottom accommodates fixed bottom navigation
+      */}
+      <main className="pb-24 w-full">
+        {props.children}
+      </main>
 
-      {/* Jumia-style bottom navigation */}
+      {/* Bottom Navigation Bar - Mobile-first design
+          Fixed position, overlays content
+          Provides quick access to main sections
+          Responsive grid layout
+      */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-black/95 border-t border-gray-200 dark:border-gray-800 backdrop-blur">
         <div className="mx-auto max-w-5xl grid grid-cols-6">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
 
             const isActive = activeKey === item.key;
+            
+            /**
+             * Handle navigation based on item type
+             * Hanna AI dispatches custom event instead of navigating
+             */
             const onClick = () => {
               if (item.key === 'home') return navigate(routes.home);
               if (item.key === 'courses') return navigate(routes.courses);
@@ -89,7 +138,7 @@ export function DashboardShell(props: {
               if (item.key === 'chat') return navigate(routes.chat);
               if (item.key === 'announcements') return navigate(routes.announcements);
               if (item.key === 'hanna') {
-                // keep as route-less action; floating button exists too
+                // Dispatch custom event for Hanna AI modal
                 const ev = new CustomEvent('open-hanna');
                 window.dispatchEvent(ev);
                 return;
@@ -102,13 +151,15 @@ export function DashboardShell(props: {
                 type="button"
                 variant="ghost"
                 className={cn(
-                  'h-16 rounded-none flex flex-col items-center justify-center gap-1',
-                  isActive ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                  'h-16 rounded-none flex flex-col items-center justify-center gap-1 transition-colors duration-200',
+                  isActive 
+                    ? 'text-black dark:text-white bg-gray-100 dark:bg-gray-900' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 )}
                 onClick={onClick}
               >
-                <Icon className={cn('w-5 h-5', isActive ? '' : '')} />
-                <span className="text-[11px] leading-none">{item.label}</span>
+                <Icon className={cn('w-5 h-5')} />
+                <span className="text-[11px] leading-none font-medium">{item.label}</span>
               </Button>
             );
           })}

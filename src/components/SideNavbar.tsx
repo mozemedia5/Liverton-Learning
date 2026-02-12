@@ -24,16 +24,35 @@ import {
   Calculator,
   Sparkles,
   BarChart3,
+  ChevronRight,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+/**
+ * SideNavbar Component
+ * 
+ * Features:
+ * - Overlay-style sidebar that slides over content (not pushing it)
+ * - Mobile-responsive with hamburger menu
+ * - Logout confirmation dialog (prevents accidental logout)
+ * - Documents section with ability to add new documents
+ * - Hanna AI integration in navigation
+ * - Role-based navigation filtering
+ * - Smooth animations and transitions
+ */
 export default function SideNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { userRole, logout, userData } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDocumentsSubmenu, setShowDocumentsSubmenu] = useState(false);
 
+  /**
+   * Handle logout with confirmation
+   * Prevents accidental logout by requiring user confirmation
+   */
   const handleLogout = async () => {
     try {
       await logout();
@@ -47,8 +66,14 @@ export default function SideNavbar() {
     }
   };
 
+  /**
+   * Check if a route is currently active
+   */
   const isActive = (path: string) => location.pathname === path;
 
+  /**
+   * Get the appropriate dashboard path based on user role
+   */
   const getDashboardPath = () => {
     switch (userRole) {
       case 'student':
@@ -63,6 +88,10 @@ export default function SideNavbar() {
     }
   };
 
+  /**
+   * Navigation items configuration
+   * Each item can have optional roles to restrict visibility
+   */
   const navItems = [
     { label: 'Dashboard', path: getDashboardPath(), icon: Home },
     { label: 'Courses', path: '/student/courses', icon: BookOpen },
@@ -71,12 +100,11 @@ export default function SideNavbar() {
     { label: 'Payments', path: '/payments', icon: CreditCard, roles: ['student', 'teacher', 'school_admin'] },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
-    { label: 'Documents', path: '/features/document-management', icon: FileText },
-    { label: 'Calculator', path: '/features/calculator', icon: Calculator },
-    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
-    { label: 'Analytics', path: '/features/analytics', icon: BarChart3 },
   ];
 
+  /**
+   * Filter navigation items based on user role
+   */
   const filteredNavItems = navItems.filter(item => {
     if (item.roles && !item.roles.includes(userRole || '')) {
       return false;
@@ -84,32 +112,58 @@ export default function SideNavbar() {
     return true;
   });
 
+  /**
+   * Handle navigation and close sidebar
+   */
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setIsOpen(false);
+    setShowDocumentsSubmenu(false);
+  };
+
+  /**
+   * Handle adding new document
+   */
+  const handleAddDocument = () => {
+    navigate('/features/document-management');
+    setIsOpen(false);
+    setShowDocumentsSubmenu(false);
+  };
+
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - Fixed position, always visible on mobile */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden"
+        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden transition-all duration-200"
+        aria-label="Toggle navigation menu"
       >
         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      {/* Overlay */}
+      {/* Overlay Backdrop - Prevents interaction with content behind sidebar */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300"
           onClick={() => setIsOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Side Navbar - Overlay Style (Drawer) */}
+      {/* Side Navbar - Overlay Style (Drawer)
+          Key features:
+          - Fixed positioning (overlays content, doesn't push it)
+          - Smooth slide-in animation
+          - Full height with overflow scrolling
+          - Shadow for depth perception
+      */}
       <nav
         className={`fixed left-0 top-0 h-screen w-64 bg-white dark:bg-black border-r border-gray-200 dark:border-gray-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+        {/* Header Section - Logo and User Info */}
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-black">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
               <span className="text-white dark:text-black font-bold text-sm">LL</span>
@@ -124,7 +178,7 @@ export default function SideNavbar() {
           )}
         </div>
 
-        {/* Navigation Items */}
+        {/* Main Navigation Items */}
         <div className="p-4 space-y-2">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
@@ -132,13 +186,10 @@ export default function SideNavbar() {
             return (
               <button
                 key={item.path}
-                onClick={() => {
-                  navigate(item.path);
-                  setIsOpen(false);
-                }}
+                onClick={() => handleNavigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   active
-                    ? 'bg-black dark:bg-white text-white dark:text-black'
+                    ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
                 }`}
               >
@@ -149,10 +200,91 @@ export default function SideNavbar() {
           })}
         </div>
 
+        {/* Documents Section - Collapsible submenu */}
+        <div className="px-4 py-2">
+          <button
+            onClick={() => setShowDocumentsSubmenu(!showDocumentsSubmenu)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/features/document-management')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <FileText className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium flex-1">Documents</span>
+            <ChevronRight
+              className={`w-4 h-4 transition-transform duration-200 ${
+                showDocumentsSubmenu ? 'rotate-90' : ''
+              }`}
+            />
+          </button>
+
+          {/* Documents Submenu */}
+          {showDocumentsSubmenu && (
+            <div className="ml-4 mt-2 space-y-2 border-l-2 border-gray-200 dark:border-gray-800 pl-4">
+              <button
+                onClick={() => handleNavigate('/features/document-management')}
+                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
+              >
+                <FileText className="w-4 h-4" />
+                <span>My Documents</span>
+              </button>
+              <button
+                onClick={handleAddDocument}
+                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Document</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Hanna AI Section */}
+        <div className="px-4 py-2">
+          <button
+            onClick={() => handleNavigate('/features/hanna-ai')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/features/hanna-ai')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <Sparkles className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Hanna AI</span>
+          </button>
+        </div>
+
+        {/* Additional Features Section */}
+        <div className="px-4 py-2 space-y-2">
+          <button
+            onClick={() => handleNavigate('/features/calculator')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/features/calculator')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <Calculator className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Calculator</span>
+          </button>
+          <button
+            onClick={() => handleNavigate('/features/analytics')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/features/analytics')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Analytics</span>
+          </button>
+        </div>
+
         {/* Divider */}
         <div className="mx-4 my-4 border-t border-gray-200 dark:border-gray-800" />
 
-        {/* Logout Button */}
+        {/* Logout Button - With confirmation dialog */}
         <div className="p-4">
           <button
             onClick={() => setShowLogoutConfirm(true)}
@@ -164,20 +296,25 @@ export default function SideNavbar() {
         </div>
       </nav>
 
-      {/* Logout Confirmation Dialog */}
+      {/* Logout Confirmation Dialog
+          Prevents accidental logout by requiring explicit confirmation
+          Uses AlertDialog for accessibility and proper focus management
+      */}
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Logout Confirmation</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-lg font-semibold">Logout Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
               Are you sure you want to logout? You will need to login again to access your account.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-4">
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <div className="flex gap-4 justify-end">
+            <AlertDialogCancel className="px-4 py-2">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
             >
               Logout
             </AlertDialogAction>
