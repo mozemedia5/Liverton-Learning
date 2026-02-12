@@ -37,7 +37,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
             />
           </div>
           
-          {/* Orbiting ring (optional, adds to the Qwen-like feel) */}
+          {/* Orbiting ring */}
           <div className={`absolute ${currentSize.container} border-2 border-dashed border-blue-500/20 dark:border-blue-400/10 rounded-full animate-spin-slow`}></div>
         </div>
 
@@ -54,7 +54,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
         </div>
       </div>
 
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin-3d {
           from {
             transform: rotateY(0deg);
@@ -100,7 +100,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
         .animate-progress-loading {
           animation: progress-loading 2s ease-in-out infinite;
         }
-      `}</style>
+      `}} />
     </div>
   );
 }
