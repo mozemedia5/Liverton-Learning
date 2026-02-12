@@ -5,8 +5,6 @@
  * Handles chat management, messaging, file uploads, and search
  */
 
-import { toast } from 'sonner';
-
 /**
  * Interface for chat creation request
  */

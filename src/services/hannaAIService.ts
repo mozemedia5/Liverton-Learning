@@ -88,16 +88,9 @@ class HannaAIService {
         parts: [{ text: msg.content }],
       }));
 
-      // Create system prompt based on context
-      const systemPrompt = this.buildSystemPrompt(context);
-
-      // Start chat session with conversation history
+      // Start a chat session with the model
       const chat = this.model.startChat({
-        history: conversationHistory.slice(0, -1), // Exclude current user message
-        generationConfig: {
-          maxOutputTokens: 1024,
-          temperature: 0.7,
-        },
+        history: conversationHistory.slice(0, -1), // Exclude the last message (current user message)
       });
 
       // Send message and get response
@@ -113,48 +106,52 @@ class HannaAIService {
       return aiResponse;
     } catch (error) {
       console.error('Error processing message:', error);
-      return this.getFallbackResponse();
+      throw error;
     }
   }
 
   /**
-   * Build system prompt based on conversation context
-   * Personalizes AI behavior based on user role and subject
-   * @param context - Conversation context
+   * Generate AI response for a specific educational context
+   * @param userMessage - User's question or request
+   * @param userRole - Role of the user (student, teacher, parent)
+   * @param subject - Subject or topic area
+   * @returns AI-generated response
    */
-  private buildSystemPrompt(context: ConversationContext): string {
-    const { metadata } = context;
-    let prompt = `You are Hanna, an intelligent AI assistant for the Liverton Learning platform. 
-You are helpful, friendly, and focused on supporting educational goals.
-You provide clear, concise explanations and encourage learning.`;
+  async generateEducationalResponse(
+    userMessage: string,
+    userRole: string = 'student',
+    subject: string = 'general'
+  ): Promise<string> {
+    try {
+      // Create a system prompt based on the user's role and subject
+      const systemPrompt = `You are Hanna, an intelligent educational AI assistant for the Liverton Learning platform.
+      
+Your role: You are helping a ${userRole} with ${subject} topics.
+Your responsibilities:
+- Provide clear, accurate educational content
+- Adapt explanations to the user's level
+- Encourage learning and critical thinking
+- Be supportive and encouraging
+- Provide examples when helpful
+- Ask clarifying questions if needed
 
-    if (metadata?.userRole === 'student') {
-      prompt += `\nYou are assisting a student. Provide educational support, explain concepts clearly, and encourage critical thinking.`;
-    } else if (metadata?.userRole === 'teacher') {
-      prompt += `\nYou are assisting a teacher. Help with lesson planning, student assessment, and educational strategies.`;
-    } else if (metadata?.userRole === 'parent') {
-      prompt += `\nYou are assisting a parent. Help them understand their child's progress and provide parenting tips.`;
+Always maintain a professional, friendly, and educational tone.`;
+
+      // Send message to the model
+      const result = await this.model.generateContent({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt + '\n\nUser message: ' + userMessage }],
+          },
+        ],
+      });
+
+      return result.response.text();
+    } catch (error) {
+      console.error('Error generating educational response:', error);
+      throw error;
     }
-
-    if (metadata?.subject) {
-      prompt += `\nThe current subject of focus is: ${metadata.subject}`;
-    }
-
-    return prompt;
-  }
-
-  /**
-   * Get fallback response when API fails
-   * Ensures graceful degradation
-   */
-  private getFallbackResponse(): string {
-    const responses = [
-      "I'm having trouble processing that right now. Please try again in a moment.",
-      "Let me think about that... Could you rephrase your question?",
-      "I'm temporarily unavailable. Please try again shortly.",
-      "That's an interesting question! Could you provide more details?",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
   }
 
   /**
@@ -166,87 +163,10 @@ You provide clear, concise explanations and encourage learning.`;
   }
 
   /**
-   * Get conversation summary
-   * Useful for generating chat titles
-   * @param sessionId - Session identifier
+   * Get all active sessions
    */
-  async generateSessionTitle(sessionId: string): Promise<string> {
-    const context = this.getContext(sessionId);
-    if (!context || context.messages.length === 0) {
-      return 'New Chat';
-    }
-
-    try {
-      const firstMessage = context.messages[0].content;
-      const summary = firstMessage.substring(0, 50);
-      return summary.length < firstMessage.length ? summary + '...' : summary;
-    } catch (error) {
-      return 'Chat Session';
-    }
-  }
-
-  /**
-   * Analyze user query for intent
-   * Helps route queries to appropriate handlers
-   * @param message - User message
-   */
-  async analyzeQueryIntent(message: string): Promise<{
-    intent: string;
-    confidence: number;
-    keywords: string[];
-  }> {
-    try {
-      const prompt = `Analyze this message and identify the primary intent. 
-Message: "${message}"
-Respond in JSON format: {"intent": "string", "confidence": 0-1, "keywords": ["array", "of", "keywords"]}`;
-
-      const result = await this.model.generateContent(prompt);
-      const responseText = result.response.text();
-      
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return {
-        intent: 'general',
-        confidence: 0.5,
-        keywords: [],
-      };
-    } catch (error) {
-      console.error('Error analyzing intent:', error);
-      return {
-        intent: 'general',
-        confidence: 0.5,
-        keywords: [],
-      };
-    }
-  }
-
-  /**
-   * Generate educational content
-   * Creates explanations, summaries, or study materials
-   * @param topic - Topic to explain
-   * @param level - Educational level (beginner, intermediate, advanced)
-   * @param format - Format of content (explanation, summary, quiz, etc.)
-   */
-  async generateEducationalContent(
-    topic: string,
-    level: 'beginner' | 'intermediate' | 'advanced' = 'intermediate',
-    format: 'explanation' | 'summary' | 'quiz' | 'study_guide' = 'explanation'
-  ): Promise<string> {
-    try {
-      const prompt = `Create a ${format} about "${topic}" at a ${level} level.
-Make it clear, engaging, and educational.
-${format === 'quiz' ? 'Include 3-5 questions with answers.' : ''}`;
-
-      const result = await this.model.generateContent(prompt);
-      return result.response.text();
-    } catch (error) {
-      console.error('Error generating content:', error);
-      return 'Unable to generate content at this time.';
-    }
+  getActiveSessions(): string[] {
+    return Array.from(this.conversationContexts.keys());
   }
 }
 

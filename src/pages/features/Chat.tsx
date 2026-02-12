@@ -21,12 +21,12 @@ import {
   Paperclip,
   Smile,
   Zap,
-  Trash2
+
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, Timestamp, orderBy, limit, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, Timestamp, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
 
 interface ChatUser {
   id: string;
@@ -79,7 +79,7 @@ const mockMessages: Message[] = [
 
 export default function Chat() {
   const navigate = useNavigate();
-  const { currentUser, userRole } = useAuth();
+  const { currentUser } = useAuth();
   const [selectedChat, setSelectedChat] = useState<ChatUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
@@ -87,7 +87,6 @@ export default function Chat() {
   const [hannaSessions, setHannaSessions] = useState<HannaChatSession[]>([]);
   const [currentHannaSession, setCurrentHannaSession] = useState<string | null>(null);
   const [hannaMessages, setHannaMessages] = useState<HannaMessage[]>([]);
-  const [showHannaSessions, setShowHannaSessions] = useState(false);
 
   // Load Hanna chat sessions on mount
   useEffect(() => {
@@ -174,9 +173,9 @@ export default function Chat() {
    * Send message to Hanna AI
    */
   const handleSendHannaMessage = async () => {
+    const userMessage = messageInput.trim();
     if (!messageInput.trim() || !currentUser || !currentHannaSession) return;
 
-    const userMessage = messageInput.trim();
     setMessageInput('');
     setLoading(true);
 
@@ -249,39 +248,11 @@ export default function Chat() {
   /**
    * Delete a Hanna chat session
    */
-  const deleteHannaSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this chat?')) return;
-
-    try {
-      // Delete all messages in session
-      const messagesSnapshot = await getDocs(
-        collection(db, 'hannaChats', sessionId, 'messages')
-      );
-      
-      for (const msgDoc of messagesSnapshot.docs) {
-        await deleteDoc(msgDoc.ref);
-      }
-
-      // Delete session
-      await deleteDoc(doc(db, 'hannaChats', sessionId));
-
-      if (currentHannaSession === sessionId) {
-        setCurrentHannaSession(null);
-        setHannaMessages([]);
-      }
-
-      await loadHannaSessions();
-      toast.success('Chat deleted');
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      toast.error('Failed to delete chat');
-    }
-  };
 
   /**
    * Generate AI response (placeholder - will be replaced with Cloud Function call)
    */
-  const generateAIResponse = (userMessage: string): string => {
+  const generateAIResponse = (_userMessage: string): string => {
     const responses = [
       "That's an interesting question! Let me help you with that.",
       "I'd be happy to assist you. Here's what I think...",

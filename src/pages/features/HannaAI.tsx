@@ -43,7 +43,7 @@ const AI_RESPONSES = [
 ];
 
 export default function HannaAI() {
-  const { currentUser, userRole } = useAuth();
+  const { currentUser } = useAuth();
   const [messages, setMessages] = useState<HannaMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);

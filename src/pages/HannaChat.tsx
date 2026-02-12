@@ -14,13 +14,13 @@ import {
   Trash2,
   Search,
   FileUp,
-  MoreVertical,
+
   Copy,
-  Download,
+
   Settings,
   Clock,
   MessageSquare,
-  AlertCircle,
+
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
@@ -99,7 +99,6 @@ export default function HannaChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -322,7 +321,6 @@ export default function HannaChat() {
    */
   const handleSelectChat = (chatId: string) => {
     setCurrentChatId(chatId);
-    setShowSearch(false);
     setSearchQuery('');
   };
 
