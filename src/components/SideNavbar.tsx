@@ -74,7 +74,7 @@ export default function SideNavbar() {
     { label: 'Documents', path: '/features/document-management', icon: FileText },
     { label: 'Calculator', path: '/features/calculator', icon: Calculator },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
-    { label: 'Analytics', path: '/features/profile', icon: BarChart3 },
+    { label: 'Analytics', path: '/features/analytics', icon: BarChart3 },
   ];
 
   const filteredNavItems = navItems.filter(item => {
