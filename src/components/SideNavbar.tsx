@@ -105,6 +105,10 @@ export default function SideNavbar() {
     { label: 'Payments', path: '/payments', icon: CreditCard, roles: ['student', 'teacher', 'school_admin'] },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Documents', path: '/features/document-management', icon: FileText, hasSubmenu: true },
+    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
+    { label: 'Calculator', path: '/features/calculator', icon: Calculator },
+    { label: 'Analytics', path: '/features/analytics', icon: BarChart3 },
   ];
 
   /**
@@ -191,149 +195,99 @@ export default function SideNavbar() {
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const isDocuments = item.label === 'Documents';
+
             return (
-              <button
-                key={item.path}
-                onClick={() => handleNavigate(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  active
-                    ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-                }`}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span className="text-sm font-medium">{item.label}</span>
-              </button>
+              <div key={item.path} className="space-y-1">
+                <button
+                  onClick={() => {
+                    if (isDocuments) {
+                      setShowDocumentsSubmenu(!showDocumentsSubmenu);
+                    } else {
+                      handleNavigate(item.path);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                    active
+                      ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </div>
+                  {isDocuments && (
+                    <ChevronRight
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        showDocumentsSubmenu ? 'rotate-90' : ''
+                      } ${active ? 'text-white dark:text-black' : 'text-gray-400'}`}
+                    />
+                  )}
+                </button>
+
+                {/* Documents Submenu */}
+                {isDocuments && showDocumentsSubmenu && (
+                  <div className="ml-4 pl-4 border-l border-gray-200 dark:border-gray-800 space-y-1 mt-1">
+                    <button
+                      onClick={() => handleNavigate('/features/document-management')}
+                      className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>My Documents</span>
+                    </button>
+                    <button
+                      onClick={handleAddDocument}
+                      className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Document</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
 
-        {/* Documents Section - Collapsible submenu */}
-        <div className="px-4 py-2">
-          <button
-            onClick={() => setShowDocumentsSubmenu(!showDocumentsSubmenu)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/features/document-management')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
-          >
-            <FileText className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium flex-1">Documents</span>
-            <ChevronRight
-              className={`w-4 h-4 transition-transform duration-200 ${
-                showDocumentsSubmenu ? 'rotate-90' : ''
-              }`}
-            />
-          </button>
-
-          {/* Documents Submenu */}
-          {showDocumentsSubmenu && (
-            <div className="mt-2 space-y-2">
-              <button
-                onClick={() => handleNavigate('/features/document-management')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
-              >
-                <FileText className="w-4 h-4" />
-                <span>My Documents</span>
-              </button>
-              <button
-                onClick={handleAddDocument}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Document</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Hanna AI Section */}
-        <div className="px-4 py-2">
-          <button
-            onClick={() => handleNavigate('/features/hanna-ai')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/features/hanna-ai')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
-          >
-            <Sparkles className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">Hanna AI</span>
-          </button>
-        </div>
-
-        {/* Additional Features Section */}
-        <div className="px-4 py-2 space-y-2">
-          <button
-            onClick={() => handleNavigate('/features/calculator')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/features/calculator')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
-          >
-            <Calculator className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">Calculator</span>
-          </button>
-          <button
-            onClick={() => handleNavigate('/features/analytics')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/features/analytics')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
-          >
-            <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">Analytics</span>
-          </button>
-        </div>
-
-        {/* Divider */}
-        <div className="mx-4 my-4 border-t border-gray-200 dark:border-gray-800" />
-
-        {/* Navigation Plugins Section - About, Support, Privacy Policy */}
-        <div className="px-4 py-2 space-y-2">
+        {/* Additional Navigation Links (About, Support, etc.) */}
+        <div className="p-4 pt-0 space-y-1">
+          <div className="mx-2 my-4 border-t border-gray-200 dark:border-gray-800" />
+          
           <button
             onClick={() => handleNavigate('/about')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/about')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
           >
-            <Info className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">About</span>
+            <Info className="w-4 h-4" />
+            <span>About Us</span>
           </button>
+          
           <button
-            onClick={() => handleNavigate('/support')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/support')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
+            onClick={() => {
+              toast.info('Support system coming soon');
+              setIsOpen(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
           >
-            <HelpCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">Support</span>
+            <HelpCircle className="w-4 h-4" />
+            <span>Help & Support</span>
           </button>
+
           <button
-            onClick={() => handleNavigate('/privacy-policy')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive('/privacy-policy')
-                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
-            }`}
+            onClick={() => {
+              toast.info('Privacy policy coming soon');
+              setIsOpen(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
           >
-            <Shield className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">Privacy Policy</span>
+            <Shield className="w-4 h-4" />
+            <span>Privacy Policy</span>
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="mx-4 my-4 border-t border-gray-200 dark:border-gray-800" />
-
-        {/* Logout Button - With confirmation dialog */}
-        <div className="p-4">
+        {/* Logout Button Section */}
+        <div className="p-4 mt-auto">
+          <div className="mx-2 mb-4 border-t border-gray-200 dark:border-gray-800" />
           <button
             onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200"
@@ -344,25 +298,20 @@ export default function SideNavbar() {
         </div>
       </nav>
 
-      {/* Logout Confirmation Dialog
-          Prevents accidental logout by requiring explicit confirmation
-          Uses AlertDialog for accessibility and proper focus management
-      */}
+      {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <AlertDialogContent className="max-w-sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg font-semibold">Logout Confirmation</AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
+            <AlertDialogTitle>Logout Confirmation</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to logout? You will need to login again to access your account.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-4 justify-end">
-            <AlertDialogCancel className="px-4 py-2">
-              Cancel
-            </AlertDialogCancel>
+          <div className="flex gap-4">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               Logout
             </AlertDialogAction>
