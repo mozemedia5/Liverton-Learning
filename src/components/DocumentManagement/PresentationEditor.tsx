@@ -1,26 +1,21 @@
 /**
- * Microsoft PowerPoint-Style Presentation Editor Component
- * Full-featured presentation editor with slides, layouts, and animations
+ * Presentation Editor Component
+ * Microsoft PowerPoint-style presentation editor
  */
 
 import React, { useState } from 'react';
 import {
   Plus,
   Trash2,
-  Save,
-  Download,
-  Share2,
-  Settings,
   Copy,
+  Download,
+  Play,
   ChevronLeft,
   ChevronRight,
-  Play,
-  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -28,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import type { EnhancedDocumentMeta } from '@/types/documentManagement';
 
 interface Slide {
@@ -36,80 +30,50 @@ interface Slide {
   title: string;
   content: string;
   layout: 'title' | 'content' | 'two-column' | 'blank';
-  backgroundColor?: string;
+  backgroundColor: string;
 }
 
 interface PresentationEditorProps {
-  documentId: string;
-  initialSlides?: Slide[];
-  initialMetadata?: EnhancedDocumentMeta;
-  onSave?: (slides: Slide[], metadata: Partial<EnhancedDocumentMeta>) => Promise<void>;
+  document?: EnhancedDocumentMeta;
   readOnly?: boolean;
+  onSave?: (slides: Slide[], metadata: Partial<EnhancedDocumentMeta>) => void;
 }
 
-const SLIDE_LAYOUTS = [
-  { id: 'title', name: 'Title Slide', icon: '📄' },
-  { id: 'content', name: 'Title & Content', icon: '📝' },
-  { id: 'two-column', name: 'Two Column', icon: '📊' },
-  { id: 'blank', name: 'Blank', icon: '⬜' },
-];
-
-const COLORS = [
-  '#FFFFFF',
-  '#F3F4F6',
-  '#E5E7EB',
-  '#3B82F6',
-  '#8B5CF6',
-  '#EC4899',
-  '#F59E0B',
-  '#10B981',
-];
-
 /**
- * Presentation Editor with PowerPoint-style UI
- * Features: Slide management, layouts, animations, export
+ * Presentation Editor with PowerPoint-style interface
+ * Supports slide management, layouts, and formatting
  */
 export const PresentationEditor: React.FC<PresentationEditorProps> = ({
-  documentId,
-  initialSlides = [],
-  initialMetadata,
-  onSave,
+  document,
   readOnly = false,
+  onSave,
 }) => {
-  const [slides, setSlides] = useState<Slide[]>(
-    initialSlides.length > 0
-      ? initialSlides
-      : [
-          {
-            id: '1',
-            title: 'Presentation Title',
-            content: 'Subtitle goes here',
-            layout: 'title',
-            backgroundColor: '#FFFFFF',
-          },
-        ]
-  );
+  const [slides, setSlides] = useState<Slide[]>([
+    {
+      id: '1',
+      title: 'Presentation Title',
+      content: 'Subtitle goes here',
+      layout: 'title',
+      backgroundColor: '#ffffff',
+    },
+  ]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showProperties, setShowProperties] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   const currentSlide = slides[currentSlideIndex];
 
-  // Add new slide
   const handleAddSlide = () => {
     const newSlide: Slide = {
       id: Date.now().toString(),
       title: 'New Slide',
-      content: 'Click to add content',
+      content: 'Add your content here',
       layout: 'content',
-      backgroundColor: '#FFFFFF',
+      backgroundColor: '#ffffff',
     };
     setSlides([...slides, newSlide]);
     setCurrentSlideIndex(slides.length);
   };
 
-  // Delete slide
   const handleDeleteSlide = (index: number) => {
     if (slides.length > 1) {
       const newSlides = slides.filter((_, i) => i !== index);
@@ -120,380 +84,306 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
     }
   };
 
-  // Duplicate slide
   const handleDuplicateSlide = (index: number) => {
-    const slideToDuplicate = slides[index];
+    const slide = slides[index];
     const newSlide: Slide = {
-      ...slideToDuplicate,
+      ...slide,
       id: Date.now().toString(),
     };
-    const newSlides = [...slides];
-    newSlides.splice(index + 1, 0, newSlide);
-    setSlides(newSlides);
+    setSlides([...slides.slice(0, index + 1), newSlide, ...slides.slice(index + 1)]);
   };
 
-  // Update current slide
-  const updateCurrentSlide = (updates: Partial<Slide>) => {
+  const handleUpdateSlide = (updates: Partial<Slide>) => {
     const newSlides = [...slides];
     newSlides[currentSlideIndex] = { ...currentSlide, ...updates };
     setSlides(newSlides);
-  };
 
-  // Save presentation
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onSave?.(slides, {
+    // Auto-save
+    if (onSave && document) {
+      onSave(newSlides, {
         updatedAt: new Date(),
-        fileSize: new Blob([JSON.stringify(slides)]).size,
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  // Download as JSON
   const handleDownload = () => {
-    const element = document.createElement('a');
-    element.setAttribute(
-      'href',
-      'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(slides, null, 2))
-    );
-    element.setAttribute('download', `${initialMetadata?.title || 'presentation'}.json`);
-    element.style.display = 'none';
-    document.body.appendChild(element);
+    const json = JSON.stringify(slides, null, 2);
+    // Use global document object to create download link
+    const element = window.document.createElement('a');
+    const file = new Blob([json], { type: 'application/json' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${document?.title || 'presentation'}.json`;
+    window.document.body.appendChild(element);
     element.click();
-    document.body.removeChild(element);
+    window.document.body.removeChild(element);
   };
 
-  // Render slide content based on layout
-  const renderSlideContent = () => {
-    switch (currentSlide.layout) {
-      case 'title':
-        return (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-5xl font-bold text-slate-900 mb-4 text-center">
-              {currentSlide.title}
-            </h1>
-            <p className="text-2xl text-slate-600 text-center">{currentSlide.content}</p>
-          </div>
-        );
-      case 'content':
-        return (
-          <div className="flex flex-col h-full p-8">
-            <h2 className="text-4xl font-bold text-slate-900 mb-6">{currentSlide.title}</h2>
-            <div className="flex-1 text-lg text-slate-700 whitespace-pre-wrap">
-              {currentSlide.content}
-            </div>
-          </div>
-        );
-      case 'two-column':
-        return (
-          <div className="flex h-full p-8 gap-8">
-            <div className="flex-1">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">{currentSlide.title}</h3>
-              <div className="text-slate-700">{currentSlide.content}</div>
-            </div>
-            <div className="flex-1 bg-slate-100 rounded-lg p-4 flex items-center justify-center">
-              <p className="text-slate-500">Content area</p>
-            </div>
-          </div>
-        );
-      case 'blank':
-      default:
-        return (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-slate-400">Blank slide</p>
-          </div>
-        );
-    }
-  };
+  const backgroundColors = [
+    '#ffffff',
+    '#f3f4f6',
+    '#dbeafe',
+    '#ddd6fe',
+    '#fce7f3',
+    '#fef3c7',
+    '#dcfce7',
+    '#f0fdfa',
+  ];
+
+  const renderSlidePreview = (slide: Slide) => (
+    <div
+      className="w-full h-full flex flex-col justify-center items-center p-4 rounded"
+      style={{ backgroundColor: slide.backgroundColor }}
+    >
+      <h3 className="text-lg font-bold text-slate-900 text-center mb-2">
+        {slide.title}
+      </h3>
+      {slide.layout !== 'blank' && (
+        <p className="text-sm text-slate-600 text-center">{slide.content}</p>
+      )}
+    </div>
+  );
 
   if (isPreviewMode) {
     return (
-      <div className="w-screen h-screen bg-black flex flex-col items-center justify-center">
-        <div
-          className="w-full h-full flex items-center justify-center"
-          style={{ backgroundColor: currentSlide.backgroundColor }}
-        >
-          <div className="w-full max-w-4xl h-full">{renderSlideContent()}</div>
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center">
+        <div className="w-full max-w-4xl aspect-video rounded-lg overflow-hidden shadow-2xl">
+          {renderSlidePreview(currentSlide)}
         </div>
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
+        <div className="mt-8 flex gap-4">
           <Button
-            size="sm"
+            onClick={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
+            disabled={currentSlideIndex === 0}
             variant="outline"
-            onClick={() => {
-              if (currentSlideIndex > 0) setCurrentSlideIndex(currentSlideIndex - 1);
-            }}
-            className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+            className="bg-white"
           >
             <ChevronLeft className="h-4 w-4" />
+            Previous
           </Button>
-          <span className="text-sm">
+          <span className="text-white text-center min-w-20">
             {currentSlideIndex + 1} / {slides.length}
           </span>
           <Button
-            size="sm"
+            onClick={() =>
+              setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))
+            }
+            disabled={currentSlideIndex === slides.length - 1}
             variant="outline"
-            onClick={() => {
-              if (currentSlideIndex < slides.length - 1)
-                setCurrentSlideIndex(currentSlideIndex + 1);
-            }}
-            className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+            className="bg-white"
           >
+            Next
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            onClick={() => setIsPreviewMode(false)}
-            className="bg-slate-700 hover:bg-slate-600"
-          >
-            Exit Preview
-          </Button>
         </div>
+        <Button
+          onClick={() => setIsPreviewMode(false)}
+          variant="outline"
+          className="mt-8 bg-white"
+        >
+          Exit Preview
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="flex h-screen bg-slate-50">
-      {/* Slide Panel */}
-      <div className="w-64 bg-white border-r border-slate-200 overflow-y-auto p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-slate-900">Slides</h3>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleAddSlide}
-            disabled={readOnly}
+      {/* Slide Thumbnails */}
+      <div className="w-48 bg-white border-r border-slate-200 overflow-y-auto p-4 space-y-3">
+        <h3 className="font-semibold text-sm text-slate-900 mb-4">Slides</h3>
+        {slides.map((slide, index) => (
+          <div
+            key={slide.id}
+            className={`cursor-pointer rounded border-2 overflow-hidden transition-all ${
+              currentSlideIndex === index
+                ? 'border-blue-500 shadow-md'
+                : 'border-slate-200 hover:border-slate-300'
+            }`}
+            onClick={() => setCurrentSlideIndex(index)}
           >
-            <Plus className="h-4 w-4" />
+            <div
+              className="w-full aspect-video flex items-center justify-center p-2"
+              style={{ backgroundColor: slide.backgroundColor }}
+            >
+              <p className="text-xs font-semibold text-slate-900 text-center truncate">
+                {slide.title}
+              </p>
+            </div>
+            <div className="bg-slate-50 px-2 py-1 text-xs text-slate-600 text-center">
+              Slide {index + 1}
+            </div>
+          </div>
+        ))}
+        <Button
+          onClick={handleAddSlide}
+          disabled={readOnly}
+          className="w-full"
+          size="sm"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add Slide
+        </Button>
+      </div>
+
+      {/* Main Editor */}
+      <div className="flex-1 flex flex-col">
+        {/* Toolbar */}
+        <div className="bg-white border-b border-slate-200 p-4 flex gap-2">
+          <Button
+            onClick={() => handleDuplicateSlide(currentSlideIndex)}
+            disabled={readOnly}
+            variant="outline"
+            size="sm"
+            className="gap-1"
+          >
+            <Copy className="h-4 w-4" />
+            Duplicate
+          </Button>
+          <Button
+            onClick={() => handleDeleteSlide(currentSlideIndex)}
+            disabled={readOnly || slides.length === 1}
+            variant="outline"
+            size="sm"
+            className="gap-1 text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+          <div className="flex-1" />
+          <Button
+            onClick={() => setIsPreviewMode(true)}
+            variant="outline"
+            size="sm"
+            className="gap-1"
+          >
+            <Play className="h-4 w-4" />
+            Preview
+          </Button>
+          <Button
+            onClick={handleDownload}
+            variant="outline"
+            size="sm"
+            className="gap-1"
+          >
+            <Download className="h-4 w-4" />
+            Export
           </Button>
         </div>
 
-        <div className="space-y-2">
-          {slides.map((slide, index) => (
-            <div
-              key={slide.id}
-              onClick={() => setCurrentSlideIndex(index)}
-              className={`p-2 rounded-lg border-2 cursor-pointer transition-all ${
-                currentSlideIndex === index
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div
-                className="w-full h-24 rounded bg-white border border-slate-200 mb-2 flex items-center justify-center text-xs text-slate-600 overflow-hidden"
-                style={{ backgroundColor: slide.backgroundColor }}
-              >
-                <div className="text-center px-2">
-                  <p className="font-semibold truncate">{slide.title}</p>
-                  <p className="text-xs text-slate-500 truncate">{slide.layout}</p>
+        {/* Slide Editor */}
+        <div className="flex-1 overflow-auto p-8">
+          <div className="max-w-4xl mx-auto">
+            {/* Slide Preview */}
+            <div className="mb-8 rounded-lg shadow-lg overflow-hidden aspect-video">
+              {renderSlidePreview(currentSlide)}
+            </div>
+
+            {/* Slide Properties */}
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-slate-900 block mb-2">
+                  Slide Title
+                </label>
+                <Input
+                  value={currentSlide.title}
+                  onChange={e => handleUpdateSlide({ title: e.target.value })}
+                  disabled={readOnly}
+                  className="text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-slate-900 block mb-2">
+                  Content
+                </label>
+                <Textarea
+                  value={currentSlide.content}
+                  onChange={e => handleUpdateSlide({ content: e.target.value })}
+                  disabled={readOnly}
+                  rows={4}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-900 block mb-2">
+                    Layout
+                  </label>
+                  <Select
+                    value={currentSlide.layout}
+                    onValueChange={(value: any) =>
+                      handleUpdateSlide({ layout: value })
+                    }
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="title">Title Slide</SelectItem>
+                      <SelectItem value="content">Content</SelectItem>
+                      <SelectItem value="two-column">Two Column</SelectItem>
+                      <SelectItem value="blank">Blank</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-900 block mb-2">
+                    Background Color
+                  </label>
+                  <div className="flex gap-2">
+                    {backgroundColors.map(color => (
+                      <button
+                        key={color}
+                        onClick={() => handleUpdateSlide({ backgroundColor: color })}
+                        disabled={readOnly}
+                        className={`w-8 h-8 rounded border-2 transition-all ${
+                          currentSlide.backgroundColor === color
+                            ? 'border-blue-500 ring-2 ring-blue-300'
+                            : 'border-slate-300'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 flex-1 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDuplicateSlide(index);
-                  }}
-                  disabled={readOnly}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 flex-1 text-xs hover:bg-red-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteSlide(index);
-                  }}
-                  disabled={readOnly || slides.length === 1}
-                >
-                  <Trash2 className="h-3 w-3 text-red-600" />
-                </Button>
-              </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Editor Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="bg-white border-b border-slate-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-slate-900">
-              {initialMetadata?.title || 'Untitled Presentation'}
-            </h1>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsPreviewMode(true)}
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Preview
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowProperties(!showProperties)}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Properties
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving || readOnly}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Toolbar */}
-          <div className="flex items-center gap-3">
-            <Select
-              value={currentSlide.layout}
-              onValueChange={(value: any) => updateCurrentSlide({ layout: value })}
-              disabled={readOnly}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SLIDE_LAYOUTS.map((layout) => (
-                  <SelectItem key={layout.id} value={layout.id}>
-                    {layout.icon} {layout.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Separator orientation="vertical" className="h-6" />
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">Background:</span>
-              <div className="flex gap-1">
-                {COLORS.map((color) => (
-                  <button
-                    key={color}
-                    className={`w-6 h-6 rounded border-2 ${
-                      currentSlide.backgroundColor === color
-                        ? 'border-blue-500'
-                        : 'border-slate-300'
-                    }`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => updateCurrentSlide({ backgroundColor: color })}
-                    disabled={readOnly}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Slide Preview */}
-        <div className="flex-1 overflow-auto p-8">
-          <div
-            className="mx-auto bg-white rounded-lg shadow-lg aspect-video flex items-center justify-center"
-            style={{ backgroundColor: currentSlide.backgroundColor }}
-          >
-            <div className="w-full h-full p-8">{renderSlideContent()}</div>
           </div>
         </div>
 
         {/* Status Bar */}
         <div className="bg-white border-t border-slate-200 px-8 py-3 flex items-center justify-between text-sm text-slate-600">
-          <div className="flex items-center gap-4">
-            <span>Slide {currentSlideIndex + 1} of {slides.length}</span>
+          <span>
+            Slide {currentSlideIndex + 1} of {slides.length}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              onClick={() =>
+                setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
+              }
+              disabled={currentSlideIndex === 0}
+              variant="ghost"
+              size="sm"
+              className="h-8"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() =>
+                setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))
+              }
+              disabled={currentSlideIndex === slides.length - 1}
+              variant="ghost"
+              size="sm"
+              className="h-8"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          <span>Last saved: {new Date().toLocaleTimeString()}</span>
         </div>
       </div>
-
-      {/* Right Sidebar - Properties */}
-      {showProperties && (
-        <div className="w-80 bg-slate-50 border-l border-slate-200 overflow-y-auto p-4">
-          <Card className="p-4">
-            <h3 className="font-semibold text-sm text-slate-700 mb-4">Slide Properties</h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-slate-700 mb-1 block">
-                  Title
-                </label>
-                <Input
-                  value={currentSlide.title}
-                  onChange={(e) => updateCurrentSlide({ title: e.target.value })}
-                  readOnly={readOnly}
-                  className="text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-slate-700 mb-1 block">
-                  Content
-                </label>
-                <Textarea
-                  value={currentSlide.content}
-                  onChange={(e) => updateCurrentSlide({ content: e.target.value })}
-                  readOnly={readOnly}
-                  className="text-sm resize-none"
-                  rows={6}
-                />
-              </div>
-
-              <Separator />
-
-              <div>
-                <label className="text-sm font-medium text-slate-700 mb-1 block">
-                  Layout
-                </label>
-                <Select
-                  value={currentSlide.layout}
-                  onValueChange={(value: any) => updateCurrentSlide({ layout: value })}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger className="text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SLIDE_LAYOUTS.map((layout) => (
-                      <SelectItem key={layout.id} value={layout.id}>
-                        {layout.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              <div>
-                <p className="text-sm text-slate-600 mb-2">Presentation Info</p>
-                <div className="space-y-1 text-xs text-slate-600">
-                  <p>Total Slides: {slides.length}</p>
-                  <p>Current Slide: {currentSlideIndex + 1}</p>
-                  <p>File Size: {(new Blob([JSON.stringify(slides)]).size / 1024).toFixed(2)} KB</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

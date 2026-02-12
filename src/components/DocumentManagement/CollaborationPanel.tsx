@@ -12,14 +12,12 @@ import {
   X,
   Check,
   AlertCircle,
-  Eye,
   Edit,
   MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Select,
@@ -40,7 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { DocumentComment } from '@/types/documentManagement';
 
 interface CollaborationPanelProps {
-  documentId: string;
+  documentId?: string;
   sharedWith: string[];
   sharedWithPermissions?: Record<string, 'view' | 'edit' | 'comment'>;
   comments?: DocumentComment[];
@@ -54,7 +52,6 @@ interface CollaborationPanelProps {
  * Collaboration Panel for managing document sharing and comments
  */
 export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
-  documentId,
   sharedWith,
   sharedWithPermissions = {},
   comments = [],
@@ -84,7 +81,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
         return <MessageCircle className="h-4 w-4 text-green-600" />;
       case 'view':
       default:
-        return <Eye className="h-4 w-4 text-slate-600" />;
+        return <Users className="h-4 w-4 text-slate-600" />;
     }
   };
 

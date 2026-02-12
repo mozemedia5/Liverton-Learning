@@ -7,7 +7,6 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -19,16 +18,9 @@ import {
   updateDoc,
   where,
   writeBatch,
-  Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
-import {
-  getDownloadURL,
-  ref,
-  uploadBytes,
-  deleteObject,
-} from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { toDate } from '@/lib/date';
 import type {
   DocumentContent,
@@ -38,16 +30,13 @@ import type {
 } from '@/types';
 import type {
   EnhancedDocumentMeta,
-  DocumentAccess,
   DocumentComment,
   DocumentActivity,
   TextDocumentProperties,
   SpreadsheetProperties,
   PresentationProperties,
-  DocumentTemplate,
   ExportOptions,
   BatchOperationResult,
-  DocumentSearchResult,
   DocumentStatistics,
 } from '@/types/documentManagement';
 
@@ -56,7 +45,6 @@ const DOCUMENT_METADATA_COLLECTION = 'document_metadata';
 const DOCUMENT_ACCESS_COLLECTION = 'document_access';
 const DOCUMENT_COMMENTS_COLLECTION = 'document_comments';
 const DOCUMENT_ACTIVITY_COLLECTION = 'document_activity';
-const DOCUMENT_TEMPLATES_COLLECTION = 'document_templates';
 
 /**
  * Create a new document with comprehensive metadata
@@ -362,12 +350,14 @@ export async function getDocumentComments(documentId: string): Promise<DocumentC
       )
     );
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-      createdAt: toDate(d.data().createdAt),
-      updatedAt: toDate(d.data().updatedAt),
-    })) as DocumentComment[];
+    return snap.docs.map((d) => (
+      {
+        id: d.id,
+        ...d.data(),
+        createdAt: toDate(d.data().createdAt),
+        updatedAt: toDate(d.data().updatedAt),
+      } as DocumentComment
+    ));
   } catch (error) {
     console.error('Error getting document comments:', error);
     throw error;
@@ -412,11 +402,13 @@ export async function getDocumentActivity(documentId: string, limit: number = 50
       )
     );
 
-    return snap.docs.slice(0, limit).map((d) => ({
-      id: d.id,
-      ...d.data(),
-      timestamp: toDate(d.data().timestamp),
-    })) as DocumentActivity[];
+    return snap.docs.slice(0, limit).map((d) => (
+      {
+        id: d.id,
+        ...d.data(),
+        timestamp: toDate(d.data().timestamp),
+      } as DocumentActivity
+    ));
   } catch (error) {
     console.error('Error getting document activity:', error);
     throw error;
@@ -525,51 +517,6 @@ export function subscribeToEnhancedDocuments(params: {
     );
   } catch (error) {
     console.error('Error subscribing to enhanced documents:', error);
-    throw error;
-  }
-}
-
-/**
- * Create document from template
- */
-export async function createDocumentFromTemplate(params: {
-  templateId: string;
-  title: string;
-  ownerId: string;
-  ownerName: string;
-  ownerEmail: string;
-  role: UserRole;
-  schoolId?: string;
-}): Promise<string> {
-  try {
-    const templateSnap = await getDoc(doc(db, DOCUMENT_TEMPLATES_COLLECTION, params.templateId));
-    if (!templateSnap.exists()) throw new Error('Template not found');
-
-    const template = templateSnap.data() as any;
-    const docId = await createEnhancedDocument({
-      title: params.title,
-      type: template.type,
-      ownerId: params.ownerId,
-      ownerName: params.ownerName,
-      ownerEmail: params.ownerEmail,
-      role: params.role,
-      schoolId: params.schoolId,
-      category: template.category,
-      tags: template.tags,
-    });
-
-    // Update with template content
-    await updateEnhancedDocumentContent({
-      docId,
-      content: template.content,
-      updatedBy: params.ownerId,
-      updatedByName: params.ownerName,
-      bumpVersion: false,
-    });
-
-    return docId;
-  } catch (error) {
-    console.error('Error creating document from template:', error);
     throw error;
   }
 }

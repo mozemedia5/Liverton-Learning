@@ -1,257 +1,128 @@
 /**
- * Microsoft Office-Style Text Editor Component
- * Full-featured document editor with formatting, collaboration, and version control
+ * Text Editor Component
+ * Microsoft Word-style rich text editor
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Save,
-  Download,
-  Share2,
-  Undo2,
-  Redo2,
-  FileText,
-  Settings,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { MicrosoftToolbar } from './MicrosoftToolbar';
-import { DocumentPropertiesPanel } from './DocumentPropertiesPanel';
-import { CollaborationPanel } from './CollaborationPanel';
 import type { EnhancedDocumentMeta } from '@/types/documentManagement';
 
 interface TextEditorProps {
-  documentId: string;
-  initialContent?: string;
-  initialMetadata?: EnhancedDocumentMeta;
-  onSave?: (content: string, metadata: Partial<EnhancedDocumentMeta>) => Promise<void>;
-  onShare?: (userIds: string[], permission: 'view' | 'edit' | 'comment') => void;
+  document?: EnhancedDocumentMeta;
   readOnly?: boolean;
+  onSave?: (content: string, metadata: Partial<EnhancedDocumentMeta>) => void;
 }
 
 /**
- * Text Editor with Microsoft Office-style UI
- * Features: Rich text formatting, collaboration, version history, properties panel
+ * Text Editor with Word-style interface
+ * Supports rich text editing with formatting controls
  */
 export const TextEditor: React.FC<TextEditorProps> = ({
-  documentId,
-  initialContent = '',
-  initialMetadata,
-  onSave,
-  onShare,
+  document,
   readOnly = false,
+  onSave,
 }) => {
+  const [content, setContent] = useState<string>('');
   const editorRef = useRef<HTMLDivElement>(null);
-  const [content, setContent] = useState(initialContent);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showProperties, setShowProperties] = useState(false);
-  const [showCollaboration, setShowCollaboration] = useState(false);
-  const [history, setHistory] = useState<string[]>([initialContent]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [wordCount, setWordCount] = useState(0);
-  const [characterCount, setCharacterCount] = useState(0);
 
-  // Calculate word and character count
-  useEffect(() => {
-    const words = content.trim().split(/\s+/).filter((w) => w.length > 0).length;
-    const chars = content.length;
-    setWordCount(words);
-    setCharacterCount(chars);
-  }, [content]);
-
-  // Handle content changes
-  const handleContentChange = (e: React.ChangeEvent<HTMLDivElement>) => {
-    const newContent = e.currentTarget.innerText;
-    setContent(newContent);
-
-    // Add to history
-    if (newContent !== history[historyIndex]) {
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newContent);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
+  // Handle text formatting commands
+  const applyFormat = (command: string, value?: string) => {
+    // Use the global document object to execute formatting commands
+    if (typeof window !== 'undefined') {
+      window.document.execCommand(command, false, value);
+      editorRef.current?.focus();
     }
   };
 
-  // Undo
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setContent(history[newIndex]);
-      if (editorRef.current) {
-        editorRef.current.innerText = history[newIndex];
-      }
-    }
-  };
+  const handleBold = () => applyFormat('bold');
+  const handleItalic = () => applyFormat('italic');
+  const handleUnderline = () => applyFormat('underline');
+  const handleAlignLeft = () => applyFormat('justifyLeft');
+  const handleAlignCenter = () => applyFormat('justifyCenter');
+  const handleAlignRight = () => applyFormat('justifyRight');
+  const handleBulletList = () => applyFormat('insertUnorderedList');
+  const handleNumberedList = () => applyFormat('insertOrderedList');
 
-  // Redo
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setContent(history[newIndex]);
-      if (editorRef.current) {
-        editorRef.current.innerText = history[newIndex];
-      }
-    }
-  };
-
-  // Save document
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onSave?.(content, {
-        wordCount,
-        characterCount,
-        pageCount: Math.ceil(content.length / 3000),
-        fileSize: new Blob([content]).size,
-        updatedAt: new Date(),
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Download as text file
   const handleDownload = () => {
-    const element = document.createElement('a');
-    element.setAttribute(
-      'href',
-      'data:text/plain;charset=utf-8,' + encodeURIComponent(content)
-    );
-    element.setAttribute('download', `${initialMetadata?.title || 'document'}.txt`);
-    element.style.display = 'none';
-    document.body.appendChild(element);
+    // Get the HTML content from the editor
+    const htmlContent = editorRef.current?.innerHTML || '';
+    
+    // Create a blob with the HTML content
+    const element = window.document.createElement('a');
+    const file = new Blob([htmlContent], { type: 'text/html' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${document?.title || 'document'}.html`;
+    window.document.body.appendChild(element);
     element.click();
-    document.body.removeChild(element);
+    window.document.body.removeChild(element);
+  };
+
+  const handleContentChange = () => {
+    if (editorRef.current) {
+      const newContent = editorRef.current.innerHTML;
+      setContent(newContent);
+
+      // Auto-save
+      if (onSave && document) {
+        onSave(newContent, {
+          updatedAt: new Date(),
+        });
+      }
+    }
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      {/* Main Editor Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="bg-white border-b border-slate-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3 flex-1">
-              <FileText className="h-6 w-6 text-blue-600" />
-              <Input
-                type="text"
-                placeholder="Document title"
-                defaultValue={initialMetadata?.title}
-                className="text-lg font-semibold border-0 focus:ring-0 px-0"
-                readOnly={readOnly}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowProperties(!showProperties)}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Properties
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowCollaboration(!showCollaboration)}
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving || readOnly}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
+    <div className="flex h-screen bg-slate-50 flex-col">
+      {/* Toolbar */}
+      <MicrosoftToolbar
+        onBold={handleBold}
+        onItalic={handleItalic}
+        onUnderline={handleUnderline}
+        onAlignLeft={handleAlignLeft}
+        onAlignCenter={handleAlignCenter}
+        onAlignRight={handleAlignRight}
+        onBulletList={handleBulletList}
+        onNumberedList={handleNumberedList}
+        onDownload={handleDownload}
+        readOnly={readOnly}
+      />
 
-          {/* Toolbar */}
-          <MicrosoftToolbar
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            onDownload={handleDownload}
-            canUndo={historyIndex > 0}
-            canRedo={historyIndex < history.length - 1}
-            readOnly={readOnly}
-          />
-        </div>
-
-        {/* Editor Content */}
-        <div className="flex-1 overflow-auto p-8">
-          <div className="max-w-4xl mx-auto">
+      {/* Editor Area */}
+      <div className="flex-1 overflow-auto p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 min-h-96">
             <div
               ref={editorRef}
               contentEditable={!readOnly}
               onInput={handleContentChange}
-              className="min-h-96 p-6 bg-white rounded-lg shadow-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 leading-relaxed"
-              style={{
-                fontSize: '16px',
-                fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-              }}
+              className="w-full h-full p-6 focus:outline-none prose prose-sm max-w-none"
+              suppressContentEditableWarning
             >
-              {initialContent}
+              {content || 'Start typing...'}
             </div>
-          </div>
-        </div>
-
-        {/* Status Bar */}
-        <div className="bg-white border-t border-slate-200 px-8 py-3 flex items-center justify-between text-sm text-slate-600">
-          <div className="flex items-center gap-6">
-            <span>Words: {wordCount}</span>
-            <span>Characters: {characterCount}</span>
-            <span>Pages: {Math.ceil(characterCount / 3000) || 1}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {readOnly && (
-              <div className="flex items-center gap-1 text-amber-600">
-                <Eye className="h-4 w-4" />
-                <span>Read-only</span>
-              </div>
-            )}
-            <span>Last saved: {new Date().toLocaleTimeString()}</span>
           </div>
         </div>
       </div>
 
-      {/* Right Sidebar - Properties & Collaboration */}
-      <div className="w-80 bg-slate-50 border-l border-slate-200 overflow-y-auto">
-        {showProperties && initialMetadata && (
-          <div className="p-4">
-            <DocumentPropertiesPanel document={initialMetadata} />
-          </div>
-        )}
-
-        {showCollaboration && (
-          <div className="p-4">
-            <CollaborationPanel
-              documentId={documentId}
-              sharedWith={initialMetadata?.sharedWith || []}
-              sharedWithPermissions={initialMetadata?.sharedWithPermissions}
-              comments={initialMetadata?.comments}
-              onShare={onShare}
-            />
-          </div>
-        )}
-
-        {!showProperties && !showCollaboration && (
-          <div className="p-4 text-center text-slate-500">
-            <p className="text-sm">
-              Click "Properties" or "Share" to view document details and collaboration options
-            </p>
-          </div>
-        )}
+      {/* Status Bar */}
+      <div className="bg-white border-t border-slate-200 px-8 py-3 flex items-center justify-between text-sm text-slate-600">
+        <div className="flex gap-4">
+          <span>Words: {content.split(/\s+/).filter(w => w.length > 0).length}</span>
+          <span>Characters: {content.length}</span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            className="h-8 gap-1"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
     </div>
   );
