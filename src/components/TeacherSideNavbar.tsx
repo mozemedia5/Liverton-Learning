@@ -192,7 +192,7 @@ export default function TeacherSideNavbar() {
 
           {/* Documents Submenu */}
           {showDocumentsSubmenu && (
-            <div className="ml-4 mt-2 space-y-2 border-l-2 border-gray-200 dark:border-gray-800 pl-4">
+            <div className="mt-2 space-y-2">
               <button
                 onClick={() => handleNavigate('/features/document-management')}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
