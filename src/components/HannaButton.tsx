@@ -1,14 +1,14 @@
 /**
  * HannaButton Component
  * Floating AI assistant button that appears on authenticated pages
- * Features: Role-based descriptions, hidden when in Hanna chat interface
+ * Features: Role-based descriptions, direct navigation to Hanna chat
  */
 
 import { useState } from 'react';
-import { Bot, X, Sparkles } from 'lucide-react';
+import { Bot, X, Sparkles, MessageSquare, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -22,18 +22,22 @@ import {
  * Displays a floating button for accessing Hanna AI assistant
  * Button is hidden when user is actively in the Hanna chat interface
  * Shows role-specific information about Hanna's capabilities
+ * Provides quick access to start new chats or view existing sessions
  */
 export function HannaButton() {
   const { userRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   /**
    * Check if user is currently in the Hanna chat interface
-   * Returns true if the current route is the Hanna AI page
+   * Returns true if the current route is the Hanna AI page or Chat page with Hanna selected
    * This prevents showing the floating button when already in the chat
    */
-  const isInHannaChat = location.pathname === '/features/hanna-ai';
+  const isInHannaChat = 
+    location.pathname === '/features/hanna-ai' || 
+    location.pathname === '/features/chat';
 
   /**
    * Get role-specific description of Hanna's capabilities
@@ -97,10 +101,28 @@ export function HannaButton() {
       default:
         return {
           title: 'Hanna - Your AI Assistant',
-          description: 'Coming soon!',
-          features: ['🚀 Advanced AI features coming soon'],
+          description: 'Hanna helps you with:',
+          features: ['🚀 Advanced AI features at your fingertips'],
         };
     }
+  };
+
+  /**
+   * Handle starting a new chat with Hanna
+   * Navigates to the Chat page where a new session will be created
+   */
+  const handleNewChat = () => {
+    setOpen(false);
+    navigate('/features/chat');
+  };
+
+  /**
+   * Handle viewing existing chat sessions
+   * Navigates to the Chat page to view and select from existing sessions
+   */
+  const handleExistingSessions = () => {
+    setOpen(false);
+    navigate('/features/chat');
   };
 
   const hannaInfo = getHannaDescription();
@@ -127,7 +149,7 @@ export function HannaButton() {
         </div>
       </Button>
 
-      {/* Hanna Info Dialog */}
+      {/* Hanna Info & Chat Options Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md border-2 border-purple-300 dark:border-purple-700">
           <DialogHeader>
@@ -170,10 +192,32 @@ export function HannaButton() {
             ))}
           </div>
 
-          {/* Coming Soon Notice */}
-          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          {/* Chat Options */}
+          <div className="space-y-3 pt-4 border-t border-purple-200 dark:border-purple-800">
+            {/* Start New Chat Button */}
+            <Button
+              onClick={handleNewChat}
+              className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              Start New Chat with Hanna
+            </Button>
+
+            {/* View Existing Sessions Button */}
+            <Button
+              onClick={handleExistingSessions}
+              variant="outline"
+              className="w-full border-2 border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950 font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="w-5 h-5" />
+              View Existing Sessions
+            </Button>
+          </div>
+
+          {/* Info Box */}
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4">
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              <strong>🚀 Coming Soon:</strong> Hanna AI will be fully integrated into your dashboard soon. Stay tuned for advanced AI-powered features!
+              <strong>💡 Tip:</strong> Your chat history is saved automatically. Start a new chat or continue with an existing session anytime!
             </p>
           </div>
         </DialogContent>
