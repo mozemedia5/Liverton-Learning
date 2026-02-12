@@ -38,8 +38,8 @@ def create_square_icon(input_path, output_path, size):
     print(f"Created: {output_path} ({size}x{size})")
 
 def main():
-    input_logo = '/home/user/Liverton-Learning/public/icons/original-logo.png'
-    output_dir = '/home/user/Liverton-Learning/public/icons'
+    input_logo = '/home/user/webapp/public/icons/original-logo.png'
+    output_dir = '/home/user/webapp/public/icons'
     
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)

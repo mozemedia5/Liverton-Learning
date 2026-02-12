@@ -24,8 +24,8 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
     <div className="min-h-screen bg-white dark:bg-black">
       {show && <SideNavbar />}
       
-      {/* Main Content Area */}
-      <main className="lg:ml-0">
+      {/* Main Content Area - Full width, navbar overlays on top */}
+      <main className="w-full min-h-screen">
         {props.children ?? <Outlet />}
       </main>
 
