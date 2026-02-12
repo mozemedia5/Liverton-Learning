@@ -40,6 +40,7 @@ import { toast } from 'sonner';
  * - Hanna AI integration in navigation
  * - Role-based navigation filtering
  * - Smooth animations and transitions
+ * - Smaller hamburger button to avoid blocking messages
  */
 export default function SideNavbar() {
   const navigate = useNavigate();
@@ -132,13 +133,16 @@ export default function SideNavbar() {
 
   return (
     <>
-      {/* Mobile Menu Button - Fixed position, always visible on mobile */}
+      {/* Mobile Menu Button - Smaller size to avoid blocking messages
+          Fixed position, always visible on mobile
+          Reduced from p-2 to p-1.5 and w-6 h-6 icons to w-5 h-5
+      */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden transition-all duration-200"
+        className="fixed top-4 left-4 z-50 p-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden transition-all duration-200"
         aria-label="Toggle navigation menu"
       >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
       {/* Overlay Backdrop - Prevents interaction with content behind sidebar */}

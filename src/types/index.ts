@@ -13,6 +13,10 @@ export interface User {
   age: number;
   country: string;
   profilePicture?: string;
+  profileImageUrl?: string; // New field for profile image URL from Firebase Storage
+  phone?: string; // New field for phone number
+  address?: string; // New field for address
+  bio?: string; // New field for bio/about
   createdAt: Date;
   updatedAt: Date;
   // Additional fields for registration
@@ -31,6 +35,7 @@ export interface User {
   levelOfEducation?: string;
   educationLevel?: string;
   subjectsTaught?: string[];
+  subjects?: string[]; // Alternative field name for subjects
   coursesCreated?: string[];
   earnings?: {
     total: number;
