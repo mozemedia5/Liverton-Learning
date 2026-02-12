@@ -3,11 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocument } from '@/lib/documents';
-import TextEditor from './document-editors/TextEditor';
-import SpreadsheetEditor from './document-editors/SpreadsheetEditor';
-import PresentationEditor from './document-editors/PresentationEditor';
+import EnhancedTextEditor from './document-editors/EnhancedTextEditor';
+import EnhancedSpreadsheetEditor from './document-editors/EnhancedSpreadsheetEditor';
+import EnhancedPresentationEditor from './document-editors/EnhancedPresentationEditor';
 import type { DocumentType } from '@/types';
 
+/**
+ * Document Editor Router Component
+ * Routes to the appropriate enhanced editor based on document type
+ * Supports: doc (text), sheet (spreadsheet), presentation (slides)
+ */
 export default function DocumentEditor() {
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
@@ -16,6 +21,10 @@ export default function DocumentEditor() {
   const [loading, setLoading] = useState(true);
   const [docType, setDocType] = useState<DocumentType | null>(null);
 
+  /**
+   * Load document metadata to determine editor type
+   * Redirects to documents page if document not found or user not authenticated
+   */
   useEffect(() => {
     const run = async () => {
       if (!docId || !currentUser) {
@@ -42,10 +51,10 @@ export default function DocumentEditor() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p>Opening editor...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <p className="text-gray-600 dark:text-gray-400">Opening editor...</p>
         </div>
       </div>
     );
@@ -53,13 +62,19 @@ export default function DocumentEditor() {
 
   if (!docType) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-sm text-gray-600 dark:text-gray-400">Document not found.</p>
       </div>
     );
   }
 
-  if (docType === 'sheet') return <SpreadsheetEditor />;
-  if (docType === 'presentation') return <PresentationEditor />;
-  return <TextEditor />;
+  /**
+   * Route to appropriate enhanced editor based on document type
+   * - 'sheet': Enhanced Spreadsheet Editor (Excel-style)
+   * - 'presentation': Enhanced Presentation Editor (PowerPoint-style)
+   * - 'doc': Enhanced Text Editor (Word-style) - default
+   */
+  if (docType === 'sheet') return <EnhancedSpreadsheetEditor />;
+  if (docType === 'presentation') return <EnhancedPresentationEditor />;
+  return <EnhancedTextEditor />;
 }

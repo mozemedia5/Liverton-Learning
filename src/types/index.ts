@@ -290,12 +290,13 @@ export interface DocumentMeta {
   createdAt: Date;
   updatedAt: Date;
   version: number;
+  isFavorite?: boolean;
 }
 
 export type DocumentContent =
   | { kind: 'doc'; html: string }
   | { kind: 'sheet'; cells: Record<string, string> }
-  | { kind: 'presentation'; slides: PresentationSlide[] };
+  | { kind: 'presentation'; slides: PresentationSlide[]; theme?: string };
 
 export interface PresentationSlide {
   id: string;
