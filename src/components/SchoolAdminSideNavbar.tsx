@@ -27,6 +27,9 @@ import {
   BarChart3,
   ChevronRight,
   Plus,
+  Info,
+  HelpCircle,
+  Shield,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,6 +42,7 @@ import { toast } from 'sonner';
  * - Logout confirmation dialog (prevents accidental logout)
  * - Documents section with ability to add new documents
  * - NO Hanna AI (removed for school admin dashboard)
+ * - Navigation plugins: About, Support, Privacy Policy
  * - Role-based navigation filtering
  * - Smooth animations and transitions
  */
@@ -109,10 +113,10 @@ export default function SchoolAdminSideNavbar() {
       {/* Mobile Menu Button - Fixed position, always visible on mobile */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden transition-all duration-200"
+        className="fixed top-4 left-4 z-50 p-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden transition-all duration-200"
         aria-label="Toggle navigation menu"
       >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
       {/* Overlay Backdrop - Prevents interaction with content behind sidebar */}
@@ -231,6 +235,46 @@ export default function SchoolAdminSideNavbar() {
           >
             <BarChart3 className="w-5 h-5 flex-shrink-0" />
             <span className="text-sm font-medium">Analytics</span>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="mx-4 my-4 border-t border-gray-200 dark:border-gray-800" />
+
+        {/* Navigation Plugins Section - About, Support, Privacy Policy */}
+        <div className="px-4 py-2 space-y-2">
+          <button
+            onClick={() => handleNavigate('/about')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/about')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <Info className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">About</span>
+          </button>
+          <button
+            onClick={() => handleNavigate('/support')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/support')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <HelpCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Support</span>
+          </button>
+          <button
+            onClick={() => handleNavigate('/privacy-policy')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive('/privacy-policy')
+                ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
+            }`}
+          >
+            <Shield className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Privacy Policy</span>
           </button>
         </div>
 

@@ -44,6 +44,10 @@ import AboutSchools from '@/pages/about/AboutSchools';
 import AboutTeachers from '@/pages/about/AboutTeachers';
 import AboutStudents from '@/pages/about/AboutStudents';
 
+// Support & Legal Pages
+import Support from '@/pages/Support';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+
 import './App.css';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
@@ -104,6 +108,10 @@ function AppRoutes() {
       <Route path="/about/schools" element={<AboutSchools />} />
       <Route path="/about/teachers" element={<AboutTeachers />} />
       <Route path="/about/students" element={<AboutStudents />} />
+
+      {/* Support & Legal Pages */}
+      <Route path="/support" element={<Support />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
       {/* Student Routes */}
       <Route path="/student/dashboard" element={
