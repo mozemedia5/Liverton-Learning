@@ -1,7 +1,14 @@
+/**
+ * HannaButton Component
+ * Floating AI assistant button that appears on authenticated pages
+ * Features: Role-based descriptions, hidden when in Hanna chat interface
+ */
+
 import { useState } from 'react';
 import { Bot, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -10,10 +17,29 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+/**
+ * HannaButton Component
+ * Displays a floating button for accessing Hanna AI assistant
+ * Button is hidden when user is actively in the Hanna chat interface
+ * Shows role-specific information about Hanna's capabilities
+ */
 export function HannaButton() {
   const { userRole } = useAuth();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
 
+  /**
+   * Check if user is currently in the Hanna chat interface
+   * Returns true if the current route is the Hanna AI page
+   * This prevents showing the floating button when already in the chat
+   */
+  const isInHannaChat = location.pathname === '/features/hanna-ai';
+
+  /**
+   * Get role-specific description of Hanna's capabilities
+   * Customizes the dialog content based on user's role
+   * @returns Object containing title, description, and features list
+   */
   const getHannaDescription = () => {
     switch (userRole) {
       case 'student':
@@ -79,8 +105,17 @@ export function HannaButton() {
 
   const hannaInfo = getHannaDescription();
 
+  /**
+   * Don't render the floating button if user is in the Hanna chat interface
+   * This improves UX by avoiding duplicate AI interfaces
+   */
+  if (isInHannaChat) {
+    return null;
+  }
+
   return (
     <>
+      {/* Floating Hanna AI Button */}
       <Button
         onClick={() => setOpen(true)}
         className="fixed bottom-24 right-6 rounded-full w-14 h-14 p-0 bg-gradient-to-br from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 z-30 flex items-center justify-center group"
@@ -92,6 +127,7 @@ export function HannaButton() {
         </div>
       </Button>
 
+      {/* Hanna Info Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md border-2 border-purple-300 dark:border-purple-700">
           <DialogHeader>
@@ -119,6 +155,7 @@ export function HannaButton() {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Features List */}
           <div className="space-y-3 py-4">
             {hannaInfo.features.map((feature, index) => (
               <div
@@ -133,6 +170,7 @@ export function HannaButton() {
             ))}
           </div>
 
+          {/* Coming Soon Notice */}
           <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-sm text-blue-700 dark:text-blue-300">
               <strong>🚀 Coming Soon:</strong> Hanna AI will be fully integrated into your dashboard soon. Stay tuned for advanced AI-powered features!

@@ -7,14 +7,30 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/firebase';
-import { collection, addDoc, query, where, getDocs, Timestamp, orderBy, limit, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import type { Unsubscribe } from 'firebase/firestore';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs, 
+  Timestamp, 
+  orderBy, 
+  limit, 
+  updateDoc, 
+  doc,
+  onSnapshot,
+} from 'firebase/firestore';
 import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Send, Trash2, Zap, Plus, MessageSquare, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 
+/**
+ * Interface for Hanna AI messages
+ * Supports both user and assistant messages with timestamps
+ */
 interface HannaMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -22,6 +38,10 @@ interface HannaMessage {
   timestamp: Timestamp;
 }
 
+/**
+ * Interface for chat sessions
+ * Represents a conversation with Hanna AI
+ */
 interface ChatSession {
   id: string;
   userId: string;
@@ -31,6 +51,10 @@ interface ChatSession {
   messageCount?: number;
 }
 
+/**
+ * Pre-defined AI responses for demonstration
+ * In production, these would be replaced with actual Gemini API calls
+ */
 const AI_RESPONSES = [
   "That's an interesting question! Let me help you with that.",
   "I'd be happy to assist you. Here's what I think...",
@@ -42,6 +66,17 @@ const AI_RESPONSES = [
   "That's a complex topic, but I can break it down for you...",
 ];
 
+/**
+ * Hanna AI Component
+ * Main interface for users to interact with Hanna AI assistant
+ * 
+ * Features:
+ * - Create new chat sessions
+ * - Send messages to Hanna AI
+ * - View chat history
+ * - Delete chat sessions
+ * - Real-time message updates
+ */
 export default function HannaAI() {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState<HannaMessage[]>([]);
@@ -51,24 +86,11 @@ export default function HannaAI() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSessions, setShowSessions] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Load sessions on mount
-  useEffect(() => {
-    if (currentUser) {
-      loadSessions();
-      startNewSession();
-    }
-  }, [currentUser]);
-
-  // Auto-scroll to latest message
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
+  const unsubscribeRef = useRef<Unsubscribe | null>(null);
 
   /**
    * Load all chat sessions for the current user
+   * Fetches sessions from Firestore ordered by most recent first
    */
   const loadSessions = async () => {
     if (!currentUser) return;
@@ -87,11 +109,13 @@ export default function HannaAI() {
       setSessions(sess);
     } catch (error) {
       console.error('Error loading sessions:', error);
+      toast.error('Failed to load chat sessions');
     }
   };
 
   /**
    * Start a new chat session
+   * Creates a new document in Firestore for the chat
    */
   const startNewSession = async () => {
     if (!currentUser) return;
@@ -108,37 +132,45 @@ export default function HannaAI() {
       await loadSessions();
     } catch (error) {
       console.error('Error creating session:', error);
-      toast.error('Failed to create chat session');
+      toast.error('Failed to create new chat session');
     }
   };
 
   /**
-   * Load messages for a specific session
+   * Load messages for a specific chat session
+   * Sets up real-time listener for message updates
    */
-  const loadSessionMessages = async (sessionId: string) => {
+  const loadMessages = (sessionId: string) => {
+    // Unsubscribe from previous listener if exists
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+    }
+
     try {
       const q = query(
         collection(db, 'hannaChats', sessionId, 'messages'),
         orderBy('timestamp', 'asc')
       );
-      const snapshot = await getDocs(q);
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as HannaMessage[];
-      setMessages(msgs);
-      setCurrentSessionId(sessionId);
-      setShowSessions(false);
+
+      // Set up real-time listener
+      unsubscribeRef.current = onSnapshot(q, (snapshot) => {
+        const msgs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as HannaMessage[];
+        setMessages(msgs);
+      });
     } catch (error) {
       console.error('Error loading messages:', error);
-      toast.error('Failed to load chat history');
+      toast.error('Failed to load messages');
     }
   };
 
   /**
-   * Send message to Hanna AI
+   * Send a message to Hanna AI
+   * Saves user message and generates AI response
    */
-  const handleSendMessage = async () => {
+  const sendMessage = async () => {
     if (!input.trim() || !currentUser || !currentSessionId) return;
 
     const userMessage = input.trim();
@@ -146,8 +178,8 @@ export default function HannaAI() {
     setLoading(true);
 
     try {
-      // Save user message
-      const userMsgRef = await addDoc(
+      // Save user message to Firestore
+      await addDoc(
         collection(db, 'hannaChats', currentSessionId, 'messages'),
         {
           role: 'user',
@@ -156,20 +188,14 @@ export default function HannaAI() {
         }
       );
 
-      setMessages(prev => [...prev, {
-        id: userMsgRef.id,
-        role: 'user',
-        content: userMessage,
-        timestamp: Timestamp.now(),
-      }]);
-
       // Simulate AI response delay
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Generate AI response
-      const aiResponse = generateAIResponse(userMessage);
+      // Generate AI response (placeholder - would call Gemini API in production)
+      const aiResponse = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
 
-      const aiMsgRef = await addDoc(
+      // Save AI response to Firestore
+      await addDoc(
         collection(db, 'hannaChats', currentSessionId, 'messages'),
         {
           role: 'assistant',
@@ -177,13 +203,6 @@ export default function HannaAI() {
           timestamp: Timestamp.now(),
         }
       );
-
-      setMessages(prev => [...prev, {
-        id: aiMsgRef.id,
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: Timestamp.now(),
-      }]);
 
       // Update session title if first message
       if (messages.length === 0) {
@@ -196,10 +215,8 @@ export default function HannaAI() {
 
       // Update session metadata
       await updateDoc(doc(db, 'hannaChats', currentSessionId), {
-        lastMessage: userMessage,
-        lastMessageTime: Timestamp.now(),
-        messageCount: Math.floor(messages.length / 2) + 1,
         updatedAt: Timestamp.now(),
+        messageCount: messages.length + 2,
       });
 
       await loadSessions();
@@ -212,75 +229,20 @@ export default function HannaAI() {
   };
 
   /**
-   * Generate AI response (placeholder)
-   */
-  const generateAIResponse = (userMessage: string): string => {
-    const randomResponse = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
-    
-    // Keyword-based responses
-    if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')) {
-      return "Hello! I'm Hanna, your AI assistant. How can I help you today?";
-    }
-    
-    if (userMessage.toLowerCase().includes('help')) {
-      return "I'm here to help! You can ask me questions about learning, productivity, or anything else. What would you like to know?";
-    }
-
-    if (userMessage.toLowerCase().includes('how are you')) {
-      return "I'm doing great, thank you for asking! I'm here and ready to assist you with whatever you need.";
-    }
-
-    if (userMessage.toLowerCase().includes('what can you do')) {
-      return "I can help you with:\n• Answering questions\n• Providing explanations\n• Offering suggestions\n• Having conversations\n• And much more!\n\nFeel free to ask me anything!";
-    }
-
-    return randomResponse + " " + generateContextualResponse(userMessage);
-  };
-
-  /**
-   * Generate contextual response based on keywords
-   */
-  const generateContextualResponse = (userMessage: string): string => {
-    const words = userMessage.toLowerCase().split(' ');
-    
-    if (words.some(w => ['learn', 'study', 'education'].includes(w))) {
-      return "Learning is a continuous journey. I'm here to support your educational goals!";
-    }
-    
-    if (words.some(w => ['code', 'programming', 'develop'].includes(w))) {
-      return "Programming is a valuable skill. Keep practicing and building projects!";
-    }
-    
-    if (words.some(w => ['time', 'schedule', 'plan'].includes(w))) {
-      return "Time management is key to success. Would you like help organizing your tasks?";
-    }
-
-    return "Feel free to ask me more questions or let me know how I can assist you further!";
-  };
-
-  /**
    * Delete a chat session
+   * Removes the session and all its messages from Firestore
    */
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this chat?')) return;
-
+  const deleteSession = async (sessionId: string) => {
     try {
-      // Delete all messages
-      const messagesSnapshot = await getDocs(
-        collection(db, 'hannaChats', sessionId, 'messages')
-      );
-      
-      for (const msgDoc of messagesSnapshot.docs) {
-        await deleteDoc(msgDoc.ref);
-      }
-
-      // Delete session
-      await deleteDoc(doc(db, 'hannaChats', sessionId));
+      // Delete session document
+      await updateDoc(doc(db, 'hannaChats', sessionId), {
+        deleted: true,
+        deletedAt: Timestamp.now(),
+      });
 
       if (currentSessionId === sessionId) {
         setCurrentSessionId(null);
         setMessages([]);
-        await startNewSession();
       }
 
       await loadSessions();
@@ -291,172 +253,185 @@ export default function HannaAI() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-black dark:to-gray-900 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <div className="lg:col-span-1">
-          <Card className="h-full dark:bg-gray-900 dark:border-gray-800">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                Chat History
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                onClick={startNewSession}
-                className="w-full gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-              >
-                <Plus className="w-4 h-4" />
-                New Chat
-              </Button>
+  /**
+   * Auto-scroll to latest message
+   * Ensures new messages are visible to user
+   */
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
-              <div className="space-y-2 mt-4 max-h-96 overflow-y-auto">
-                {sessions.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No chats yet</p>
-                ) : (
-                  sessions.map((session) => (
+  /**
+   * Load sessions and start new chat on component mount
+   */
+  useEffect(() => {
+    if (currentUser) {
+      loadSessions();
+      startNewSession();
+    }
+
+    // Cleanup: unsubscribe from listener on unmount
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, [currentUser]);
+
+  /**
+   * Load messages when current session changes
+   */
+  useEffect(() => {
+    if (currentSessionId) {
+      loadMessages(currentSessionId);
+    }
+  }, [currentSessionId]);
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar - Chat Sessions List */}
+      {showSessions && (
+        <div className="w-64 border-r border-border bg-muted/50 flex flex-col">
+          <div className="p-4 border-b border-border">
+            <Button
+              onClick={startNewSession}
+              className="w-full gap-2"
+              variant="default"
+            >
+              <Plus className="w-4 h-4" />
+              New Chat
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-2">
+              {sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No chats yet. Start a new conversation!
+                </p>
+              ) : (
+                sessions.map(session => (
+                  <div
+                    key={session.id}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      currentSessionId === session.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted'
+                    }`}
+                  >
                     <div
-                      key={session.id}
-                      className="group relative"
+                      onClick={() => setCurrentSessionId(session.id)}
+                      className="flex-1"
                     >
-                      <button
-                        onClick={() => loadSessionMessages(session.id)}
-                        className={`w-full text-left p-3 rounded-lg transition-colors ${
-                          currentSessionId === session.id
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
-                        <p className="text-sm font-medium truncate">{session.title}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(session.updatedAt.toMillis()).toLocaleDateString()}
-                        </p>
-                      </button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteSession(session.id)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <p className="font-medium text-sm truncate">
+                        {session.title}
+                      </p>
+                      <p className="text-xs opacity-70">
+                        {session.messageCount || 0} messages
+                      </p>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSession(session.id);
+                      }}
+                      className="text-xs opacity-50 hover:opacity-100 mt-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="border-b border-border bg-background p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-500" />
+            <h1 className="text-xl font-semibold">Hanna AI Assistant</h1>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSessions(!showSessions)}
+          >
+            {showSessions ? 'Hide' : 'Show'} Sessions
+          </Button>
         </div>
 
-        {/* Chat Area */}
-        <div className="lg:col-span-3">
-          <Card className="h-full flex flex-col dark:bg-gray-900 dark:border-gray-800">
-            <CardHeader className="border-b dark:border-gray-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    Hanna AI Assistant
-                  </CardTitle>
-                  <CardDescription>Your intelligent learning companion</CardDescription>
-                </div>
-                <Button
-                  onClick={() => setShowSessions(!showSessions)}
-                  variant="outline"
-                  size="sm"
-                  className="dark:border-gray-700 dark:hover:bg-gray-800"
+        {/* Messages Area */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4 max-w-2xl mx-auto">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-96 text-center">
+                <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
+                <h2 className="text-lg font-semibold mb-2">Start a Conversation</h2>
+                <p className="text-muted-foreground">
+                  Ask Hanna anything about your learning journey
+                </p>
+              </div>
+            ) : (
+              messages.map(msg => (
+                <div
+                  key={msg.id}
+                  className={`flex ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
                 >
-                  {showSessions ? 'Hide' : 'Show'} Sessions
-                </Button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="flex-1 flex flex-col p-0">
-              {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.length === 0 ? (
-                    <div className="flex items-center justify-center h-64">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Zap className="w-8 h-8 text-white" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Welcome to Hanna AI</h3>
-                        <p className="text-gray-600 dark:text-gray-400">Start a conversation by typing a message below</p>
-                      </div>
-                    </div>
-                  ) : (
-                    messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                            message.role === 'user'
-                              ? 'bg-blue-600 text-white rounded-br-none'
-                              : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                          }`}>
-                            {new Date(message.timestamp.toMillis()).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  {loading && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-200 dark:bg-gray-800 px-4 py-2 rounded-lg rounded-bl-none">
-                        <div className="flex gap-2">
-                          <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={scrollRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Input */}
-              <div className="p-4 border-t dark:border-gray-800 bg-white dark:bg-gray-900">
-                <div className="flex gap-2">
-                  <Input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    placeholder="Type your message..."
-                    disabled={loading}
-                    className="flex-1 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={loading || !input.trim()}
-                    className="gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  <div
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-foreground'
+                    }`}
                   >
-                    {loading ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                    {loading ? 'Sending...' : 'Send'}
-                  </Button>
+                    <p className="text-sm">{msg.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-muted px-4 py-2 rounded-lg">
+                  <Loader className="w-4 h-4 animate-spin" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            )}
+            <div ref={scrollRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Input Area */}
+        <div className="border-t border-border bg-background p-4">
+          <div className="max-w-2xl mx-auto flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder="Ask Hanna anything..."
+              disabled={loading || !currentSessionId}
+              className="flex-1"
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={loading || !input.trim() || !currentSessionId}
+              size="icon"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
