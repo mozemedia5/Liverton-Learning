@@ -203,13 +203,13 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/features/hanna-ai" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <AuthenticatedLayout><HannaAI /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
       <Route path="/features/analytics" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Analytics /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
-          <AuthenticatedLayout><HannaAI /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
