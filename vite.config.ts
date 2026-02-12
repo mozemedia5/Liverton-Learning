@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   server: {
     middlewareMode: false,
     allowedHosts: [
@@ -23,7 +23,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png', 'apple-touch-icon.png'],
+      injectRegister: 'auto',
+      includeAssets: ['icons/*.png', 'apple-touch-icon.png', 'favicon.ico'],
       manifest: {
         name: 'Liverton Learning',
         short_name: 'Liverton',
@@ -36,25 +37,25 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icons/icon-192x192.png',
+            src: 'icons/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/icons/icon-192x192-maskable.png',
+            src: 'icons/icon-192x192-maskable.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable'
           },
           {
-            src: '/icons/icon-512x512.png',
+            src: 'icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/icons/icon-512x512-maskable.png',
+            src: 'icons/icon-512x512-maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -66,7 +67,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
-        clientsClaim: true
+        clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
       },
       devOptions: {
         enabled: true,
