@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Mail,
   MessageSquare,
-  Phone,
   Clock,
   HelpCircle,
   Send,
