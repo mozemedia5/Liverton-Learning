@@ -263,10 +263,7 @@ export default function SideNavbar() {
           </button>
           
           <button
-            onClick={() => {
-              toast.info('Support system coming soon');
-              setIsOpen(false);
-            }}
+            onClick={() => handleNavigate('/support')}
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
           >
             <HelpCircle className="w-4 h-4" />
@@ -274,10 +271,7 @@ export default function SideNavbar() {
           </button>
 
           <button
-            onClick={() => {
-              toast.info('Privacy policy coming soon');
-              setIsOpen(false);
-            }}
+            onClick={() => handleNavigate('/privacy-policy')}
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
           >
             <Shield className="w-4 h-4" />
