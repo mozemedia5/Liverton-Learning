@@ -50,18 +50,31 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy';
 
 import './App.css';
 
+/**
+ * ProtectedRoute Component
+ * 
+ * Ensures only authenticated users can access protected routes.
+ * Shows loading animation during initial auth state check.
+ * Optionally restricts access based on user roles.
+ * 
+ * @param children - The component to render if user is authenticated
+ * @param allowedRoles - Optional array of roles allowed to access this route
+ */
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, userRole, initialLoadComplete } = useAuth();
 
-  // Only show loading during initial auth check, not on every navigation
+  // Show loading animation during initial auth check
+  // This prevents flash of login page for authenticated users
   if (!initialLoadComplete) {
     return <LogoLoader message="Initializing..." />;
   }
 
+  // Redirect unauthenticated users to login page
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
+  // Check role-based access control if roles are specified
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
     return <Navigate to="/" replace />;
   }
@@ -69,15 +82,25 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
+/**
+ * PublicRoute Component
+ * 
+ * Handles public pages (landing, login, register, etc.)
+ * Redirects authenticated users to their respective dashboards.
+ * Shows loading animation during initial auth check to prevent redirect flashing.
+ * 
+ * @param children - The component to render if user is not authenticated
+ */
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, userRole, initialLoadComplete } = useAuth();
 
-  // Don't show anything while loading - just render the page
-  // The page will handle redirects if needed
+  // Show loading animation during initial auth check
+  // This prevents flash of landing page for authenticated users
   if (!initialLoadComplete) {
-    return <>{children}</>;
+    return <LogoLoader message="Initializing..." />;
   }
 
+  // Redirect authenticated users to their dashboard based on role
   if (isAuthenticated && userRole) {
     const dashboardRoutes: Record<string, string> = {
       student: '/student/dashboard',
@@ -91,10 +114,16 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * AppRoutes Component
+ * 
+ * Defines all application routes with proper protection and access control.
+ * Routes are organized by type: public, protected, dashboards, and features.
+ */
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Public Routes - Accessible to all, but redirect authenticated users to dashboard */}
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
       <Route path="/get-started" element={<PublicRoute><RoleSelection /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -103,17 +132,17 @@ function AppRoutes() {
       <Route path="/register/school-admin" element={<PublicRoute><SchoolAdminRegister /></PublicRoute>} />
       <Route path="/register/parent" element={<PublicRoute><ParentRegister /></PublicRoute>} />
       
-      {/* About Pages */}
+      {/* About Pages - Accessible to all users (public) */}
       <Route path="/about" element={<About />} />
       <Route path="/about/schools" element={<AboutSchools />} />
       <Route path="/about/teachers" element={<AboutTeachers />} />
       <Route path="/about/students" element={<AboutStudents />} />
 
-      {/* Support & Legal Pages */}
+      {/* Support & Legal Pages - Accessible to all users (public) */}
       <Route path="/support" element={<Support />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-      {/* Student Routes */}
+      {/* Student Routes - Protected, accessible only to students and parents */}
       <Route path="/student/dashboard" element={
         <ProtectedRoute allowedRoles={['student', 'parent']}>
           <AuthenticatedLayout><StudentDashboard /></AuthenticatedLayout>
@@ -130,7 +159,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Teacher Routes */}
+      {/* Teacher Routes - Protected, accessible only to teachers */}
       <Route path="/teacher/dashboard" element={
         <ProtectedRoute allowedRoles={['teacher']}>
           <AuthenticatedLayout><TeacherDashboard /></AuthenticatedLayout>
@@ -142,14 +171,14 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* School Admin Routes */}
+      {/* School Admin Routes - Protected, accessible only to school admins */}
       <Route path="/school-admin/dashboard" element={
         <ProtectedRoute allowedRoles={['school_admin']}>
           <AuthenticatedLayout><SchoolAdminDashboard /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
-      {/* Shared Feature Routes */}
+      {/* Shared Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/announcements" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
@@ -176,6 +205,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      {/* Document Routes - Protected, accessible to all authenticated users */}
       <Route path="/dashboard/documents" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><Documents /></AuthenticatedLayout>
@@ -186,9 +216,10 @@ function AppRoutes() {
           <AuthenticatedLayout><DocumentEditor /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+      {/* Public document sharing - accessible without authentication */}
       <Route path="/documents/public/:token" element={<PublicDocument />} />
 
-      {/* Global Feature Routes */}
+      {/* Global Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/features/document-management" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
           <AuthenticatedLayout><DocumentManagement /></AuthenticatedLayout>
@@ -215,12 +246,21 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Fallback */}
+      {/* Fallback Route - Redirect unknown routes to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
+/**
+ * App Component
+ * 
+ * Root component that sets up:
+ * - Theme provider for dark/light mode support
+ * - Authentication provider for user state management
+ * - Router for client-side navigation
+ * - Toast notifications (Sonner)
+ */
 function App() {
   // PWA service worker registration disabled to prevent MIME type errors
   // Will be re-enabled once service worker configuration is fixed

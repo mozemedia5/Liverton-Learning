@@ -115,6 +115,12 @@ export default function LandingPage() {
             </button>
             <button onClick={() => navigate('/about/students')} className="hover:text-black dark:hover:text-white transition-colors">
               For Students
+            <button onClick={() => navigate("/support")} className="hover:text-black dark:hover:text-white transition-colors">
+              Support
+            </button>
+            <button onClick={() => navigate("/privacy-policy")} className="hover:text-black dark:hover:text-white transition-colors">
+              Privacy Policy
+            </button>
             </button>
           </div>
         </div>
