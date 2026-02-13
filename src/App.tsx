@@ -115,6 +115,26 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * PublicAccessibleRoute Component
+ * 
+ * Allows BOTH authenticated and unauthenticated users to access pages.
+ * Used for pages like Support, Privacy Policy, About that should be accessible to everyone.
+ * Shows loading animation during initial auth check.
+ * 
+ * @param children - The component to render
+ */
+function PublicAccessibleRoute({ children }: { children: React.ReactNode }) {
+  const { initialLoadComplete } = useAuth();
+
+  // Show loading animation during initial auth check
+  if (!initialLoadComplete) {
+    return <LogoLoader message="Initializing..." />;
+  }
+
+  return <>{children}</>;
+}
+
+/**
  * AppRoutes Component
  * 
  * Defines all application routes with proper protection and access control.
@@ -133,14 +153,14 @@ function AppRoutes() {
       <Route path="/register/parent" element={<PublicRoute><ParentRegister /></PublicRoute>} />
       
       {/* About Pages - Accessible to all users (public) */}
-      <Route path="/about" element={<About />} />
-      <Route path="/about/schools" element={<AboutSchools />} />
-      <Route path="/about/teachers" element={<AboutTeachers />} />
-      <Route path="/about/students" element={<AboutStudents />} />
+      <Route path="/about" element={<PublicAccessibleRoute><About /></PublicAccessibleRoute>} />
+      <Route path="/about/schools" element={<PublicAccessibleRoute><AboutSchools /></PublicAccessibleRoute>} />
+      <Route path="/about/teachers" element={<PublicAccessibleRoute><AboutTeachers /></PublicAccessibleRoute>} />
+      <Route path="/about/students" element={<PublicAccessibleRoute><AboutStudents /></PublicAccessibleRoute>} />
 
-      {/* Support & Legal Pages - Accessible to all users (public) */}
-      <Route path="/support" element={<Support />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      {/* Support & Legal Pages - Accessible to all users (both authenticated and unauthenticated) */}
+      <Route path="/support" element={<PublicAccessibleRoute><Support /></PublicAccessibleRoute>} />
+      <Route path="/privacy-policy" element={<PublicAccessibleRoute><PrivacyPolicy /></PublicAccessibleRoute>} />
 
       {/* Student Routes - Protected, accessible only to students and parents */}
       <Route path="/student/dashboard" element={
