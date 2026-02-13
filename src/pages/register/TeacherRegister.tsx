@@ -147,7 +147,7 @@ export default function TeacherRegister() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300 pl-16 md:pl-0">
+    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
       {/* Header */}
       <header className="w-full px-6 py-4 flex items-center border-b border-gray-200 dark:border-gray-800">
         <Button 

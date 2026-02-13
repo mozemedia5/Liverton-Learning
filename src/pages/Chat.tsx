@@ -282,7 +282,7 @@ export default function Chat() {
       {/* Sidebar - Chat Sessions */}
       <aside className="w-full md:w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800 pl-16 md:pl-4">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800 pl-12 md:pl-4">
           <div className="flex items-center gap-2 mb-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-5 h-5" />
