@@ -239,7 +239,7 @@ export default function Profile() {
     try {
       await deleteAccount();
       toast.success('Account deleted successfully');
-      navigate('/login');
+      navigate('/role-selection');
     } catch (error: any) {
       console.error('Error deleting account:', error);
       
