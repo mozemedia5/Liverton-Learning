@@ -24,6 +24,7 @@ import {
   LogOut,
   FileText,
   Calculator,
+  Sparkles,
   BarChart3,
   ChevronRight,
   Plus,
@@ -41,7 +42,7 @@ import { toast } from 'sonner';
  * - Mobile-responsive with hamburger menu
  * - Logout confirmation dialog (prevents accidental logout)
  * - Documents section with ability to add new documents
- * - NO Hanna AI (removed for school admin dashboard)
+ * - Hanna AI integration (matching student dashboard)
  * - Navigation plugins: About, Support, Privacy Policy
  * - Role-based navigation filtering
  * - Smooth animations and transitions
@@ -88,6 +89,7 @@ export default function SchoolAdminSideNavbar() {
     { label: 'Announcements', path: '/announcements', icon: Bell },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
   ];
 
   /**

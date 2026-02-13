@@ -22,6 +22,7 @@ import {
   LogOut,
   FileText,
   Calculator,
+  Sparkles,
   BarChart3,
   ChevronRight,
   Plus,
@@ -40,7 +41,7 @@ import { toast } from 'sonner';
  * - Mobile-responsive with hamburger menu
  * - Logout confirmation dialog (prevents accidental logout)
  * - Documents section with ability to add new documents
- * - NO Hanna AI (removed for teacher dashboard)
+ * - Hanna AI integration (matching student dashboard)
  * - Navigation plugins: About, Support, Privacy Policy
  * - Role-based navigation filtering
  * - Smooth animations and transitions
@@ -87,6 +88,7 @@ export default function TeacherSideNavbar() {
     { label: 'Earnings', path: '/payments', icon: CreditCard },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
   ];
 
   /**
