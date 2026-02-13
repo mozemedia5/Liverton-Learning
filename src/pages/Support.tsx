@@ -80,7 +80,7 @@ export default function Support() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300 pl-16 md:pl-0">
+    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
