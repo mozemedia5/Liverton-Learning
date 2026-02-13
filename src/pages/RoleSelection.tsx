@@ -46,7 +46,7 @@ export default function RoleSelection() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300 pl-16 md:pl-0">
       {/* Header */}
       <header className="w-full px-6 py-4 flex items-center border-b border-gray-200 dark:border-gray-800">
         <Button 

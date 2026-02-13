@@ -64,7 +64,7 @@ export default function TeacherDashboard() {
       <TeacherSideNavbar />
 
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+      <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 pl-16 md:pl-0">
         <div className="flex items-center justify-between px-4 py-3 lg:pl-64">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">

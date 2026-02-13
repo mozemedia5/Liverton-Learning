@@ -62,7 +62,7 @@ export default function Login() {
 
   if (!pageReady) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center pl-16 md:pl-0">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
@@ -72,7 +72,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300 pl-16 md:pl-0">
       {/* Header */}
       <header className="w-full px-6 py-4 flex items-center border-b border-gray-200 dark:border-gray-800">
         <Button 
