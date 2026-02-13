@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -16,7 +15,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [pageReady, setPageReady] = useState(false);
 
   // Wait for auth to finish loading before showing the page
@@ -28,12 +26,13 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
       await login(email, password);
-      toast.success('Login successful!');
+      toast.success('✅ Login successful! Redirecting...', {
+        duration: 3000,
+      });
       
       // Redirect based on role
       setTimeout(() => {
@@ -52,8 +51,10 @@ export default function Login() {
         }
       }, 500);
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password');
-      toast.error('Login failed. Please check your credentials.');
+      const errorMessage = err.message || 'Invalid email or password';
+      toast.error('❌ ' + errorMessage, {
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -99,14 +100,9 @@ export default function Login() {
               Enter your credentials to access your account
             </CardDescription>
           </CardHeader>
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
