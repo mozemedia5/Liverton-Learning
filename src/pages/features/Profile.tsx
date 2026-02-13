@@ -5,6 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   BookOpen, 
   ArrowLeft, 
@@ -17,7 +26,11 @@ import {
   Camera,
   Edit2,
   Save,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff,
+  Lock,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -26,12 +39,27 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { userData, userRole, updateUserProfile } = useAuth();
+  const { userData, userRole, updateUserProfile, changePassword, deleteAccount } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(userData?.profileImageUrl || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Change Password State
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Delete Account State
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: userData?.fullName || '',
@@ -139,6 +167,91 @@ export default function Profile() {
       case 'parent': return 'Parent';
       case 'platform_admin': return 'Platform Administrator';
       default: return 'User';
+    }
+  };
+
+  /**
+   * Handle password change
+   */
+  const handleChangePassword = async () => {
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      toast.error('New password must be different from current password');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      await changePassword(currentPassword, newPassword);
+      toast.success('Password changed successfully');
+      
+      // Reset form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowChangePassword(false);
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      
+      // Handle specific Firebase errors
+      if (error.code === 'auth/wrong-password') {
+        toast.error('Current password is incorrect');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('New password is too weak');
+      } else if (error.code === 'auth/requires-recent-login') {
+        toast.error('Please log out and log back in before changing your password');
+      } else {
+        toast.error('Failed to change password. Please try again.');
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  /**
+   * Handle account deletion
+   */
+  const handleDeleteAccount = async () => {
+    // Validation
+    if (deleteConfirmation !== 'DELETE') {
+      toast.error('Please type DELETE to confirm account deletion');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    try {
+      await deleteAccount();
+      toast.success('Account deleted successfully');
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      
+      // Handle specific Firebase errors
+      if (error.code === 'auth/requires-recent-login') {
+        toast.error('Please log out and log back in before deleting your account');
+      } else {
+        toast.error('Failed to delete account. Please try again.');
+      }
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteAccount(false);
     }
   };
 
@@ -355,21 +468,174 @@ export default function Profile() {
           </Card>
         )}
 
-        {/* Account Actions */}
+        {/* Security Settings Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Account</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="w-5 h-5" />
+              Security Settings
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
-              Change Password
-            </Button>
-            <Button variant="outline" className="w-full justify-start text-red-600">
-              Delete Account
-            </Button>
+          <CardContent className="space-y-4">
+            {/* Change Password Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">Change Password</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Update your password to keep your account secure
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowChangePassword(!showChangePassword)}
+                  variant="outline"
+                  className="border-black dark:border-white"
+                >
+                  {showChangePassword ? 'Cancel' : 'Change Password'}
+                </Button>
+              </div>
+
+              {/* Change Password Form */}
+              {showChangePassword && (
+                <div className="p-4 border border-gray-200 dark:border-gray-800 rounded-lg space-y-4 bg-gray-50 dark:bg-gray-900">
+                  <div>
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 6 characters)"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleChangePassword}
+                    disabled={isChangingPassword}
+                    className="w-full bg-black dark:bg-white text-white dark:text-black"
+                  >
+                    {isChangingPassword ? 'Changing Password...' : 'Confirm Change Password'}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-4" />
+
+            {/* Delete Account Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-red-600 dark:text-red-400">Delete Account</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Permanently delete your account and all associated data
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowDeleteAccount(true)}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </main>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={showDeleteAccount} onOpenChange={setShowDeleteAccount}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 dark:text-red-400">
+              Delete Account
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+              </p>
+              <p className="font-semibold">
+                Please type <span className="text-red-600 dark:text-red-400">DELETE</span> to confirm account deletion:
+              </p>
+              <Input
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type DELETE here"
+                className="font-mono"
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-4">
+            <AlertDialogCancel onClick={() => {
+              setDeleteConfirmation('');
+              setShowDeleteAccount(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={isDeletingAccount || deleteConfirmation !== 'DELETE'}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeletingAccount ? 'Deleting...' : 'Confirm Deletion'}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

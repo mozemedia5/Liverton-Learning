@@ -4,9 +4,13 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   signOut,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  deleteUser,
   type User as FirebaseUser 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User, UserRole } from '@/types';
 
@@ -20,6 +24,8 @@ interface AuthContextType {
   register: (email: string, password: string, userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   updateUserProfile: (data: Partial<User>) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -128,6 +134,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserData(prev => prev ? { ...prev, ...data } : null);
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!currentUser || !currentUser.email) {
+      throw new Error('No user is currently logged in');
+    }
+
+    // Re-authenticate the user before changing password
+    const credential = EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    );
+
+    await reauthenticateWithCredential(currentUser, credential);
+    await updatePassword(currentUser, newPassword);
+  };
+
+  const deleteAccount = async () => {
+    if (!currentUser) {
+      throw new Error('No user is currently logged in');
+    }
+
+    // Delete user data from Firestore
+    try {
+      // Delete from main users collection
+      await deleteDoc(doc(db, 'users', currentUser.uid));
+
+      // Delete from role-specific collection
+      if (userData?.role) {
+        await deleteDoc(doc(db, userData.role + 's', currentUser.uid));
+      }
+    } catch (error) {
+      console.error('Error deleting Firestore data:', error);
+    }
+
+    // Delete Firebase Auth user
+    await deleteUser(currentUser);
+
+    // Clear local state
+    setUserData(null);
+    setUserRole(null);
+    setCurrentUser(null);
+  };
+
   const value: AuthContextType = {
     currentUser,
     userData,
@@ -138,6 +186,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     updateUserProfile,
+    changePassword,
+    deleteAccount,
     isAuthenticated: !!currentUser,
   };
 
