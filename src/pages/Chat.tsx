@@ -278,11 +278,11 @@ export default function Chat() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-black dark:text-white transition-colors duration-300 flex pl-16 md:pl-0">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-black dark:text-white transition-colors duration-300 flex">
       {/* Sidebar - Chat Sessions */}
-      <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col pl-16 md:pl-0">
+      <aside className="w-full md:w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800 pl-16 md:pl-4">
           <div className="flex items-center gap-2 mb-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-5 h-5" />
