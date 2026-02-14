@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus, Plus, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { verifyStudentExists, addStudentDuringRegistration } from '@/lib/parentService';
+import { verifyStudentExists } from '@/lib/parentService';
 import { toast } from 'sonner';
 
 /**
