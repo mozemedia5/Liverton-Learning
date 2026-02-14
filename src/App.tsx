@@ -21,6 +21,12 @@ import TeacherDashboard from '@/dashboards/TeacherDashboard';
 import SchoolAdminDashboard from '@/dashboards/SchoolAdminDashboard';
 import ParentDashboard from '@/pages/ParentDashboard';
 
+// Parent Pages
+import ParentStudents from '@/pages/ParentStudents';
+import ParentPerformance from '@/pages/ParentPerformance';
+import ParentCourses from '@/pages/ParentCourses';
+import ParentFees from '@/pages/ParentFees';
+
 // Feature Pages
 import Courses from '@/pages/features/Courses';
 import Announcements from '@/pages/features/Announcements';
@@ -186,6 +192,26 @@ function AppRoutes() {
       <Route path="/parent/dashboard" element={
         <ProtectedRoute allowedRoles={['parent']}>
           <ParentDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/parent/students" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <ParentStudents />
+        </ProtectedRoute>
+      } />
+      <Route path="/parent/performance" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <ParentPerformance />
+        </ProtectedRoute>
+      } />
+      <Route path="/parent/courses" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <ParentCourses />
+        </ProtectedRoute>
+      } />
+      <Route path="/parent/fees" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <ParentFees />
         </ProtectedRoute>
       } />
 

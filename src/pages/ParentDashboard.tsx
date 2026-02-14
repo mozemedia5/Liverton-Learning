@@ -1,11 +1,12 @@
 /**
  * Parent Dashboard
- * Displays parent's linked children and their academic progress
+ * Main dashboard for parents to manage their children's education
  * Features:
- * - View all linked children
- * - Add new children to account
- * - View child's academic progress
- * - Access child's courses and performance
+ * - Overview of all linked children
+ * - Quick stats on children's progress
+ * - Add/link new children
+ * - View recent activities
+ * - Quick access to important features
  */
 
 import { useState, useEffect } from 'react';
@@ -17,10 +18,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Loader2, AlertCircle, CheckCircle, Trash2, Eye } from 'lucide-react';
+import { Plus, Loader2, AlertCircle, CheckCircle, Trash2, Eye, TrendingUp, BookOpen, CreditCard, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLinkedStudents, unlinkStudentFromParent, verifyStudentExists, linkStudentToParent } from '@/lib/parentService';
 import { toast } from 'sonner';
+import ParentSideNavbar from '@/components/ParentSideNavbar';
 import type { LinkedStudent } from '@/lib/parentService';
 
 export default function ParentDashboard() {
@@ -39,6 +41,7 @@ export default function ParentDashboard() {
     name: '',
     email: '',
     relationship: '',
+    school: '',
     contactNumber: '',
   });
   const [verifyingEmail, setVerifyingEmail] = useState(false);
@@ -118,6 +121,10 @@ export default function ParentDashboard() {
       toast.error('Please select relationship');
       return;
     }
+    if (!newStudent.school.trim()) {
+      toast.error('Please select or enter school');
+      return;
+    }
 
     try {
       setAddingStudent(true);
@@ -132,13 +139,14 @@ export default function ParentDashboard() {
       await linkStudentToParent(currentUser.uid, student.uid, {
         studentName: newStudent.name,
         relationship: newStudent.relationship,
+        school: newStudent.school,
         contactNumber: newStudent.contactNumber,
       });
 
       toast.success('Student linked successfully!');
       
       // Reset form and reload
-      setNewStudent({ name: '', email: '', relationship: '', contactNumber: '' });
+      setNewStudent({ name: '', email: '', relationship: '', school: '', contactNumber: '' });
       setEmailVerified(false);
       setShowAddDialog(false);
       await loadLinkedStudents();
@@ -155,13 +163,13 @@ export default function ParentDashboard() {
   const handleRemoveStudent = async (studentId: string) => {
     if (!currentUser) return;
 
-    if (!confirm('Are you sure you want to remove this student?')) {
+    if (!window.confirm('Are you sure you want to unlink this student?')) {
       return;
     }
 
     try {
       await unlinkStudentFromParent(currentUser.uid, studentId);
-      toast.success('Student removed');
+      toast.success('Student unlinked successfully');
       await loadLinkedStudents();
     } catch (err: any) {
       toast.error(err.message || 'Failed to remove student');
@@ -169,247 +177,258 @@ export default function ParentDashboard() {
   };
 
   /**
-   * Handle logout
+   * View student details
    */
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (err) {
-      toast.error('Failed to logout');
-    }
+  const handleViewStudent = (studentId: string) => {
+    navigate(`/parent/student/${studentId}`);
   };
 
-  // Redirect if not authenticated or not a parent
-  if (!currentUser || userData?.role !== 'parent') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                You must be logged in as a parent to access this page.
-              </AlertDescription>
-            </Alert>
-            <Button 
-              onClick={() => navigate('/login')}
-              className="w-full mt-4"
-            >
-              Go to Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
-      {/* Header */}
-      <header className="w-full px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Parent Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">Welcome, {userData?.fullName}</p>
-          </div>
-          <Button 
-            variant="outline"
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
-        </div>
-      </header>
+    <div className="flex h-screen bg-gray-50">
+      {/* Side Navigation */}
+      <ParentSideNavbar />
 
       {/* Main Content */}
-      <main className="flex-1 px-6 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <main className="flex-1 overflow-auto lg:ml-64">
+        <div className="p-4 md:p-8">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Welcome, {userData?.fullName || 'Parent'}!</h1>
+            <p className="text-gray-600 mt-2">Manage your children's education and track their progress</p>
+          </div>
+
           {/* Error Alert */}
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="mb-6">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* Add Student Button */}
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold">Your Children</h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Manage and monitor your children's academic progress
-              </p>
-            </div>
-            <Button 
-              onClick={() => setShowAddDialog(true)}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Child
-            </Button>
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && linkedStudents.length === 0 && (
-            <Card className="border border-gray-200 dark:border-gray-800">
-              <CardContent className="pt-12 pb-12 text-center">
-                <AlertCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Children Added Yet</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Add your children to start monitoring their academic progress
-                </p>
-                <Button 
-                  onClick={() => setShowAddDialog(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Child
-                </Button>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Children Linked</p>
+                    <p className="text-3xl font-bold">{linkedStudents.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-600" />
+                </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Students Grid */}
-          {!loading && linkedStudents.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {linkedStudents.map((student) => (
-                <Card key={student.studentId} className="border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{student.studentName}</CardTitle>
-                        <CardDescription>{student.studentEmail}</CardDescription>
-                      </div>
-                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Student Info */}
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <p className="text-gray-600 dark:text-gray-400">Relationship</p>
-                        <p className="font-semibold capitalize">{student.relationship}</p>
-                      </div>
-                      {student.contactNumber && (
-                        <div>
-                          <p className="text-gray-600 dark:text-gray-400">Contact</p>
-                          <p className="font-semibold">{student.contactNumber}</p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-gray-600 dark:text-gray-400">Linked Since</p>
-                        <p className="font-semibold">
-                          {new Date(student.linkedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Average Performance</p>
+                    <p className="text-3xl font-bold">85%</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-800">
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => navigate(`/parent/student/${student.studentId}`)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Progress
-                      </Button>
-                      <Button 
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleRemoveStudent(student.studentId)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Courses</p>
+                    <p className="text-3xl font-bold">12</p>
+                  </div>
+                  <BookOpen className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Pending Fees</p>
+                    <p className="text-3xl font-bold">$450</p>
+                  </div>
+                  <CreditCard className="h-8 w-8 text-red-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Children Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">My Children</h2>
+              <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Link Child
+              </Button>
             </div>
-          )}
+
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : linkedStudents.length === 0 ? (
+              <Card>
+                <CardContent className="pt-12 pb-12 text-center">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Children Linked Yet</h3>
+                  <p className="text-gray-600 mb-6">Link your children to start tracking their progress</p>
+                  <Button onClick={() => setShowAddDialog(true)}>Link Your First Child</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {linkedStudents.map(student => (
+                  <Card key={student.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <CardTitle className="text-lg">{student.studentName}</CardTitle>
+                      <CardDescription>{student.relationship}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600">School</p>
+                        <p className="font-medium">{student.school || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Email</p>
+                        <p className="font-medium text-sm">{student.studentEmail}</p>
+                      </div>
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          onClick={() => handleViewStudent(student.id)}
+                          variant="outline"
+                          className="flex-1 gap-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View Details
+                        </Button>
+                        <Button
+                          onClick={() => handleRemoveStudent(student.id)}
+                          variant="ghost"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Links */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/parent/performance')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">View your children's academic performance and progress</p>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/parent/courses')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-purple-600" />
+                  Courses
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Browse and purchase courses for your children</p>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/parent/fees')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-red-600" />
+                  School Fees
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Pay school fees and view payment history</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
 
       {/* Add Student Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add a Child</DialogTitle>
+            <DialogTitle>Link Your Child</DialogTitle>
             <DialogDescription>
-              Link your child's account to monitor their progress
+              Add your child to your account to track their progress
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Child Name */}
+            {/* Student Name */}
             <div className="space-y-2">
-              <Label htmlFor="childName">Child's Full Name *</Label>
+              <Label htmlFor="studentName">Child's Name</Label>
               <Input
-                id="childName"
-                placeholder="Enter child's full name"
+                id="studentName"
+                placeholder="John Doe"
                 value={newStudent.name}
-                onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
               />
             </div>
 
-            {/* Child Email */}
+            {/* Student Email */}
             <div className="space-y-2">
-              <Label htmlFor="childEmail">Child's Email *</Label>
+              <Label htmlFor="studentEmail">Child's Email</Label>
               <div className="flex gap-2">
                 <Input
-                  id="childEmail"
+                  id="studentEmail"
                   type="email"
-                  placeholder="Enter child's email"
+                  placeholder="john@school.com"
                   value={newStudent.email}
-                  onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                   disabled={emailVerified}
                 />
                 <Button
-                  type="button"
                   onClick={handleVerifyEmail}
-                  disabled={verifyingEmail || emailVerified || !newStudent.email}
-                  className="whitespace-nowrap"
+                  disabled={verifyingEmail || emailVerified}
+                  variant="outline"
                 >
-                  {verifyingEmail ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : emailVerified ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    'Verify'
-                  )}
+                  {verifyingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : emailVerified ? <CheckCircle className="h-4 w-4 text-green-600" /> : 'Verify'}
                 </Button>
               </div>
-              {emailVerified && (
-                <p className="text-sm text-green-600">Email verified ✓</p>
-              )}
             </div>
 
             {/* Relationship */}
             <div className="space-y-2">
-              <Label htmlFor="relationship">Relationship *</Label>
-              <Select 
-                value={newStudent.relationship}
-                onValueChange={(value) => setNewStudent(prev => ({ ...prev, relationship: value }))}
-              >
-                <SelectTrigger>
+              <Label htmlFor="relationship">Relationship</Label>
+              <Select value={newStudent.relationship} onValueChange={(value) => setNewStudent({ ...newStudent, relationship: value })}>
+                <SelectTrigger id="relationship">
                   <SelectValue placeholder="Select relationship" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="son">Son</SelectItem>
                   <SelectItem value="daughter">Daughter</SelectItem>
                   <SelectItem value="ward">Ward</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* School */}
+            <div className="space-y-2">
+              <Label htmlFor="school">School</Label>
+              <Input
+                id="school"
+                placeholder="e.g., Kampala High School"
+                value={newStudent.school}
+                onChange={(e) => setNewStudent({ ...newStudent, school: e.target.value })}
+              />
             </div>
 
             {/* Contact Number */}
@@ -418,42 +437,23 @@ export default function ParentDashboard() {
               <Input
                 id="contactNumber"
                 type="tel"
-                placeholder="Child's contact number"
+                placeholder="+256 700 000000"
                 value={newStudent.contactNumber}
-                onChange={(e) => setNewStudent(prev => ({ ...prev, contactNumber: e.target.value }))}
+                onChange={(e) => setNewStudent({ ...newStudent, contactNumber: e.target.value })}
               />
             </div>
-
-            {/* Info */}
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Your child must have a registered account in the system. 
-                Verify their email to link their account.
-              </AlertDescription>
-            </Alert>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancel
             </Button>
             <Button
               onClick={handleAddStudent}
               disabled={addingStudent || !emailVerified}
-              className="bg-green-600 hover:bg-green-700 text-white"
             >
-              {addingStudent ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Child'
-              )}
+              {addingStudent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Link Child
             </Button>
           </DialogFooter>
         </DialogContent>
