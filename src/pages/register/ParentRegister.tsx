@@ -3,7 +3,7 @@
  * Allows parents to create an account and link to their children (students)
  * Features:
  * - Complete parent profile setup
- * - Student verification and linking
+ * - Student email verification via OTP
  * - Multiple student support
  * - Firebase integration with proper error handling
  */
@@ -16,9 +16,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus, Plus, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2, UserPlus, Plus, Trash2, CheckCircle, AlertCircle, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { verifyStudentExists } from '@/lib/parentService';
+import { createAndSendOTP } from '@/lib/otpService';
 import { toast } from 'sonner';
 
 /**
@@ -29,11 +29,16 @@ interface StudentToLink {
   name: string;
   email: string;
   relationship: string;
-  contactNumber: string;
   verified: boolean;
+  otpSent: boolean;
   verifying: boolean;
   error: string;
 }
+
+/**
+ * Type for gender selection
+ */
+type GenderType = 'male' | 'female' | 'other';
 
 export default function ParentRegister() {
   const navigate = useNavigate();
@@ -45,7 +50,7 @@ export default function ParentRegister() {
     email: '',
     password: '',
     confirmPassword: '',
-    sex: '',
+    sex: '' as GenderType | '',
     age: '',
     country: 'Uganda',
     phone: '',
@@ -58,14 +63,15 @@ export default function ParentRegister() {
     name: '',
     email: '',
     relationship: '',
-    contactNumber: '',
   });
   
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [currentStep, setCurrentStep] = useState<'parent' | 'students'>('parent');
+  const [currentStep, setCurrentStep] = useState<'parent' | 'students' | 'verify'>('parent');
+  const [studentToVerify, setStudentToVerify] = useState<StudentToLink | null>(null);
+  const [otpCode, setOtpCode] = useState('');
 
   /**
    * Handle parent form field changes
@@ -82,123 +88,160 @@ export default function ParentRegister() {
   };
 
   /**
-   * Verify student exists in the system
-   * This checks if the student email is registered in Firebase
+   * Add student to linking list and send OTP
+   * Validates student email and initiates OTP verification
    */
-  const verifyStudent = async (studentEmail: string, index: number) => {
-    try {
-      // Update student to show verifying state
-      setStudentsToLink(prev => {
-        const updated = [...prev];
-        updated[index].verifying = true;
-        updated[index].error = '';
-        return updated;
-      });
-
-      // Check if student exists
-      const student = await verifyStudentExists(studentEmail);
-      
-      if (!student) {
-        setStudentsToLink(prev => {
-          const updated = [...prev];
-          updated[index].verifying = false;
-          updated[index].error = 'Student not found. Please check the email address.';
-          return updated;
-        });
-        toast.error('Student not found');
-        return;
-      }
-
-      // Mark as verified
-      setStudentsToLink(prev => {
-        const updated = [...prev];
-        updated[index].verified = true;
-        updated[index].verifying = false;
-        return updated;
-      });
-      
-      toast.success('Student verified successfully!');
-    } catch (err: any) {
-      setStudentsToLink(prev => {
-        const updated = [...prev];
-        updated[index].verifying = false;
-        updated[index].error = err.message || 'Verification failed';
-        return updated;
-      });
-      toast.error('Failed to verify student');
-    }
-  };
-
-  /**
-   * Add a new student to the linking list
-   */
-  const addStudentToLink = () => {
+  const addStudent = async () => {
     // Validate student data
     if (!newStudent.name.trim()) {
-      toast.error('Please enter student name');
+      setError('Please enter student name');
       return;
     }
     if (!newStudent.email.trim()) {
-      toast.error('Please enter student email');
+      setError('Please enter student email');
       return;
     }
-    if (!newStudent.relationship) {
-      toast.error('Please select relationship');
-      return;
-    }
-
-    // Check if student already added
-    if (studentsToLink.some(s => s.email === newStudent.email)) {
-      toast.error('This student is already added');
+    if (!newStudent.relationship.trim()) {
+      setError('Please select relationship');
       return;
     }
 
-    // Add to list
-    const studentId = `student_${Date.now()}`;
-    setStudentsToLink(prev => [...prev, {
-      id: studentId,
-      name: newStudent.name,
-      email: newStudent.email,
-      relationship: newStudent.relationship,
-      contactNumber: newStudent.contactNumber,
-      verified: false,
-      verifying: false,
-      error: '',
-    }]);
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newStudent.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
 
-    // Reset form
-    setNewStudent({
-      name: '',
-      email: '',
-      relationship: '',
-      contactNumber: '',
-    });
+    setError('');
+    setLoading(true);
 
-    toast.success('Student added. Please verify to continue.');
+    try {
+      // Create student record
+      const studentId = `student_${Date.now()}`;
+      const student: StudentToLink = {
+        id: studentId,
+        name: newStudent.name,
+        email: newStudent.email,
+        relationship: newStudent.relationship,
+        verified: false,
+        otpSent: false,
+        verifying: true,
+        error: '',
+      };
+
+      // Add to list
+      setStudentsToLink(prev => [...prev, student]);
+
+      // Send OTP to student's email
+      const result = await createAndSendOTP(newStudent.email, newStudent.name);
+
+      if (result.success) {
+        // Update student to show OTP was sent
+        setStudentsToLink(prev =>
+          prev.map(s =>
+            s.id === studentId
+              ? { ...s, otpSent: true, verifying: false }
+              : s
+          )
+        );
+
+        // Clear form
+        setNewStudent({ name: '', email: '', relationship: '' });
+        toast.success(`OTP sent to ${newStudent.email}`);
+      } else {
+        // Remove student if OTP failed
+        setStudentsToLink(prev => prev.filter(s => s.id !== studentId));
+        setError(result.error || 'Failed to send OTP. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error adding student:', err);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   /**
-   * Remove a student from the linking list
+   * Remove student from linking list
    */
-  const removeStudent = (index: number) => {
-    setStudentsToLink(prev => prev.filter((_, i) => i !== index));
-    toast.success('Student removed');
+  const removeStudent = (studentId: string) => {
+    setStudentsToLink(prev => prev.filter(s => s.id !== studentId));
   };
 
   /**
-   * Validate parent form data
+   * Start OTP verification for a student
+   * Navigates to verification page where parent enters the OTP
+   */
+  const startVerification = (student: StudentToLink) => {
+    if (!student.otpSent) {
+      setError('OTP not sent yet. Please wait.');
+      return;
+    }
+    setStudentToVerify(student);
+    setCurrentStep('verify');
+    setOtpCode('');
+  };
+
+  /**
+   * Verify OTP code entered by parent
+   * This confirms the student's email ownership
+   */
+  const verifyOTPCode = async () => {
+    if (!studentToVerify) return;
+
+    if (!/^\d{6}$/.test(otpCode)) {
+      setError('Please enter a valid 6-digit code');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      // Import verifyOTP from otpService
+      const { verifyOTP } = await import('@/lib/otpService');
+      const result = await verifyOTP(studentToVerify.email, otpCode);
+
+      if (result.success) {
+        // Mark student as verified
+        setStudentsToLink(prev =>
+          prev.map(s =>
+            s.id === studentToVerify.id
+              ? { ...s, verified: true, verifying: false }
+              : s
+          )
+        );
+
+        toast.success(`${studentToVerify.name}'s email verified!`);
+        setCurrentStep('students');
+        setStudentToVerify(null);
+        setOtpCode('');
+      } else {
+        setError(result.error || 'Invalid OTP. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error verifying OTP:', err);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Validate parent registration form
    */
   const validateParentForm = (): boolean => {
     if (!parentData.fullName.trim()) {
-      setError('Full name is required');
+      setError('Please enter your full name');
       return false;
     }
     if (!parentData.email.trim()) {
-      setError('Email is required');
+      setError('Please enter your email');
       return false;
     }
     if (!parentData.password) {
-      setError('Password is required');
+      setError('Please enter a password');
       return false;
     }
     if (parentData.password.length < 6) {
@@ -210,490 +253,437 @@ export default function ParentRegister() {
       return false;
     }
     if (!parentData.sex) {
-      setError('Please select sex');
+      setError('Please select your gender');
       return false;
     }
     if (!parentData.age) {
-      setError('Age is required');
+      setError('Please enter your age');
       return false;
     }
-    const ageNum = parseInt(parentData.age);
-    if (ageNum < 18 || ageNum > 120) {
-      setError('Age must be between 18 and 120');
+    if (!parentData.phone.trim()) {
+      setError('Please enter your phone number');
       return false;
     }
     return true;
   };
 
   /**
-   * Handle parent registration
-   * Creates parent account and links verified students
+   * Handle parent registration submission
+   * Moves to student linking step
    */
-  const handleParentRegistration = async (e: React.FormEvent) => {
+  const handleParentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Validate parent form
     if (!validateParentForm()) {
       return;
     }
 
-    // Check if at least one student is verified
+    // Move to student linking step
+    setCurrentStep('students');
+  };
+
+  /**
+   * Complete registration and create parent account
+   * All students must be verified before completing
+   */
+  const completeRegistration = async () => {
+    // Validate at least one student is verified
     const verifiedStudents = studentsToLink.filter(s => s.verified);
     if (verifiedStudents.length === 0) {
-      setError('Please add and verify at least one student');
+      setError('Please verify at least one student to complete registration');
       return;
     }
 
+    setError('');
     setLoading(true);
 
     try {
-      // Register parent account
-      await register(parentData.email, parentData.password, {
-        fullName: parentData.fullName,
-        role: 'parent',
-        sex: parentData.sex as 'male' | 'female' | 'other',
-        age: parseInt(parentData.age),
-        country: parentData.country,
-        phone: parentData.phone,
-        address: parentData.address,
-        linkedStudentIds: [],
-        viewOnly: true,
-      });
+      // Register parent account with proper type casting
+      // The register function returns Promise<void>, so we wrap it in try-catch
+      await register(
+        parentData.email,
+        parentData.password,
+        {
+          fullName: parentData.fullName,
+          sex: parentData.sex as GenderType,
+          age: parseInt(parentData.age, 10),
+          country: parentData.country,
+          phone: parentData.phone,
+          address: parentData.address,
+          linkedStudentIds: verifiedStudents.map(s => s.email), // Store verified student emails
+          role: 'parent',
+        }
+      );
 
-      // Get current user to get their UID
-      // Note: The register function should return the user or we need to get it from auth
-      // For now, we'll show success and redirect
-      toast.success('Parent account created successfully!');
-      
-      // Redirect to parent dashboard
+      // If we reach here, registration was successful
+      toast.success('Registration completed successfully!');
       navigate('/parent/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
-      toast.error('Registration failed');
-      console.error('Registration error:', err);
+    } catch (err) {
+      console.error('Error completing registration:', err);
+      // Extract error message from Firebase error if available
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during registration. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Handle moving to student linking step
-   */
-  const handleContinueToStudents = () => {
-    if (!validateParentForm()) {
-      return;
-    }
-    setCurrentStep('students');
-  };
-
-  /**
-   * Handle going back to parent form
-   */
-  const handleBackToParent = () => {
-    setCurrentStep('parent');
-  };
-
-  return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
-      {/* Header */}
-      <header className="w-full px-6 py-4 flex items-center border-b border-gray-200 dark:border-gray-800">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate('/get-started')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Button>
-        <div className="flex-1 flex justify-center">
-          <span className="text-lg font-semibold">Parent Registration</span>
-        </div>
-        <div className="w-20"></div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-8">
-        <Card className="w-full max-w-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              {currentStep === 'parent' ? 'Create Parent Account' : 'Link Your Children'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {currentStep === 'parent' 
-                ? 'Monitor your child\'s educational journey'
-                : 'Add and verify your children\'s accounts'}
-            </CardDescription>
+  // ============ RENDER STEP 1: PARENT INFO ============
+  if (currentStep === 'parent') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Parent Registration</CardTitle>
+            <CardDescription>Create your account to manage your children's learning</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* STEP 1: Parent Information */}
-            {currentStep === 'parent' && (
-              <form onSubmit={handleParentRegistration} className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+            <form onSubmit={handleParentSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Personal Information</h3>
-                </div>
+              {/* Full Name */}
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="John Doe"
+                  value={parentData.fullName}
+                  onChange={(e) => handleParentChange('fullName', e.target.value)}
+                />
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Full Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name *</Label>
-                    <Input
-                      id="fullName"
-                      placeholder="Enter your full name"
-                      value={parentData.fullName}
-                      onChange={(e) => handleParentChange('fullName', e.target.value)}
-                      required
-                    />
-                  </div>
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={parentData.email}
+                  onChange={(e) => handleParentChange('email', e.target.value)}
+                />
+              </div>
 
-                  {/* Email */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={parentData.email}
-                      onChange={(e) => handleParentChange('email', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* Password */}
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Create a password (min 6 characters)"
-                        value={parentData.password}
-                        onChange={(e) => handleParentChange('password', e.target.value)}
-                        required
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={parentData.confirmPassword}
-                      onChange={(e) => handleParentChange('confirmPassword', e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* Sex */}
-                  <div className="space-y-2">
-                    <Label htmlFor="sex">Sex *</Label>
-                    <Select onValueChange={(value) => handleParentChange('sex', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select sex" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Age */}
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Age *</Label>
-                    <Input
-                      id="age"
-                      type="number"
-                      placeholder="Enter your age"
-                      value={parentData.age}
-                      onChange={(e) => handleParentChange('age', e.target.value)}
-                      required
-                      min="18"
-                      max="120"
-                    />
-                  </div>
-
-                  {/* Country */}
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
-                    <Input
-                      id="country"
-                      placeholder="Enter your country"
-                      value={parentData.country}
-                      onChange={(e) => handleParentChange('country', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="Enter your phone number"
-                      value={parentData.phone}
-                      onChange={(e) => handleParentChange('phone', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Address */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      placeholder="Enter your address"
-                      value={parentData.address}
-                      onChange={(e) => handleParentChange('address', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Info Box */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    <strong>Next Step:</strong> You'll add and verify your children's accounts in the next step.
-                  </p>
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-3">
-                  <Button
+              {/* Password */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••"
+                    value={parentData.password}
+                    onChange={(e) => handleParentChange('password', e.target.value)}
+                  />
+                  <button
                     type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => navigate('/get-started')}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    className="flex-1 bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
-                    onClick={handleContinueToStudents}
-                  >
-                    Continue to Link Children
-                  </Button>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-              </form>
-            )}
+              </div>
 
-            {/* STEP 2: Link Students */}
-            {currentStep === 'students' && (
-              <form onSubmit={handleParentRegistration} className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+              {/* Confirm Password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••"
+                  value={parentData.confirmPassword}
+                  onChange={(e) => handleParentChange('confirmPassword', e.target.value)}
+                />
+              </div>
 
-                {/* Add New Student Section */}
-                <div className="space-y-4 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold">Add a Child</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Student Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="studentName">Child's Full Name *</Label>
-                      <Input
-                        id="studentName"
-                        placeholder="Enter child's full name"
-                        value={newStudent.name}
-                        onChange={(e) => handleNewStudentChange('name', e.target.value)}
-                      />
-                    </div>
+              {/* Gender */}
+              <div className="space-y-2">
+                <Label htmlFor="sex">Gender</Label>
+                <Select value={parentData.sex} onValueChange={(value) => handleParentChange('sex', value)}>
+                  <SelectTrigger id="sex">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                    {/* Student Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="studentEmail">Child's Email *</Label>
-                      <Input
-                        id="studentEmail"
-                        type="email"
-                        placeholder="Enter child's email"
-                        value={newStudent.email}
-                        onChange={(e) => handleNewStudentChange('email', e.target.value)}
-                      />
-                    </div>
+              {/* Age */}
+              <div className="space-y-2">
+                <Label htmlFor="age">Age</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  placeholder="30"
+                  value={parentData.age}
+                  onChange={(e) => handleParentChange('age', e.target.value)}
+                />
+              </div>
 
-                    {/* Relationship */}
-                    <div className="space-y-2">
-                      <Label htmlFor="relationship">Relationship *</Label>
-                      <Select onValueChange={(value) => handleNewStudentChange('relationship', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select relationship" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="son">Son</SelectItem>
-                          <SelectItem value="daughter">Daughter</SelectItem>
-                          <SelectItem value="ward">Ward</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+              {/* Phone */}
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+256 700 000000"
+                  value={parentData.phone}
+                  onChange={(e) => handleParentChange('phone', e.target.value)}
+                />
+              </div>
 
-                    {/* Contact Number */}
-                    <div className="space-y-2">
-                      <Label htmlFor="contactNumber">Contact Number</Label>
-                      <Input
-                        id="contactNumber"
-                        type="tel"
-                        placeholder="Child's contact number (optional)"
-                        value={newStudent.contactNumber}
-                        onChange={(e) => handleNewStudentChange('contactNumber', e.target.value)}
-                      />
-                    </div>
-                  </div>
+              {/* Country */}
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Input
+                  id="country"
+                  type="text"
+                  value={parentData.country}
+                  onChange={(e) => handleParentChange('country', e.target.value)}
+                />
+              </div>
 
-                  <Button
-                    type="button"
-                    onClick={addStudentToLink}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Child
-                  </Button>
-                </div>
+              {/* Address */}
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  type="text"
+                  placeholder="123 Main Street"
+                  value={parentData.address}
+                  onChange={(e) => handleParentChange('address', e.target.value)}
+                />
+              </div>
 
-                {/* Linked Students List */}
-                {studentsToLink.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold">Children to Link ({studentsToLink.length})</h3>
-                    
-                    {studentsToLink.map((student, index) => (
-                      <div key={student.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <p className="font-semibold">{student.name}</p>
-                              {student.verified && (
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                              )}
-                              {student.error && (
-                                <AlertCircle className="w-5 h-5 text-red-600" />
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{student.email}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Relationship: <strong>{student.relationship}</strong>
-                            </p>
-                            {student.contactNumber && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Contact: {student.contactNumber}
-                              </p>
-                            )}
-                            {student.error && (
-                              <p className="text-sm text-red-600 mt-2">{student.error}</p>
-                            )}
-                          </div>
+              {/* Submit Button */}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Continue to Link Students
+              </Button>
 
-                          <div className="flex gap-2">
-                            {!student.verified && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => verifyStudent(student.email, index)}
-                                disabled={student.verifying}
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                              >
-                                {student.verifying ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                                    Verifying...
-                                  </>
-                                ) : (
-                                  'Verify'
-                                )}
-                              </Button>
-                            )}
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => removeStudent(index)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Info Box */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    <strong>Important:</strong> Your children must have registered accounts in the system. 
-                    Enter their email addresses and verify them before completing registration.
-                  </p>
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={handleBackToParent}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
-                    disabled={loading || studentsToLink.filter(s => s.verified).length === 0}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating Account...
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Complete Registration
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {/* Login Link */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              {/* Login Link */}
+              <p className="text-center text-sm text-gray-600">
                 Already have an account?{' '}
-                <Button 
-                  variant="link" 
+                <button
+                  type="button"
                   onClick={() => navigate('/login')}
-                  className="p-0 h-auto font-semibold"
+                  className="text-blue-600 hover:underline"
                 >
                   Login here
-                </Button>
+                </button>
               </p>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ============ RENDER STEP 2: STUDENT LINKING ============
+  if (currentStep === 'students') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle>Link Your Children</CardTitle>
+            <CardDescription>Add your children's email addresses for verification</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Add New Student Form */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Add Student
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="studentName">Student Name</Label>
+                  <Input
+                    id="studentName"
+                    placeholder="John Doe"
+                    value={newStudent.name}
+                    onChange={(e) => handleNewStudentChange('name', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="studentEmail">Student Email</Label>
+                  <Input
+                    id="studentEmail"
+                    type="email"
+                    placeholder="john@school.com"
+                    value={newStudent.email}
+                    onChange={(e) => handleNewStudentChange('email', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="relationship">Relationship</Label>
+                  <Select value={newStudent.relationship} onValueChange={(value) => handleNewStudentChange('relationship', value)}>
+                    <SelectTrigger id="relationship">
+                      <SelectValue placeholder="Select relationship" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="son">Son</SelectItem>
+                      <SelectItem value="daughter">Daughter</SelectItem>
+                      <SelectItem value="ward">Ward</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-end">
+                  <Button
+                    onClick={addStudent}
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Add Student
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Students List */}
+            {studentsToLink.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold">Students to Verify</h3>
+                {studentsToLink.map(student => (
+                  <div key={student.id} className="border rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">{student.name}</p>
+                      <p className="text-sm text-gray-600">{student.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">Relationship: {student.relationship}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {student.verified ? (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="text-sm font-medium">Verified</span>
+                        </div>
+                      ) : student.otpSent ? (
+                        <Button
+                          onClick={() => startVerification(student)}
+                          disabled={loading}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {student.verifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                          Verify
+                        </Button>
+                      ) : null}
+
+                      <Button
+                        onClick={() => removeStudent(student.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={() => setCurrentStep('parent')}
+                variant="outline"
+                className="flex-1"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button
+                onClick={completeRegistration}
+                disabled={loading || studentsToLink.filter(s => s.verified).length === 0}
+                className="flex-1"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Complete Registration
+              </Button>
             </div>
           </CardContent>
         </Card>
-      </main>
-    </div>
-  );
+      </div>
+    );
+  }
+
+  // ============ RENDER STEP 3: OTP VERIFICATION ============
+  if (currentStep === 'verify' && studentToVerify) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Verify Student Email</CardTitle>
+            <CardDescription>Enter the 6-digit code sent to {studentToVerify.email}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="otp">Verification Code</Label>
+              <Input
+                id="otp"
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+
+            <Button
+              onClick={verifyOTPCode}
+              disabled={loading || otpCode.length !== 6}
+              className="w-full"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Verify Code
+            </Button>
+
+            <Button
+              onClick={() => setCurrentStep('students')}
+              variant="outline"
+              className="w-full"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
 }

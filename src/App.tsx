@@ -14,6 +14,7 @@ import TeacherRegister from '@/pages/register/TeacherRegister';
 import SchoolAdminRegister from '@/pages/register/SchoolAdminRegister';
 import ParentRegister from '@/pages/register/ParentRegister';
 
+import VerifyStudentEmail from '@/pages/register/VerifyStudentEmail';
 // Dashboards
 import StudentDashboard from '@/dashboards/StudentDashboard';
 import TeacherDashboard from '@/dashboards/TeacherDashboard';
@@ -153,6 +154,7 @@ function AppRoutes() {
       <Route path="/register/school-admin" element={<PublicRoute><SchoolAdminRegister /></PublicRoute>} />
       <Route path="/register/parent" element={<PublicRoute><ParentRegister /></PublicRoute>} />
       
+      <Route path="/register/verify-student" element={<PublicRoute><VerifyStudentEmail /></PublicRoute>} />
       {/* About Pages - Accessible to all users (public) */}
       <Route path="/about" element={<PublicAccessibleRoute><About /></PublicAccessibleRoute>} />
       <Route path="/about/schools" element={<PublicAccessibleRoute><AboutSchools /></PublicAccessibleRoute>} />
