@@ -28,7 +28,6 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -104,7 +103,8 @@ export default function ParentSideNavbar() {
   ];
 
   /**
-   * Handle navigation
+   * Handle navigation to a specific path
+   * Closes mobile menu after navigation
    */
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -112,7 +112,8 @@ export default function ParentSideNavbar() {
   };
 
   /**
-   * Handle logout
+   * Handle logout action
+   * Calls logout from auth context and redirects to login page
    */
   const handleLogout = async () => {
     try {
@@ -125,7 +126,8 @@ export default function ParentSideNavbar() {
   };
 
   /**
-   * Check if a nav item is active
+   * Check if a nav item is currently active
+   * Compares current pathname with item path
    */
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -133,7 +135,7 @@ export default function ParentSideNavbar() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - visible only on small screens */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
@@ -145,7 +147,7 @@ export default function ParentSideNavbar() {
         </Button>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar Navigation */}
       <aside
         className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -159,7 +161,7 @@ export default function ParentSideNavbar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-6">
-          {/* Main Navigation */}
+          {/* Main Navigation Items */}
           <div className="px-4 space-y-2">
             <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2 mb-4">
               Main
@@ -220,7 +222,7 @@ export default function ParentSideNavbar() {
         </div>
       </aside>
 
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay - closes sidebar when clicked */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"

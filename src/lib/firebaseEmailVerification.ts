@@ -1,127 +1,73 @@
 /**
  * Firebase Email Verification Service
- * Handles email verification using Firebase Authentication
- * Replaces OTP-based verification with Firebase's built-in email verification
+ * Handles email verification for parent accounts
  */
 
-import { auth } from '@/lib/firebase';
-import {
-  sendEmailVerification,
+import { 
+  sendEmailVerification, 
   applyActionCode,
   checkActionCode,
-  ActionCodeInfo,
 } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 /**
- * Send email verification to a student's email address
- * Uses Firebase's built-in email verification system
- * @param email - Student's email address to verify
- * @returns Success status and error message if failed
+ * Send verification email to user
+ * @param user - Firebase user object
+ * @returns Promise that resolves when email is sent
  */
-export async function sendStudentEmailVerification(
-  email: string
-): Promise<{ success: boolean; error?: string }> {
+export async function sendVerificationEmail(user: FirebaseUser): Promise<void> {
   try {
-    // Get the current user (parent)
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      return {
-        success: false,
-        error: 'You must be logged in to send verification emails',
-      };
-    }
-
-    // Send verification email to the student's email
-    // Note: This sends to the current user's email, so we'll use a custom approach
-    // We'll store the student email in Firestore and send a custom verification link
-    await sendEmailVerification(currentUser, {
-      url: `${window.location.origin}/verify-student-email`,
+    const appUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : 'http://localhost:3000';
+    
+    await sendEmailVerification(user, {
+      url: `${appUrl}/verify-email`,
       handleCodeInApp: true,
     });
-
-    return { success: true };
   } catch (error: any) {
-    console.error('Error sending email verification:', error);
-    return {
-      success: false,
-      error: error.message || 'Failed to send verification email',
-    };
+    console.error('Error sending verification email:', error);
+    throw new Error(error.message || 'Failed to send verification email');
   }
 }
 
 /**
- * Verify email action code
- * Confirms that the email verification link is valid
- * @param actionCode - The code from the email verification link
- * @returns Action code info or error
+ * Verify email using action code
+ * @param actionCode - Code from email verification link
+ * @returns Promise that resolves when email is verified
  */
-export async function verifyEmailActionCode(
-  actionCode: string
-): Promise<{ success: boolean; info?: ActionCodeInfo; error?: string }> {
+export async function verifyEmailWithCode(actionCode: string): Promise<void> {
   try {
-    // Check if the action code is valid
-    const info = await checkActionCode(auth, actionCode);
-    return { success: true, info };
-  } catch (error: any) {
-    console.error('Error checking action code:', error);
-    return {
-      success: false,
-      error: error.message || 'Invalid or expired verification link',
-    };
-  }
-}
-
-/**
- * Apply email verification action code
- * Completes the email verification process
- * @param actionCode - The code from the email verification link
- * @returns Success status and error message if failed
- */
-export async function applyEmailVerificationCode(
-  actionCode: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
+    // Verify the action code is valid
+    await checkActionCode(auth, actionCode);
+    
     // Apply the action code to verify the email
     await applyActionCode(auth, actionCode);
-    return { success: true };
   } catch (error: any) {
-    console.error('Error applying action code:', error);
-    return {
-      success: false,
-      error: error.message || 'Failed to verify email',
-    };
+    console.error('Error verifying email:', error);
+    throw new Error(error.message || 'Failed to verify email');
   }
 }
 
 /**
- * Check if current user's email is verified
+ * Check if user's email is verified
+ * @param user - Firebase user object
  * @returns Boolean indicating if email is verified
  */
-export function isEmailVerified(): boolean {
-  const currentUser = auth.currentUser;
-  return currentUser?.emailVerified ?? false;
+export function isEmailVerified(user: FirebaseUser): boolean {
+  return user.emailVerified;
 }
 
 /**
- * Get current user's email
- * @returns User's email or null
+ * Get verification status
+ * @param user - Firebase user object
+ * @returns Object with verification status and email
  */
-export function getCurrentUserEmail(): string | null {
-  return auth.currentUser?.email ?? null;
-}
-
-/**
- * Reload user to get latest email verification status
- * @returns Success status
- */
-export async function reloadUserEmailStatus(): Promise<boolean> {
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return false;
-    await currentUser.reload();
-    return true;
-  } catch (error) {
-    console.error('Error reloading user:', error);
-    return false;
-  }
+export function getVerificationStatus(user: FirebaseUser) {
+  return {
+    email: user.email,
+    isVerified: user.emailVerified,
+    verificationSentAt: user.metadata.creationTime,
+  };
 }

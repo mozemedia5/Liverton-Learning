@@ -1,52 +1,66 @@
 /**
- * Parent Students Page
+ * Parent Students Management Page
  * Manage linked children and their information
+ * Features:
+ * - View all linked children
+ * - Add new children
+ * - Edit child information
+ * - Remove children
+ * - View child details
  */
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Plus, Trash2, Edit2, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, Edit2, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import ParentSideNavbar from '@/components/ParentSideNavbar';
-import { getLinkedStudents, linkStudent } from '@/lib/parentService';
+import { getLinkedStudents, unlinkStudentFromParent, verifyStudentExists, linkStudentToParent } from '@/lib/parentService';
 import { toast } from 'sonner';
 import type { LinkedStudent } from '@/lib/parentService';
 
-const SCHOOLS = [
-  'Kampala International School',
-  'Makerere College School',
-  'St. Mary\'s College Kisubi',
-  'Gayaza High School',
-  'Kabale High School',
-  'Mbarara High School',
-  'Other',
-];
-
+/**
+ * Parent Students Component
+ * Displays and manages all linked students for the parent
+ */
 export default function ParentStudents() {
   const { currentUser } = useAuth();
-  const [students, setStudents] = useState<LinkedStudent[]>([]);
+  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    studentName: '',
-    admissionNumber: '',
-    school: '',
-    grade: '',
+  
+  // Add student dialog state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addingStudent, setAddingStudent] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    name: '',
+    email: '',
+    relationship: '',
+    contactNumber: '',
   });
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
+  /**
+   * Load linked students on component mount
+   */
   useEffect(() => {
     loadStudents();
   }, [currentUser]);
 
+  /**
+   * Load linked students from Firebase
+   */
   const loadStudents = async () => {
     if (!currentUser) return;
+
     try {
-      const data = await getLinkedStudents(currentUser.uid);
-      setStudents(data);
+      setLoading(true);
+      const students = await getLinkedStudents(currentUser.uid);
+      setLinkedStudents(students);
     } catch (error) {
       console.error('Error loading students:', error);
       toast.error('Failed to load students');
@@ -55,44 +69,103 @@ export default function ParentStudents() {
     }
   };
 
-  const handleAddStudent = async () => {
-    // Validate form
-    if (!formData.studentName || !formData.admissionNumber || !formData.school || !formData.grade) {
-      toast.error('Please fill in all fields');
+  /**
+   * Verify student email exists in system
+   */
+  const handleVerifyEmail = async () => {
+    if (!newStudent.email.trim()) {
+      toast.error('Please enter student email');
       return;
     }
 
     try {
-      if (!currentUser) return;
+      setVerifyingEmail(true);
+      const student = await verifyStudentExists(newStudent.email);
       
-      // Call linkStudent function
-      await linkStudent(currentUser.uid, {
-        studentName: formData.studentName,
-        admissionNumber: formData.admissionNumber,
-        school: formData.school,
-        grade: formData.grade,
-      });
+      if (!student) {
+        toast.error('Student not found. Please check the email address.');
+        setEmailVerified(false);
+        return;
+      }
 
-      toast.success('Student linked successfully');
-      setFormData({ studentName: '', admissionNumber: '', school: '', grade: '' });
-      setIsDialogOpen(false);
-      loadStudents();
-    } catch (error) {
-      console.error('Error linking student:', error);
-      toast.error('Failed to link student');
+      setEmailVerified(true);
+      toast.success('Student verified!');
+    } catch (err: any) {
+      toast.error(err.message || 'Verification failed');
+      setEmailVerified(false);
+    } finally {
+      setVerifyingEmail(false);
     }
   };
 
-  const handleRemoveStudent = async (studentId: string) => {
-    if (!confirm('Are you sure you want to remove this student?')) return;
-    
+  /**
+   * Add new student to parent account
+   */
+  const handleAddStudent = async () => {
+    if (!currentUser) return;
+
+    // Validate form
+    if (!newStudent.name.trim()) {
+      toast.error('Please enter student name');
+      return;
+    }
+    if (!emailVerified) {
+      toast.error('Please verify student email first');
+      return;
+    }
+    if (!newStudent.relationship) {
+      toast.error('Please select relationship');
+      return;
+    }
+
     try {
-      // Implement remove student logic
+      setAddingStudent(true);
+      
+      // Get student ID from email
+      const student = await verifyStudentExists(newStudent.email);
+      if (!student) {
+        throw new Error('Student not found');
+      }
+
+      // Link student to parent
+      await linkStudentToParent(currentUser.uid, student.uid, {
+        studentName: newStudent.name,
+        relationship: newStudent.relationship,
+        contactNumber: newStudent.contactNumber,
+      });
+
+      toast.success('Student linked successfully!');
+      
+      // Reset form and reload
+      setNewStudent({ name: '', email: '', relationship: '', contactNumber: '' });
+      setEmailVerified(false);
+      setShowAddDialog(false);
+      
+      // Reload students list
+      await loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to link student');
+    } finally {
+      setAddingStudent(false);
+    }
+  };
+
+  /**
+   * Remove a student from parent account
+   */
+  const handleRemoveStudent = async (studentId: string) => {
+    if (!currentUser) return;
+
+    if (!window.confirm('Are you sure you want to remove this student?')) {
+      return;
+    }
+
+    try {
+      await unlinkStudentFromParent(currentUser.uid, studentId);
       toast.success('Student removed successfully');
-      loadStudents();
-    } catch (error) {
-      console.error('Error removing student:', error);
-      toast.error('Failed to remove student');
+      await loadStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove student');
     }
   };
 
@@ -101,171 +174,94 @@ export default function ParentStudents() {
       <ParentSideNavbar />
       <main className="flex-1 overflow-auto lg:ml-64">
         <div className="p-4 md:p-8">
+          {/* Page Header */}
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold">My Children</h1>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Link Child
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Link a Child</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Child's Name</label>
-                    <Input
-                      placeholder="Enter child's full name"
-                      value={formData.studentName}
-                      onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Admission Number</label>
-                    <Input
-                      placeholder="Enter admission number"
-                      value={formData.admissionNumber}
-                      onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">School</label>
-                    <Select value={formData.school} onValueChange={(value) => setFormData({ ...formData, school: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select school" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SCHOOLS.map(school => (
-                          <SelectItem key={school} value={school}>
-                            {school}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Grade/Class</label>
-                    <Input
-                      placeholder="e.g., Form 4, Primary 6"
-                      value={formData.grade}
-                      onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                    />
-                  </div>
-                  <Button onClick={handleAddStudent} className="w-full">
-                    Link Child
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <div>
+              <h1 className="text-3xl font-bold">My Children</h1>
+              <p className="text-gray-600 mt-1">Manage your children's accounts and information</p>
+            </div>
+            <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Child
+            </Button>
           </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             </div>
-          ) : students.length === 0 ? (
-            <Card>
+          ) : linkedStudents.length === 0 ? (
+            /* Empty State */
+            <Card className="border-dashed">
               <CardContent className="pt-12 pb-12 text-center">
                 <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Children Linked</h3>
-                <p className="text-gray-600 mb-6">Start by linking your first child to access their information</p>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Link Your First Child
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Link a Child</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Child's Name</label>
-                        <Input
-                          placeholder="Enter child's full name"
-                          value={formData.studentName}
-                          onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Admission Number</label>
-                        <Input
-                          placeholder="Enter admission number"
-                          value={formData.admissionNumber}
-                          onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">School</label>
-                        <Select value={formData.school} onValueChange={(value) => setFormData({ ...formData, school: value })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select school" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SCHOOLS.map(school => (
-                              <SelectItem key={school} value={school}>
-                                {school}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Grade/Class</label>
-                        <Input
-                          placeholder="e.g., Form 4, Primary 6"
-                          value={formData.grade}
-                          onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                        />
-                      </div>
-                      <Button onClick={handleAddStudent} className="w-full">
-                        Link Child
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <h3 className="text-lg font-semibold mb-2">No children linked yet</h3>
+                <p className="text-gray-600 mb-6">
+                  Link your children's accounts to start managing their education.
+                </p>
+                <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Link Your First Child
+                </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {students.map(student => (
-                <Card key={student.id}>
+            /* Students List */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {linkedStudents.map(student => (
+                <Card key={student.studentId} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
-                    <CardTitle>{student.studentName}</CardTitle>
-                    <CardDescription>{student.school}</CardDescription>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle>{student.studentName}</CardTitle>
+                        <p className="text-sm text-gray-600 mt-1">{student.relationship}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveStudent(student.studentId)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Admission Number</span>
-                      <span className="font-medium">{student.admissionNumber}</span>
+                  <CardContent className="space-y-3">
+                    {/* Email */}
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase tracking-wide">Email</p>
+                      <p className="text-sm font-medium">{student.studentEmail}</p>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Grade/Class</span>
-                      <span className="font-medium">{student.grade}</span>
+
+                    {/* Contact Number */}
+                    {student.contactNumber && (
+                      <div>
+                        <p className="text-xs text-gray-600 uppercase tracking-wide">Contact</p>
+                        <p className="text-sm font-medium">{student.contactNumber}</p>
+                      </div>
+                    )}
+
+                    {/* Linked Date */}
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase tracking-wide">Linked Since</p>
+                      <p className="text-sm font-medium">
+                        {new Date(student.linkedAt).toLocaleDateString()}
+                      </p>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Status</span>
-                      <span className="font-medium text-green-600">Active</span>
-                    </div>
-                    <div className="pt-4 border-t flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 gap-2">
-                        <Edit2 className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="flex-1 gap-2"
-                        onClick={() => handleRemoveStudent(student.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Remove
-                      </Button>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-2 pt-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-600">Active</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -274,6 +270,118 @@ export default function ParentStudents() {
           )}
         </div>
       </main>
+
+      {/* Add Student Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Link Child</DialogTitle>
+            <DialogDescription>
+              Enter your child's details to link their account to yours.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Student Name */}
+            <div className="space-y-2">
+              <Label htmlFor="name">Child's Name</Label>
+              <Input
+                id="name"
+                placeholder="Enter child's full name"
+                value={newStudent.name}
+                onChange={e => setNewStudent({ ...newStudent, name: e.target.value })}
+              />
+            </div>
+
+            {/* Student Email with Verification */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Child's Email</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter child's email"
+                  value={newStudent.email}
+                  onChange={e => {
+                    setNewStudent({ ...newStudent, email: e.target.value });
+                    setEmailVerified(false);
+                  }}
+                  disabled={emailVerified}
+                />
+                <Button
+                  onClick={handleVerifyEmail}
+                  disabled={verifyingEmail || emailVerified || !newStudent.email}
+                  variant={emailVerified ? 'default' : 'outline'}
+                >
+                  {verifyingEmail ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : emailVerified ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    'Verify'
+                  )}
+                </Button>
+              </div>
+              {emailVerified && (
+                <p className="text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Email verified
+                </p>
+              )}
+            </div>
+
+            {/* Relationship */}
+            <div className="space-y-2">
+              <Label htmlFor="relationship">Relationship</Label>
+              <Select value={newStudent.relationship} onValueChange={value => setNewStudent({ ...newStudent, relationship: value })}>
+                <SelectTrigger id="relationship">
+                  <SelectValue placeholder="Select relationship" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="guardian">Guardian</SelectItem>
+                  <SelectItem value="sibling">Sibling</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Contact Number (Optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="contact">Contact Number (Optional)</Label>
+              <Input
+                id="contact"
+                placeholder="Enter contact number"
+                value={newStudent.contactNumber}
+                onChange={e => setNewStudent({ ...newStudent, contactNumber: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddDialog(false)}
+              disabled={addingStudent}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddStudent}
+              disabled={addingStudent || !emailVerified}
+            >
+              {addingStudent ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Linking...
+                </>
+              ) : (
+                'Link Child'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
