@@ -29,6 +29,7 @@ import {
   Info,
   HelpCircle,
   Shield,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,6 +46,7 @@ import { toast } from 'sonner';
  * - Navigation plugins: About, Support, Privacy Policy
  * - Smooth animations and transitions
  * - Smaller hamburger button to avoid blocking messages
+ * - Parent-specific dashboard navigation
  */
 export default function SideNavbar() {
   const navigate = useNavigate();
@@ -82,8 +84,9 @@ export default function SideNavbar() {
   const getDashboardPath = () => {
     switch (userRole) {
       case 'student':
-      case 'parent':
         return '/student/dashboard';
+      case 'parent':
+        return '/parent/dashboard';
       case 'teacher':
         return '/teacher/dashboard';
       case 'school_admin':
@@ -99,7 +102,11 @@ export default function SideNavbar() {
    */
   const navItems = [
     { label: 'Dashboard', path: getDashboardPath(), icon: Home },
-    { label: 'Courses', path: '/student/courses', icon: BookOpen },
+    // Student-specific routes
+    { label: 'Courses', path: '/student/courses', icon: BookOpen, roles: ['student', 'parent'] },
+    // Parent-specific routes
+    { label: 'My Children', path: '/parent/dashboard', icon: Users, roles: ['parent'] },
+    // Shared routes
     { label: 'Announcements', path: '/announcements', icon: MessageSquare },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Payments', path: '/payments', icon: CreditCard, roles: ['student', 'teacher', 'school_admin'] },

@@ -18,6 +18,7 @@ import ParentRegister from '@/pages/register/ParentRegister';
 import StudentDashboard from '@/dashboards/StudentDashboard';
 import TeacherDashboard from '@/dashboards/TeacherDashboard';
 import SchoolAdminDashboard from '@/dashboards/SchoolAdminDashboard';
+import ParentDashboard from '@/pages/ParentDashboard';
 
 // Feature Pages
 import Courses from '@/pages/features/Courses';
@@ -106,7 +107,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
       student: '/student/dashboard',
       teacher: '/teacher/dashboard',
       school_admin: '/school-admin/dashboard',
-      parent: '/student/dashboard',
+      parent: '/parent/dashboard',
     };
     return <Navigate to={dashboardRoutes[userRole] || '/'} replace />;
   }
@@ -176,6 +177,13 @@ function AppRoutes() {
       <Route path="/student/quizzes" element={
         <ProtectedRoute allowedRoles={['student', 'parent']}>
           <AuthenticatedLayout><Quizzes /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Parent Routes - Protected, accessible only to parents */}
+      <Route path="/parent/dashboard" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <ParentDashboard />
         </ProtectedRoute>
       } />
 

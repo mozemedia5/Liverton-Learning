@@ -45,6 +45,7 @@ export interface User {
   isVerified?: boolean;
   experience?: number;
   linkedStudentIds?: string[];
+  parentIds?: string[]; // IDs of parents linked to this student
   viewOnly?: boolean;
   enrolledCourses?: string[];
   progress?: Array<{
