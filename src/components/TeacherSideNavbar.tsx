@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  AlertDialog,
+import { AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -10,8 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Menu,
+import { Menu,
   X,
   Home,
   BookOpen,
@@ -30,6 +28,7 @@ import {
   Info,
   HelpCircle,
   Shield,
+  Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -88,6 +87,7 @@ export default function TeacherSideNavbar() {
     { label: 'Earnings', path: '/payments', icon: CreditCard },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Zoom Lessons', path: '/teacher/zoom-lessons', icon: Video },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
   ];
 

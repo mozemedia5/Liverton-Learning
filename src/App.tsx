@@ -45,6 +45,9 @@ import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaAI from '@/pages/features/HannaAI';
 import Analytics from '@/pages/features/Analytics';
+import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
+import StudentZoomLessons from '@/components/ZoomLessons/StudentZoomLessons';
+import ParentZoomLessons from '@/components/ZoomLessons/ParentZoomLessons';
 
 // About Pages
 import About from '@/pages/about/About';
@@ -183,10 +186,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/student/quizzes" element={
-        <ProtectedRoute allowedRoles={['student', 'parent']}>
+      <ProtectedRoute allowedRoles={['student', 'parent']}>
           <AuthenticatedLayout><Quizzes /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+
+      <Route path="/student/zoom-lessons" element={<ProtectedRoute allowedRoles={['student', 'parent']}><AuthenticatedLayout><StudentZoomLessons /></AuthenticatedLayout></ProtectedRoute>} />
 
       {/* Parent Routes - Protected, accessible only to parents */}
       <Route path="/parent/dashboard" element={
@@ -210,8 +215,14 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/parent/fees" element={
-        <ProtectedRoute allowedRoles={['parent']}>
+      <ProtectedRoute allowedRoles={['parent']}>
           <ParentFees />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/parent/zoom-lessons" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <AuthenticatedLayout><ParentZoomLessons /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
@@ -222,8 +233,14 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/teacher/courses" element={
-        <ProtectedRoute allowedRoles={['teacher']}>
+      <ProtectedRoute allowedRoles={['teacher']}>
           <AuthenticatedLayout><Courses /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/teacher/zoom-lessons" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><TeacherZoomLessons /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 

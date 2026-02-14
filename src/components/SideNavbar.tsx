@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  AlertDialog,
+import { AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -10,8 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Menu,
+import { Menu,
   X,
   Home,
   BookOpen,
@@ -30,6 +28,7 @@ import {
   HelpCircle,
   Shield,
   Users,
+  Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -104,6 +103,7 @@ export default function SideNavbar() {
     { label: 'Dashboard', path: getDashboardPath(), icon: Home },
     // Student-specific routes
     { label: 'Courses', path: '/student/courses', icon: BookOpen, roles: ['student', 'parent'] },
+    { label: 'Zoom Lessons', path: '/student/zoom-lessons', icon: Video, roles: ['student', 'parent'] },
     // Parent-specific routes
     { label: 'My Children', path: '/parent/dashboard', icon: Users, roles: ['parent'] },
     // Shared routes
