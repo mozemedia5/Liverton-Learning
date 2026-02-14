@@ -1,124 +1,126 @@
 /**
  * Zoom Lessons Service
- * Handles all Zoom lesson-related operations including creation, enrollment, and tracking
  * 
- * Features:
- * - Create and manage Zoom lessons (teachers)
- * - Enroll in lessons (students)
- * - Track lesson history and attendance
- * - Manage learning outcomes and schedules
- * - Parent monitoring of children's lessons
+ * Handles all Firebase Firestore operations for:
+ * - Lesson management (create, read, update, delete)
+ * - Student enrollments
+ * - Lesson history and tracking
  */
 
-import { db } from '@/lib/firebase';
 import {
   collection,
   addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
   getDocs,
+  getDoc,
+  doc,
+  updateDoc,
   query,
   where,
-  orderBy,
-  Timestamp,
-  writeBatch,
 } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 /**
- * Zoom Lesson interface - defines structure of a lesson
+ * Type definitions for Zoom Lessons
  */
 export interface ZoomLesson {
-  id?: string;
+  id: string;
+  title: string;
+  description?: string;
   teacherId: string;
   teacherName: string;
-  className: string;
-  title: string;
-  description: string;
-  zoomLink: string;
-  zoomMeetingId: string;
-  scheduledDate: Timestamp;
-  scheduledTime: string; // HH:MM format
-  duration: number; // in minutes
+  scheduledDate: string;
+  duration: number;
   enrollmentFee: number;
-  maxStudents: number;
-  enrolledStudents: number;
-  mainTopic: string;
-  learningOutcomes: string[];
-  materials: string[]; // URLs or file names
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  maxStudents?: number;
+  enrolledCount?: number;
+  outcomes?: string[];
+  materials?: Array<{ name: string; url?: string }>;
+  status?: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-/**
- * Student Enrollment interface - tracks student enrollment in lessons
- */
 export interface StudentEnrollment {
-  id?: string;
-  lessonId: string;
+  id: string;
   studentId: string;
   studentName: string;
-  enrollmentDate: Timestamp;
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  paymentAmount: number;
-  attended: boolean;
-  attendanceTime?: Timestamp;
-  notes?: string;
-}
-
-/**
- * Lesson History interface - tracks completed lessons
- */
-export interface LessonHistory {
-  id?: string;
   lessonId: string;
+  lessonTitle: string;
+  enrolledAt: string;
+  status: 'enrolled' | 'attended' | 'cancelled';
+}
+
+export interface LessonHistory {
+  id: string;
   studentId: string;
-  teacherId: string;
-  completedDate: Timestamp;
-  duration: number;
-  feedback?: string;
-  rating?: number;
-  certificateIssued: boolean;
+  lessonId: string;
+  lessonTitle: string;
+  completedDate: string;
+  status: 'completed' | 'cancelled' | 'no-show';
+  teacherFeedback?: string;
 }
 
 /**
- * Create a new Zoom lesson (Teacher only)
- * @param lessonData - Lesson details
- * @returns Promise with lesson ID
+ * Create a new lesson
+ * @param lessonData - Lesson information
+ * @returns Created lesson with ID
  */
-export async function createZoomLesson(lessonData: Omit<ZoomLesson, 'id' | 'createdAt' | 'updatedAt'>) {
+export async function createLesson(lessonData: Omit<ZoomLesson, 'id'>) {
   try {
-    const now = Timestamp.now();
-    const docRef = await addDoc(collection(db, 'zoomLessons'), {
+    const lessonsRef = collection(db, 'zoomLessons');
+    const docRef = await addDoc(lessonsRef, {
       ...lessonData,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      enrolledCount: 0,
     });
-    return docRef.id;
+
+    return {
+      id: docRef.id,
+      ...lessonData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   } catch (error) {
-    console.error('Error creating zoom lesson:', error);
+    console.error('Error creating lesson:', error);
     throw error;
   }
 }
 
 /**
- * Get all lessons created by a teacher
- * @param teacherId - Teacher's user ID
- * @returns Promise with array of lessons
+ * Get all lessons
+ * @returns Array of all lessons
  */
-export async function getTeacherLessons(teacherId: string) {
+export async function getAllLessons(): Promise<ZoomLesson[]> {
   try {
-    const q = query(
-      collection(db, 'zoomLessons'),
-      where('teacherId', '==', teacherId),
-      orderBy('scheduledDate', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const lessonsRef = collection(db, 'zoomLessons');
+    const snapshot = await getDocs(lessonsRef);
+
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    })) as (ZoomLesson & { id: string })[];
+    } as ZoomLesson));
+  } catch (error) {
+    console.error('Error fetching all lessons:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get lessons created by a specific teacher
+ * @param teacherId - Teacher's user ID
+ * @returns Array of teacher's lessons
+ */
+export async function getTeacherLessons(teacherId: string): Promise<ZoomLesson[]> {
+  try {
+    const lessonsRef = collection(db, 'zoomLessons');
+    const q = query(lessonsRef, where('teacherId', '==', teacherId));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as ZoomLesson));
   } catch (error) {
     console.error('Error fetching teacher lessons:', error);
     throw error;
@@ -126,271 +128,35 @@ export async function getTeacherLessons(teacherId: string) {
 }
 
 /**
- * Get all available lessons for students to enroll
- * @returns Promise with array of available lessons
- */
-export async function getAvailableLessons() {
-  try {
-    const q = query(
-      collection(db, 'zoomLessons'),
-      where('status', 'in', ['scheduled', 'ongoing']),
-      orderBy('scheduledDate', 'asc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as (ZoomLesson & { id: string })[];
-  } catch (error) {
-    console.error('Error fetching available lessons:', error);
-    throw error;
-  }
-}
-
-/**
- * Get lessons a student is enrolled in
- * @param studentId - Student's user ID
- * @returns Promise with array of enrolled lessons
- */
-export async function getStudentEnrolledLessons(studentId: string) {
-  try {
-    const q = query(
-      collection(db, 'studentEnrollments'),
-      where('studentId', '==', studentId),
-      orderBy('enrollmentDate', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    const enrollments = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as (StudentEnrollment & { id: string })[];
-
-    // Fetch lesson details for each enrollment
-    const lessonsWithDetails = await Promise.all(
-      enrollments.map(async (enrollment) => {
-        const lessonDoc = await getDocs(
-          query(collection(db, 'zoomLessons'), where('id', '==', enrollment.lessonId))
-        );
-        const lesson = lessonDoc.docs[0]?.data() as ZoomLesson;
-        return { enrollment, lesson };
-      })
-    );
-
-    return lessonsWithDetails;
-  } catch (error) {
-    console.error('Error fetching student enrolled lessons:', error);
-    throw error;
-  }
-}
-
-/**
- * Enroll a student in a lesson
+ * Get a specific lesson by ID
  * @param lessonId - Lesson ID
- * @param studentId - Student's user ID
- * @param studentName - Student's name
- * @param paymentAmount - Enrollment fee
- * @returns Promise with enrollment ID
+ * @returns Lesson data or null
  */
-export async function enrollStudentInLesson(
-  lessonId: string,
-  studentId: string,
-  studentName: string,
-  paymentAmount: number
-) {
-  try {
-    const now = Timestamp.now();
-    
-    // Create enrollment record
-    const enrollmentRef = await addDoc(collection(db, 'studentEnrollments'), {
-      lessonId,
-      studentId,
-      studentName,
-      enrollmentDate: now,
-      paymentStatus: 'pending',
-      paymentAmount,
-      attended: false,
-    });
-
-    // Update lesson enrolled count
-    const lessonRef = doc(db, 'zoomLessons', lessonId);
-    await updateDoc(lessonRef, {
-      enrolledStudents: (await getDocs(
-        query(collection(db, 'studentEnrollments'), where('lessonId', '==', lessonId))
-      )).size + 1,
-    });
-
-    return enrollmentRef.id;
-  } catch (error) {
-    console.error('Error enrolling student in lesson:', error);
-    throw error;
-  }
-}
-
-/**
- * Get lesson history for a student
- * @param studentId - Student's user ID
- * @returns Promise with array of completed lessons
- */
-export async function getStudentLessonHistory(studentId: string) {
-  try {
-    const q = query(
-      collection(db, 'lessonHistory'),
-      where('studentId', '==', studentId),
-      orderBy('completedDate', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as (LessonHistory & { id: string })[];
-  } catch (error) {
-    console.error('Error fetching lesson history:', error);
-    throw error;
-  }
-}
-
-/**
- * Get upcoming lessons for a student
- * @param studentId - Student's user ID
- * @returns Promise with array of upcoming lessons
- */
-export async function getStudentUpcomingLessons(studentId: string) {
-  try {
-    const q = query(
-      collection(db, 'studentEnrollments'),
-      where('studentId', '==', studentId)
-    );
-    const enrollments = await getDocs(q);
-    
-    const upcomingLessons = [];
-    for (const enrollment of enrollments.docs) {
-      const lessonId = enrollment.data().lessonId;
-      const lessonDoc = await getDocs(
-        query(collection(db, 'zoomLessons'), where('id', '==', lessonId))
-      );
-      const lesson = lessonDoc.docs[0]?.data() as ZoomLesson;
-      
-      if (lesson && lesson.status === 'scheduled') {
-        upcomingLessons.push({ ...lesson, id: lessonId });
-      }
-    }
-
-    return upcomingLessons.sort((a, b) => 
-      a.scheduledDate.toMillis() - b.scheduledDate.toMillis()
-    );
-  } catch (error) {
-    console.error('Error fetching upcoming lessons:', error);
-    throw error;
-  }
-}
-
-/**
- * Update lesson status
- * @param lessonId - Lesson ID
- * @param status - New status
- */
-export async function updateLessonStatus(
-  lessonId: string,
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
-) {
+export async function getLesson(lessonId: string): Promise<ZoomLesson | null> {
   try {
     const lessonRef = doc(db, 'zoomLessons', lessonId);
-    await updateDoc(lessonRef, {
-      status,
-      updatedAt: Timestamp.now(),
-    });
-  } catch (error) {
-    console.error('Error updating lesson status:', error);
-    throw error;
-  }
-}
+    const snapshot = await getDoc(lessonRef);
 
-/**
- * Mark student attendance for a lesson
- * @param enrollmentId - Enrollment ID
- * @param attended - Attendance status
- */
-export async function markStudentAttendance(enrollmentId: string, attended: boolean) {
-  try {
-    const enrollmentRef = doc(db, 'studentEnrollments', enrollmentId);
-    await updateDoc(enrollmentRef, {
-      attended,
-      attendanceTime: attended ? Timestamp.now() : null,
-    });
-  } catch (error) {
-    console.error('Error marking attendance:', error);
-    throw error;
-  }
-}
-
-/**
- * Get parent's view of children's lessons
- * @param parentId - Parent's user ID
- * @param childId - Child's user ID
- * @returns Promise with child's lesson data
- */
-export async function getParentChildLessons(parentId: string, childId: string) {
-  try {
-    // Get all enrollments for the child
-    const enrollmentsQuery = query(
-      collection(db, 'studentEnrollments'),
-      where('studentId', '==', childId)
-    );
-    const enrollments = await getDocs(enrollmentsQuery);
-
-    const lessonsData = [];
-    for (const enrollment of enrollments.docs) {
-      const lessonId = enrollment.data().lessonId;
-      const lessonDoc = await getDocs(
-        query(collection(db, 'zoomLessons'), where('id', '==', lessonId))
-      );
-      const lesson = lessonDoc.docs[0]?.data() as ZoomLesson;
-      
-      lessonsData.push({
-        enrollment: { id: enrollment.id, ...enrollment.data() },
-        lesson: { id: lessonId, ...lesson },
-      });
+    if (!snapshot.exists()) {
+      return null;
     }
 
-    return lessonsData;
+    return {
+      id: snapshot.id,
+      ...snapshot.data(),
+    } as ZoomLesson;
   } catch (error) {
-    console.error('Error fetching parent child lessons:', error);
+    console.error('Error fetching lesson:', error);
     throw error;
   }
 }
 
 /**
- * Delete a lesson (Teacher only)
- * @param lessonId - Lesson ID
- */
-export async function deleteZoomLesson(lessonId: string) {
-  try {
-    const batch = writeBatch(db);
-
-    // Delete lesson
-    batch.delete(doc(db, 'zoomLessons', lessonId));
-
-    // Delete all enrollments for this lesson
-    const enrollmentsQuery = query(
-      collection(db, 'studentEnrollments'),
-      where('lessonId', '==', lessonId)
-    );
-    const enrollments = await getDocs(enrollmentsQuery);
-    enrollments.docs.forEach(doc => batch.delete(doc.ref));
-
-    await batch.commit();
-  } catch (error) {
-    console.error('Error deleting lesson:', error);
-    throw error;
-  }
-}
-
-/**
- * Update lesson details (Teacher only)
+ * Update a lesson
  * @param lessonId - Lesson ID
  * @param updates - Fields to update
  */
-export async function updateZoomLesson(
+export async function updateLesson(
   lessonId: string,
   updates: Partial<ZoomLesson>
 ) {
@@ -398,10 +164,242 @@ export async function updateZoomLesson(
     const lessonRef = doc(db, 'zoomLessons', lessonId);
     await updateDoc(lessonRef, {
       ...updates,
-      updatedAt: Timestamp.now(),
+      updatedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error updating lesson:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a lesson
+ * @param lessonId - Lesson ID
+ */
+export async function deleteLesson(lessonId: string) {
+  try {
+    const lessonRef = doc(db, 'zoomLessons', lessonId);
+    await updateDoc(lessonRef, {
+      status: 'cancelled',
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error deleting lesson:', error);
+    throw error;
+  }
+}
+
+/**
+ * Enroll a student in a lesson
+ * @param studentId - Student's user ID
+ * @param lessonId - Lesson ID
+ * @returns Enrollment record
+ */
+export async function enrollInLesson(studentId: string, lessonId: string) {
+  try {
+    // Get lesson details
+    const lesson = await getLesson(lessonId);
+    if (!lesson) {
+      throw new Error('Lesson not found');
+    }
+
+    // Create enrollment record
+    const enrollmentsRef = collection(db, 'studentEnrollments');
+    const docRef = await addDoc(enrollmentsRef, {
+      studentId,
+      lessonId,
+      lessonTitle: lesson.title,
+      enrolledAt: new Date().toISOString(),
+      status: 'enrolled',
+    });
+
+    // Update lesson enrolled count
+    const lessonRef = doc(db, 'zoomLessons', lessonId);
+    await updateDoc(lessonRef, {
+      enrolledCount: (lesson.enrolledCount || 0) + 1,
+    });
+
+    return {
+      id: docRef.id,
+      studentId,
+      lessonId,
+      lessonTitle: lesson.title,
+      enrolledAt: new Date().toISOString(),
+      status: 'enrolled',
+    };
+  } catch (error) {
+    console.error('Error enrolling in lesson:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get lessons a student is enrolled in
+ * @param studentId - Student's user ID
+ * @returns Array of enrolled lessons
+ */
+export async function getStudentEnrolledLessons(
+  studentId: string
+): Promise<ZoomLesson[]> {
+  try {
+    const enrollmentsRef = collection(db, 'studentEnrollments');
+    const q = query(enrollmentsRef, where('studentId', '==', studentId));
+    const snapshot = await getDocs(q);
+
+    const lessonIds = snapshot.docs.map((doc) => doc.data().lessonId);
+
+    if (lessonIds.length === 0) {
+      return [];
+    }
+
+    // Fetch lesson details for each enrollment
+    const lessons: ZoomLesson[] = [];
+    for (const lessonId of lessonIds) {
+      const lesson = await getLesson(lessonId);
+      if (lesson) {
+        lessons.push(lesson);
+      }
+    }
+
+    return lessons;
+  } catch (error) {
+    console.error('Error fetching student enrolled lessons:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get lesson history for a student
+ * @param studentId - Student's user ID
+ * @returns Array of completed lessons
+ */
+export async function getStudentLessonHistory(
+  studentId: string
+): Promise<LessonHistory[]> {
+  try {
+    const historyRef = collection(db, 'lessonHistory');
+    const q = query(historyRef, where('studentId', '==', studentId));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as LessonHistory));
+  } catch (error) {
+    console.error('Error fetching lesson history:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get lessons for a parent's child
+ * @param studentId - Child's student ID
+ * @returns Array of child's enrolled lessons
+ */
+export async function getParentChildLessons(
+  studentId: string
+): Promise<ZoomLesson[]> {
+  try {
+    return await getStudentEnrolledLessons(studentId);
+  } catch (error) {
+    console.error('Error fetching parent child lessons:', error);
+    throw error;
+  }
+}
+
+/**
+ * Record lesson completion
+ * @param studentId - Student's user ID
+ * @param lessonId - Lesson ID
+ * @param feedback - Teacher feedback (optional)
+ */
+export async function recordLessonCompletion(
+  studentId: string,
+  lessonId: string,
+  feedback?: string
+) {
+  try {
+    const lesson = await getLesson(lessonId);
+    if (!lesson) {
+      throw new Error('Lesson not found');
+    }
+
+    const historyRef = collection(db, 'lessonHistory');
+    await addDoc(historyRef, {
+      studentId,
+      lessonId,
+      lessonTitle: lesson.title,
+      completedDate: new Date().toISOString(),
+      status: 'completed',
+      teacherFeedback: feedback || '',
+    });
+
+    // Update enrollment status
+    const enrollmentsRef = collection(db, 'studentEnrollments');
+    const q = query(
+      enrollmentsRef,
+      where('studentId', '==', studentId),
+      where('lessonId', '==', lessonId)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.docs.length > 0) {
+      const enrollmentRef = doc(db, 'studentEnrollments', snapshot.docs[0].id);
+      await updateDoc(enrollmentRef, {
+        status: 'attended',
+      });
+    }
+  } catch (error) {
+    console.error('Error recording lesson completion:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all enrollments for a lesson
+ * @param lessonId - Lesson ID
+ * @returns Array of student enrollments
+ */
+export async function getLessonEnrollments(
+  lessonId: string
+): Promise<StudentEnrollment[]> {
+  try {
+    const enrollmentsRef = collection(db, 'studentEnrollments');
+    const q = query(enrollmentsRef, where('lessonId', '==', lessonId));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as StudentEnrollment));
+  } catch (error) {
+    console.error('Error fetching lesson enrollments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if student is enrolled in a lesson
+ * @param studentId - Student's user ID
+ * @param lessonId - Lesson ID
+ * @returns True if enrolled, false otherwise
+ */
+export async function isStudentEnrolled(
+  studentId: string,
+  lessonId: string
+): Promise<boolean> {
+  try {
+    const enrollmentsRef = collection(db, 'studentEnrollments');
+    const q = query(
+      enrollmentsRef,
+      where('studentId', '==', studentId),
+      where('lessonId', '==', lessonId)
+    );
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.length > 0;
+  } catch (error) {
+    console.error('Error checking enrollment:', error);
     throw error;
   }
 }
