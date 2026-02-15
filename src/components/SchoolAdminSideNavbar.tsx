@@ -178,34 +178,36 @@ export default function SchoolAdminSideNavbar() {
         <div className="px-4 py-2">
           <button
             onClick={() => setShowDocumentsSubmenu(!showDocumentsSubmenu)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
               isActive('/features/document-management')
                 ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900'
             }`}
           >
-            <FileText className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium flex-1">Documents</span>
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-medium">Documents</span>
+            </div>
             <ChevronRight
               className={`w-4 h-4 transition-transform duration-200 ${
                 showDocumentsSubmenu ? 'rotate-90' : ''
-              }`}
+              } ${isActive('/features/document-management') ? 'text-white dark:text-black' : 'text-gray-400'}`}
             />
           </button>
 
           {/* Documents Submenu */}
           {showDocumentsSubmenu && (
-            <div className="mt-2 space-y-2">
+            <div className="ml-4 pl-4 border-l border-gray-200 dark:border-gray-800 space-y-1 mt-1">
               <button
                 onClick={() => handleNavigate('/features/document-management')}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200"
               >
                 <FileText className="w-4 h-4" />
                 <span>My Documents</span>
               </button>
               <button
                 onClick={handleAddDocument}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Document</span>
