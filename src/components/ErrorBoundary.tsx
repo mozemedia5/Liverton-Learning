@@ -28,8 +28,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-black p-4">
-          <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background p-4">
+          <div className="max-w-md w-full bg-white dark:bg-card rounded-lg shadow-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="w-6 h-6 text-red-500" />
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">

@@ -96,9 +96,9 @@ export function DashboardShell(props: {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-background text-black dark:text-white">
       {/* Sticky Header - Always visible at top */}
-      <header className="sticky top-0 z-40 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+      <header className="sticky top-0 z-40 bg-white dark:bg-background border-b border-gray-200 dark:border-gray-800">
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">{props.title}</h1>
@@ -120,7 +120,7 @@ export function DashboardShell(props: {
           Provides quick access to main sections
           Responsive grid layout
       */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-black/95 border-t border-gray-200 dark:border-gray-800 backdrop-blur">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-background/95 border-t border-gray-200 dark:border-gray-800 backdrop-blur">
         <div className="mx-auto max-w-5xl grid grid-cols-6">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -153,7 +153,7 @@ export function DashboardShell(props: {
                 className={cn(
                   'h-16 rounded-none flex flex-col items-center justify-center gap-1 transition-colors duration-200',
                   isActive 
-                    ? 'text-black dark:text-white bg-gray-100 dark:bg-gray-900' 
+                    ? 'text-black dark:text-white bg-gray-100 dark:bg-secondary' 
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 )}
                 onClick={onClick}

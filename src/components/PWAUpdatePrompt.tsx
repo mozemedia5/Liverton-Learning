@@ -21,7 +21,7 @@ export function PWAUpdatePrompt() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 max-w-sm bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-800 rounded-lg shadow-lg p-4 z-50">
+    <div className="fixed bottom-4 right-4 max-w-sm bg-white dark:bg-card border border-blue-200 dark:border-blue-800 rounded-lg shadow-lg p-4 z-50">
       <div className="flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
         <div className="flex-1">

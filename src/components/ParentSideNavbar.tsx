@@ -149,14 +149,14 @@ export default function ParentSideNavbar() {
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 ${
+        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 dark:from-background dark:to-background text-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Logo Section */}
-        <div className="p-6 border-b border-blue-700">
+        <div className="p-6 border-b border-blue-700 dark:border-gray-800">
           <h1 className="text-2xl font-bold">Liverton</h1>
-          <p className="text-sm text-blue-200">Parent Portal</p>
+          <p className="text-sm text-blue-200 dark:text-gray-400">Parent Portal</p>
         </div>
 
         {/* Navigation */}
@@ -172,8 +172,8 @@ export default function ParentSideNavbar() {
                 onClick={() => handleNavigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive(item.path)
-                    ? 'bg-blue-600 text-white'
-                    : 'text-blue-100 hover:bg-blue-700'
+                    ? 'bg-blue-600 text-white dark:bg-white dark:text-black'
+                    : 'text-blue-100 hover:bg-blue-700 dark:text-gray-300 dark:hover:bg-secondary'
                 }`}
               >
                 {item.icon}
@@ -188,8 +188,8 @@ export default function ParentSideNavbar() {
           </div>
 
           {/* Support Section */}
-          <div className="px-4 space-y-2 mt-8 border-t border-blue-700 pt-6">
-            <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider px-2 mb-4">
+          <div className="px-4 space-y-2 mt-8 border-t border-blue-700 dark:border-gray-800 pt-6">
+            <p className="text-xs font-semibold text-blue-300 dark:text-gray-400 uppercase tracking-wider px-2 mb-4">
               Support
             </p>
             {supportNavItems.map(item => (
@@ -198,8 +198,8 @@ export default function ParentSideNavbar() {
                 onClick={() => handleNavigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive(item.path)
-                    ? 'bg-blue-600 text-white'
-                    : 'text-blue-100 hover:bg-blue-700'
+                    ? 'bg-blue-600 text-white dark:bg-white dark:text-black'
+                    : 'text-blue-100 hover:bg-blue-700 dark:text-gray-300 dark:hover:bg-secondary'
                 }`}
               >
                 {item.icon}
@@ -210,7 +210,7 @@ export default function ParentSideNavbar() {
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-blue-700">
+        <div className="p-4 border-t border-blue-700 dark:border-gray-800">
           <Button
             onClick={() => setShowLogoutConfirm(true)}
             variant="outline"
@@ -233,7 +233,7 @@ export default function ParentSideNavbar() {
       {/* Logout Confirmation Dialog */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+          <div className="bg-white dark:bg-card rounded-lg p-6 max-w-sm mx-4">
             <h2 className="text-xl font-bold mb-4">Confirm Logout</h2>
             <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
             <div className="flex gap-3">

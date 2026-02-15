@@ -21,7 +21,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
   const currentSize = sizeClasses[size];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-background">
       <div className="flex flex-col items-center gap-8">
         {/* Animated Logo Container */}
         <div className="relative flex items-center justify-center">

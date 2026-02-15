@@ -55,7 +55,7 @@ export function BottomNav({ userRole }: BottomNavProps) {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 shadow-lg z-40">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-background border-t border-gray-200 dark:border-gray-800 shadow-lg z-40">
         <div className="flex items-center justify-around h-20 px-2">
           {navItems.map((item) => (
             <Button
@@ -63,7 +63,7 @@ export function BottomNav({ userRole }: BottomNavProps) {
               variant="ghost"
               size="sm"
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center gap-1 h-auto py-2 px-3 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg transition-colors"
+              className="flex flex-col items-center gap-1 h-auto py-2 px-3 hover:bg-gray-100 dark:hover:bg-secondary rounded-lg transition-colors"
             >
               <item.icon className="w-5 h-5" />
               <span className="text-xs font-medium">{item.label}</span>
