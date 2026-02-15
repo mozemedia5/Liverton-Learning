@@ -4,7 +4,7 @@
  * Features: Cell editing, formulas, formatting, data validation, charts
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -17,7 +17,6 @@ import {
   AlignRight,
   Loader2,
   MoreVertical,
-  Save,
   Share2,
   Trash2,
   Download,
@@ -26,28 +25,22 @@ import {
   Star,
   Palette,
   Type,
-  Table as TableIcon,
   Filter,
-  ArrowUpAZ,
-  ArrowDownZA,
   Calculator,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -87,8 +80,6 @@ export default function EnhancedSpreadsheetEditor() {
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-
-  const gridRef = useRef<HTMLDivElement>(null);
 
   // Document state
   const [record, setRecord] = useState<DocumentRecord | null>(null);

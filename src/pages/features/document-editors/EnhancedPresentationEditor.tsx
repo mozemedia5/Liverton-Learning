@@ -14,7 +14,6 @@ import {
   Copy,
   Loader2,
   MoreVertical,
-  Save,
   Share2,
   Download,
   Edit2,
@@ -25,30 +24,25 @@ import {
   Layout,
   Play,
   Settings2,
-  Palette,
   Bold,
   Italic,
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Maximize,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';

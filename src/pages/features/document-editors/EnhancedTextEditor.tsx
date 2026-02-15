@@ -19,7 +19,6 @@ import {
   ListOrdered,
   Loader2,
   MoreVertical,
-  Save,
   Share2,
   Trash2,
   Download,
@@ -32,9 +31,8 @@ import {
   Highlighter,
   Link,
   Image as ImageIcon,
-  Quote,
-  Code,
   Minus,
+  CheckCircle2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -331,7 +329,7 @@ export default function EnhancedTextEditor() {
             )}
             {!saving && !hasChanges && (
               <div className="flex items-center gap-2 text-sm text-green-600">
-                <Save className="w-4 h-4" />
+                <CheckCircle2 className="w-4 h-4" />
                 <span>Saved</span>
               </div>
             )}
