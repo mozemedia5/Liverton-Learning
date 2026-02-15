@@ -41,6 +41,8 @@ import PublicDocument from '@/pages/features/PublicDocument';
 
 // New Global Features
 import DocumentManagement from '@/pages/features/DocumentManagement';
+import DocumentWorkspace from '@/pages/features/DocumentWorkspace';
+import UnifiedDocumentEditor from '@/pages/features/UnifiedDocumentEditor';
 import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaAI from '@/pages/features/HannaAI';
@@ -291,6 +293,18 @@ function AppRoutes() {
       } />
       {/* Public document sharing - accessible without authentication */}
       <Route path="/documents/public/:token" element={<PublicDocument />} />
+
+      {/* Document Workspace Routes - Microsoft Office 365 Style */}
+      <Route path="/features/document-workspace" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <AuthenticatedLayout><DocumentWorkspace /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/editor/:type/:docId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+          <UnifiedDocumentEditor />
+        </ProtectedRoute>
+      } />
 
       {/* Global Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/features/document-management" element={
