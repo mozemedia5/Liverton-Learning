@@ -22,6 +22,16 @@ import {
   Type,
   Square,
   Image as ImageIcon,
+  Layout,
+  Play,
+  Settings2,
+  Palette,
+  Bold,
+  Italic,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Maximize,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -42,6 +52,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Slider } from '@/components/ui/slider';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocument, renameDocument, updateDocumentContent } from '@/lib/documents';
@@ -50,8 +63,6 @@ import { ShareWithHannaDialog } from '@/components/ShareWithHannaDialog';
 import type { DocumentContent, DocumentRecord, PresentationSlide, PresentationElement } from '@/types';
 
 import './editorStyles.css';
-
-// Using PresentationSlide and PresentationElement from types/index.ts
 
 /**
  * Enhanced Presentation Editor with PowerPoint-style UI
@@ -83,6 +94,10 @@ export default function EnhancedPresentationEditor() {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const currentSlide = useMemo(() => slides[currentSlideIndex], [slides, currentSlideIndex]) as PresentationSlide | undefined;
+  const selectedElement = useMemo(() => 
+    currentSlide?.elements.find(el => el.id === selectedElementId),
+    [currentSlide, selectedElementId]
+  );
 
   /**
    * Load document on mount
@@ -136,13 +151,14 @@ export default function EnhancedPresentationEditor() {
       h: 100,
       text: 'Click to add title',
       fontSize: 44,
+      bold: true,
+      align: 'center',
     };
     
     return {
       id: `slide-${Date.now()}`,
-      title: `Slide ${slides.length + 1}`,
-      layout: 'title',
       elements: [textElement],
+      layout: 'title',
     };
   };
 
@@ -167,9 +183,6 @@ export default function EnhancedPresentationEditor() {
           newTitle: title,
           bumpVersion: false,
         });
-
-        // Update enhanced metadata (slide count tracked in content)
-        // Note: slideCount is tracked in the presentation content itself
 
         setHasChanges(false);
       } catch {
@@ -232,27 +245,52 @@ export default function EnhancedPresentationEditor() {
   };
 
   /**
-   * Add text element to current slide
+   * Add element to current slide
    */
-  const handleAddTextElement = () => {
+  const handleAddElement = (type: 'text' | 'image' | 'shape') => {
     if (!currentSlide) return;
 
-    const newElement: PresentationElement = {
-      id: `element-${Date.now()}`,
-      type: 'text',
-      x: 100,
-      y: 200,
-      w: 400,
-      h: 100,
-      text: 'Click to edit text',
-      fontSize: 24,
-    };
+    let newElement: PresentationElement;
+
+    if (type === 'text') {
+      newElement = {
+        id: `element-${Date.now()}`,
+        type: 'text',
+        x: 100,
+        y: 200,
+        w: 400,
+        h: 100,
+        text: 'Click to edit text',
+        fontSize: 24,
+      };
+    } else if (type === 'image') {
+      const url = window.prompt('Enter image URL:');
+      if (!url) return;
+      newElement = {
+        id: `element-${Date.now()}`,
+        type: 'image',
+        x: 100,
+        y: 100,
+        w: 300,
+        h: 200,
+        url,
+      };
+    } else {
+      newElement = {
+        id: `element-${Date.now()}`,
+        type: 'shape',
+        x: 100,
+        y: 100,
+        w: 100,
+        h: 100,
+        shape: 'rect',
+      };
+    }
 
     const updatedSlides = [...slides];
-    const updatedElements: PresentationElement[] = [...currentSlide.elements, newElement];
     updatedSlides[currentSlideIndex] = {
       ...currentSlide,
-      elements: updatedElements,
+      elements: [...currentSlide.elements, newElement],
     };
 
     setSlides(updatedSlides);
@@ -267,17 +305,9 @@ export default function EnhancedPresentationEditor() {
     if (!currentSlide) return;
 
     const updatedSlides = [...slides];
-    const updatedElements: PresentationElement[] = currentSlide.elements.map((el) => {
-      if (el.id === elementId) {
-        // Merge updates with existing element, preserving type safety
-        return { ...el, ...updates } as PresentationElement;
-      }
-      return el;
-    });
-
     updatedSlides[currentSlideIndex] = {
       ...currentSlide,
-      elements: updatedElements,
+      elements: currentSlide.elements.map((el) => el.id === elementId ? { ...el, ...updates } as PresentationElement : el),
     };
 
     setSlides(updatedSlides);
@@ -321,9 +351,7 @@ export default function EnhancedPresentationEditor() {
    */
   const handleDelete = async () => {
     if (!docId) return;
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this presentation? This cannot be undone.'
-    );
+    const confirmed = window.confirm('Are you sure you want to delete this presentation?');
     if (!confirmed) return;
 
     try {
@@ -355,23 +383,6 @@ export default function EnhancedPresentationEditor() {
     }
   };
 
-  /**
-   * Export presentation as JSON
-   */
-  const handleExport = () => {
-    const element = document.createElement('a');
-    element.setAttribute(
-      'href',
-      'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(slides, null, 2))
-    );
-    element.setAttribute('download', `${title}.json`);
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success('Presentation exported as JSON');
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -384,18 +395,12 @@ export default function EnhancedPresentationEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          {/* Back button and title */}
+      <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 shadow-sm z-40">
+        <div className="max-w-full mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard/documents')}
-              className="shrink-0"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/documents')}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex-1 min-w-0">
@@ -406,295 +411,252 @@ export default function EnhancedPresentationEditor() {
                   setHasChanges(true);
                 }}
                 className="text-lg font-semibold border-0 bg-transparent focus-visible:ring-0 px-0"
-                placeholder="Untitled Presentation"
               />
             </div>
           </div>
 
-          {/* Status and action buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {saving && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving...</span>
-              </div>
-            )}
-            {!saving && !hasChanges && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <Save className="w-4 h-4" />
-                <span>Saved</span>
-              </div>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleToggleFavorite}
-              className={isFavorite ? 'text-yellow-500' : ''}
-            >
+          <div className="flex items-center gap-2">
+            {saving && <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /><span>Saving...</span></div>}
+            <Button variant="ghost" size="sm" onClick={handleToggleFavorite} className={isFavorite ? 'text-yellow-500' : ''}>
               <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
             </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowShareDialog(true)}
-              className="gap-2"
-            >
-              <Share2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Share</span>
+            <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="gap-2">
+              <Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span>
             </Button>
-
+            <Button variant="default" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
+              <Play className="w-4 h-4" /><span>Present</span>
+            </Button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Presentation Options</DropdownMenuLabel>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowRenameDialog(true)}><Edit2 className="w-4 h-4 mr-2" />Rename</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {}}><Download className="w-4 h-4 mr-2" />Export PDF</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowRenameDialog(true)}>
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export as JSON
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
-        {/* Slide toolbar */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-4 py-2">
-          <div className="max-w-7xl mx-auto flex gap-2">
-            <Button
-              size="sm"
-              onClick={handleAddSlide}
-              className="gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              New Slide
+        {/* Presentation Toolbar */}
+        <div className="px-4 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={handleAddSlide} className="gap-2 text-blue-600 font-semibold">
+              <Plus className="w-4 h-4" /> Slide
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleDuplicateSlide}
-              disabled={!currentSlide}
-              className="gap-2"
-            >
-              <Copy className="w-4 h-4" />
-              Duplicate
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleDeleteSlide}
-              disabled={slides.length <= 1}
-              className="gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-2" />
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAddTextElement}
-              disabled={!currentSlide}
-              className="gap-2"
-            >
-              <Type className="w-4 h-4" />
-              Text
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!currentSlide}
-              className="gap-2"
-            >
-              <Square className="w-4 h-4" />
-              Shape
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!currentSlide}
-              className="gap-2"
-            >
-              <ImageIcon className="w-4 h-4" />
-              Image
-            </Button>
+            <Button variant="ghost" size="sm" onClick={handleDuplicateSlide} title="Duplicate Slide"><Copy className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={handleDeleteSlide} title="Delete Slide" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
           </div>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => handleAddElement('text')} title="Add Text"><Type className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => handleAddElement('image')} title="Add Image"><ImageIcon className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => handleAddElement('shape')} title="Add Shape"><Square className="w-4 h-4" /></Button>
+          </div>
+          <Separator orientation="vertical" className="h-6" />
+          
+          {selectedElement?.type === 'text' && (
+            <div className="flex items-center gap-1 px-2">
+              <Button variant="ghost" size="sm" onClick={() => handleUpdateElement(selectedElementId!, { bold: !selectedElement.bold })} className={selectedElement.bold ? 'bg-gray-100' : ''}><Bold className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => handleUpdateElement(selectedElementId!, { italic: !selectedElement.italic })} className={selectedElement.italic ? 'bg-gray-100' : ''}><Italic className="w-4 h-4" /></Button>
+              <Separator orientation="vertical" className="h-6 mx-1" />
+              <Button variant="ghost" size="sm" onClick={() => handleUpdateElement(selectedElementId!, { align: 'left' })} className={selectedElement.align === 'left' ? 'bg-gray-100' : ''}><AlignLeft className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => handleUpdateElement(selectedElementId!, { align: 'center' })} className={selectedElement.align === 'center' ? 'bg-gray-100' : ''}><AlignCenter className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => handleUpdateElement(selectedElementId!, { align: 'right' })} className={selectedElement.align === 'right' ? 'bg-gray-100' : ''}><AlignRight className="w-4 h-4" /></Button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Main editor area */}
-      <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Slide thumbnails panel */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-24 space-y-2">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Slides</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {slides.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  onClick={() => setCurrentSlideIndex(index)}
-                  className={`p-2 rounded border-2 cursor-pointer transition-colors ${
-                    currentSlideIndex === index
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div
-                    className="w-full aspect-video rounded bg-white dark:bg-gray-800 flex items-center justify-center text-xs text-gray-500"
-                    style={{ backgroundColor: "#FFFFFF" }}
-                  >
-                    Slide {index + 1}
-                  </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 truncate">
-                    {slide.title}
-                  </p>
-                </div>
-              ))}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - Slide Thumbnails */}
+        <div className="w-64 bg-white dark:bg-black border-r border-gray-200 dark:border-gray-800 overflow-y-auto p-4 flex flex-col gap-4">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Slides</h3>
+          {slides.map((slide, index) => (
+            <div
+              key={slide.id}
+              onClick={() => {
+                setCurrentSlideIndex(index);
+                setSelectedElementId(null);
+              }}
+              className={`relative aspect-video rounded-md border-2 cursor-pointer transition-all hover:border-blue-300 overflow-hidden ${
+                currentSlideIndex === index ? 'border-blue-600 shadow-md' : 'border-gray-200 dark:border-gray-800'
+              }`}
+            >
+              <div className="absolute inset-0 flex items-center justify-center text-[8px] text-gray-400 pointer-events-none p-2 bg-gray-50 dark:bg-gray-900">
+                {slide.elements.find(el => el.type === 'text')?.text || 'Blank Slide'}
+              </div>
+              <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] px-1 rounded">{index + 1}</div>
             </div>
-          </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={handleAddSlide} className="w-full border-dashed"><Plus className="w-4 h-4 mr-2" /> Add Slide</Button>
         </div>
 
-        {/* Canvas area */}
-        <div className="lg:col-span-3">
-          <Card className="shadow-lg">
-            <CardContent className="p-0">
+        {/* Main Canvas Area */}
+        <div className="flex-1 bg-gray-200 dark:bg-gray-900 p-8 overflow-auto flex items-center justify-center">
+          <div 
+            ref={canvasRef}
+            className="bg-white dark:bg-black shadow-2xl relative overflow-hidden"
+            style={{ width: '960px', height: '540px', minWidth: '960px', minHeight: '540px' }}
+            onClick={() => setSelectedElementId(null)}
+          >
+            {currentSlide?.elements.map((el) => (
               <div
-                ref={canvasRef}
-                className="relative w-full aspect-video rounded-lg overflow-hidden"
-                style={{ backgroundColor: '#FFFFFF', minHeight: '400px' }}
+                key={el.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedElementId(el.id);
+                }}
+                className={`absolute cursor-move transition-shadow ${selectedElementId === el.id ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:ring-1 hover:ring-gray-300'}`}
+                style={{
+                  left: `${el.x}px`,
+                  top: `${el.y}px`,
+                  width: `${el.w}px`,
+                  height: `${el.h}px`,
+                }}
               >
-                {currentSlide?.elements.map((element) => (
+                {el.type === 'text' && (
                   <div
-                    key={element.id}
-                    onClick={() => setSelectedElementId(element.id)}
-                    className={`absolute cursor-move border-2 transition-colors ${
-                      selectedElementId === element.id
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                        : 'border-transparent hover:border-gray-300'
-                    }`}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => handleUpdateElement(el.id, { text: e.currentTarget.innerText })}
+                    className="w-full h-full p-2 outline-none break-words"
                     style={{
-                      left: `${element.x}px`,
-                      top: `${element.y}px`,
-                      width: `${element.w}px`,
-                      height: `${element.h}px`,
+                      fontSize: `${el.fontSize || 24}px`,
+                      fontWeight: el.bold ? 'bold' : 'normal',
+                      fontStyle: el.italic ? 'italic' : 'normal',
+                      textAlign: el.align || 'left',
                     }}
                   >
-                    {element.type === 'text' && (
-                      <div
-                        className="w-full h-full p-2 text-sm overflow-hidden"
-                        style={{
-                          fontSize: `${element.fontSize}px`,
-                        }}
-                      >
-                        {element.text}
+                    {el.text}
+                  </div>
+                )}
+                {el.type === 'image' && (
+                  <img src={el.url} alt="slide element" className="w-full h-full object-contain pointer-events-none" />
+                )}
+                {el.type === 'shape' && (
+                  <div 
+                    className={`w-full h-full bg-blue-500/20 border-2 border-blue-500 ${el.shape === 'ellipse' ? 'rounded-full' : ''}`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Sidebar - Properties */}
+        <div className="w-72 bg-white dark:bg-black border-l border-gray-200 dark:border-gray-800 p-4">
+          <Tabs defaultValue="properties">
+            <TabsList className="w-full">
+              <TabsTrigger value="properties" className="flex-1">Properties</TabsTrigger>
+              <TabsTrigger value="layout" className="flex-1">Layout</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="properties" className="py-4 flex flex-col gap-4">
+              {selectedElement ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm">Element Properties</h3>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteElement(selectedElementId!)} className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
+                  </div>
+                  <Separator />
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-gray-500">Position & Size</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-gray-400">X</span>
+                          <Input type="number" value={selectedElement.x} onChange={(e) => handleUpdateElement(selectedElementId!, { x: parseInt(e.target.value) })} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-gray-400">Y</span>
+                          <Input type="number" value={selectedElement.y} onChange={(e) => handleUpdateElement(selectedElementId!, { y: parseInt(e.target.value) })} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-gray-400">Width</span>
+                          <Input type="number" value={selectedElement.w} onChange={(e) => handleUpdateElement(selectedElementId!, { w: parseInt(e.target.value) })} className="h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-gray-400">Height</span>
+                          <Input type="number" value={selectedElement.h} onChange={(e) => handleUpdateElement(selectedElementId!, { h: parseInt(e.target.value) })} className="h-8" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {selectedElement.type === 'text' && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-gray-500">Text Settings</label>
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-gray-400">Font Size: {selectedElement.fontSize}px</span>
+                          <Slider 
+                            value={[selectedElement.fontSize || 24]} 
+                            min={8} max={120} step={1}
+                            onValueChange={([val]) => handleUpdateElement(selectedElementId!, { fontSize: val })}
+                          />
+                        </div>
                       </div>
                     )}
-                    {element.type === 'image' && (
-                      <img src={element.url} alt="Slide element" className="w-full h-full object-cover" />
-                    )}
-                    {element.type === 'shape' && (
-                      <div
-                        className="w-full h-full bg-gray-300"
-                        style={{
-                          borderRadius: element.shape === 'ellipse' ? '50%' : '0',
-                        }}
-                      />
-                    )}
                   </div>
-                ))}
-              </div>
-
-              {/* Element properties panel */}
-              {selectedElementId && currentSlide && (
-                <div className="border-t border-gray-200 dark:border-gray-800 p-4 bg-gray-50 dark:bg-gray-950">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Content
-                      </label>
-                      <Input
-                        value={
-                          (currentSlide.elements.find((el) => el.id === selectedElementId) as any)
-                            ?.text || ''
-                        }
-                        onChange={(e) =>
-                          handleUpdateElement(selectedElementId, { text: e.target.value } as any)
-                        }
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteElement(selectedElementId)}
-                        className="gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
+                  <Settings2 className="w-12 h-12 mb-2 opacity-20" />
+                  <p className="text-sm">Select an element to edit its properties</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Slide counter */}
-          <div className="mt-4 text-center text-sm text-gray-500">
-            Slide {currentSlideIndex + 1} of {slides.length}
-          </div>
+            </TabsContent>
+            
+            <TabsContent value="layout" className="py-4">
+              <div className="grid grid-cols-1 gap-2">
+                <Button variant="outline" className="justify-start h-auto py-3 px-4 gap-3">
+                  <Layout className="w-5 h-5 text-blue-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Title Slide</div>
+                    <div className="text-[10px] text-gray-500">Main title and subtitle</div>
+                  </div>
+                </Button>
+                <Button variant="outline" className="justify-start h-auto py-3 px-4 gap-3">
+                  <Layout className="w-5 h-5 text-blue-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Title & Content</div>
+                    <div className="text-[10px] text-gray-500">Title with text or media</div>
+                  </div>
+                </Button>
+                <Button variant="outline" className="justify-start h-auto py-3 px-4 gap-3">
+                  <Layout className="w-5 h-5 text-blue-500" />
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Blank</div>
+                    <div className="text-[10px] text-gray-500">Empty canvas</div>
+                  </div>
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
-      {/* Rename Dialog */}
+      {/* Footer Status Bar */}
+      <div className="bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 px-4 py-1.5 text-xs text-gray-500 flex justify-between items-center z-40">
+        <div className="flex gap-4">
+          <span>Slide {currentSlideIndex + 1} of {slides.length}</span>
+          <span>{currentSlide?.elements.length || 0} Elements</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${saving ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`} />
+          <span>{saving ? 'Saving...' : 'Saved'}</span>
+        </div>
+      </div>
+
       <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename Presentation</DialogTitle>
-            <DialogDescription>Enter a new name for your presentation</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Presentation name"
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRename}>Rename</Button>
-            </div>
-          </div>
+          <DialogHeader><DialogTitle>Rename Presentation</DialogTitle></DialogHeader>
+          <div className="py-4"><Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleRename()} /></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowRenameDialog(false)}>Cancel</Button><Button onClick={handleRename}>Rename</Button></div>
         </DialogContent>
       </Dialog>
 
-      {/* Share Dialog */}
-      <ShareWithHannaDialog
-        open={showShareDialog}
-        onOpenChange={setShowShareDialog}
-        documentTitle={title}
-        documentId={docId || ''}
-      />
+      <ShareWithHannaDialog open={showShareDialog} onOpenChange={setShowShareDialog} documentId={docId || ''} documentTitle={title} />
     </div>
   );
 }

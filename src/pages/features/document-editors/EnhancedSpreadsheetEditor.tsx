@@ -23,11 +23,14 @@ import {
   Download,
   Edit2,
   Plus,
-  Lock,
-  Users,
   Star,
-  BarChart3,
+  Palette,
+  Type,
+  Table as TableIcon,
   Filter,
+  ArrowUpAZ,
+  ArrowDownZA,
+  Calculator,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -48,7 +51,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocument, renameDocument, updateDocumentContent } from '@/lib/documents';
@@ -92,17 +100,14 @@ export default function EnhancedSpreadsheetEditor() {
   // Spreadsheet state
   const [cells, setCells] = useState<Record<string, CellData>>({});
   const [selectedCell, setSelectedCell] = useState<string>('A1');
-  const [rows, setRows] = useState(20);
-  const [columns, setColumns] = useState(10);
+  const [rows, setRows] = useState(25);
+  const [columns, setColumns] = useState(12);
 
   // UI state
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [cellCount, setCellCount] = useState(0);
-
-
 
   // Column letters
   const getColumnLetter = (index: number): string => {
@@ -113,8 +118,6 @@ export default function EnhancedSpreadsheetEditor() {
     }
     return letter;
   };
-
-  // Note: parseCellRef function available for future use if needed
 
   /**
    * Load document on mount
@@ -142,12 +145,18 @@ export default function EnhancedSpreadsheetEditor() {
         if (doc.content?.kind === 'sheet') {
           const cellsData: Record<string, CellData> = {};
           Object.entries(doc.content.cells).forEach(([key, value]) => {
-            cellsData[key] = {
-              value: String(value),
-            };
+            // Try to parse if it's a complex object, otherwise treat as simple value
+            try {
+              if (typeof value === 'string' && value.startsWith('{')) {
+                cellsData[key] = JSON.parse(value);
+              } else {
+                cellsData[key] = { value: String(value) };
+              }
+            } catch {
+              cellsData[key] = { value: String(value) };
+            }
           });
           setCells(cellsData);
-          setCellCount(Object.keys(cellsData).length);
         }
       } catch (error) {
         toast.error('Failed to load document');
@@ -169,10 +178,14 @@ export default function EnhancedSpreadsheetEditor() {
     const timer = setTimeout(async () => {
       setSaving(true);
       try {
-        // Convert cells to simple format for storage
+        // Convert cells to storage format
         const cellsForStorage: Record<string, string> = {};
         Object.entries(cells).forEach(([key, data]) => {
-          cellsForStorage[key] = data.value;
+          if (data.format || data.formula) {
+            cellsForStorage[key] = JSON.stringify(data);
+          } else {
+            cellsForStorage[key] = data.value;
+          }
         });
 
         const content: DocumentContent = {
@@ -192,8 +205,8 @@ export default function EnhancedSpreadsheetEditor() {
         await updateEnhancedDocument({
           docId,
           updates: {
-            wordCount: Object.values(cells).reduce((sum, cell) => sum + cell.value.split(/\s+/).length, 0),
-            characterCount: Object.values(cells).reduce((sum, cell) => sum + cell.value.length, 0),
+            wordCount: Object.values(cells).reduce((sum, cell) => sum + (cell.value?.split(/\s+/).length || 0), 0),
+            characterCount: Object.values(cells).reduce((sum, cell) => sum + (cell.value?.length || 0), 0),
           },
           userId: currentUser.uid,
           userName: currentUser.displayName || 'Unknown',
@@ -225,10 +238,21 @@ export default function EnhancedSpreadsheetEditor() {
   };
 
   /**
-   * Handle cell selection
+   * Apply formatting to selected cell
    */
-  const handleCellSelect = (cellRef: string) => {
-    setSelectedCell(cellRef);
+  const applyCellFormat = (format: Partial<CellData['format']>) => {
+    if (!selectedCell) return;
+    setCells((prev) => ({
+      ...prev,
+      [selectedCell]: {
+        ...prev[selectedCell],
+        format: {
+          ...(prev[selectedCell]?.format || {}),
+          ...format,
+        },
+      },
+    }));
+    setHasChanges(true);
   };
 
   /**
@@ -293,7 +317,7 @@ export default function EnhancedSpreadsheetEditor() {
       for (let col = 0; col < columns; col++) {
         const cellRef = getColumnLetter(col) + (row + 1);
         const cellData = cells[cellRef];
-        rowData.push(cellData?.value || '');
+        rowData.push(`"${(cellData?.value || '').replace(/"/g, '""')}"`);
       }
       csv += rowData.join(',') + '\n';
     }
@@ -308,19 +332,12 @@ export default function EnhancedSpreadsheetEditor() {
     toast.success('Spreadsheet exported as CSV');
   };
 
-  /**
-   * Add row
-   */
-  const handleAddRow = () => {
-    setRows((prev) => prev + 1);
-  };
-
-  /**
-   * Add column
-   */
-  const handleAddColumn = () => {
-    setColumns((prev) => prev + 1);
-  };
+  const colors = [
+    '#ffffff', '#f3f4f6', '#e5e7eb', '#d1d5db', '#9ca3af', '#6b7280', '#4b5563', '#374151', '#1f2937', '#000000',
+    '#fee2e2', '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', '#450a0a',
+    '#dcfce7', '#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#064e3b',
+    '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554',
+  ];
 
   if (loading) {
     return (
@@ -338,14 +355,8 @@ export default function EnhancedSpreadsheetEditor() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          {/* Back button and title */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard/documents')}
-              className="shrink-0"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/documents')}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex-1 min-w-0">
@@ -356,307 +367,164 @@ export default function EnhancedSpreadsheetEditor() {
                   setHasChanges(true);
                 }}
                 className="text-lg font-semibold border-0 bg-transparent focus-visible:ring-0 px-0"
-                placeholder="Untitled"
               />
             </div>
           </div>
 
-          {/* Status and action buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            {saving && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving...</span>
-              </div>
-            )}
-            {!saving && !hasChanges && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <Save className="w-4 h-4" />
-                <span>Saved</span>
-              </div>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleToggleFavorite}
-              className={isFavorite ? 'text-yellow-500' : ''}
-            >
+          <div className="flex items-center gap-2">
+            {saving && <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /><span>Saving...</span></div>}
+            <Button variant="ghost" size="sm" onClick={handleToggleFavorite} className={isFavorite ? 'text-yellow-500' : ''}>
               <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
             </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowShareDialog(true)}
-              className="gap-2"
-            >
-              <Share2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Share</span>
+            <Button variant="outline" size="sm" onClick={() => setShowShareDialog(true)} className="gap-2">
+              <Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span>
             </Button>
-
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Spreadsheet Options</DropdownMenuLabel>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowRenameDialog(true)}><Edit2 className="w-4 h-4 mr-2" />Rename</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExport}><Download className="w-4 h-4 mr-2" />Export CSV</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowRenameDialog(true)}>
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export as CSV
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-4 py-2">
-          <div className="max-w-7xl mx-auto flex flex-wrap gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('bold')}
-              title="Bold"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
+        {/* Spreadsheet Toolbar */}
+        <div className="max-w-7xl mx-auto px-4 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => applyCellFormat({ bold: !cells[selectedCell]?.format?.bold })} title="Bold" className={cells[selectedCell]?.format?.bold ? 'bg-gray-100 dark:bg-gray-800' : ''}>
               <Bold className="w-4 h-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('italic')}
-              title="Italic"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
+            <Button variant="ghost" size="sm" onClick={() => applyCellFormat({ italic: !cells[selectedCell]?.format?.italic })} title="Italic" className={cells[selectedCell]?.format?.italic ? 'bg-gray-100 dark:bg-gray-800' : ''}>
               <Italic className="w-4 h-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('underline')}
-              title="Underline"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
+            <Button variant="ghost" size="sm" onClick={() => applyCellFormat({ underline: !cells[selectedCell]?.format?.underline })} title="Underline" className={cells[selectedCell]?.format?.underline ? 'bg-gray-100 dark:bg-gray-800' : ''}>
               <Underline className="w-4 h-4" />
             </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('alignLeft')}
-              title="Align Left"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <AlignLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('alignCenter')}
-              title="Align Center"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <AlignCenter className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('alignRight')}
-              title="Align Right"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <AlignRight className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAddRow}
-              title="Add Row"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Row
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAddColumn}
-              title="Add Column"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Column
-            </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              title="Filter"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <Filter className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              title="Chart"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <BarChart3 className="w-4 h-4" />
-            </Button>
+          </div>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => applyCellFormat({ align: 'left' })} className={cells[selectedCell]?.format?.align === 'left' ? 'bg-gray-100' : ''}><AlignLeft className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => applyCellFormat({ align: 'center' })} className={cells[selectedCell]?.format?.align === 'center' ? 'bg-gray-100' : ''}><AlignCenter className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => applyCellFormat({ align: 'right' })} className={cells[selectedCell]?.format?.align === 'right' ? 'bg-gray-100' : ''}><AlignRight className="w-4 h-4" /></Button>
+          </div>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-1 px-2">
+            <Popover>
+              <PopoverTrigger asChild><Button variant="ghost" size="sm" title="Text Color"><Type className="w-4 h-4" /></Button></PopoverTrigger>
+              <PopoverContent className="w-64"><div className="grid grid-cols-10 gap-1">{colors.map(c => <button key={c} className="w-5 h-5 rounded-sm border" style={{backgroundColor: c}} onClick={() => applyCellFormat({textColor: c})} />)}</div></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild><Button variant="ghost" size="sm" title="Fill Color"><Palette className="w-4 h-4" /></Button></PopoverTrigger>
+              <PopoverContent className="w-64"><div className="grid grid-cols-10 gap-1">{colors.map(c => <button key={c} className="w-5 h-5 rounded-sm border" style={{backgroundColor: c}} onClick={() => applyCellFormat({backgroundColor: c})} />)}</div></PopoverContent>
+            </Popover>
+          </div>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => setRows(r => r + 1)} title="Add Row"><Plus className="w-4 h-4 mr-1" /> Row</Button>
+            <Button variant="ghost" size="sm" onClick={() => setColumns(c => c + 1)} title="Add Column"><Plus className="w-4 h-4 mr-1" /> Col</Button>
+          </div>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" title="Sum" onClick={() => handleCellChange(selectedCell, '=SUM()')}><Calculator className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" title="Filter"><Filter className="w-4 h-4" /></Button>
           </div>
         </div>
 
-        {/* Info bar */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black px-4 py-2">
-          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-gray-500">
-            <div className="flex gap-4">
-              <span>Cells: {cellCount}</span>
-              <span>Rows: {rows}</span>
-              <span>Columns: {columns}</span>
-            </div>
-            <div className="flex gap-2">
-              {record?.visibility && (
-                <Badge variant="outline" className="gap-1">
-                  {record.visibility === 'private' ? (
-                    <>
-                      <Lock className="w-3 h-3" />
-                      Private
-                    </>
-                  ) : (
-                    <>
-                      <Users className="w-3 h-3" />
-                      Shared
-                    </>
-                  )}
-                </Badge>
-              )}
-            </div>
+        {/* Formula Bar */}
+        <div className="max-w-7xl mx-auto px-4 py-1 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+          <div className="w-12 text-center font-mono text-sm font-bold text-gray-500">{selectedCell}</div>
+          <Separator orientation="vertical" className="h-4" />
+          <div className="flex-1 flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-400 italic">fx</span>
+            <Input
+              value={cells[selectedCell]?.value || ''}
+              onChange={(e) => handleCellChange(selectedCell, e.target.value)}
+              className="h-7 text-sm border-0 bg-transparent focus-visible:ring-0 px-0"
+              placeholder="Enter value or formula"
+            />
           </div>
         </div>
       </div>
 
-      {/* Spreadsheet grid */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <Card className="shadow-lg overflow-x-auto">
-          <CardContent className="p-0">
-            <div ref={gridRef} className="inline-block min-w-full">
-              <table className="border-collapse">
-                <thead>
-                  <tr>
-                    <th className="w-12 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-center text-xs font-semibold" />
-                    {Array.from({ length: columns }).map((_, col) => (
-                      <th
-                        key={col}
-                        className="w-24 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-center text-xs font-semibold"
+      {/* Spreadsheet Grid */}
+      <main className="max-w-7xl mx-auto mt-4 px-4 overflow-auto h-[calc(100vh-220px)]">
+        <div className="inline-block min-w-full border border-gray-200 dark:border-gray-800 rounded-sm shadow-sm bg-white dark:bg-black">
+          <table className="border-collapse w-full text-sm">
+            <thead>
+              <tr>
+                <th className="w-10 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1"></th>
+                {Array.from({ length: columns }).map((_, i) => (
+                  <th key={i} className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1 font-medium min-w-[100px]">
+                    {getColumnLetter(i)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: rows }).map((_, rowIndex) => (
+                <tr key={rowIndex}>
+                  <td className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1 text-center font-medium text-gray-500">
+                    {rowIndex + 1}
+                  </td>
+                  {Array.from({ length: columns }).map((_, colIndex) => {
+                    const cellRef = getColumnLetter(colIndex) + (rowIndex + 1);
+                    const cellData = cells[cellRef];
+                    const isSelected = selectedCell === cellRef;
+                    
+                    return (
+                      <td
+                        key={colIndex}
+                        onClick={() => setSelectedCell(cellRef)}
+                        className={`border border-gray-200 dark:border-gray-700 p-0 relative h-8 ${isSelected ? 'ring-2 ring-blue-500 z-10' : ''}`}
+                        style={{
+                          backgroundColor: cellData?.format?.backgroundColor || 'transparent',
+                          color: cellData?.format?.textColor || 'inherit',
+                          fontWeight: cellData?.format?.bold ? 'bold' : 'normal',
+                          fontStyle: cellData?.format?.italic ? 'italic' : 'normal',
+                          textDecoration: cellData?.format?.underline ? 'underline' : 'none',
+                          textAlign: cellData?.format?.align || 'left',
+                        }}
                       >
-                        {getColumnLetter(col)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: rows }).map((_, row) => (
-                    <tr key={row}>
-                      <td className="w-12 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-center text-xs font-semibold">
-                        {row + 1}
+                        <input
+                          className="w-full h-full border-0 bg-transparent px-2 focus:outline-none"
+                          value={cellData?.value || ''}
+                          onChange={(e) => handleCellChange(cellRef, e.target.value)}
+                        />
                       </td>
-                      {Array.from({ length: columns }).map((_, col) => {
-                        const cellRef = getColumnLetter(col) + (row + 1);
-                        const cellData = cells[cellRef];
-                        const isSelected = selectedCell === cellRef;
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </main>
 
-                        return (
-                          <td
-                            key={cellRef}
-                            className={`w-24 h-8 border border-gray-300 dark:border-gray-700 p-0 ${
-                              isSelected ? 'ring-2 ring-blue-500' : ''
-                            }`}
-                          >
-                            <input
-                              type="text"
-                              value={cellData?.value || ''}
-                              onChange={(e) => handleCellChange(cellRef, e.target.value)}
-                              onFocus={() => handleCellSelect(cellRef)}
-                              className="w-full h-full px-2 py-1 text-xs border-0 focus:outline-none bg-white dark:bg-gray-950"
-                              style={cellData?.format ? {
-                                fontWeight: cellData.format.bold ? 'bold' : 'normal',
-                                fontStyle: cellData.format.italic ? 'italic' : 'normal',
-                                textDecoration: cellData.format.underline ? 'underline' : 'none',
-                                textAlign: cellData.format.align || 'left',
-                                backgroundColor: cellData.format.backgroundColor,
-                                color: cellData.format.textColor,
-                              } : {}}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Footer */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 px-4 py-2 text-xs text-gray-500 flex justify-between items-center z-40">
+        <div className="flex gap-4">
+          <span>Rows: {rows}</span>
+          <span>Columns: {columns}</span>
+          <span>Active Cell: {selectedCell}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${saving ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`} />
+          <span>{saving ? 'Saving changes...' : 'All changes saved'}</span>
+        </div>
       </div>
 
-      {/* Rename Dialog */}
       <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename Spreadsheet</DialogTitle>
-            <DialogDescription>Enter a new name for your spreadsheet</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Spreadsheet name"
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRename}>Rename</Button>
-            </div>
-          </div>
+          <DialogHeader><DialogTitle>Rename Spreadsheet</DialogTitle></DialogHeader>
+          <div className="py-4"><Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleRename()} /></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowRenameDialog(false)}>Cancel</Button><Button onClick={handleRename}>Rename</Button></div>
         </DialogContent>
       </Dialog>
 
-      {/* Share Dialog */}
-      <ShareWithHannaDialog
-        open={showShareDialog}
-        onOpenChange={setShowShareDialog}
-        documentTitle={title}
-        documentId={docId || ''}
-      />
+      <ShareWithHannaDialog open={showShareDialog} onOpenChange={setShowShareDialog} documentId={docId || ''} documentTitle={title} />
     </div>
   );
-
-  // Placeholder for format application
-  function applyFormat(format: string) {
-    // Implementation for cell formatting
-    console.log('Applying format:', format);
-  }
 }

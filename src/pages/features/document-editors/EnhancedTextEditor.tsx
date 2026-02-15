@@ -27,6 +27,14 @@ import {
   Star,
   RotateCcw,
   RotateCw,
+  Type,
+  Palette,
+  Highlighter,
+  Link,
+  Image as ImageIcon,
+  Quote,
+  Code,
+  Minus,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -47,6 +55,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocument, renameDocument, updateDocumentContent } from '@/lib/documents';
@@ -262,6 +276,12 @@ export default function EnhancedTextEditor() {
     toast.success('Document exported as HTML');
   };
 
+  const colors = [
+    '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#efefef', '#f3f3f3', '#ffffff',
+    '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff', '#9900ff', '#ff00ff',
+    '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#cfe2f3', '#d9d2e9', '#ead1dc',
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -341,16 +361,15 @@ export default function EnhancedTextEditor() {
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Document Options</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Document Actions</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => setShowRenameDialog(true)}>
                   <Edit2 className="w-4 h-4 mr-2" />
                   Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExport}>
                   <Download className="w-4 h-4 mr-2" />
-                  Export as HTML
+                  Export HTML
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleDelete} className="text-red-600">
@@ -363,177 +382,195 @@ export default function EnhancedTextEditor() {
         </div>
 
         {/* Formatting Toolbar */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-4 py-2">
-          <div className="max-w-6xl mx-auto flex flex-wrap gap-1">
-            {/* Text formatting */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('bold')}
-              title="Bold (Ctrl+B)"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <Bold className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('italic')}
-              title="Italic (Ctrl+I)"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <Italic className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('underline')}
-              title="Underline (Ctrl+U)"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <Underline className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
-
-            {/* Alignment */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('justifyLeft')}
-              title="Align Left"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <AlignLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('justifyCenter')}
-              title="Align Center"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <AlignCenter className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('justifyRight')}
-              title="Align Right"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <AlignRight className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
-
-            {/* Lists */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('insertUnorderedList')}
-              title="Bullet List"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('insertOrderedList')}
-              title="Numbered List"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
-              <ListOrdered className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1" />
-
-            {/* Undo/Redo */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('undo')}
-              title="Undo (Ctrl+Z)"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
+        <div className="max-w-6xl mx-auto px-4 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-1 pr-2">
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('undo')} title="Undo">
               <RotateCcw className="w-4 h-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => applyFormat('redo')}
-              title="Redo (Ctrl+Y)"
-              className="hover:bg-gray-200 dark:hover:bg-gray-800"
-            >
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('redo')} title="Redo">
               <RotateCw className="w-4 h-4" />
             </Button>
           </div>
-        </div>
+          <Separator orientation="vertical" className="h-6" />
+          
+          <div className="flex items-center gap-1 px-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Type className="w-4 h-4" />
+                  <span className="text-xs hidden sm:inline">Style</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => applyFormat('formatBlock', 'p')}>Paragraph</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyFormat('formatBlock', 'h1')} className="font-bold text-xl">Heading 1</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyFormat('formatBlock', 'h2')} className="font-bold text-lg">Heading 2</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyFormat('formatBlock', 'h3')} className="font-bold text-base">Heading 3</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyFormat('formatBlock', 'blockquote')}>Quote</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyFormat('formatBlock', 'pre')}>Code Block</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-        {/* Stats bar */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black px-4 py-2">
-          <div className="max-w-6xl mx-auto flex items-center justify-between text-xs text-gray-500">
-            <div className="flex gap-4">
-              <span>Words: {wordCount}</span>
-              <span>Characters: {characterCount}</span>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" title="Text Color">
+                  <Palette className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64">
+                <div className="grid grid-cols-10 gap-1">
+                  {colors.map((color) => (
+                    <button
+                      key={color}
+                      className="w-5 h-5 rounded-sm border border-gray-200"
+                      style={{ backgroundColor: color }}
+                      onClick={() => applyFormat('foreColor', color)}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" title="Highlight">
+                  <Highlighter className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64">
+                <div className="grid grid-cols-10 gap-1">
+                  {colors.map((color) => (
+                    <button
+                      key={color}
+                      className="w-5 h-5 rounded-sm border border-gray-200"
+                      style={{ backgroundColor: color }}
+                      onClick={() => applyFormat('hiliteColor', color)}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          <Separator orientation="vertical" className="h-6" />
+
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('bold')} title="Bold">
+              <Bold className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('italic')} title="Italic">
+              <Italic className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('underline')} title="Underline">
+              <Underline className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <Separator orientation="vertical" className="h-6" />
+
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('justifyLeft')} title="Align Left">
+              <AlignLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('justifyCenter')} title="Align Center">
+              <AlignCenter className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('justifyRight')} title="Align Right">
+              <AlignRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <div className="flex items-center gap-1 px-2">
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('insertUnorderedList')} title="Bullet List">
+              <List className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('insertOrderedList')} title="Numbered List">
+              <ListOrdered className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <div className="flex items-center gap-1 pl-2">
+            <Button variant="ghost" size="sm" onClick={() => {
+              const url = window.prompt('Enter link URL:');
+              if (url) applyFormat('createLink', url);
+            }} title="Insert Link">
+              <Link className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => {
+              const url = window.prompt('Enter image URL:');
+              if (url) applyFormat('insertImage', url);
+            }} title="Insert Image">
+              <ImageIcon className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => applyFormat('insertHorizontalRule')} title="Horizontal Line">
+              <Minus className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Editor */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <Card className="shadow-lg">
-          <CardContent className="p-8">
+      {/* Editor Content */}
+      <main className="max-w-4xl mx-auto mt-8 px-4 sm:px-6">
+        <Card className="min-h-[842px] shadow-lg border-gray-200 dark:border-gray-800">
+          <CardContent className="p-12 sm:p-16">
             <div
               ref={editorRef}
               contentEditable
-              suppressContentEditableWarning
               onInput={handleContentChange}
-              className="min-h-96 focus:outline-none prose prose-sm dark:prose-invert max-w-none"
-              style={{
-                fontSize: '16px',
-                lineHeight: '1.6',
-                fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+              dangerouslySetInnerHTML={{ __html: html }}
+              className="prose prose-blue max-w-none focus:outline-none min-h-[700px] dark:prose-invert"
+              style={{ 
+                fontFamily: 'Inter, system-ui, sans-serif',
+                lineHeight: '1.6'
               }}
-            >
-              {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : 'Start typing...'}
-            </div>
+            />
           </CardContent>
         </Card>
+      </main>
+
+      {/* Footer / Status Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 px-4 py-2 text-xs text-gray-500 flex justify-between items-center z-40">
+        <div className="flex gap-4">
+          <span>Words: {wordCount}</span>
+          <span>Characters: {characterCount}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${saving ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`} />
+          <span>{saving ? 'Saving changes...' : 'All changes saved'}</span>
+        </div>
       </div>
 
-      {/* Rename Dialog */}
+      {/* Dialogs */}
       <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename Document</DialogTitle>
-            <DialogDescription>Enter a new name for your document</DialogDescription>
+            <DialogDescription>Enter a new name for your document.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="py-4">
             <Input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Document name"
-              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
             />
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRename}>Rename</Button>
-            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowRenameDialog(false)}>Cancel</Button>
+            <Button onClick={handleRename}>Rename</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Share Dialog */}
       <ShareWithHannaDialog
         open={showShareDialog}
         onOpenChange={setShowShareDialog}
-        documentTitle={title}
         documentId={docId || ''}
+        documentTitle={title}
       />
     </div>
   );
