@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import SideNavbar from '@/components/SideNavbar';
+import FloatingActionButton from '@/components/FloatingActionButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,10 +9,10 @@ import {
   Bell, 
   User,
   TrendingUp,
-
   Calendar,
   Award,
-  Clock
+  Clock,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -26,6 +27,7 @@ import { useTheme } from '@/contexts/ThemeContext';
  * - Responsive design with mobile support
  * - Dark mode support
  * - Hanna AI integration (unique to student dashboard)
+ * - Floating Action Button for quick access to create documents
  */
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -63,10 +65,21 @@ export default function StudentDashboard() {
     { id: 2, title: 'Exam Schedule Released', course: 'Physics Fundamentals', date: '2026-02-08' },
   ];
 
+  const handleCreateDocument = () => {
+    navigate('/features/document-workspace');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
       {/* Use SideNavbar for overlay navigation with Hanna AI */}
       <SideNavbar />
+
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        onClick={handleCreateDocument}
+        icon={<Plus className="w-6 h-6" />}
+        label="New Document"
+      />
 
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
