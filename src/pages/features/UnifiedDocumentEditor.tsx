@@ -10,10 +10,8 @@ import {
   Table,
   Presentation,
   Save,
-  Download,
   Share2,
   ArrowLeft,
-  Printer,
   Undo,
   Redo,
   Bold,
@@ -22,36 +20,24 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify,
   List,
   ListOrdered,
   Image,
   Link,
-  Highlighter,
-  Type,
   Palette,
-  Grid3X3,
   Plus,
   Trash2,
   Copy,
   ChevronLeft,
   ChevronRight,
   Play,
-  MoreHorizontal,
-  Settings,
-  Users,
-  MessageSquare,
-  Clock,
-  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -64,7 +50,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 
 type EditorType = 'word' | 'excel' | 'powerpoint';
 
@@ -90,7 +75,6 @@ const colors = ['#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc'
 export const UnifiedDocumentEditor: React.FC = () => {
   const { type, docId } = useParams<{ type: EditorType; docId: string }>();
   const navigate = useNavigate();
-  const { userData } = useAuth();
   const editorRef = useRef<HTMLDivElement>(null);
   
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
@@ -104,8 +88,6 @@ export const UnifiedDocumentEditor: React.FC = () => {
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
-  const [textColor, setTextColor] = useState('#000000');
-  const [highlightColor, setHighlightColor] = useState('transparent');
   
   // Excel Editor State
   const [spreadsheetData, setSpreadsheetData] = useState<Cell[][]>(() => {
@@ -344,11 +326,11 @@ export const UnifiedDocumentEditor: React.FC = () => {
 
         <TabsContent value="insert" className="mt-0">
           <div className="flex items-center gap-4 p-2">
-            <Button variant="ghost" className="flex flex-col items-center h-16 w-20" onClick={() => execCommand('insertImage', false, 'https://via.placeholder.com/150')}>
+            <Button variant="ghost" className="flex flex-col items-center h-16 w-20" onClick={() => execCommand('insertImage', 'https://via.placeholder.com/150')}>
               <Image className="h-6 w-6 mb-1" />
               <span className="text-xs">Picture</span>
             </Button>
-            <Button variant="ghost" className="flex flex-col items-center h-16 w-20" onClick={() => execCommand('createLink', false, 'https://')}>
+            <Button variant="ghost" className="flex flex-col items-center h-16 w-20" onClick={() => execCommand('createLink', 'https://')}>
               <Link className="h-6 w-6 mb-1" />
               <span className="text-xs">Link</span>
             </Button>

@@ -41,7 +41,7 @@ import PublicDocument from '@/pages/features/PublicDocument';
 
 // New Global Features
 import DocumentManagement from '@/pages/features/DocumentManagement';
-import DocumentWorkspace from '@/pages/features/DocumentWorkspace';
+import DocumentWorkspaceWrapper from "@/components/DocumentWorkspaceWrapper";
 import UnifiedDocumentEditor from '@/pages/features/UnifiedDocumentEditor';
 import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
@@ -297,7 +297,7 @@ function AppRoutes() {
       {/* Document Workspace Routes - Microsoft Office 365 Style */}
       <Route path="/features/document-workspace" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
-          <AuthenticatedLayout><DocumentWorkspace /></AuthenticatedLayout>
+          <AuthenticatedLayout><DocumentWorkspaceWrapper /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/editor/:type/:docId" element={

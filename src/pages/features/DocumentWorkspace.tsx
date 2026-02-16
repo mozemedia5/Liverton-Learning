@@ -3,16 +3,14 @@
  * Unified document management system for Students, Teachers, and Admins
  */
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Table,
   Presentation,
   Plus,
   Folder,
-  Clock,
-  Star,
   Share2,
   MoreVertical,
   Grid,
@@ -25,12 +23,7 @@ import {
   Edit3,
   X,
   ChevronLeft,
-  Settings,
-  Users,
-  Lock,
   Globe,
-  Eye,
-  Check,
   AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -613,7 +606,7 @@ export const DocumentWorkspace: React.FC<DocumentWorkspaceProps> = ({ userRole }
               <Input placeholder="Enter email addresses..." />
             </div>
 
-            {selectedDocument?.sharedWith.length > 0 && (
+            {selectedDocument && selectedDocument.sharedWith && selectedDocument.sharedWith.length > 0 && (
               <div>
                 <label className="text-sm font-medium mb-2 block">Currently shared with</label>
                 <div className="space-y-2">

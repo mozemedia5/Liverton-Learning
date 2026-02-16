@@ -140,11 +140,6 @@ export default function SideNavbar() {
   /**
    * Handle adding new document
    */
-  const handleAddDocument = () => {
-    navigate('/features/document-management');
-    setIsOpen(false);
-    setShowDocumentsSubmenu(false);
-  };
 
   return (
     <>
