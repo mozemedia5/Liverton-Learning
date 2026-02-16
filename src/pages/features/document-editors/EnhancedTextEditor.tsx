@@ -160,6 +160,7 @@ export default function EnhancedTextEditor() {
           html,
         };
 
+        console.log('Auto-saving document:', docId);
         await updateDocumentContent({
           docId,
           updatedBy: currentUser.uid,
@@ -180,8 +181,10 @@ export default function EnhancedTextEditor() {
         });
 
         setHasChanges(false);
-      } catch {
-        toast.error('Failed to save document');
+        console.log('Document auto-saved successfully:', docId);
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        toast.error('Failed to save document - will retry');
       } finally {
         setSaving(false);
       }

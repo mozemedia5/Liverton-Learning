@@ -103,18 +103,24 @@ export function DocumentEditorShell(props: {
 
       setSaving(true);
       setSaveState('saving');
+      
       try {
+        console.log('Auto-saving document:', docId);
         await updateDocumentContent({
           docId,
           content,
           updatedBy: currentUser.uid,
           bumpVersion: bumpVersionRef.current,
         });
+        
         bumpVersionRef.current = false;
         lastSavedRef.current = currentJson;
         setSaveState('saved');
+        console.log('Document auto-saved successfully:', docId);
       } catch (e) {
+        console.error('Auto-save failed:', e);
         setSaveState('error');
+        toast.error('Failed to save document. Retrying...');
       } finally {
         setSaving(false);
       }

@@ -108,34 +108,48 @@ export async function createDocument(params: {
   folderId?: string | null;
   visibility?: DocumentVisibility;
 }): Promise<string> {
-  const content = getDefaultContent(params.type);
-  const meta = createEmptyDocumentMeta({
-    title: params.title,
-    type: params.type,
-    ownerId: params.ownerId,
-    role: params.role,
-    schoolId: params.schoolId,
-    folderId: params.folderId,
-    visibility: params.visibility,
-  });
+  try {
+    const content = getDefaultContent(params.type);
+    const meta = createEmptyDocumentMeta({
+      title: params.title,
+      type: params.type,
+      ownerId: params.ownerId,
+      role: params.role,
+      schoolId: params.schoolId,
+      folderId: params.folderId,
+      visibility: params.visibility,
+    });
 
-  const docRef = await addDoc(collection(db, DOCUMENTS_COLLECTION), {
-    ...meta,
-    content,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    console.log('Creating document:', params.title);
+    const docRef = await addDoc(collection(db, DOCUMENTS_COLLECTION), {
+      ...meta,
+      content,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-  // create first version
-  await setDoc(doc(db, DOCUMENTS_COLLECTION, docRef.id, 'versions', 'v1'), {
-    documentId: docRef.id,
-    version: 1,
-    createdAt: serverTimestamp(),
-    createdBy: params.ownerId,
-    content,
-  });
+    console.log('Document created with ID:', docRef.id);
 
-  return docRef.id;
+    // create first version
+    try {
+      await setDoc(doc(db, DOCUMENTS_COLLECTION, docRef.id, 'versions', 'v1'), {
+        documentId: docRef.id,
+        version: 1,
+        createdAt: serverTimestamp(),
+        createdBy: params.ownerId,
+        content,
+      });
+      console.log('Initial version created for document:', docRef.id);
+    } catch (versionError) {
+      console.error('Failed to create initial version:', versionError);
+      // Don't throw - version creation failure shouldn't block document creation
+    }
+
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating document:', error);
+    throw new Error(`Failed to create document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export function subscribeToDocuments(params: {
@@ -192,15 +206,29 @@ export function subscribeToDocuments(params: {
 }
 
 export async function getDocument(docId: string): Promise<DocumentRecord | null> {
-  const snap = await getDoc(doc(db, DOCUMENTS_COLLECTION, docId));
-  if (!snap.exists()) return null;
-  const data = snap.data() as any;
-  return {
-    id: snap.id,
-    ...data,
-    createdAt: toDate(data.createdAt),
-    updatedAt: toDate(data.updatedAt),
-  } as DocumentRecord;
+  try {
+    console.log('Fetching document:', docId);
+    const snap = await getDoc(doc(db, DOCUMENTS_COLLECTION, docId));
+    
+    if (!snap.exists()) {
+      console.warn('Document not found:', docId);
+      return null;
+    }
+    
+    const data = snap.data() as any;
+    const record = {
+      id: snap.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as DocumentRecord;
+    
+    console.log('Document fetched successfully:', docId);
+    return record;
+  } catch (error) {
+    console.error('Error fetching document:', error);
+    throw new Error(`Failed to fetch document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export async function updateDocumentContent(params: {
@@ -210,48 +238,92 @@ export async function updateDocumentContent(params: {
   newTitle?: string;
   bumpVersion?: boolean;
 }): Promise<void> {
-  const docRef = doc(db, DOCUMENTS_COLLECTION, params.docId);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) throw new Error('Document not found');
+  try {
+    const docRef = doc(db, DOCUMENTS_COLLECTION, params.docId);
+    const snap = await getDoc(docRef);
+    
+    if (!snap.exists()) {
+      console.error('Document not found:', params.docId);
+      throw new Error('Document not found');
+    }
 
-  const current = snap.data() as DocumentRecord;
-  const nextVersion = params.bumpVersion ? (current.version || 1) + 1 : (current.version || 1);
+    const current = snap.data() as DocumentRecord;
+    const nextVersion = params.bumpVersion ? (current.version || 1) + 1 : (current.version || 1);
 
-  await updateDoc(docRef, {
-    content: params.content,
-    ...(params.newTitle ? { title: params.newTitle } : {}),
-    version: nextVersion,
-    updatedAt: serverTimestamp(),
-  });
-
-  if (params.bumpVersion) {
-    await setDoc(doc(db, DOCUMENTS_COLLECTION, params.docId, 'versions', `v${nextVersion}`), {
-      documentId: params.docId,
-      version: nextVersion,
-      createdAt: serverTimestamp(),
-      createdBy: params.updatedBy,
+    // Update document with proper error handling
+    const updateData: any = {
       content: params.content,
-    });
+      version: nextVersion,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (params.newTitle) {
+      updateData.title = params.newTitle;
+    }
+
+    await updateDoc(docRef, updateData);
+    console.log('Document updated successfully:', params.docId);
+
+    // Create version history if requested
+    if (params.bumpVersion) {
+      try {
+        await setDoc(doc(db, DOCUMENTS_COLLECTION, params.docId, 'versions', `v${nextVersion}`), {
+          documentId: params.docId,
+          version: nextVersion,
+          createdAt: serverTimestamp(),
+          createdBy: params.updatedBy,
+          content: params.content,
+        });
+        console.log('Version history created:', `v${nextVersion}`);
+      } catch (versionError) {
+        console.error('Failed to create version history:', versionError);
+        // Don't throw - version history failure shouldn't block save
+      }
+    }
+  } catch (error) {
+    console.error('Error updating document content:', error);
+    throw new Error(`Failed to save document: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 export async function deleteDocument(docId: string): Promise<void> {
-  await deleteDoc(doc(db, DOCUMENTS_COLLECTION, docId));
+  try {
+    console.log('Deleting document:', docId);
+    await deleteDoc(doc(db, DOCUMENTS_COLLECTION, docId));
+    console.log('Document deleted successfully:', docId);
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    throw new Error(`Failed to delete document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export async function renameDocument(docId: string, title: string): Promise<void> {
-  await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
-    title,
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    console.log('Renaming document:', docId, 'to:', title);
+    await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
+      title,
+      updatedAt: serverTimestamp(),
+    });
+    console.log('Document renamed successfully:', docId);
+  } catch (error) {
+    console.error('Error renaming document:', error);
+    throw new Error(`Failed to rename document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export async function setVisibility(docId: string, visibility: DocumentVisibility, publicToken?: string): Promise<void> {
-  await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
-    visibility,
-    ...(visibility === 'public' ? { publicToken: publicToken ?? crypto.randomUUID() } : { publicToken: null }),
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    console.log('Setting visibility for document:', docId, 'to:', visibility);
+    await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
+      visibility,
+      ...(visibility === 'public' ? { publicToken: publicToken ?? crypto.randomUUID() } : { publicToken: null }),
+      updatedAt: serverTimestamp(),
+    });
+    console.log('Visibility set successfully for document:', docId);
+  } catch (error) {
+    console.error('Error setting visibility:', error);
+    throw new Error(`Failed to set visibility: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export async function shareInternally(docId: string, userIds: string[]): Promise<void> {
