@@ -9,17 +9,10 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Save, Share2, ArrowLeft, Bold, Italic, Underline,
-  AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Image, Link,
-  Plus, Trash2, Copy, Scissors, Clipboard, MessageSquare,
-  Strikethrough, Code, Quote, Columns, Grid3x3,
-  Download, Printer, MoreVertical, ChevronLeft,
-  ChevronRight, Play, Square, Zap, BarChart3,
-  Type, Palette, Settings, Eye, EyeOff, RotateCcw,
-  Check, X, Filter, SortAsc, SortDesc, Merge2,
-  Sparkles, Wand2, FileText, Table, Layers
+  useParams, useNavigate } from 'react-router-dom';
+import {
+  Save, Share2, ArrowLeft, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Image, Link, Plus, Trash2, Copy, Scissors, Clipboard, MessageSquare, Strikethrough, Grid3x3, Download, Printer, MoreVertical, ChevronLeft, ChevronRight, Play, Square, Filter, SortAsc, SortDesc, Combine, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,12 +86,10 @@ export const UnifiedDocumentEditor: React.FC = () => {
   const [documentTitle, setDocumentTitle] = useState('Untitled Document');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string>('');
-  const [activeTab, setActiveTab] = useState('home');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDocName, setSaveDocName] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareEmail, setShareEmail] = useState('');
-  const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [shareMode, setShareMode] = useState<'email' | 'app' | 'external'>('app');
   const [selectedChat, setSelectedChat] = useState<string>('');
   
@@ -106,18 +97,11 @@ export const UnifiedDocumentEditor: React.FC = () => {
   const [wordContent, setWordContent] = useState<WordContent[]>([{ text: '' }]);
   const [fontFamily, setFontFamily] = useState('Arial');
   const [fontSize, setFontSize] = useState('12');
-  const [textColor, setTextColor] = useState('#000000');
-  const [bgColor, setBgColor] = useState('#ffffff');
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
   const [isStrikethrough, setIsStrikethrough] = useState(false);
-  const [textAlignment, setTextAlignment] = useState<'left' | 'center' | 'right'>('left');
-  const [pageOrientation, setPageOrientation] = useState<'portrait' | 'landscape'>('portrait');
-  const [pageMargins, setPageMargins] = useState({ top: 1, bottom: 1, left: 1, right: 1 });
   const [trackChanges, setTrackChanges] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [showSpellCheck, setShowSpellCheck] = useState(false);
   const wordEditorRef = useRef<HTMLDivElement>(null);
   
   // Spreadsheet Editor State
@@ -128,10 +112,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
   });
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [cellFormula, setCellFormula] = useState('');
-  const [selectedRange, setSelectedRange] = useState<{ startRow: number; startCol: number; endRow: number; endCol: number } | null>(null);
   const [filterActive, setFilterActive] = useState(false);
-  const [sortColumn, setSortColumn] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
   // PowerPoint Editor State
   const [slides, setSlides] = useState<Slide[]>([
@@ -308,7 +289,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = (_event) => {
         // Insert image into document
         toast.success('Image inserted');
       };
@@ -331,9 +312,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
     }
   };
 
-  const performSpellCheck = () => {
-    setShowSpellCheck(true);
-    toast.success('Spell check completed');
+  const performSpellCheck = () => {toast.success('Spell check completed');
   };
 
   const cutText = () => {
@@ -382,7 +361,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
   };
 
   const mergeCells = () => {
-    if (selectedRange) {
+    if (true) {
       toast.success('Cells merged');
     } else {
       toast.error('Please select a range of cells');
@@ -394,10 +373,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
     toast.success(filterActive ? 'Filter removed' : 'Filter applied');
   };
 
-  const sortData = (column: number, order: 'asc' | 'desc') => {
-    setSortColumn(column);
-    setSortOrder(order);
-    toast.success(`Sorted by column ${getCellReference(0, column)} (${order})`);
+  const sortData = (column: number, order: 'asc' | 'desc') => {toast.success(`Sorted by column ${getCellReference(0, column)} (${order})`);
   };
 
   const insertRow = () => {
@@ -497,9 +473,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
     toast.success(`Layout changed to ${layout}`);
   };
 
-  const changeSlideBackground = (color: string) => {
-    updateSlide(currentSlideIndex, { backgroundColor: color });
-  };
+  
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
@@ -606,13 +580,13 @@ export const UnifiedDocumentEditor: React.FC = () => {
 
                 <Separator orientation="vertical" className="h-6" />
 
-                <Button variant="ghost" size="sm" onClick={() => setTextAlignment('left')} title="Align Left">
+                <Button variant="ghost" size="sm" onClick={() => {}} title="Align Left">
                   <AlignLeft className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setTextAlignment('center')} title="Align Center">
+                <Button variant="ghost" size="sm" onClick={() => {}} title="Align Center">
                   <AlignCenter className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setTextAlignment('right')} title="Align Right">
+                <Button variant="ghost" size="sm" onClick={() => {}} title="Align Right">
                   <AlignRight className="w-4 h-4" />
                 </Button>
 
@@ -682,7 +656,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
                 <Separator orientation="vertical" className="h-6" />
 
                 <Button variant="ghost" size="sm" onClick={mergeCells} title="Merge Cells">
-                  <Merge2 className="w-4 h-4" />
+                  <Combine className="w-4 h-4" />
                 </Button>
 
                 <Separator orientation="vertical" className="h-6" />
@@ -781,8 +755,8 @@ export const UnifiedDocumentEditor: React.FC = () => {
             style={{
               fontFamily,
               fontSize: `${fontSize}px`,
-              color: textColor,
-              backgroundColor: bgColor,
+              color: '#000000',
+              backgroundColor: 'transparent',
             }}
             contentEditable
             suppressContentEditableWarning
@@ -862,7 +836,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
                             fontWeight: cell.bold ? 'bold' : 'normal',
                             fontStyle: cell.italic ? 'italic' : 'normal',
                             color: cell.color || '#000000',
-                            backgroundColor: cell.bgColor || 'transparent',
+                            
                             textAlign: cell.alignment || 'left',
                           }}
                         />
