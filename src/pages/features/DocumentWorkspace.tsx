@@ -372,14 +372,14 @@ export const DocumentWorkspace: React.FC<DocumentWorkspaceProps> = ({ userRole }
               </h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative hidden sm:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   placeholder="Search documents..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10 w-48 lg:w-64"
                 />
               </div>
 
@@ -387,23 +387,26 @@ export const DocumentWorkspace: React.FC<DocumentWorkspaceProps> = ({ userRole }
                 <Button
                   variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
                   onClick={() => setViewMode('grid')}
                 >
-                  <Grid className="w-4 h-4" />
+                  <Grid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
                   onClick={() => setViewMode('list')}
                 >
-                  <List className="w-4 h-4" />
+                  <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               </div>
 
               {canCreateDocument && (
-                <Button onClick={() => setIsCreateModalOpen(true)}>
+                <Button 
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="hidden sm:flex"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   New
                 </Button>
@@ -572,6 +575,30 @@ export const DocumentWorkspace: React.FC<DocumentWorkspaceProps> = ({ userRole }
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Search - Visible only on small screens */}
+      <div className="sm:hidden px-4 py-2 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Search documents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 w-full"
+          />
+        </div>
+      </div>
+
+      {/* Floating Action Button for Mobile */}
+      {canCreateDocument && (
+        <Button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl sm:hidden z-30 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center p-0"
+          aria-label="Create new document"
+        >
+          <Plus className="w-7 h-7" />
+        </Button>
+      )}
 
       {/* Share Modal */}
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>

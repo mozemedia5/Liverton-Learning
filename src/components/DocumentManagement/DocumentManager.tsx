@@ -103,10 +103,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     <div className="w-full space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900">Documents</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Documents</h1>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2 hidden sm:flex">
               <Plus className="h-4 w-4" />
               New Document
             </Button>
@@ -150,46 +150,57 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       </div>
 
       {/* Search and Filter */}
-      <div className="flex gap-4 items-center">
-        <div className="flex-1 relative">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="w-full sm:flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search documents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 w-full"
           />
         </div>
-        <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="text">Documents</SelectItem>
-            <SelectItem value="spreadsheet">Spreadsheets</SelectItem>
-            <SelectItem value="presentation">Presentations</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="flex gap-2 border border-slate-200 rounded-lg p-1">
-          <Button
-            size="sm"
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
-            onClick={() => setViewMode('grid')}
-            className="h-8 w-8 p-0"
-          >
-            <Grid className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
-            onClick={() => setViewMode('list')}
-            className="h-8 w-8 p-0"
-          >
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="flex w-full sm:w-auto gap-2">
+          <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+            <SelectTrigger className="flex-1 sm:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="text">Documents</SelectItem>
+              <SelectItem value="spreadsheet">Spreadsheets</SelectItem>
+              <SelectItem value="presentation">Presentations</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex gap-1 border border-slate-200 rounded-lg p-1">
+            <Button
+              size="sm"
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              onClick={() => setViewMode('grid')}
+              className="h-8 w-8 p-0"
+            >
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              onClick={() => setViewMode('list')}
+              className="h-8 w-8 p-0"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Floating Action Button for Mobile */}
+      <Button
+        onClick={() => setShowCreateDialog(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl sm:hidden z-30 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center p-0"
+        aria-label="Create new document"
+      >
+        <Plus className="w-7 h-7" />
+      </Button>
 
       {/* Documents Display */}
       {filteredDocuments.length > 0 ? (
