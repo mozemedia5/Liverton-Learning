@@ -1,0 +1,65 @@
+{
+  "presentation_name": "Editing_Tools_Presentation",
+  "title": "Editing Tools Guide",
+  "description": "",
+  "slides": {
+    "1": {
+      "title": "Title Slide",
+      "filename": "slide_01.html",
+      "file_path": "presentations/editing_tools_presentation/slide_01.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_01.html",
+      "created_at": "2026-02-18T05:34:01.870002"
+    },
+    "2": {
+      "title": "Word Processors Overview",
+      "filename": "slide_02.html",
+      "file_path": "presentations/editing_tools_presentation/slide_02.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_02.html",
+      "created_at": "2026-02-18T05:34:15.278485"
+    },
+    "3": {
+      "title": "Word Processors Review",
+      "filename": "slide_03.html",
+      "file_path": "presentations/editing_tools_presentation/slide_03.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_03.html",
+      "created_at": "2026-02-18T05:34:32.372705"
+    },
+    "4": {
+      "title": "Spreadsheets Cell Editing",
+      "filename": "slide_04.html",
+      "file_path": "presentations/editing_tools_presentation/slide_04.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_04.html",
+      "created_at": "2026-02-18T05:34:48.054518"
+    },
+    "5": {
+      "title": "Spreadsheets Data & Calculation",
+      "filename": "slide_05.html",
+      "file_path": "presentations/editing_tools_presentation/slide_05.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_05.html",
+      "created_at": "2026-02-18T05:35:19.316797"
+    },
+    "6": {
+      "title": "Presentations Slide Editing",
+      "filename": "slide_06.html",
+      "file_path": "presentations/editing_tools_presentation/slide_06.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_06.html",
+      "created_at": "2026-02-18T05:35:39.760732"
+    },
+    "7": {
+      "title": "Presentations Visual & Animation",
+      "filename": "slide_07.html",
+      "file_path": "presentations/editing_tools_presentation/slide_07.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_07.html",
+      "created_at": "2026-02-18T05:35:47.431453"
+    },
+    "8": {
+      "title": "Summary",
+      "filename": "slide_08.html",
+      "file_path": "presentations/editing_tools_presentation/slide_08.html",
+      "preview_url": "/workspace/presentations/editing_tools_presentation/slide_08.html",
+      "created_at": "2026-02-18T05:36:17.395279"
+    }
+  },
+  "created_at": "2026-02-18T04:59:22.472772",
+  "updated_at": "2026-02-18T05:36:17.395289"
+}
