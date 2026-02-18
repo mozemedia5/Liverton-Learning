@@ -589,14 +589,15 @@ export const DocumentWorkspace: React.FC<DocumentWorkspaceProps> = ({ userRole }
         </div>
       </div>
 
-      {/* Floating Action Button for Mobile */}
+      {/* Floating Action Button for Mobile - Positioned above Hanna AI icon */}
       {canCreateDocument && (
         <Button
           onClick={() => setIsCreateModalOpen(true)}
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl sm:hidden z-30 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center p-0"
+          className="fixed bottom-40 right-6 h-14 px-6 rounded-full shadow-2xl sm:hidden z-30 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
           aria-label="Create new document"
         >
-          <Plus className="w-7 h-7" />
+          <Plus className="w-6 h-6" />
+          <span className="font-semibold">New Doc</span>
         </Button>
       )}
 

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import TeacherSideNavbar from '@/components/TeacherSideNavbar';
-import FloatingActionButton from '@/components/FloatingActionButton';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,6 @@ import { useTheme } from '@/contexts/ThemeContext';
  * - Course management and student tracking
  * - Responsive design with mobile support
  * - Dark mode support
- * - Floating Action Button for quick document access
  * 
  * Note: Hanna AI is NOT included in teacher dashboard (removed as per requirements)
  */
@@ -64,9 +63,6 @@ export default function TeacherDashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
       {/* Use TeacherSideNavbar for overlay navigation */}
       <TeacherSideNavbar />
-
-      {/* Floating Action Button */}
-      <FloatingActionButton />
 
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
