@@ -11,8 +11,7 @@ import {
   TrendingUp,
   Calendar,
   Award,
-  Clock,
-  Plus
+  Clock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -64,9 +63,7 @@ export default function StudentDashboard() {
     { id: 2, title: 'Exam Schedule Released', course: 'Physics Fundamentals', date: '2026-02-08' },
   ];
 
-  const handleCreateDocument = () => {
-    navigate('/features/document-workspace');
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
