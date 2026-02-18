@@ -36,7 +36,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Update statistics
   const updateStats = useCallback((text: string) => {
@@ -132,17 +132,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     setFindDialogOpen(true);
   };
 
-  const handleFindNext = () => {
-    if (editorRef.current && findText) {
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        // Use built-in find
-        window.find(findText, false, false, true, false, true, false);
-      }
-    }
-  };
-
   const handleReplace = () => {
     if (editorRef.current && findText) {
       const html = editorRef.current.innerHTML;
@@ -160,7 +149,9 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
   // Voice Typing
   const handleVoiceTyping = () => {
-    if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
       alert('Voice typing is not supported in this browser');
       return;
     }
@@ -169,14 +160,13 @@ export const TextEditor: React.FC<TextEditorProps> = ({
       recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      recognitionRef.current.onresult = (event: any) => {
         const transcript = Array.from(event.results)
-          .map(result => result[0].transcript)
+          .map((result: any) => result[0].transcript)
           .join('');
         
         if (editorRef.current) {
@@ -184,7 +174,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
           if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             range.deleteContents();
-            range.insertNode(document.createTextNode(transcript));
+            range.insertNode(window.document.createTextNode(transcript));
             
             const newContent = editorRef.current.innerHTML;
             setContent(newContent);
@@ -368,10 +358,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
               <Button variant="outline" onClick={() => setFindDialogOpen(false)}>
                 <X className="h-4 w-4 mr-1" />
                 Cancel
-              </Button>
-              <Button variant="outline" onClick={handleFindNext}>
-                <Search className="h-4 w-4 mr-1" />
-                Find Next
               </Button>
               <Button onClick={handleReplace}>
                 <Check className="h-4 w-4 mr-1" />

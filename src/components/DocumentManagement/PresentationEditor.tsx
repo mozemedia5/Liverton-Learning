@@ -12,31 +12,19 @@ import {
   Play,
   ChevronLeft,
   ChevronRight,
-  Move,
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignVerticalJustifyStart,
-  AlignVerticalJustifyCenter,
-  AlignVerticalJustifyEnd,
   Layers,
-  Group,
-  Ungroup,
-  RotateCw,
-  FlipHorizontal,
-  FlipVertical,
   Scissors,
-  Image,
   Type,
   Square,
   Sparkles,
   Clock,
-  MousePointer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,

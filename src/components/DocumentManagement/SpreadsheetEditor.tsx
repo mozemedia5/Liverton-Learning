@@ -3,11 +3,11 @@
  * Microsoft Excel-style spreadsheet editor with full editing tools
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Plus, Trash2, Download, ArrowUpDown, Filter, 
-  Copy, Scissors, Clipboard, Search, Calculator,
-  Merge, Grid3X3, Eye, EyeOff, CheckSquare
+  Copy, Scissors, Clipboard, Search,
+  Merge, Grid3X3, Eye, EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,8 +53,6 @@ export const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = ({
   const [filterText, setFilterText] = useState('');
   const [hiddenRows, setHiddenRows] = useState<Set<number>>(new Set());
   const [hiddenCols, setHiddenCols] = useState<Set<number>>(new Set());
-  const [frozenRows, setFrozenRows] = useState(0);
-  const [frozenCols, setFrozenCols] = useState(0);
 
   const columns = useMemo(() => Array.from({ length: data[0]?.length || 10 }, (_, i) =>
     String.fromCharCode(65 + i)
@@ -90,7 +88,7 @@ export const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = ({
       
       // Replace cell references with values
       const cellRef = /([A-Z]+)(\d+)/g;
-      expression = expression.replace(cellRef, (match, col, row) => {
+      expression = expression.replace(cellRef, (_match, col, row) => {
         const colIndex = col.charCodeAt(0) - 65;
         const rowIndex = parseInt(row) - 1;
         const cell = currentData[rowIndex]?.[colIndex];
@@ -129,9 +127,9 @@ export const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = ({
 
   // Insert/Delete Tools
   const handleAddRow = (afterRow?: number) => {
-    const newRow = Array(data[0]?.length || 10)
+    const newRow: Cell[] = Array(data[0]?.length || 10)
       .fill(null)
-      .map(() => ({ value: '', format: 'text' as const }));
+      .map(() => ({ value: '', format: 'text' }));
     
     const insertIndex = afterRow !== undefined ? afterRow + 1 : data.length;
     const newData = [...data.slice(0, insertIndex), newRow, ...data.slice(insertIndex)];
@@ -142,7 +140,7 @@ export const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = ({
     const insertIndex = afterCol !== undefined ? afterCol + 1 : (data[0]?.length || 10);
     const newData = data.map(row => [
       ...row.slice(0, insertIndex),
-      { value: '', format: 'text' },
+      { value: '', format: 'text' } as Cell,
       ...row.slice(insertIndex)
     ]);
     setData(newData);
