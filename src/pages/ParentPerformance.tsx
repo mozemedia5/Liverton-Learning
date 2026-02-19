@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, TrendingUp, BookOpen, Target } from 'lucide-react';
-import ParentSideNavbar from '@/components/ParentSideNavbar';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { getLinkedStudents } from '@/lib/parentService';
 import type { LinkedStudent } from '@/lib/parentService';
 
@@ -143,159 +143,155 @@ export default function ParentPerformance() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <ParentSideNavbar />
-        <main className="flex-1 flex items-center justify-center">
+      <AuthenticatedLayout>
+        <div className="flex-1 flex items-center justify-center h-[calc(100vh-64px)]">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        </main>
-      </div>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <ParentSideNavbar />
-      <main className="flex-1 overflow-auto lg:ml-64">
-        <div className="p-4 md:p-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">Performance</h1>
-            <p className="text-gray-600 mt-1">Track your children's academic progress</p>
-          </div>
-
-          {linkedStudents.length === 0 ? (
-            /* Empty State */
-            <Card className="border-dashed">
-              <CardContent className="pt-12 pb-12 text-center">
-                <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No performance data</h3>
-                <p className="text-gray-600">
-                  Link a child to view their performance data
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            /* Performance View */
-            <Tabs defaultValue={selectedStudent || ''} onValueChange={setSelectedStudent}>
-              <TabsList className="mb-6">
-                {linkedStudents.map(student => (
-                  <TabsTrigger key={student.studentId} value={student.studentId}>
-                    {student.studentName}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              {linkedStudents.map(student => (
-                <TabsContent key={student.studentId} value={student.studentId}>
-                  <div className="space-y-6">
-                    {/* Overall Performance Card */}
-                    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span>Overall Performance</span>
-                          <TrendingUp className="h-5 w-5 text-blue-600" />
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          {/* Average Score */}
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Average Score</p>
-                            <div className="text-4xl font-bold text-blue-600">
-                              {calculateOverallAverage()}%
-                            </div>
-                          </div>
-
-                          {/* Subjects Count */}
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Subjects</p>
-                            <div className="text-4xl font-bold text-indigo-600">
-                              {mockPerformance.student1?.length || 0}
-                            </div>
-                          </div>
-
-                          {/* Attendance */}
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Attendance</p>
-                            <div className="text-4xl font-bold text-green-600">95%</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Subject Performance */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5" />
-                          Subject Performance
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-6">
-                          {mockPerformance.student1?.map(subject => (
-                            <div key={subject.name} className="space-y-2">
-                              {/* Subject Header */}
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <span className="font-medium">{subject.name}</span>
-                                  {getTrendIndicator(subject.trend)}
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <Badge className="bg-blue-100 text-blue-800">
-                                    {subject.grade}
-                                  </Badge>
-                                  <span className={`font-semibold ${getGradeColor(subject.percentage)}`}>
-                                    {subject.percentage}%
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Progress Bar */}
-                              <Progress value={subject.percentage} className="h-2" />
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Performance Insights */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Performance Insights</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <p className="font-medium text-green-900">Strengths</p>
-                            <p className="text-sm text-green-700 mt-1">
-                              Excellent performance in Mathematics and Physical Education. Keep up the great work!
-                            </p>
-                          </div>
-
-                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="font-medium text-yellow-900">Areas for Improvement</p>
-                            <p className="text-sm text-yellow-700 mt-1">
-                              History performance has declined slightly. Consider additional study sessions or tutoring support.
-                            </p>
-                          </div>
-
-                          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="font-medium text-blue-900">Recommendations</p>
-                            <p className="text-sm text-blue-700 mt-1">
-                              Overall performance is excellent. Continue current study habits and maintain consistent attendance.
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
-          )}
+    <AuthenticatedLayout>
+      <div className="p-4 md:p-8 lg:ml-0">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Performance</h1>
+          <p className="text-gray-600 mt-1">Track your children's academic progress</p>
         </div>
-      </main>
-    </div>
+
+        {linkedStudents.length === 0 ? (
+          /* Empty State */
+          <Card className="border-dashed">
+            <CardContent className="pt-12 pb-12 text-center">
+              <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No performance data</h3>
+              <p className="text-gray-600">
+                Link a child to view their performance data
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          /* Performance View */
+          <Tabs defaultValue={selectedStudent || ''} onValueChange={setSelectedStudent}>
+            <TabsList className="mb-6">
+              {linkedStudents.map(student => (
+                <TabsTrigger key={student.studentId} value={student.studentId}>
+                  {student.studentName}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {linkedStudents.map(student => (
+              <TabsContent key={student.studentId} value={student.studentId}>
+                <div className="space-y-6">
+                  {/* Overall Performance Card */}
+                  <Card className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>Overall Performance</span>
+                        <TrendingUp className="h-5 w-5 text-blue-600" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Average Score */}
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">Average Score</p>
+                          <div className="text-4xl font-bold text-blue-600">
+                            {calculateOverallAverage()}%
+                          </div>
+                        </div>
+
+                        {/* Subjects Count */}
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">Subjects</p>
+                          <div className="text-4xl font-bold text-indigo-600">
+                            {mockPerformance.student1?.length || 0}
+                          </div>
+                        </div>
+
+                        {/* Attendance */}
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">Attendance</p>
+                          <div className="text-4xl font-bold text-green-600">95%</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Subject Performance */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5" />
+                        Subject Performance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {mockPerformance.student1?.map(subject => (
+                          <div key={subject.name} className="space-y-2">
+                            {/* Subject Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium">{subject.name}</span>
+                                {getTrendIndicator(subject.trend)}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Badge className="bg-blue-100 text-blue-800">
+                                  {subject.grade}
+                                </Badge>
+                                <span className={`font-semibold ${getGradeColor(subject.percentage)}`}>
+                                  {subject.percentage}%
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <Progress value={subject.percentage} className="h-2" />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Performance Insights */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Performance Insights</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="font-medium text-green-900">Strengths</p>
+                          <p className="text-sm text-green-700 mt-1">
+                            Excellent performance in Mathematics and Physical Education. Keep up the great work!
+                          </p>
+                        </div>
+
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="font-medium text-yellow-900">Areas for Improvement</p>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            History performance has declined slightly. Consider additional study sessions or tutoring support.
+                          </p>
+                        </div>
+
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="font-medium text-blue-900">Recommendations</p>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Overall performance is excellent. Continue current study habits and maintain consistent attendance.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+      </div>
+    </AuthenticatedLayout>
   );
 }

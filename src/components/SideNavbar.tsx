@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { AlertDialog,
+import {
+  AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -9,7 +10,8 @@ import { AlertDialog,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Menu,
+import {
+  Menu,
   X,
   Home,
   BookOpen,
@@ -29,6 +31,10 @@ import { Menu,
   Shield,
   Users,
   Video,
+  GraduationCap,
+  Calendar,
+  Bell,
+  Activity,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,7 +51,6 @@ import { toast } from 'sonner';
  * - Navigation plugins: About, Support, Privacy Policy
  * - Smooth animations and transitions
  * - Smaller hamburger button to avoid blocking messages
- * - Parent-specific dashboard navigation
  */
 export default function SideNavbar() {
   const navigate = useNavigate();
@@ -103,21 +108,45 @@ export default function SideNavbar() {
    */
   const navItems = [
     { label: 'Dashboard', path: getDashboardPath(), icon: Home },
-    // Student-specific routes
+    
+    // Student & Parent shared routes
     { label: 'Courses', path: '/student/courses', icon: BookOpen, roles: ['student', 'parent'] },
     { label: 'Zoom Lessons', path: '/student/zoom-lessons', icon: Video, roles: ['student', 'parent'] },
+    { label: 'Quizzes', path: '/student/quizzes', icon: FileText, roles: ['student', 'parent'] },
+    
     // Parent-specific routes
-    { label: 'My Children', path: '/parent/dashboard', icon: Users, roles: ['parent'] },
-    // Shared routes
-    { label: 'Announcements', path: '/announcements', icon: MessageSquare },
+    { label: 'My Children', path: '/parent/students', icon: Users, roles: ['parent'] },
+    { label: 'Performance', path: '/parent/performance', icon: BarChart3, roles: ['parent'] },
+    { label: 'School Fees', path: '/parent/fees', icon: CreditCard, roles: ['parent'] },
+    
+    // Teacher-specific routes
+    { label: 'My Courses', path: '/teacher/courses', icon: BookOpen, roles: ['teacher'] },
+    { label: 'Students', path: '/teacher/students', icon: Users, roles: ['teacher'] },
+    { label: 'Zoom Lessons', path: '/teacher/zoom-lessons', icon: Video, roles: ['teacher'] },
+    { label: 'Earnings', path: '/payments', icon: CreditCard, roles: ['teacher'] },
+
+    // School Admin-specific routes
+    { label: 'Students', path: '/school-admin/students', icon: Users, roles: ['school_admin'] },
+    { label: 'Teachers', path: '/school-admin/teachers', icon: GraduationCap, roles: ['school_admin'] },
+    { label: 'Attendance', path: '/school-admin/attendance', icon: Calendar, roles: ['school_admin'] },
+    { label: 'Fees', path: '/school-admin/fees', icon: CreditCard, roles: ['school_admin'] },
+
+    // Platform Admin-specific routes
+    { label: 'Users', path: '/admin/users', icon: Users, roles: ['platform_admin'] },
+    { label: 'Analytics', path: '/admin/analytics', icon: BarChart3, roles: ['platform_admin'] },
+    { label: 'Moderation', path: '/admin/moderation', icon: Shield, roles: ['platform_admin'] },
+    { label: 'Monitoring', path: '/admin/monitoring', icon: Activity, roles: ['platform_admin'] },
+    { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['platform_admin'] },
+
+    // Shared routes for all authenticated users
+    { label: 'Announcements', path: '/announcements', icon: Bell },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
-    { label: 'Payments', path: '/payments', icon: CreditCard, roles: ['student', 'teacher', 'school_admin'] },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Documents', path: '/features/document-workspace', icon: FileText, hasSubmenu: true },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
     { label: 'Calculator', path: '/features/calculator', icon: Calculator },
-    { label: 'Analytics', path: '/features/analytics', icon: BarChart3 },
+    { label: 'Analytics', path: '/features/analytics', icon: BarChart3, roles: ['student', 'teacher', 'school_admin', 'parent'] },
   ];
 
   /**
@@ -139,15 +168,10 @@ export default function SideNavbar() {
     setShowDocumentsSubmenu(false);
   };
 
-  /**
-   * Handle adding new document
-   */
-
   return (
     <>
       {/* Mobile Menu Button - Smaller size to avoid blocking messages
           Fixed position, always visible on mobile
-          Reduced from p-2 to p-1.5 and w-6 h-6 icons to w-5 h-5
       */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -166,13 +190,7 @@ export default function SideNavbar() {
         />
       )}
 
-      {/* Side Navbar - Overlay Style (Drawer)
-          Key features:
-          - Fixed positioning (overlays content, doesn't push it)
-          - Smooth slide-in animation
-          - Full height with overflow scrolling
-          - Shadow for depth perception
-      */}
+      {/* Side Navbar - Overlay Style (Drawer) */}
       <nav
         className={`fixed left-0 top-0 h-screen w-64 bg-white dark:bg-background border-r border-gray-200 dark:border-gray-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -298,18 +316,20 @@ export default function SideNavbar() {
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Logout Confirmation</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-lg font-semibold">Logout Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
               Are you sure you want to logout? You will need to login again to access your account.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-4">
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <div className="flex gap-4 justify-end">
+            <AlertDialogCancel className="px-4 py-2">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
             >
               Logout
             </AlertDialogAction>

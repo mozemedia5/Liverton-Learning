@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, Edit2, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
-import ParentSideNavbar from '@/components/ParentSideNavbar';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { getLinkedStudents, unlinkStudentFromParent, verifyStudentExists, linkStudentToParent } from '@/lib/parentService';
 import { toast } from 'sonner';
 import type { LinkedStudent } from '@/lib/parentService';
@@ -170,106 +170,103 @@ export default function ParentStudents() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <ParentSideNavbar />
-      <main className="flex-1 overflow-auto lg:ml-64">
-        <div className="p-4 md:p-8">
-          {/* Page Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">My Children</h1>
-              <p className="text-gray-600 mt-1">Manage your children's accounts and information</p>
-            </div>
-            <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Child
-            </Button>
+    <AuthenticatedLayout>
+      <div className="p-4 md:p-8 lg:ml-0">
+        {/* Page Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">My Children</h1>
+            <p className="text-gray-600 mt-1">Manage your children's accounts and information</p>
           </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            </div>
-          ) : linkedStudents.length === 0 ? (
-            /* Empty State */
-            <Card className="border-dashed">
-              <CardContent className="pt-12 pb-12 text-center">
-                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No children linked yet</h3>
-                <p className="text-gray-600 mb-6">
-                  Link your children's accounts to start managing their education.
-                </p>
-                <Button onClick={() => setShowAddDialog(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Link Your First Child
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            /* Students List */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {linkedStudents.map(student => (
-                <Card key={student.studentId} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle>{student.studentName}</CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">{student.relationship}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveStudent(student.studentId)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Email */}
-                    <div>
-                      <p className="text-xs text-gray-600 uppercase tracking-wide">Email</p>
-                      <p className="text-sm font-medium">{student.studentEmail}</p>
-                    </div>
-
-                    {/* Contact Number */}
-                    {student.contactNumber && (
-                      <div>
-                        <p className="text-xs text-gray-600 uppercase tracking-wide">Contact</p>
-                        <p className="text-sm font-medium">{student.contactNumber}</p>
-                      </div>
-                    )}
-
-                    {/* Linked Date */}
-                    <div>
-                      <p className="text-xs text-gray-600 uppercase tracking-wide">Linked Since</p>
-                      <p className="text-sm font-medium">
-                        {new Date(student.linkedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-
-                    {/* Status */}
-                    <div className="flex items-center gap-2 pt-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-600">Active</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Child
+          </Button>
         </div>
-      </main>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        ) : linkedStudents.length === 0 ? (
+          /* Empty State */
+          <Card className="border-dashed">
+            <CardContent className="pt-12 pb-12 text-center">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No children linked yet</h3>
+              <p className="text-gray-600 mb-6">
+                Link your children's accounts to start managing their education.
+              </p>
+              <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Link Your First Child
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          /* Students List */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {linkedStudents.map(student => (
+              <Card key={student.studentId} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle>{student.studentName}</CardTitle>
+                      <p className="text-sm text-gray-600 mt-1">{student.relationship}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveStudent(student.studentId)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Email */}
+                  <div>
+                    <p className="text-xs text-gray-600 uppercase tracking-wide">Email</p>
+                    <p className="text-sm font-medium">{student.studentEmail}</p>
+                  </div>
+
+                  {/* Contact Number */}
+                  {student.contactNumber && (
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase tracking-wide">Contact</p>
+                      <p className="text-sm font-medium">{student.contactNumber}</p>
+                    </div>
+                  )}
+
+                  {/* Linked Date */}
+                  <div>
+                    <p className="text-xs text-gray-600 uppercase tracking-wide">Linked Since</p>
+                    <p className="text-sm font-medium">
+                      {new Date(student.linkedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-600">Active</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Add Student Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -309,23 +306,16 @@ export default function ParentStudents() {
                   disabled={emailVerified}
                 />
                 <Button
+                  variant="outline"
                   onClick={handleVerifyEmail}
                   disabled={verifyingEmail || emailVerified || !newStudent.email}
-                  variant={emailVerified ? 'default' : 'outline'}
                 >
-                  {verifyingEmail ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : emailVerified ? (
-                    <CheckCircle className="h-4 w-4" />
-                  ) : (
-                    'Verify'
-                  )}
+                  {verifyingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
                 </Button>
               </div>
               {emailVerified && (
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  Email verified
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" /> Student account verified
                 </p>
               )}
             </div>
@@ -333,20 +323,23 @@ export default function ParentStudents() {
             {/* Relationship */}
             <div className="space-y-2">
               <Label htmlFor="relationship">Relationship</Label>
-              <Select value={newStudent.relationship} onValueChange={value => setNewStudent({ ...newStudent, relationship: value })}>
-                <SelectTrigger id="relationship">
+              <Select
+                value={newStudent.relationship}
+                onValueChange={value => setNewStudent({ ...newStudent, relationship: value })}
+              >
+                <SelectTrigger>
                   <SelectValue placeholder="Select relationship" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="parent">Parent</SelectItem>
-                  <SelectItem value="guardian">Guardian</SelectItem>
-                  <SelectItem value="sibling">Sibling</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="Father">Father</SelectItem>
+                  <SelectItem value="Mother">Mother</SelectItem>
+                  <SelectItem value="Guardian">Guardian</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Contact Number (Optional) */}
+            {/* Contact Number */}
             <div className="space-y-2">
               <Label htmlFor="contact">Contact Number (Optional)</Label>
               <Input
@@ -359,29 +352,20 @@ export default function ParentStudents() {
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddDialog(false)}
-              disabled={addingStudent}
-            >
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancel
             </Button>
             <Button
               onClick={handleAddStudent}
               disabled={addingStudent || !emailVerified}
+              className="bg-blue-600 hover:bg-blue-700"
             >
-              {addingStudent ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Linking...
-                </>
-              ) : (
-                'Link Child'
-              )}
+              {addingStudent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Link Child
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AuthenticatedLayout>
   );
 }

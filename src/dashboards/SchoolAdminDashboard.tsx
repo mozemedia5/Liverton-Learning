@@ -1,43 +1,36 @@
 import { useNavigate } from 'react-router-dom';
-import SchoolAdminSideNavbar from '@/components/SchoolAdminSideNavbar';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  BookOpen, 
-  Bell, 
-  CreditCard, 
-  User,
   Users,
   GraduationCap,
   Calendar,
   Plus,
   CheckCircle,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  CreditCard,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 /**
  * SchoolAdminDashboard Component
  * 
  * Features:
- * - Uses SchoolAdminSideNavbar for sliding overlay navigation
+ * - Uses AuthenticatedLayout for standardized navigation
  * - Displays school-wide statistics (students, teachers, attendance, fees)
  * - Manages student and teacher information
  * - Tracks fee collection and announcements
  * - Responsive design with mobile support
  * - Dark mode support
- * 
- * Note: Hanna AI is NOT included in school admin dashboard (removed as per requirements)
  */
 export default function SchoolAdminDashboard() {
   const navigate = useNavigate();
   const { userData } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   // Mock data for school admin dashboard
   const schoolStats = {
@@ -72,37 +65,8 @@ export default function SchoolAdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
-      {/* Use SchoolAdminSideNavbar for overlay navigation */}
-      <SchoolAdminSideNavbar />
-
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center justify-between px-4 py-3 lg:pl-64">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white dark:text-black" />
-            </div>
-            <span className="font-semibold hidden sm:inline">Liverton Learning</span>
-          </div>
-
-          {/* Top Right Actions */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === 'light' ? '🌙' : '☀️'}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/announcements')}>
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
-              <User className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="p-4 lg:p-6 space-y-6 lg:ml-0">
+    <AuthenticatedLayout>
+      <div className="p-4 lg:p-6 space-y-6">
         {/* Welcome Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -307,7 +271,7 @@ export default function SchoolAdminDashboard() {
             </div>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 }

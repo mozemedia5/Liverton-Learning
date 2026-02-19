@@ -1,57 +1,19 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  BookOpen, 
-  Bell, 
-  CreditCard, 
-  User, 
-  Settings, 
-  LogOut,
   Users,
   GraduationCap,
   School,
   DollarSign,
   CheckCircle,
   XCircle,
-  Menu,
-  X,
-  BarChart3,
-  Shield,
-  Activity
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { toast } from 'sonner';
+import AdminLayout from '@/components/AdminLayout';
 
 export default function PlatformAdminDashboard() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success('Logged out successfully');
-      navigate('/');
-    } catch (error) {
-      toast.error('Failed to logout');
-    }
-  };
-
-  const navItems = [
-    { icon: <BookOpen className="w-5 h-5" />, label: 'Dashboard', path: '/admin/dashboard', active: true },
-    { icon: <Users className="w-5 h-5" />, label: 'Users', path: '/admin/users' },
-    { icon: <BarChart3 className="w-5 h-5" />, label: 'Analytics', path: '/admin/analytics' },
-    { icon: <Shield className="w-5 h-5" />, label: 'Moderation', path: '/admin/moderation' },
-    { icon: <Activity className="w-5 h-5" />, label: 'Monitoring', path: '/admin/monitoring' },
-    { icon: <CreditCard className="w-5 h-5" />, label: 'Payments', path: '/admin/payments' },
-    { icon: <Bell className="w-5 h-5" />, label: 'Announcements', path: '/announcements' },
-    { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/settings' },
-  ];
 
   // Mock data
   const platformStats = {
@@ -82,266 +44,188 @@ export default function PlatformAdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
-            >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white dark:text-black" />
-              </div>
-              <span className="font-semibold hidden sm:inline">Liverton Learning</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="destructive" className="hidden sm:inline-flex">
-              Admin
-            </Badge>
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === 'light' ? '🌙' : '☀️'}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/announcements')}>
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
-              <User className="w-5 h-5" />
-            </Button>
-          </div>
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Welcome */}
+        <div>
+          <h1 className="text-2xl font-bold">Platform Admin Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage the entire Liverton Learning platform
+          </p>
         </div>
-      </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className={`
-          fixed lg:sticky top-[57px] left-0 z-40 w-64 h-[calc(100vh-57px)] 
-          bg-white dark:bg-black border-r border-gray-200 dark:border-gray-800
-          transform transition-transform duration-200 lg:transform-none
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}>
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => {
-                  navigate(item.path);
-                  setSidebarOpen(false);
-                }}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left
-                  transition-colors
-                  ${item.active 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-900'
-                  }
-                `}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            ))}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </nav>
-        </aside>
-
-        {/* Overlay for mobile sidebar */}
-        {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-6 space-y-6">
-          {/* Welcome */}
-          <div>
-            <h1 className="text-2xl font-bold">Platform Admin Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Manage the entire Liverton Learning platform
-            </p>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Users</p>
-                    <p className="text-xl font-bold">{platformStats.totalUsers.toLocaleString()}</p>
-                  </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-600" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Teachers</p>
-                    <p className="text-xl font-bold">{platformStats.totalTeachers}</p>
-                  </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Users</p>
+                  <p className="text-xl font-bold">{platformStats.totalUsers.toLocaleString()}</p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                    <School className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Schools</p>
-                    <p className="text-xl font-bold">{platformStats.totalSchools}</p>
-                  </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 text-green-600" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-                    <DollarSign className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
-                    <p className="text-xl font-bold">${platformStats.totalRevenue.toLocaleString()}</p>
-                  </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Teachers</p>
+                  <p className="text-xl font-bold">{platformStats.totalTeachers}</p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                  <School className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Schools</p>
+                  <p className="text-xl font-bold">{platformStats.totalSchools}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
+                  <p className="text-xl font-bold">${platformStats.totalRevenue.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Detailed Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-gray-100 dark:bg-gray-900">
-              <CardContent className="p-4 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Students</p>
-                <p className="text-2xl font-bold">{platformStats.totalStudents.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-gray-100 dark:bg-gray-900">
-              <CardContent className="p-4 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Parents</p>
-                <p className="text-2xl font-bold">{platformStats.totalParents.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-gray-100 dark:bg-gray-900">
-              <CardContent className="p-4 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Pending Verifications</p>
-                <p className="text-2xl font-bold text-yellow-600">{platformStats.pendingVerifications}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-gray-100 dark:bg-gray-900">
-              <CardContent className="p-4 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Hanna AI Active</p>
-                <p className="text-2xl font-bold text-green-600">98%</p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Detailed Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-gray-100 dark:bg-gray-900">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Students</p>
+              <p className="text-2xl font-bold">{platformStats.totalStudents.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-100 dark:bg-gray-900">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Parents</p>
+              <p className="text-2xl font-bold">{platformStats.totalParents.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-100 dark:bg-gray-900">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Pending Verifications</p>
+              <p className="text-2xl font-bold text-yellow-600">{platformStats.pendingVerifications}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-100 dark:bg-gray-900">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Hanna AI Active</p>
+              <p className="text-2xl font-bold text-green-600">98%</p>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Lists Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Pending Teachers */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Pending Teacher Verifications</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All</Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {pendingTeachers.map((teacher) => (
-                    <div key={teacher.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{teacher.name}</p>
-                        <p className="text-sm text-gray-500">{teacher.subjects}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" className="text-green-600"><CheckCircle className="w-4 h-4" /></Button>
-                        <Button size="sm" variant="ghost" className="text-red-600"><XCircle className="w-4 h-4" /></Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pending Schools */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Pending School Approvals</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All</Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {pendingSchools.map((school) => (
-                    <div key={school.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{school.name}</p>
-                        <p className="text-sm text-gray-500">{school.country} • {school.type}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" className="text-green-600"><CheckCircle className="w-4 h-4" /></Button>
-                        <Button size="sm" variant="ghost" className="text-red-600"><XCircle className="w-4 h-4" /></Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Payments */}
+        {/* Lists Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pending Teachers */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Recent Platform Revenue</CardTitle>
+              <CardTitle className="text-lg">Pending Teacher Verifications</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingTeachers.map((teacher) => (
+                  <div key={teacher.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{teacher.name}</p>
+                      <p className="text-sm text-gray-500">{teacher.subjects}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="text-green-600">
+                        <CheckCircle className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-red-600">
+                        <XCircle className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pending Schools */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">New School Applications</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingSchools.map((school) => (
+                  <div key={school.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{school.name}</p>
+                      <p className="text-sm text-gray-500">{school.country} • {school.type}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="text-green-600">
+                        <CheckCircle className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-red-600">
+                        <XCircle className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Payments */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Recent Platform Transactions</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/payments')}>View All</Button>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 dark:bg-gray-900 text-xs uppercase text-gray-500">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-800 dark:text-gray-400">
                     <tr>
-                      <th className="px-6 py-3">User</th>
-                      <th className="px-6 py-3">Type</th>
-                      <th className="px-6 py-3">Amount</th>
-                      <th className="px-6 py-3">Status</th>
-                      <th className="px-6 py-3 text-right">Date</th>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Amount</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Date</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  <tbody>
                     {recentPayments.map((payment) => (
-                      <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                        <td className="px-6 py-4 font-medium">{payment.user}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{payment.type}</td>
-                        <td className="px-6 py-4 font-bold">${payment.amount}</td>
-                        <td className="px-6 py-4">
+                      <tr key={payment.id} className="border-b dark:border-gray-700">
+                        <td className="px-4 py-3 font-medium">{payment.user}</td>
+                        <td className="px-4 py-3">{payment.type}</td>
+                        <td className="px-4 py-3">${payment.amount}</td>
+                        <td className="px-4 py-3">
                           <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>
                             {payment.status}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 text-right text-sm text-gray-500">{payment.date}</td>
+                        <td className="px-4 py-3 text-gray-500">{payment.date}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -349,8 +233,8 @@ export default function PlatformAdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        </main>
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

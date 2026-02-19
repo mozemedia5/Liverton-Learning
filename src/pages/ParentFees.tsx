@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, DollarSign, Download, AlertCircle, CheckCircle } from 'lucide-react';
-import ParentSideNavbar from '@/components/ParentSideNavbar';
+import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { getLinkedStudents } from '@/lib/parentService';
 import type { LinkedStudent } from '@/lib/parentService';
 
@@ -185,161 +185,157 @@ export default function ParentFees() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <ParentSideNavbar />
-        <main className="flex-1 flex items-center justify-center">
+      <AuthenticatedLayout>
+        <div className="flex-1 flex items-center justify-center h-[calc(100vh-64px)]">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        </main>
-      </div>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <ParentSideNavbar />
-      <main className="flex-1 overflow-auto lg:ml-64">
-        <div className="p-4 md:p-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">Fees & Payments</h1>
-            <p className="text-gray-600 mt-1">Manage school fees and payment history</p>
-          </div>
+    <AuthenticatedLayout>
+      <div className="p-4 md:p-8 lg:ml-0">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Fees & Payments</h1>
+          <p className="text-gray-600 mt-1">Manage school fees and payment history</p>
+        </div>
 
-          {linkedStudents.length === 0 ? (
-            /* Empty State */
-            <Card className="border-dashed">
-              <CardContent className="pt-12 pb-12 text-center">
-                <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No fees information</h3>
-                <p className="text-gray-600">
-                  Link a child to view their fees and payment information
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            /* Fees View */
-            <Tabs defaultValue={selectedStudent || ''} onValueChange={setSelectedStudent}>
-              <TabsList className="mb-6">
-                {linkedStudents.map(student => (
-                  <TabsTrigger key={student.studentId} value={student.studentId}>
-                    {student.studentName}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
+        {linkedStudents.length === 0 ? (
+          /* Empty State */
+          <Card className="border-dashed">
+            <CardContent className="pt-12 pb-12 text-center">
+              <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No fees information</h3>
+              <p className="text-gray-600">
+                Link a child to view their fees and payment information
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          /* Fees View */
+          <Tabs defaultValue={selectedStudent || ''} onValueChange={setSelectedStudent}>
+            <TabsList className="mb-6">
               {linkedStudents.map(student => (
-                <TabsContent key={student.studentId} value={student.studentId}>
-                  <div className="space-y-6">
-                    {/* Outstanding Balance Card */}
-                    <Card className="border-l-4 border-l-red-500 bg-red-50">
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span>Outstanding Balance</span>
-                          <DollarSign className="h-5 w-5 text-red-600" />
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold text-red-600">
-                          ${calculateOutstandingBalance().toFixed(2)}
-                        </div>
-                        <p className="text-sm text-gray-600 mt-2">
-                          Please settle outstanding fees to avoid late charges
-                        </p>
-                        <Button className="mt-4">Make Payment</Button>
-                      </CardContent>
-                    </Card>
+                <TabsTrigger key={student.studentId} value={student.studentId}>
+                  {student.studentName}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-                    {/* Fees & Payments Tabs */}
-                    <Tabs defaultValue="fees">
-                      <TabsList>
-                        <TabsTrigger value="fees">Current Fees</TabsTrigger>
-                        <TabsTrigger value="history">Payment History</TabsTrigger>
-                      </TabsList>
+            {linkedStudents.map(student => (
+              <TabsContent key={student.studentId} value={student.studentId}>
+                <div className="space-y-6">
+                  {/* Outstanding Balance Card */}
+                  <Card className="border-l-4 border-l-red-500 bg-red-50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>Outstanding Balance</span>
+                        <DollarSign className="h-5 w-5 text-red-600" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-red-600">
+                        ${calculateOutstandingBalance().toFixed(2)}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Please settle outstanding fees to avoid late charges
+                      </p>
+                      <Button className="mt-4">Make Payment</Button>
+                    </CardContent>
+                  </Card>
 
-                      {/* Current Fees */}
-                      <TabsContent value="fees">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Current Fees</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              {mockFees.student1?.map(fee => (
-                                <div
-                                  key={fee.id}
-                                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                  <div className="flex-1">
-                                    <p className="font-medium">{fee.name}</p>
-                                    <p className="text-sm text-gray-600">
-                                      Due: {new Date(fee.dueDate).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                      <p className="font-semibold">${fee.amount.toFixed(2)}</p>
-                                      <Badge className={getStatusColor(fee.status)}>
-                                        {fee.status}
-                                      </Badge>
-                                    </div>
-                                    {fee.status !== 'paid' && (
-                                      <Button size="sm" variant="outline">
-                                        Pay Now
-                                      </Button>
-                                    )}
-                                  </div>
+                  {/* Fees & Payments Tabs */}
+                  <Tabs defaultValue="fees">
+                    <TabsList>
+                      <TabsTrigger value="fees">Current Fees</TabsTrigger>
+                      <TabsTrigger value="history">Payment History</TabsTrigger>
+                    </TabsList>
+
+                    {/* Current Fees */}
+                    <TabsContent value="fees">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Current Fees</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {mockFees.student1?.map(fee => (
+                              <div
+                                key={fee.id}
+                                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium">{fee.name}</p>
+                                  <p className="text-sm text-gray-600">
+                                    Due: {new Date(fee.dueDate).toLocaleDateString()}
+                                  </p>
                                 </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-
-                      {/* Payment History */}
-                      <TabsContent value="history">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Payment History</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              {mockPayments.student1?.map(payment => (
-                                <div
-                                  key={payment.id}
-                                  className="flex items-center justify-between p-4 border rounded-lg"
-                                >
-                                  <div className="flex items-center gap-3 flex-1">
-                                    {getStatusIcon(payment.status)}
-                                    <div>
-                                      <p className="font-medium">{payment.method}</p>
-                                      <p className="text-sm text-gray-600">
-                                        {new Date(payment.date).toLocaleDateString()}
-                                      </p>
-                                    </div>
-                                  </div>
+                                <div className="flex items-center gap-4">
                                   <div className="text-right">
-                                    <p className="font-semibold">${payment.amount.toFixed(2)}</p>
-                                    <Badge className={getStatusColor(payment.status)}>
-                                      {payment.status}
+                                    <p className="font-semibold">${fee.amount.toFixed(2)}</p>
+                                    <Badge className={getStatusColor(fee.status)}>
+                                      {fee.status}
                                     </Badge>
                                   </div>
-                                  <Button size="sm" variant="ghost" className="ml-4">
-                                    <Download className="h-4 w-4" />
-                                  </Button>
+                                  {fee.status !== 'paid' && (
+                                    <Button size="sm" variant="outline">
+                                      Pay Now
+                                    </Button>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
-          )}
-        </div>
-      </main>
-    </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Payment History */}
+                    <TabsContent value="history">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Payment History</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {mockPayments.student1?.map(payment => (
+                              <div
+                                key={payment.id}
+                                className="flex items-center justify-between p-4 border rounded-lg"
+                              >
+                                <div className="flex items-center gap-3 flex-1">
+                                  {getStatusIcon(payment.status)}
+                                  <div>
+                                    <p className="font-medium">{payment.method}</p>
+                                    <p className="text-sm text-gray-600">
+                                      {new Date(payment.date).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold">${payment.amount.toFixed(2)}</p>
+                                  <Badge className={getStatusColor(payment.status)}>
+                                    {payment.status}
+                                  </Badge>
+                                </div>
+                                <Button size="sm" variant="ghost" className="ml-4">
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+      </div>
+    </AuthenticatedLayout>
   );
 }
