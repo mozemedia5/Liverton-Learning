@@ -20,6 +20,12 @@ import StudentDashboard from '@/dashboards/StudentDashboard';
 import TeacherDashboard from '@/dashboards/TeacherDashboard';
 import SchoolAdminDashboard from '@/dashboards/SchoolAdminDashboard';
 import ParentDashboard from '@/pages/ParentDashboard';
+import PlatformAdminDashboard from '@/dashboards/PlatformAdminDashboard';
+import AdminLayout from '@/components/AdminLayout';
+import UserManagement from '@/pages/admin/UserManagement';
+import SystemAnalytics from '@/pages/admin/SystemAnalytics';
+import ContentModeration from '@/pages/admin/ContentModeration';
+import GlobalMonitoring from '@/pages/admin/GlobalMonitoring';
 
 // Parent Pages
 import ParentStudents from '@/pages/ParentStudents';
@@ -250,6 +256,33 @@ function AppRoutes() {
       <Route path="/school-admin/dashboard" element={
         <ProtectedRoute allowedRoles={['school_admin']}>
           <AuthenticatedLayout><SchoolAdminDashboard /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Platform Admin Routes - Protected, accessible only to platform admins */}
+      <Route path="/admin/dashboard" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <PlatformAdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/users" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><UserManagement /></AdminLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/analytics" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><SystemAnalytics /></AdminLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/moderation" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><ContentModeration /></AdminLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/monitoring" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><GlobalMonitoring /></AdminLayout>
         </ProtectedRoute>
       } />
 
