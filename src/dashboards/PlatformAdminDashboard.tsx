@@ -18,7 +18,6 @@ import {
   XCircle,
   Menu,
   X,
-  Brain,
   BarChart3,
   Shield,
   Activity
@@ -32,7 +31,6 @@ export default function PlatformAdminDashboard() {
   const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showHanna, setShowHanna] = useState(false);
 
   const handleLogout = async () => {
     try {
