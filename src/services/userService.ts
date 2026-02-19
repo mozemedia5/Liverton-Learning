@@ -7,8 +7,6 @@ import {
   updateDoc, 
   deleteDoc,
   where,
-  orderBy,
-  limit,
   Timestamp,
   QueryDocumentSnapshot,
   type DocumentData
@@ -34,7 +32,6 @@ export interface FirestoreUser {
   updatedAt?: Timestamp | Date;
   status?: 'active' | 'suspended' | 'pending';
   isVerified?: boolean;
-  // Role-specific fields
   schoolName?: string;
   schoolId?: string;
   schoolRegistrationNumber?: string;
@@ -51,7 +48,6 @@ export interface FirestoreUser {
   viewOnly?: boolean;
 }
 
-// Dashboard statistics interface
 export interface DashboardStats {
   totalUsers: number;
   totalStudents: number;
@@ -66,7 +62,6 @@ export interface DashboardStats {
   recentUsers: FirestoreUser[];
 }
 
-// Convert Firestore timestamp to Date
 const convertTimestamp = (timestamp: Timestamp | Date | undefined): Date => {
   if (!timestamp) return new Date();
   if (timestamp instanceof Timestamp) {
@@ -75,7 +70,6 @@ const convertTimestamp = (timestamp: Timestamp | Date | undefined): Date => {
   return timestamp;
 };
 
-// Convert Firestore document to User object
 const convertDocToUser = (doc: QueryDocumentSnapshot<DocumentData>): FirestoreUser => {
   const data = doc.data();
   return {
@@ -113,36 +107,58 @@ const convertDocToUser = (doc: QueryDocumentSnapshot<DocumentData>): FirestoreUs
 };
 
 /**
- * Fetch all users from Firestore
+ * Fetch all users from Firestore - Simple version without ordering to avoid index issues
  */
 export const getAllUsers = async (): Promise<FirestoreUser[]> => {
   try {
-    const usersQuery = query(
-      collection(db, 'users'),
-      orderBy('createdAt', 'desc')
-    );
-    const snapshot = await getDocs(usersQuery);
-    return snapshot.docs.map(convertDocToUser);
-  } catch (error) {
-    console.error('Error fetching users:', error);
+    console.log('[Firebase] Fetching all users...');
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
+    
+    console.log(`[Firebase] Found ${snapshot.docs.length} users`);
+    
+    const users = snapshot.docs.map(convertDocToUser);
+    
+    // Sort in memory instead of using orderBy
+    return users.sort((a, b) => {
+      const dateA = convertTimestamp(a.createdAt).getTime();
+      const dateB = convertTimestamp(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+  } catch (error: any) {
+    console.error('[Firebase] Error fetching users:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Fetch users by role
+ * Fetch users by role - Simple version without composite queries
  */
 export const getUsersByRole = async (role: UserRole): Promise<FirestoreUser[]> => {
   try {
+    console.log(`[Firebase] Fetching users with role: ${role}`);
     const usersQuery = query(
       collection(db, 'users'),
-      where('role', '==', role),
-      orderBy('createdAt', 'desc')
+      where('role', '==', role)
     );
     const snapshot = await getDocs(usersQuery);
-    return snapshot.docs.map(convertDocToUser);
-  } catch (error) {
-    console.error(`Error fetching ${role} users:`, error);
+    
+    console.log(`[Firebase] Found ${snapshot.docs.length} users with role ${role}`);
+    
+    const users = snapshot.docs.map(convertDocToUser);
+    
+    // Sort in memory
+    return users.sort((a, b) => {
+      const dateA = convertTimestamp(a.createdAt).getTime();
+      const dateB = convertTimestamp(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+  } catch (error: any) {
+    console.error(`[Firebase] Error fetching ${role} users:`, error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
@@ -152,51 +168,51 @@ export const getUsersByRole = async (role: UserRole): Promise<FirestoreUser[]> =
  */
 export const getUserById = async (userId: string): Promise<FirestoreUser | null> => {
   try {
+    console.log(`[Firebase] Fetching user: ${userId}`);
     const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) return null;
+    if (!userDoc.exists()) {
+      console.log(`[Firebase] User ${userId} not found`);
+      return null;
+    }
+    console.log(`[Firebase] User ${userId} found`);
     return convertDocToUser(userDoc as QueryDocumentSnapshot<DocumentData>);
-  } catch (error) {
-    console.error('Error fetching user:', error);
+  } catch (error: any) {
+    console.error('[Firebase] Error fetching user:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Fetch users with pending verification
+ * Fetch users with pending verification - Using simple queries
  */
 export const getPendingVerifications = async (): Promise<FirestoreUser[]> => {
   try {
-    // Query for teachers pending verification
-    const teachersQuery = query(
-      collection(db, 'users'),
-      where('role', '==', 'teacher'),
-      where('isVerified', '==', false)
+    console.log('[Firebase] Fetching pending verifications...');
+    
+    // Get all users and filter in memory to avoid composite index issues
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
+    
+    const users = snapshot.docs.map(convertDocToUser);
+    
+    // Filter pending users in memory
+    const pendingUsers = users.filter(u => 
+      !u.isVerified && (u.role === 'teacher' || u.role === 'school_admin')
     );
     
-    // Query for school admins pending verification
-    const schoolsQuery = query(
-      collection(db, 'users'),
-      where('role', '==', 'school_admin'),
-      where('isVerified', '==', false)
-    );
-
-    const [teachersSnapshot, schoolsSnapshot] = await Promise.all([
-      getDocs(teachersQuery),
-      getDocs(schoolsQuery)
-    ]);
-
-    const pendingUsers = [
-      ...teachersSnapshot.docs.map(convertDocToUser),
-      ...schoolsSnapshot.docs.map(convertDocToUser)
-    ];
-
+    console.log(`[Firebase] Found ${pendingUsers.length} pending verifications`);
+    
     return pendingUsers.sort((a, b) => {
       const dateA = convertTimestamp(a.createdAt).getTime();
       const dateB = convertTimestamp(b.createdAt).getTime();
       return dateB - dateA;
     });
-  } catch (error) {
-    console.error('Error fetching pending verifications:', error);
+  } catch (error: any) {
+    console.error('[Firebase] Error fetching pending verifications:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
@@ -206,8 +222,12 @@ export const getPendingVerifications = async (): Promise<FirestoreUser[]> => {
  */
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   try {
-    const usersQuery = query(collection(db, 'users'));
-    const snapshot = await getDocs(usersQuery);
+    console.log('[Firebase] Fetching dashboard stats...');
+    
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
+    
+    console.log(`[Firebase] Total documents in users collection: ${snapshot.docs.length}`);
     
     const users = snapshot.docs.map(convertDocToUser);
     
@@ -219,12 +239,10 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     const suspendedUsers = users.filter(u => u.status === 'suspended').length;
     const activeUsers = users.length - suspendedUsers;
     
-    // Get pending verifications
     const pendingTeachers = users.filter(u => u.role === 'teacher' && !u.isVerified).length;
     const pendingSchools = users.filter(u => u.role === 'school_admin' && !u.isVerified).length;
     const pendingVerifications = pendingTeachers + pendingSchools;
     
-    // Get recent users (last 10)
     const recentUsers = users
       .sort((a, b) => {
         const dateA = convertTimestamp(a.createdAt).getTime();
@@ -233,7 +251,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       })
       .slice(0, 10);
 
-    return {
+    const stats = {
       totalUsers: users.length,
       totalStudents,
       totalTeachers,
@@ -245,27 +263,37 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       pendingVerifications,
       recentUsers,
     };
-  } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    
+    console.log('[Firebase] Dashboard stats:', stats);
+    
+    return stats;
+  } catch (error: any) {
+    console.error('[Firebase] Error fetching dashboard stats:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Update user status (active/suspended)
+ * Update user status
  */
 export const updateUserStatus = async (
   userId: string, 
   status: 'active' | 'suspended'
 ): Promise<void> => {
   try {
+    console.log(`[Firebase] Updating user ${userId} status to ${status}`);
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       status,
       updatedAt: new Date(),
     });
-  } catch (error) {
-    console.error('Error updating user status:', error);
+    console.log(`[Firebase] User ${userId} status updated successfully`);
+  } catch (error: any) {
+    console.error('[Firebase] Error updating user status:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
@@ -278,92 +306,112 @@ export const updateUserRole = async (
   role: UserRole
 ): Promise<void> => {
   try {
+    console.log(`[Firebase] Updating user ${userId} role to ${role}`);
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       role,
       updatedAt: new Date(),
     });
-  } catch (error) {
-    console.error('Error updating user role:', error);
+    console.log(`[Firebase] User ${userId} role updated successfully`);
+  } catch (error: any) {
+    console.error('[Firebase] Error updating user role:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Verify a user (teacher or school)
+ * Verify a user
  */
 export const verifyUser = async (userId: string): Promise<void> => {
   try {
+    console.log(`[Firebase] Verifying user ${userId}`);
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       isVerified: true,
       status: 'active',
       updatedAt: new Date(),
     });
-  } catch (error) {
-    console.error('Error verifying user:', error);
+    console.log(`[Firebase] User ${userId} verified successfully`);
+  } catch (error: any) {
+    console.error('[Firebase] Error verifying user:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Reject/delete a user
+ * Delete a user
  */
 export const deleteUser = async (userId: string): Promise<void> => {
   try {
+    console.log(`[Firebase] Deleting user ${userId}`);
     await deleteDoc(doc(db, 'users', userId));
-  } catch (error) {
-    console.error('Error deleting user:', error);
+    console.log(`[Firebase] User ${userId} deleted successfully`);
+  } catch (error: any) {
+    console.error('[Firebase] Error deleting user:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Search users by name or email
+ * Search users
  */
 export const searchUsers = async (searchTerm: string): Promise<FirestoreUser[]> => {
   try {
-    const usersQuery = query(
-      collection(db, 'users'),
-      orderBy('fullName'),
-      limit(100)
-    );
-    const snapshot = await getDocs(usersQuery);
+    console.log(`[Firebase] Searching users with term: ${searchTerm}`);
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
     
     const users = snapshot.docs.map(convertDocToUser);
     const term = searchTerm.toLowerCase();
     
-    return users.filter(user => 
+    const filtered = users.filter(user => 
       user.fullName.toLowerCase().includes(term) ||
       user.email.toLowerCase().includes(term)
     );
-  } catch (error) {
-    console.error('Error searching users:', error);
+    
+    console.log(`[Firebase] Found ${filtered.length} matching users`);
+    return filtered;
+  } catch (error: any) {
+    console.error('[Firebase] Error searching users:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
 /**
- * Get recent user registrations
+ * Get recent registrations
  */
 export const getRecentRegistrations = async (limit_count: number = 10): Promise<FirestoreUser[]> => {
   try {
-    const usersQuery = query(
-      collection(db, 'users'),
-      orderBy('createdAt', 'desc'),
-      limit(limit_count)
-    );
-    const snapshot = await getDocs(usersQuery);
-    return snapshot.docs.map(convertDocToUser);
-  } catch (error) {
-    console.error('Error fetching recent registrations:', error);
+    console.log(`[Firebase] Fetching recent ${limit_count} registrations`);
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
+    
+    const users = snapshot.docs.map(convertDocToUser);
+    
+    const sorted = users.sort((a, b) => {
+      const dateA = convertTimestamp(a.createdAt).getTime();
+      const dateB = convertTimestamp(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+    
+    console.log(`[Firebase] Returning ${Math.min(sorted.length, limit_count)} recent users`);
+    return sorted.slice(0, limit_count);
+  } catch (error: any) {
+    console.error('[Firebase] Error fetching recent registrations:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     throw error;
   }
 };
 
-/**
- * Format Firestore user for display
- */
 export const formatUserForDisplay = (user: FirestoreUser) => {
   return {
     id: user.uid,
@@ -378,9 +426,6 @@ export const formatUserForDisplay = (user: FirestoreUser) => {
   };
 };
 
-/**
- * Get role display name
- */
 export const getRoleDisplayName = (role: UserRole): string => {
   const roleNames: Record<UserRole, string> = {
     student: 'Student',
@@ -392,9 +437,6 @@ export const getRoleDisplayName = (role: UserRole): string => {
   return roleNames[role] || role;
 };
 
-/**
- * Get role badge color class
- */
 export const getRoleBadgeColor = (role: UserRole): string => {
   const colors: Record<UserRole, string> = {
     student: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -406,9 +448,6 @@ export const getRoleBadgeColor = (role: UserRole): string => {
   return colors[role] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
 };
 
-/**
- * Get status badge color class
- */
 export const getStatusBadgeColor = (status: string): string => {
   return status === 'active'
     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
