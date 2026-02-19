@@ -10,11 +10,11 @@ import {
   orderBy,
   limit,
   Timestamp,
-  DocumentData,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  type DocumentData
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { User, UserRole } from '@/types';
+import type { UserRole } from '@/types';
 
 // User interface for Firestore data
 export interface FirestoreUser {
@@ -62,6 +62,7 @@ export interface DashboardStats {
   activeUsers: number;
   suspendedUsers: number;
   pendingVerifications: number;
+  totalRevenue?: number;
   recentUsers: FirestoreUser[];
 }
 

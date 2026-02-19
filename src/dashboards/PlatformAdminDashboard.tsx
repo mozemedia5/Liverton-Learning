@@ -19,7 +19,6 @@ import {
   getPendingVerifications,
   verifyUser,
   updateUserStatus,
-  formatUserForDisplay,
   type FirestoreUser
 } from '@/services/userService';
 import { toast } from 'sonner';
