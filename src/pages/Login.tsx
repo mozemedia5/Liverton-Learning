@@ -36,6 +36,9 @@ export default function Login() {
       
       // Redirect based on role
       setTimeout(() => {
+        // Use the actual role from state, or check if it's the admin email
+        const effectiveRole = (email === 'infoliverton@gmail.com') ? 'platform_admin' : userRole;
+        
         const dashboardRoutes: Record<string, string> = {
           student: '/student/dashboard',
           teacher: '/teacher/dashboard',
@@ -44,8 +47,8 @@ export default function Login() {
           parent: '/student/dashboard',
         };
         
-        if (userRole && dashboardRoutes[userRole]) {
-          navigate(dashboardRoutes[userRole]);
+        if (effectiveRole && dashboardRoutes[effectiveRole]) {
+          navigate(dashboardRoutes[effectiveRole]);
         } else {
           navigate('/')
         }

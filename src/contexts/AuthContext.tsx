@@ -50,8 +50,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (userDoc.exists()) {
               const data = userDoc.data() as User;
+              // Force platform_admin role for the specific admin email if it's not set in Firestore
+              if (user.email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
+                data.role = 'platform_admin';
+              }
               setUserData(data);
               setUserRole(data.role);
+            } else if (user.email === 'infoliverton@gmail.com') {
+              // Fallback for the admin user if document doesn't exist yet
+              const adminData: User = {
+                uid: user.uid,
+                email: user.email,
+                fullName: 'Platform Admin',
+                role: 'platform_admin',
+                sex: 'other',
+                age: 0,
+                country: 'Global',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              };
+              setUserData(adminData);
+              setUserRole('platform_admin');
             }
           } catch (error) {
             console.error('Error fetching user data:', error);
@@ -82,8 +101,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (userDoc.exists()) {
       const data = userDoc.data() as User;
+      // Force platform_admin role for the specific admin email
+      if (email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
+        data.role = 'platform_admin';
+      }
       setUserData(data);
       setUserRole(data.role);
+    } else if (email === 'infoliverton@gmail.com') {
+      // Fallback for the admin user if document doesn't exist
+      const adminData: User = {
+        uid: userCredential.user.uid,
+        email: email,
+        fullName: 'Platform Admin',
+        role: 'platform_admin',
+        sex: 'other',
+        age: 0,
+        country: 'Global',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setUserData(adminData);
+      setUserRole('platform_admin');
     }
   };
 
