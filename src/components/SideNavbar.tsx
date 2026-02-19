@@ -90,6 +90,8 @@ export default function SideNavbar() {
         return '/teacher/dashboard';
       case 'school_admin':
         return '/school-admin/dashboard';
+      case 'platform_admin':
+        return '/admin/dashboard';
       default:
         return '/';
     }

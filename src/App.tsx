@@ -126,6 +126,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
       teacher: '/teacher/dashboard',
       school_admin: '/school-admin/dashboard',
       parent: '/parent/dashboard',
+      platform_admin: '/admin/dashboard',
     };
     return <Navigate to={dashboardRoutes[userRole] || '/'} replace />;
   }
@@ -262,7 +263,7 @@ function AppRoutes() {
       {/* Platform Admin Routes - Protected, accessible only to platform admins */}
       <Route path="/admin/dashboard" element={
         <ProtectedRoute allowedRoles={['platform_admin']}>
-          <PlatformAdminDashboard />
+          <AdminLayout><PlatformAdminDashboard /></AdminLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin/users" element={
