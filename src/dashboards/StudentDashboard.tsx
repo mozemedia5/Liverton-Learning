@@ -20,6 +20,7 @@ import {
   type StudentAnalytics,
   type Assignment
 } from '@/services/analyticsService';
+import { subscribeToStudentCourses, type Course } from '@/services/courseService';
 
 /**
  * StudentDashboard Component
@@ -37,6 +38,7 @@ export default function StudentDashboard() {
   const { userData, currentUser } = useAuth();
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Real-time data subscription
@@ -50,7 +52,6 @@ export default function StudentDashboard() {
       currentUser.uid,
       (data) => {
         setAnalytics(data);
-        setLoading(false);
       }
     );
 
@@ -62,9 +63,19 @@ export default function StudentDashboard() {
       }
     );
 
+    // Subscribe to student courses
+    const unsubscribeCourses = subscribeToStudentCourses(
+      currentUser.uid,
+      (data) => {
+        setCourses(data);
+        setLoading(false);
+      }
+    );
+
     return () => {
       unsubscribeAnalytics();
       unsubscribeAssignments();
+      unsubscribeCourses();
     };
   }, [currentUser?.uid]);
 
@@ -76,13 +87,6 @@ export default function StudentDashboard() {
   const recentGrades = assignments.filter(a => 
     a.status === 'graded'
   ).slice(0, 3);
-
-  // Mock data for courses (until we implement courses subscription)
-  const enrolledCourses = [
-    { id: 1, title: 'Advanced Mathematics', instructor: 'Mr. Smith', progress: analytics?.averageScore || 75, status: 'active' },
-    { id: 2, title: 'Physics Fundamentals', instructor: 'Ms. Johnson', progress: Math.max((analytics?.averageScore || 75) - 10, 0), status: 'active' },
-    { id: 3, title: 'English Literature', instructor: 'Mr. Brown', progress: Math.min((analytics?.averageScore || 75) + 10, 100), status: 'active' },
-  ];
 
   const announcements = [
     { id: 1, title: 'New Course Materials Available', course: 'Advanced Mathematics', date: new Date().toISOString().split('T')[0] },
@@ -127,7 +131,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
-                  <p className="text-xl font-bold">{analytics?.totalCourses || 0}</p>
+                  <p className="text-xl font-bold">{courses.length || analytics?.totalCourses || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -188,31 +192,34 @@ export default function StudentDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {enrolledCourses.map((course) => (
-                <div 
-                  key={course.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/student/courses/${course.id}`)}
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{course.title}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {course.instructor} • {course.progress}% complete
-                    </p>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all"
-                        style={{ width: `${course.progress}%` }}
-                      />
+            {courses.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">You haven't enrolled in any courses yet</p>
+                <Button onClick={() => navigate('/student/courses')}>
+                  Browse Available Courses
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {courses.slice(0, 5).map((course) => (
+                  <div 
+                    key={course.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
+                    onClick={() => navigate('/student/courses')}
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{course.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {course.teacherName}
+                      </p>
                     </div>
+                    <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
+                      {course.status}
+                    </Badge>
                   </div>
-                  <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
-                    {course.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

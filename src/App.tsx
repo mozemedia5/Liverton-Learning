@@ -45,6 +45,10 @@ import Documents from '@/pages/features/Documents';
 import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
 
+// Teacher Pages
+import TeacherCourses from '@/pages/teacher/TeacherCourses';
+import CreateCourse from '@/pages/teacher/CreateCourse';
+
 // New Global Features
 import DocumentManagement from '@/pages/features/DocumentManagement';
 import DocumentWorkspaceWrapper from "@/components/DocumentWorkspaceWrapper";
@@ -242,8 +246,13 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/teacher/courses" element={
-      <ProtectedRoute allowedRoles={['teacher']}>
-          <AuthenticatedLayout><Courses /></AuthenticatedLayout>
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><TeacherCourses /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/courses/create" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <CreateCourse />
         </ProtectedRoute>
       } />
 

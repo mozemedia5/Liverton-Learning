@@ -17,21 +17,8 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, BookOpen, Clock, Users } from 'lucide-react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { getLinkedStudents } from '@/lib/parentService';
+import { subscribeToStudentCourses, type Course } from '@/services/courseService';
 import type { LinkedStudent } from '@/lib/parentService';
-
-/**
- * Course interface for type safety
- */
-interface Course {
-  id: string;
-  name: string;
-  instructor: string;
-  progress: number;
-  status: 'active' | 'completed' | 'upcoming';
-  startDate: string;
-  endDate: string;
-  students: number;
-}
 
 /**
  * Parent Courses Component
@@ -40,46 +27,9 @@ interface Course {
 export default function ParentCourses() {
   const { currentUser } = useAuth();
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
+  const [studentCourses, setStudentCourses] = useState<Record<string, Course[]>>({});
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-
-  /**
-   * Mock courses data - replace with actual API call
-   */
-  const mockCourses: Record<string, Course[]> = {
-    student1: [
-      {
-        id: '1',
-        name: 'Mathematics 101',
-        instructor: 'Dr. Smith',
-        progress: 75,
-        status: 'active',
-        startDate: '2024-01-15',
-        endDate: '2024-05-30',
-        students: 45,
-      },
-      {
-        id: '2',
-        name: 'English Literature',
-        instructor: 'Ms. Johnson',
-        progress: 60,
-        status: 'active',
-        startDate: '2024-01-15',
-        endDate: '2024-05-30',
-        students: 38,
-      },
-      {
-        id: '3',
-        name: 'Physics Basics',
-        instructor: 'Prof. Williams',
-        progress: 0,
-        status: 'upcoming',
-        startDate: '2024-06-01',
-        endDate: '2024-09-30',
-        students: 52,
-      },
-    ],
-  };
 
   /**
    * Load linked students on component mount
@@ -87,6 +37,32 @@ export default function ParentCourses() {
   useEffect(() => {
     loadStudents();
   }, [currentUser]);
+
+  /**
+   * Subscribe to courses for each linked student
+   */
+  useEffect(() => {
+    if (linkedStudents.length === 0) return;
+
+    const unsubscribes: (() => void)[] = [];
+
+    linkedStudents.forEach(student => {
+      const unsubscribe = subscribeToStudentCourses(
+        student.studentId,
+        (courses) => {
+          setStudentCourses(prev => ({
+            ...prev,
+            [student.studentId]: courses
+          }));
+        }
+      );
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [linkedStudents]);
 
   /**
    * Load linked students from Firebase
@@ -167,22 +143,31 @@ export default function ParentCourses() {
               ))}
             </TabsList>
 
-            {linkedStudents.map(student => (
-              <TabsContent key={student.studentId} value={student.studentId}>
-                <div className="space-y-6">
-                  {/* Active Courses */}
-                  <div>
-                    <h2 className="text-xl font-semibold mb-4">Active Courses</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {mockCourses.student1
-                        ?.filter(course => course.status === 'active')
-                        .map(course => (
+            {linkedStudents.map(student => {
+              const courses = studentCourses[student.studentId] || [];
+              
+              return (
+                <TabsContent key={student.studentId} value={student.studentId}>
+                  <div className="space-y-6">
+                    {courses.length === 0 ? (
+                      <Card className="border-dashed">
+                        <CardContent className="pt-12 pb-12 text-center">
+                          <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No courses yet</h3>
+                          <p className="text-gray-600">
+                            {student.studentName} hasn't enrolled in any courses yet
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {courses.map(course => (
                           <Card key={course.id} className="hover:shadow-lg transition-shadow">
                             <CardHeader>
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <CardTitle className="text-lg">{course.name}</CardTitle>
-                                  <p className="text-sm text-gray-600 mt-1">{course.instructor}</p>
+                                  <CardTitle className="text-lg">{course.title}</CardTitle>
+                                  <p className="text-sm text-gray-600 mt-1">{course.teacherName}</p>
                                 </div>
                                 <Badge className={getStatusColor(course.status)}>
                                   {course.status}
@@ -190,81 +175,35 @@ export default function ParentCourses() {
                               </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                              {/* Progress */}
-                              <div>
-                                <div className="flex justify-between mb-2">
-                                  <span className="text-sm font-medium">Progress</span>
-                                  <span className="text-sm text-gray-600">{course.progress}%</span>
-                                </div>
-                                <Progress value={course.progress} className="h-2" />
-                              </div>
+                              <p className="text-sm text-gray-600 line-clamp-2">
+                                {course.description}
+                              </p>
 
                               {/* Course Info */}
                               <div className="grid grid-cols-2 gap-4 pt-2">
                                 <div>
-                                  <p className="text-xs text-gray-600 uppercase tracking-wide">Duration</p>
-                                  <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                                    <Clock className="h-3 w-3" />
-                                    {new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}
+                                  <p className="text-xs text-gray-600 uppercase tracking-wide">Subject</p>
+                                  <p className="text-sm font-medium mt-1">
+                                    {course.subject}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-gray-600 uppercase tracking-wide">Students</p>
+                                  <p className="text-xs text-gray-600 uppercase tracking-wide">Materials</p>
                                   <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                                    <Users className="h-3 w-3" />
-                                    {course.students}
+                                    <BookOpen className="h-3 w-3" />
+                                    {course.materials?.length || 0} files
                                   </p>
                                 </div>
                               </div>
                             </CardContent>
                           </Card>
                         ))}
-                    </div>
-                  </div>
-
-                  {/* Upcoming Courses */}
-                  {mockCourses.student1?.some(c => c.status === 'upcoming') && (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-4">Upcoming Courses</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {mockCourses.student1
-                          ?.filter(course => course.status === 'upcoming')
-                          .map(course => (
-                            <Card key={course.id} className="opacity-75">
-                              <CardHeader>
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <CardTitle className="text-lg">{course.name}</CardTitle>
-                                    <p className="text-sm text-gray-600 mt-1">{course.instructor}</p>
-                                  </div>
-                                  <Badge className={getStatusColor(course.status)}>
-                                    {course.status}
-                                  </Badge>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                <div>
-                                  <p className="text-xs text-gray-600 uppercase tracking-wide">Starts</p>
-                                  <p className="text-sm font-medium mt-1">
-                                    {new Date(course.startDate).toLocaleDateString()}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-gray-600 uppercase tracking-wide">Students Enrolled</p>
-                                  <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                                    <Users className="h-3 w-3" />
-                                    {course.students}
-                                  </p>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            ))}
+                    )}
+                  </div>
+                </TabsContent>
+              );
+            })}
           </Tabs>
         )}
       </div>

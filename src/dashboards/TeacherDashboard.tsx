@@ -22,6 +22,7 @@ import {
   type TeacherAnalytics,
   type Enrollment
 } from '@/services/analyticsService';
+import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
 
 /**
  * TeacherDashboard Component
@@ -38,6 +39,7 @@ export default function TeacherDashboard() {
   const { userData, currentUser } = useAuth();
   const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
   const [recentEnrollments, setRecentEnrollments] = useState<Enrollment[]>([]);
+  const [myCourses, setMyCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Real-time data subscription
@@ -51,7 +53,6 @@ export default function TeacherDashboard() {
       currentUser.uid,
       (data) => {
         setAnalytics(data);
-        setLoading(false);
       }
     );
 
@@ -63,18 +64,21 @@ export default function TeacherDashboard() {
       }
     );
 
+    // Subscribe to teacher courses
+    const unsubscribeCourses = subscribeToTeacherCourses(
+      currentUser.uid,
+      (data) => {
+        setMyCourses(data);
+        setLoading(false);
+      }
+    );
+
     return () => {
       unsubscribeAnalytics();
       unsubscribeEnrollments();
+      unsubscribeCourses();
     };
   }, [currentUser?.uid]);
-
-  // Mock courses data (until we implement courses subscription)
-  const myCourses = [
-    { id: 1, title: 'Advanced Mathematics', students: analytics?.totalStudents || 0, revenue: analytics?.totalEarnings || 0, status: 'active' },
-    { id: 2, title: 'Physics Fundamentals', students: Math.floor((analytics?.totalStudents || 0) / 2), revenue: Math.floor((analytics?.totalEarnings || 0) / 2), status: 'active' },
-    { id: 3, title: 'Algebra Basics', students: Math.floor((analytics?.totalStudents || 0) / 3), revenue: Math.floor((analytics?.totalEarnings || 0) / 3), status: 'draft' },
-  ];
 
   const announcements = [
     { id: 1, title: 'New Course Guidelines', sender: 'Platform Admin', date: new Date().toISOString().split('T')[0] },
@@ -101,7 +105,7 @@ export default function TeacherDashboard() {
             <p className="text-gray-600 dark:text-gray-400">Manage your courses and students</p>
           </div>
           <Button 
-            onClick={() => navigate('/teacher/courses')}
+            onClick={() => navigate('/teacher/courses/create')}
             className="bg-black dark:bg-white text-white dark:text-black"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -215,32 +219,46 @@ export default function TeacherDashboard() {
 
         {/* My Courses Section */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="w-5 h-5" />
               My Courses
             </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => navigate('/teacher/courses')}>
+              View All
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {myCourses.map((course) => (
-                <div 
-                  key={course.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/teacher/courses/${course.id}`)}
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{course.title}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {course.students} students • ${course.revenue.toLocaleString()} revenue
-                    </p>
+            {myCourses.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">You haven't created any courses yet</p>
+                <Button onClick={() => navigate('/teacher/courses/create')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Course
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myCourses.slice(0, 5).map((course) => (
+                  <div 
+                    key={course.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/teacher/courses`)}
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{course.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {course.enrolledStudents?.length || 0} students 
+                        {course.price > 0 && ` • $${course.price}`}
+                      </p>
+                    </div>
+                    <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
+                      {course.status}
+                    </Badge>
                   </div>
-                  <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
-                    {course.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -257,7 +275,7 @@ export default function TeacherDashboard() {
               {recentEnrollments.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">No recent enrollments</p>
               ) : (
-                recentEnrollments.map((enrollment) => (
+                recentEnrollments.slice(0, 5).map((enrollment) => (
                   <div 
                     key={enrollment.id}
                     className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
@@ -265,7 +283,7 @@ export default function TeacherDashboard() {
                     <div className="flex-1">
                       <h3 className="font-semibold">{enrollment.studentName}</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {enrollment.courseName} • {enrollment.progress}% complete
+                        {enrollment.courseName} 
                       </p>
                     </div>
                     <CheckCircle className="w-5 h-5 text-green-600" />
