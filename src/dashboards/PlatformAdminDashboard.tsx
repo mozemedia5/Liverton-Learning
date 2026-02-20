@@ -123,8 +123,28 @@ export default function PlatformAdminDashboard() {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'Unknown';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString();
+    
+    try {
+      // Handle Firebase Timestamp
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate().toLocaleDateString();
+      }
+      
+      // Handle objects that look like Timestamps
+      if (typeof timestamp === 'object' && 'seconds' in timestamp) {
+        return new Date(timestamp.seconds * 1000).toLocaleDateString();
+      }
+      
+      // Handle Date objects or strings/numbers
+      const date = new Date(timestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString();
+      }
+    } catch (e) {
+      console.error('Error formatting date:', e);
+    }
+    
+    return 'Invalid Date';
   };
 
   const getRoleDisplayName = (role: string) => {
@@ -288,31 +308,22 @@ export default function PlatformAdminDashboard() {
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All</Button>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="text-center py-4 text-gray-500">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                  Loading...
-                </div>
-              ) : pendingTeachers.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  No pending teacher verifications
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingTeachers.slice(0, 5).map((teacher) => (
+              <div className="space-y-4">
+                {pendingTeachers.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No pending teacher verifications</p>
+                ) : (
+                  pendingTeachers.map((teacher) => (
                     <div key={teacher.uid} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{teacher.fullName}</p>
                         <p className="text-sm text-gray-500">{teacher.email}</p>
-                        <p className="text-xs text-gray-400">
-                          {teacher.subjectsTaught?.join(', ') || 'No subjects listed'} • Applied {formatDate(teacher.createdAt)}
-                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Applied: {formatDate(teacher.createdAt)}</p>
                       </div>
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="text-green-600"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
                           onClick={() => handleVerifyUser(teacher.uid)}
                           disabled={actionLoading === teacher.uid}
                         >
@@ -325,17 +336,21 @@ export default function PlatformAdminDashboard() {
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="text-red-600"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleRejectUser(teacher.uid)}
                           disabled={actionLoading === teacher.uid}
                         >
-                          <XCircle className="w-4 h-4" />
+                          {actionLoading === teacher.uid ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -351,31 +366,22 @@ export default function PlatformAdminDashboard() {
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All</Button>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="text-center py-4 text-gray-500">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                  Loading...
-                </div>
-              ) : pendingSchools.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  No pending school applications
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingSchools.slice(0, 5).map((school) => (
+              <div className="space-y-4">
+                {pendingSchools.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No pending school applications</p>
+                ) : (
+                  pendingSchools.map((school) => (
                     <div key={school.uid} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{school.schoolName || school.fullName}</p>
-                        <p className="text-sm text-gray-500">{school.email}</p>
-                        <p className="text-xs text-gray-400">
-                          {school.country || 'Unknown'} • {school.schoolType || 'School'} • Applied {formatDate(school.createdAt)}
-                        </p>
+                        <p className="text-sm text-gray-500">{school.country} • {school.schoolType}</p>
+                        <p className="text-xs text-gray-400 mt-1">Applied: {formatDate(school.createdAt)}</p>
                       </div>
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="text-green-600"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
                           onClick={() => handleVerifyUser(school.uid)}
                           disabled={actionLoading === school.uid}
                         >
@@ -388,72 +394,72 @@ export default function PlatformAdminDashboard() {
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="text-red-600"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleRejectUser(school.uid)}
                           disabled={actionLoading === school.uid}
                         >
-                          <XCircle className="w-4 h-4" />
+                          {actionLoading === school.uid ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Recent Registrations */}
+          {/* Recent Users */}
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Recent User Registrations</CardTitle>
+              <CardTitle className="text-lg">Recent Platform Signups</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>View All Users</Button>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="text-center py-4 text-gray-500">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                  Loading...
-                </div>
-              ) : recentUsers.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  No recent registrations
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-800 dark:text-gray-400">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-800 dark:text-gray-400">
+                    <tr>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Country</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Joined</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentUsers.length === 0 ? (
                       <tr>
-                        <th className="px-4 py-3">Name</th>
-                        <th className="px-4 py-3">Email</th>
-                        <th className="px-4 py-3">Role</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Date</th>
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No users found</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {recentUsers.slice(0, 10).map((user) => (
-                        <tr key={user.uid} className="border-b dark:border-gray-700">
-                          <td className="px-4 py-3 font-medium">{user.fullName}</td>
-                          <td className="px-4 py-3">{user.email}</td>
+                    ) : (
+                      recentUsers.map((user) => (
+                        <tr key={user.uid} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/50">
                           <td className="px-4 py-3">
-                            <Badge variant="outline">
-                              {getRoleDisplayName(user.role)}
-                            </Badge>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{user.fullName}</span>
+                              <span className="text-xs text-gray-500">{user.email}</span>
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                              {user.status || 'active'}
+                            <Badge variant="outline">{getRoleDisplayName(user.role)}</Badge>
+                          </td>
+                          <td className="px-4 py-3">{user.country}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
+                              {user.status}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3 text-gray-500">
-                            {formatDate(user.createdAt)}
-                          </td>
+                          <td className="px-4 py-3 text-gray-500">{formatDate(user.createdAt)}</td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </div>

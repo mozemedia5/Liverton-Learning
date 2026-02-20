@@ -28,8 +28,8 @@ export interface FirestoreUser {
   phone?: string;
   address?: string;
   bio?: string;
-  createdAt?: Timestamp | Date;
-  updatedAt?: Timestamp | Date;
+  createdAt?: Timestamp | Date | string | any;
+  updatedAt?: Timestamp | Date | string | any;
   status?: 'active' | 'suspended' | 'pending';
   isVerified?: boolean;
   schoolName?: string;
@@ -62,12 +62,34 @@ export interface DashboardStats {
   recentUsers: FirestoreUser[];
 }
 
-const convertTimestamp = (timestamp: Timestamp | Date | undefined): Date => {
-  if (!timestamp) return new Date();
+/**
+ * Safely convert various date formats to a Date object
+ */
+const convertTimestamp = (timestamp: any): Date => {
+  if (!timestamp) return new Date(0); // Return epoch for missing dates to sort them last
+  
+  // Handle Firebase Timestamp
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate();
   }
-  return timestamp;
+  
+  // Handle objects that look like Timestamps but aren't instances (common in some environments)
+  if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+    return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  }
+
+  // Handle Date objects
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+
+  // Handle strings or numbers
+  const date = new Date(timestamp);
+  if (!isNaN(date.getTime())) {
+    return date;
+  }
+
+  return new Date(0);
 };
 
 const convertDocToUser = (doc: QueryDocumentSnapshot<DocumentData>): FirestoreUser => {
@@ -330,7 +352,6 @@ export const verifyUser = async (userId: string): Promise<void> => {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       isVerified: true,
-      status: 'active',
       updatedAt: new Date(),
     });
     console.log(`[Firebase] User ${userId} verified successfully`);
@@ -348,7 +369,8 @@ export const verifyUser = async (userId: string): Promise<void> => {
 export const deleteUser = async (userId: string): Promise<void> => {
   try {
     console.log(`[Firebase] Deleting user ${userId}`);
-    await deleteDoc(doc(db, 'users', userId));
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
     console.log(`[Firebase] User ${userId} deleted successfully`);
   } catch (error: any) {
     console.error('[Firebase] Error deleting user:', error);
@@ -356,102 +378,4 @@ export const deleteUser = async (userId: string): Promise<void> => {
     console.error('[Firebase] Error message:', error.message);
     throw error;
   }
-};
-
-/**
- * Search users
- */
-export const searchUsers = async (searchTerm: string): Promise<FirestoreUser[]> => {
-  try {
-    console.log(`[Firebase] Searching users with term: ${searchTerm}`);
-    const usersCollection = collection(db, 'users');
-    const snapshot = await getDocs(usersCollection);
-    
-    const users = snapshot.docs.map(convertDocToUser);
-    const term = searchTerm.toLowerCase();
-    
-    const filtered = users.filter(user => 
-      user.fullName.toLowerCase().includes(term) ||
-      user.email.toLowerCase().includes(term)
-    );
-    
-    console.log(`[Firebase] Found ${filtered.length} matching users`);
-    return filtered;
-  } catch (error: any) {
-    console.error('[Firebase] Error searching users:', error);
-    console.error('[Firebase] Error code:', error.code);
-    console.error('[Firebase] Error message:', error.message);
-    throw error;
-  }
-};
-
-/**
- * Get recent registrations
- */
-export const getRecentRegistrations = async (limit_count: number = 10): Promise<FirestoreUser[]> => {
-  try {
-    console.log(`[Firebase] Fetching recent ${limit_count} registrations`);
-    const usersCollection = collection(db, 'users');
-    const snapshot = await getDocs(usersCollection);
-    
-    const users = snapshot.docs.map(convertDocToUser);
-    
-    const sorted = users.sort((a, b) => {
-      const dateA = convertTimestamp(a.createdAt).getTime();
-      const dateB = convertTimestamp(b.createdAt).getTime();
-      return dateB - dateA;
-    });
-    
-    console.log(`[Firebase] Returning ${Math.min(sorted.length, limit_count)} recent users`);
-    return sorted.slice(0, limit_count);
-  } catch (error: any) {
-    console.error('[Firebase] Error fetching recent registrations:', error);
-    console.error('[Firebase] Error code:', error.code);
-    console.error('[Firebase] Error message:', error.message);
-    throw error;
-  }
-};
-
-export const formatUserForDisplay = (user: FirestoreUser) => {
-  return {
-    id: user.uid,
-    email: user.email,
-    name: user.fullName,
-    role: user.role,
-    status: user.status || 'active',
-    joinDate: convertTimestamp(user.createdAt).toISOString().split('T')[0],
-    isVerified: user.isVerified || false,
-    country: user.country,
-    schoolName: user.schoolName,
-  };
-};
-
-export const getRoleDisplayName = (role: UserRole): string => {
-  const roleNames: Record<UserRole, string> = {
-    student: 'Student',
-    teacher: 'Teacher',
-    school_admin: 'School Admin',
-    parent: 'Parent',
-    platform_admin: 'Platform Admin',
-  };
-  return roleNames[role] || role;
-};
-
-export const getRoleBadgeColor = (role: UserRole): string => {
-  const colors: Record<UserRole, string> = {
-    student: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    teacher: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    school_admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    parent: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-    platform_admin: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  };
-  return colors[role] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-};
-
-export const getStatusBadgeColor = (status: string): string => {
-  return status === 'active'
-    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-    : status === 'suspended'
-    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
 };
