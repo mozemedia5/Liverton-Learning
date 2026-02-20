@@ -6,10 +6,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -31,8 +31,7 @@ import {
   FileText,
   Music,
   FileSpreadsheet,
-  Presentation,
-  HelpCircle
+  Presentation
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -54,7 +53,7 @@ import {
 
 export default function TeacherCourses() {
   const navigate = useNavigate();
-  const { userRole, currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,9 +81,7 @@ export default function TeacherCourses() {
     return matchesSearch && matchesStatus;
   });
 
-  const activeCourses = filteredCourses.filter(c => c.status === 'active');
-  const draftCourses = filteredCourses.filter(c => c.status === 'draft');
-  const archivedCourses = filteredCourses.filter(c => c.status === 'archived');
+
 
   const handleDeleteCourse = async () => {
     if (!courseToDelete) return;

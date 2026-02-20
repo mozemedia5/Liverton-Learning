@@ -42,7 +42,6 @@ import {
   Plus,
   Trash2,
   CheckCircle,
-  AlertCircle,
   Loader2,
   HelpCircle
 } from 'lucide-react';
