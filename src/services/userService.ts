@@ -64,31 +64,74 @@ export interface DashboardStats {
 
 /**
  * Safely convert various date formats to a Date object
+ * Uses duck typing instead of instanceof for better compatibility with Firestore data
  */
 const convertTimestamp = (timestamp: any): Date => {
-  if (!timestamp) return new Date(0); // Return epoch for missing dates to sort them last
-  
-  // Handle Firebase Timestamp
-  if (timestamp instanceof Timestamp) {
-    return timestamp.toDate();
+  // Return epoch date for null/undefined
+  if (timestamp === null || timestamp === undefined) {
+    return new Date(0);
   }
   
-  // Handle objects that look like Timestamps but aren't instances (common in some environments)
-  if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
-    return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  }
-
-  // Handle Date objects
+  // If it's already a Date, validate it
   if (timestamp instanceof Date) {
-    return timestamp;
+    if (!isNaN(timestamp.getTime())) {
+      return timestamp;
+    }
+    return new Date(0);
+  }
+  
+  // Handle Firebase Timestamp - check for toDate method (duck typing)
+  if (typeof timestamp === 'object' && timestamp !== null) {
+    // Check if it has a callable toDate method
+    if (typeof timestamp.toDate === 'function') {
+      try {
+        const date = timestamp.toDate();
+        if (date instanceof Date && typeof date.getTime === 'function' && !isNaN(date.getTime())) {
+          return date;
+        }
+      } catch (e) {
+        console.warn('Error converting timestamp with toDate():', e);
+      }
+    }
+    
+    // Handle objects that look like Timestamps with seconds/nanoseconds
+    if (typeof timestamp.seconds === 'number') {
+      try {
+        const date = new Date(timestamp.seconds * 1000);
+        if (typeof date.getTime === 'function' && !isNaN(date.getTime())) {
+          return date;
+        }
+      } catch (e) {
+        console.warn('Error converting timestamp with seconds:', e);
+      }
+    }
+    
+    // Handle _seconds field (some Firebase SDK versions)
+    if (typeof timestamp._seconds === 'number') {
+      try {
+        const date = new Date(timestamp._seconds * 1000);
+        if (typeof date.getTime === 'function' && !isNaN(date.getTime())) {
+          return date;
+        }
+      } catch (e) {
+        console.warn('Error converting timestamp with _seconds:', e);
+      }
+    }
   }
 
-  // Handle strings or numbers
-  const date = new Date(timestamp);
-  if (!isNaN(date.getTime())) {
-    return date;
+  // Handle strings or numbers - wrap in try-catch for safety
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    try {
+      const date = new Date(timestamp);
+      if (typeof date.getTime === 'function' && !isNaN(date.getTime())) {
+        return date;
+      }
+    } catch (e) {
+      console.warn('Error parsing timestamp:', e);
+    }
   }
 
+  // Default fallback - always return a valid Date
   return new Date(0);
 };
 
@@ -378,4 +421,58 @@ export const deleteUser = async (userId: string): Promise<void> => {
     console.error('[Firebase] Error message:', error.message);
     throw error;
   }
+};
+
+/**
+ * Format a FirestoreUser for display in the UI
+ */
+export const formatUserForDisplay = (user: FirestoreUser) => {
+  return {
+    id: user.uid,
+    email: user.email,
+    name: user.fullName || user.name || 'Unknown',
+    role: user.role,
+    status: user.status || 'active',
+    joinDate: formatDateForDisplay(user.createdAt),
+    isVerified: user.isVerified || false,
+    country: user.country,
+    schoolName: user.schoolName,
+  };
+};
+
+/**
+ * Helper to format date for display
+ */
+const formatDateForDisplay = (timestamp: any): string => {
+  const date = convertTimestamp(timestamp);
+  if (date.getTime() === 0) {
+    return 'Unknown';
+  }
+  return date.toLocaleDateString();
+};
+
+/**
+ * Get badge color class for a user role
+ */
+export const getRoleBadgeColor = (role: UserRole): string => {
+  const colors: Record<string, string> = {
+    student: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+    teacher: 'bg-green-100 text-green-800 hover:bg-green-100',
+    school_admin: 'bg-purple-100 text-purple-800 hover:bg-purple-100',
+    parent: 'bg-orange-100 text-orange-800 hover:bg-orange-100',
+    platform_admin: 'bg-red-100 text-red-800 hover:bg-red-100',
+  };
+  return colors[role] || 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+};
+
+/**
+ * Get badge color class for a user status
+ */
+export const getStatusBadgeColor = (status: string): string => {
+  const colors: Record<string, string> = {
+    active: 'bg-green-100 text-green-800 hover:bg-green-100',
+    suspended: 'bg-red-100 text-red-800 hover:bg-red-100',
+    pending: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+  };
+  return colors[status] || 'bg-gray-100 text-gray-800 hover:bg-gray-100';
 };
