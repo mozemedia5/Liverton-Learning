@@ -2,51 +2,79 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Allow authenticated users to read and write their own user data
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-      allow read: if request.auth != null;
+    // Helper function to check if user is platform admin
+    function isPlatformAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'platform_admin';
     }
     
-    // Hanna AI Chat Sessions - Allow authenticated users to create and manage their own sessions
+    // Helper function to check if user is school admin
+    function isSchoolAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'school_admin';
+    }
+    
+    // Users collection - Platform admins can read all, others can only read their own
+    match /users/{userId} {
+      // Platform admins can read and write any user
+      allow read, write: if isPlatformAdmin();
+      
+      // Users can read and write their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow create during registration
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Hanna AI Chat Sessions
     match /hannaChats/{chatId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // Messages subcollection - Allow authenticated users to read/write messages in their chats
       match /messages/{messageId} {
         allow read, write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/hannaChats/$(chatId)).data.userId;
         allow create: if request.auth != null;
       }
     }
     
-    // Regular Chat Sessions - User can access their own chats
+    // Regular Chat Sessions
     match /chats/{chatId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // Messages subcollection
       match /messages/{messageId} {
         allow read, write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.userId;
         allow create: if request.auth != null;
       }
     }
     
-    // Public Data - Anyone can read, but only admins can write
+    // Public Data
     match /public_data/{document=**} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.admin == true;
     }
     
-    // Announcements - Read by all authenticated users
+    // Announcements
     match /announcements/{announcementId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.token.admin == true;
     }
     
-    // Default deny all other access
+    // Documents - allow authenticated users
+    match /documents/{documentId} {
+      allow read, write: if request.auth != null;
+      allow create: if request.auth != null;
+    }
+    
+    // Courses - allow authenticated users to read
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (isPlatformAdmin() || isSchoolAdmin());
+    }
+    
+    // Default allow authenticated users to read/write their own data
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
     }
   }
 }
