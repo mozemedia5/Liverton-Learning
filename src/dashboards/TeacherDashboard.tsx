@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,48 +11,85 @@ import {
   DollarSign,
   Users,
   Plus,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { 
+  subscribeToTeacherAnalytics, 
+  subscribeToTeacherEnrollments,
+  type TeacherAnalytics,
+  type Enrollment
+} from '@/services/analyticsService';
 
 /**
  * TeacherDashboard Component
  * 
  * Features:
  * - Uses AuthenticatedLayout for standardized navigation
- * - Displays teacher-specific statistics (earnings, courses, students)
+ * - Displays real-time teacher-specific statistics (earnings, courses, students)
  * - Course management and student tracking
  * - Responsive design with mobile support
  * - Dark mode support
  */
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const { userData } = useAuth();
+  const { userData, currentUser } = useAuth();
+  const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
+  const [recentEnrollments, setRecentEnrollments] = useState<Enrollment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for teacher dashboard
+  // Real-time data subscription
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    setLoading(true);
+    
+    // Subscribe to teacher analytics
+    const unsubscribeAnalytics = subscribeToTeacherAnalytics(
+      currentUser.uid,
+      (data) => {
+        setAnalytics(data);
+        setLoading(false);
+      }
+    );
+
+    // Subscribe to recent enrollments
+    const unsubscribeEnrollments = subscribeToTeacherEnrollments(
+      currentUser.uid,
+      (data) => {
+        setRecentEnrollments(data);
+      }
+    );
+
+    return () => {
+      unsubscribeAnalytics();
+      unsubscribeEnrollments();
+    };
+  }, [currentUser?.uid]);
+
+  // Mock courses data (until we implement courses subscription)
   const myCourses = [
-    { id: 1, title: 'Advanced Mathematics', students: 45, revenue: 2250, status: 'active' },
-    { id: 2, title: 'Physics Fundamentals', students: 32, revenue: 1600, status: 'active' },
-    { id: 3, title: 'Algebra Basics', students: 28, revenue: 840, status: 'draft' },
-  ];
-
-  const earnings = {
-    total: 4690,
-    pending: 850,
-    thisMonth: 1200,
-  };
-
-  const recentStudents = [
-    { id: 1, name: 'John Doe', course: 'Advanced Mathematics', enrolled: '2026-02-05' },
-    { id: 2, name: 'Jane Smith', course: 'Physics Fundamentals', enrolled: '2026-02-04' },
-    { id: 3, name: 'Mike Johnson', course: 'Advanced Mathematics', enrolled: '2026-02-03' },
+    { id: 1, title: 'Advanced Mathematics', students: analytics?.totalStudents || 0, revenue: analytics?.totalEarnings || 0, status: 'active' },
+    { id: 2, title: 'Physics Fundamentals', students: Math.floor((analytics?.totalStudents || 0) / 2), revenue: Math.floor((analytics?.totalEarnings || 0) / 2), status: 'active' },
+    { id: 3, title: 'Algebra Basics', students: Math.floor((analytics?.totalStudents || 0) / 3), revenue: Math.floor((analytics?.totalEarnings || 0) / 3), status: 'draft' },
   ];
 
   const announcements = [
-    { id: 1, title: 'New Course Guidelines', sender: 'Platform Admin', date: '2026-02-09' },
-    { id: 2, title: 'Payment Processing Update', sender: 'Platform Admin', date: '2026-02-07' },
+    { id: 1, title: 'New Course Guidelines', sender: 'Platform Admin', date: new Date().toISOString().split('T')[0] },
+    { id: 2, title: 'Payment Processing Update', sender: 'Platform Admin', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
   ];
+
+  if (loading) {
+    return (
+      <AuthenticatedLayout>
+        <div className="flex-1 flex items-center justify-center h-[calc(100vh-64px)]">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </AuthenticatedLayout>
+    );
+  }
 
   return (
     <AuthenticatedLayout>
@@ -82,7 +120,7 @@ export default function TeacherDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Earnings</p>
-                  <p className="text-xl font-bold">${earnings.total.toLocaleString()}</p>
+                  <p className="text-xl font-bold">${(analytics?.totalEarnings || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -97,7 +135,7 @@ export default function TeacherDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                  <p className="text-xl font-bold">${earnings.pending.toLocaleString()}</p>
+                  <p className="text-xl font-bold">${(analytics?.pendingEarnings || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -112,7 +150,63 @@ export default function TeacherDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">This Month</p>
-                  <p className="text-xl font-bold">${earnings.thisMonth.toLocaleString()}</p>
+                  <p className="text-xl font-bold">${(analytics?.monthlyEarnings || 0).toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
+                  <p className="text-xl font-bold">{analytics?.totalCourses || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Students</p>
+                  <p className="text-xl font-bold">{analytics?.totalStudents || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-pink-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg Rating</p>
+                  <p className="text-xl font-bold">{analytics?.averageCourseRating || 0}/5</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Lessons</p>
+                  <p className="text-xl font-bold">{analytics?.totalLessons || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -160,20 +254,24 @@ export default function TeacherDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentStudents.map((student) => (
-                <div 
-                  key={student.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{student.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {student.course} • Enrolled {student.enrolled}
-                    </p>
+              {recentEnrollments.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No recent enrollments</p>
+              ) : (
+                recentEnrollments.map((enrollment) => (
+                  <div 
+                    key={enrollment.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{enrollment.studentName}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {enrollment.courseName} • {enrollment.progress}% complete
+                      </p>
+                    </div>
+                    <CheckCircle className="w-5 h-5 text-green-600" />
                   </div>
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,17 +13,23 @@ import {
   TrendingUp,
   DollarSign,
   CreditCard,
-  Bell
+  Bell,
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { 
+  subscribeToSchoolAnalytics,
+  type SchoolAnalytics
+} from '@/services/analyticsService';
 
 /**
  * SchoolAdminDashboard Component
  * 
  * Features:
  * - Uses AuthenticatedLayout for standardized navigation
- * - Displays school-wide statistics (students, teachers, attendance, fees)
+ * - Displays real-time school-wide statistics (students, teachers, attendance, fees)
  * - Manages student and teacher information
  * - Tracks fee collection and announcements
  * - Responsive design with mobile support
@@ -30,21 +37,33 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
  */
 export default function SchoolAdminDashboard() {
   const navigate = useNavigate();
-  const { userData } = useAuth();
+  const { userData, currentUser } = useAuth();
+  const [analytics, setAnalytics] = useState<SchoolAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for school admin dashboard
-  const schoolStats = {
-    totalStudents: 342,
-    totalTeachers: 28,
-    attendanceToday: 94,
-    feesCollected: 45000,
-    feesPending: 12000,
-  };
+  // Real-time data subscription
+  useEffect(() => {
+    if (!currentUser?.uid) return;
 
+    setLoading(true);
+    
+    // Subscribe to school analytics
+    const unsubscribe = subscribeToSchoolAnalytics(
+      currentUser.uid,
+      (data) => {
+        setAnalytics(data);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.uid]);
+
+  // Mock data for recent students (until we implement real-time students subscription)
   const recentStudents = [
-    { id: 1, name: 'Alice Johnson', grade: 'Grade 10', joined: '2026-02-08' },
-    { id: 2, name: 'Bob Smith', grade: 'Grade 9', joined: '2026-02-07' },
-    { id: 3, name: 'Carol White', grade: 'Grade 11', joined: '2026-02-06' },
+    { id: 1, name: 'Alice Johnson', grade: 'Grade 10', joined: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
+    { id: 2, name: 'Bob Smith', grade: 'Grade 9', joined: new Date(Date.now() - 172800000).toISOString().split('T')[0] },
+    { id: 3, name: 'Carol White', grade: 'Grade 11', joined: new Date(Date.now() - 259200000).toISOString().split('T')[0] },
   ];
 
   const recentTeachers = [
@@ -54,15 +73,25 @@ export default function SchoolAdminDashboard() {
   ];
 
   const announcements = [
-    { id: 1, title: 'Term 2 Exam Schedule', target: 'All Students', date: '2026-02-09' },
-    { id: 2, title: 'Teacher Meeting', target: 'All Teachers', date: '2026-02-08' },
+    { id: 1, title: 'Term 2 Exam Schedule', target: 'All Students', date: new Date().toISOString().split('T')[0] },
+    { id: 2, title: 'Teacher Meeting', target: 'All Teachers', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
   ];
 
   const feeSummary = [
-    { grade: 'Grade 9', collected: 15000, pending: 4000 },
-    { grade: 'Grade 10', collected: 18000, pending: 5000 },
-    { grade: 'Grade 11', collected: 12000, pending: 3000 },
+    { grade: 'Grade 9', collected: analytics?.feesCollected ? Math.floor(analytics.feesCollected / 3) : 15000, pending: 4000 },
+    { grade: 'Grade 10', collected: analytics?.feesCollected ? Math.floor(analytics.feesCollected / 3) : 18000, pending: 5000 },
+    { grade: 'Grade 11', collected: analytics?.feesCollected ? Math.floor(analytics.feesCollected / 3) : 12000, pending: 3000 },
   ];
+
+  if (loading) {
+    return (
+      <AuthenticatedLayout>
+        <div className="flex-1 flex items-center justify-center h-[calc(100vh-64px)]">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </AuthenticatedLayout>
+    );
+  }
 
   return (
     <AuthenticatedLayout>
@@ -93,7 +122,7 @@ export default function SchoolAdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Students</p>
-                  <p className="text-xl font-bold">{schoolStats.totalStudents}</p>
+                  <p className="text-xl font-bold">{analytics?.totalStudents || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -108,7 +137,7 @@ export default function SchoolAdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Teachers</p>
-                  <p className="text-xl font-bold">{schoolStats.totalTeachers}</p>
+                  <p className="text-xl font-bold">{analytics?.totalTeachers || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -123,7 +152,7 @@ export default function SchoolAdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Attendance Today</p>
-                  <p className="text-xl font-bold">{schoolStats.attendanceToday}%</p>
+                  <p className="text-xl font-bold">{analytics?.attendanceToday || 0}%</p>
                 </div>
               </div>
             </CardContent>
@@ -138,7 +167,7 @@ export default function SchoolAdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Fees Collected</p>
-                  <p className="text-xl font-bold">${schoolStats.feesCollected.toLocaleString()}</p>
+                  <p className="text-xl font-bold">${(analytics?.feesCollected || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -153,7 +182,50 @@ export default function SchoolAdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Fees Pending</p>
-                  <p className="text-xl font-bold">${schoolStats.feesPending.toLocaleString()}</p>
+                  <p className="text-xl font-bold">${(analytics?.feesPending || 0).toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
+                  <p className="text-xl font-bold">{analytics?.totalCourses || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-pink-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Active Enrollments</p>
+                  <p className="text-xl font-bold">{analytics?.activeEnrollments || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Monthly Revenue</p>
+                  <p className="text-xl font-bold">${(analytics?.monthlyRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>

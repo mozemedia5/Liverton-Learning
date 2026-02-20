@@ -1,9 +1,9 @@
 /**
  * Parent Dashboard
- * Main dashboard for parents to view overview of children's education
+ * Main dashboard for parents to view real-time overview of children's education
  * Features:
  * - Quick stats (children, courses, performance)
- * - Recent activity
+ * - Real-time activity feed
  * - Upcoming events
  * - Quick links to other sections
  */
@@ -13,86 +13,71 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
+import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap } from 'lucide-react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { getLinkedStudents } from '@/lib/parentService';
+import { 
+  subscribeToParentAnalytics,
+  subscribeToChildrenActivities,
+  type ParentAnalytics,
+  type Activity
+} from '@/services/analyticsService';
 import type { LinkedStudent } from '@/lib/parentService';
 
 /**
- * Activity interface for type safety
- */
-interface Activity {
-  id: string;
-  type: 'assignment' | 'grade' | 'announcement' | 'event';
-  title: string;
-  description: string;
-  timestamp: string;
-  studentName: string;
-}
-
-/**
  * Parent Dashboard Component
- * Main overview page for parents
+ * Main overview page for parents with real-time data
  */
 export default function ParentDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
+  const [analytics, setAnalytics] = useState<ParentAnalytics | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
   /**
-   * Mock activity data - replace with actual API call
-   */
-  const mockActivities: Activity[] = [
-    {
-      id: '1',
-      type: 'grade',
-      title: 'Math Quiz Score',
-      description: 'Scored 92% on Chapter 5 Quiz',
-      timestamp: '2024-02-13',
-      studentName: 'John Doe',
-    },
-    {
-      id: '2',
-      type: 'assignment',
-      title: 'English Essay Due',
-      description: 'Essay on Shakespeare due tomorrow',
-      timestamp: '2024-02-14',
-      studentName: 'John Doe',
-    },
-    {
-      id: '3',
-      type: 'announcement',
-      title: 'School Event',
-      description: 'Science Fair on February 20th',
-      timestamp: '2024-02-12',
-      studentName: 'Jane Doe',
-    },
-  ];
-
-  /**
-   * Load linked students on component mount
+   * Load linked students and subscribe to real-time data
    */
   useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    setLoading(true);
+
+    // Load linked students
+    const loadStudents = async () => {
+      try {
+        const students = await getLinkedStudents(currentUser.uid);
+        setLinkedStudents(students);
+      } catch (error) {
+        console.error('Error loading students:', error);
+      }
+    };
+
     loadStudents();
-  }, [currentUser]);
 
-  /**
-   * Load linked students from Firebase
-   */
-  const loadStudents = async () => {
-    if (!currentUser) return;
+    // Subscribe to parent analytics
+    const unsubscribeAnalytics = subscribeToParentAnalytics(
+      currentUser.uid,
+      (data) => {
+        setAnalytics(data);
+        setLoading(false);
+      }
+    );
 
-    try {
-      setLoading(true);
-      const students = await getLinkedStudents(currentUser.uid);
-      setLinkedStudents(students);
-    } catch (error) {
-      console.error('Error loading students:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Subscribe to children activities
+    const unsubscribeActivities = subscribeToChildrenActivities(
+      currentUser.uid,
+      (data) => {
+        setActivities(data);
+      }
+    );
+
+    return () => {
+      unsubscribeAnalytics();
+      unsubscribeActivities();
+    };
+  }, [currentUser?.uid]);
 
   /**
    * Get activity icon based on type
@@ -107,6 +92,8 @@ export default function ParentDashboard() {
         return <Calendar className="h-4 w-4 text-purple-600" />;
       case 'announcement':
         return <AlertCircle className="h-4 w-4 text-orange-600" />;
+      case 'attendance':
+        return <GraduationCap className="h-4 w-4 text-teal-600" />;
       default:
         return null;
     }
@@ -127,12 +114,12 @@ export default function ParentDashboard() {
       <div className="p-4 md:p-8 lg:ml-0">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">Parent Dashboard</h1>
           <p className="text-gray-600 mt-1">Welcome back! Here's an overview of your children's education</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Children Count */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -140,7 +127,7 @@ export default function ParentDashboard() {
               <Users className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{linkedStudents.length}</div>
+              <div className="text-2xl font-bold">{analytics?.childrenCount || linkedStudents.length || 0}</div>
               <p className="text-xs text-gray-600 mt-1">Linked to your account</p>
             </CardContent>
           </Card>
@@ -152,9 +139,7 @@ export default function ParentDashboard() {
               <BookOpen className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {linkedStudents.length > 0 ? linkedStudents.length * 3 : 0}
-              </div>
+              <div className="text-2xl font-bold">{analytics?.totalCourses || 0}</div>
               <p className="text-xs text-gray-600 mt-1">Across all children</p>
             </CardContent>
           </Card>
@@ -166,8 +151,59 @@ export default function ParentDashboard() {
               <TrendingUp className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">85%</div>
+              <div className="text-2xl font-bold">{analytics?.averageScore || 0}%</div>
               <p className="text-xs text-gray-600 mt-1">Overall average</p>
+            </CardContent>
+          </Card>
+
+          {/* Attendance */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+              <GraduationCap className="h-4 w-4 text-teal-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analytics?.attendanceRate || 0}%</div>
+              <p className="text-xs text-gray-600 mt-1">Average across children</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Pending Assignments */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Assignments</CardTitle>
+              <BookOpen className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analytics?.pendingAssignments || 0}</div>
+              <p className="text-xs text-gray-600 mt-1">Due soon</p>
+            </CardContent>
+          </Card>
+
+          {/* Fees Due */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Fees Due</CardTitle>
+              <DollarSign className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${(analytics?.feesDue || 0).toLocaleString()}</div>
+              <p className="text-xs text-gray-600 mt-1">Total pending</p>
+            </CardContent>
+          </Card>
+
+          {/* Fees Paid */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Fees Paid</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${(analytics?.feesPaid || 0).toLocaleString()}</div>
+              <p className="text-xs text-gray-600 mt-1">This academic year</p>
             </CardContent>
           </Card>
         </div>
@@ -182,10 +218,10 @@ export default function ParentDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockActivities.length === 0 ? (
+                  {activities.length === 0 ? (
                     <p className="text-gray-600 text-center py-8">No recent activity</p>
                   ) : (
-                    mockActivities.map(activity => (
+                    activities.map(activity => (
                       <div key={activity.id} className="flex gap-4 pb-4 border-b last:border-b-0">
                         <div className="flex-shrink-0">
                           {getActivityIcon(activity.type)}
@@ -194,7 +230,7 @@ export default function ParentDashboard() {
                           <p className="text-sm font-medium text-gray-900">{activity.title}</p>
                           <p className="text-sm text-gray-600">{activity.description}</p>
                           <p className="text-xs text-gray-500 mt-1">
-                            {activity.studentName} • {new Date(activity.timestamp).toLocaleDateString()}
+                            {activity.childName} • {new Date(activity.timestamp).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -206,7 +242,7 @@ export default function ParentDashboard() {
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Quick Links</CardTitle>
@@ -225,9 +261,35 @@ export default function ParentDashboard() {
                   Courses
                 </Button>
                 <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/fees')}>
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <DollarSign className="h-4 w-4 mr-2" />
                   Fees & Payments
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Linked Children */}
+            <Card>
+              <CardHeader>
+                <CardTitle>My Children</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {linkedStudents.length === 0 ? (
+                    <p className="text-gray-600 text-center py-4">No children linked yet</p>
+                  ) : (
+                    linkedStudents.map(student => (
+                      <div key={student.studentId} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                          <Users className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{student.studentName}</p>
+                          <p className="text-xs text-gray-500">{student.relationship}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

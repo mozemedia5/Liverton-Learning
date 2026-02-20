@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,17 +9,24 @@ import {
   TrendingUp,
   Calendar,
   Award,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { 
+  subscribeToStudentAnalytics, 
+  subscribeToStudentAssignments,
+  type StudentAnalytics,
+  type Assignment
+} from '@/services/analyticsService';
 
 /**
  * StudentDashboard Component
  * 
  * Features:
  * - Uses AuthenticatedLayout for standardized navigation with Hanna AI integration
- * - Displays student-specific statistics (courses, progress, grades)
+ * - Displays real-time student-specific statistics (courses, progress, grades)
  * - Course enrollment and progress tracking
  * - Responsive design with mobile support
  * - Dark mode support
@@ -26,38 +34,70 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
  */
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const { userData } = useAuth();
+  const { userData, currentUser } = useAuth();
+  const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for student dashboard
+  // Real-time data subscription
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    setLoading(true);
+    
+    // Subscribe to student analytics
+    const unsubscribeAnalytics = subscribeToStudentAnalytics(
+      currentUser.uid,
+      (data) => {
+        setAnalytics(data);
+        setLoading(false);
+      }
+    );
+
+    // Subscribe to assignments
+    const unsubscribeAssignments = subscribeToStudentAssignments(
+      currentUser.uid,
+      (data) => {
+        setAssignments(data);
+      }
+    );
+
+    return () => {
+      unsubscribeAnalytics();
+      unsubscribeAssignments();
+    };
+  }, [currentUser?.uid]);
+
+  // Filter assignments
+  const upcomingAssignments = assignments.filter(a => 
+    a.status === 'pending' || a.status === 'submitted'
+  ).slice(0, 3);
+
+  const recentGrades = assignments.filter(a => 
+    a.status === 'graded'
+  ).slice(0, 3);
+
+  // Mock data for courses (until we implement courses subscription)
   const enrolledCourses = [
-    { id: 1, title: 'Advanced Mathematics', instructor: 'Mr. Smith', progress: 75, status: 'active' },
-    { id: 2, title: 'Physics Fundamentals', instructor: 'Ms. Johnson', progress: 60, status: 'active' },
-    { id: 3, title: 'English Literature', instructor: 'Mr. Brown', progress: 85, status: 'active' },
-  ];
-
-  const studentStats = {
-    totalCourses: 3,
-    averageGrade: 'A-',
-    attendanceRate: 92,
-    completedAssignments: 24,
-  };
-
-  const upcomingAssignments = [
-    { id: 1, title: 'Math Problem Set 5', course: 'Advanced Mathematics', dueDate: '2026-02-15', status: 'pending' },
-    { id: 2, title: 'Physics Lab Report', course: 'Physics Fundamentals', dueDate: '2026-02-18', status: 'pending' },
-    { id: 3, title: 'Essay on Shakespeare', course: 'English Literature', dueDate: '2026-02-20', status: 'pending' },
-  ];
-
-  const recentGrades = [
-    { id: 1, assignment: 'Algebra Quiz', course: 'Advanced Mathematics', grade: 'A', date: '2026-02-08' },
-    { id: 2, assignment: 'Physics Midterm', course: 'Physics Fundamentals', grade: 'B+', date: '2026-02-07' },
-    { id: 3, assignment: 'Reading Assignment', course: 'English Literature', grade: 'A-', date: '2026-02-06' },
+    { id: 1, title: 'Advanced Mathematics', instructor: 'Mr. Smith', progress: analytics?.averageScore || 75, status: 'active' },
+    { id: 2, title: 'Physics Fundamentals', instructor: 'Ms. Johnson', progress: Math.max((analytics?.averageScore || 75) - 10, 0), status: 'active' },
+    { id: 3, title: 'English Literature', instructor: 'Mr. Brown', progress: Math.min((analytics?.averageScore || 75) + 10, 100), status: 'active' },
   ];
 
   const announcements = [
-    { id: 1, title: 'New Course Materials Available', course: 'Advanced Mathematics', date: '2026-02-09' },
-    { id: 2, title: 'Exam Schedule Released', course: 'Physics Fundamentals', date: '2026-02-08' },
+    { id: 1, title: 'New Course Materials Available', course: 'Advanced Mathematics', date: new Date().toISOString().split('T')[0] },
+    { id: 2, title: 'Exam Schedule Released', course: 'Physics Fundamentals', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
   ];
+
+  if (loading) {
+    return (
+      <AuthenticatedLayout>
+        <div className="flex-1 flex items-center justify-center h-[calc(100vh-64px)]">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </AuthenticatedLayout>
+    );
+  }
 
   return (
     <AuthenticatedLayout>
@@ -87,7 +127,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
-                  <p className="text-xl font-bold">{studentStats.totalCourses}</p>
+                  <p className="text-xl font-bold">{analytics?.totalCourses || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -102,7 +142,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Average Grade</p>
-                  <p className="text-xl font-bold">{studentStats.averageGrade}</p>
+                  <p className="text-xl font-bold">{analytics?.averageGrade || 'N/A'}</p>
                 </div>
               </div>
             </CardContent>
@@ -117,7 +157,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Attendance</p>
-                  <p className="text-xl font-bold">{studentStats.attendanceRate}%</p>
+                  <p className="text-xl font-bold">{analytics?.attendanceRate || 0}%</p>
                 </div>
               </div>
             </CardContent>
@@ -131,8 +171,8 @@ export default function StudentDashboard() {
                   <TrendingUp className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Assignments Done</p>
-                  <p className="text-xl font-bold">{studentStats.completedAssignments}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+                  <p className="text-xl font-bold">{analytics?.completedAssignments || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -160,6 +200,12 @@ export default function StudentDashboard() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {course.instructor} • {course.progress}% complete
                     </p>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${course.progress}%` }}
+                      />
+                    </div>
                   </div>
                   <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
                     {course.status}
@@ -180,22 +226,26 @@ export default function StudentDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {upcomingAssignments.map((assignment) => (
-                <div 
-                  key={assignment.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{assignment.title}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {assignment.course} • Due {assignment.dueDate}
-                    </p>
+              {upcomingAssignments.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No upcoming assignments</p>
+              ) : (
+                upcomingAssignments.map((assignment) => (
+                  <div 
+                    key={assignment.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{assignment.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {assignment.courseName} • Due {new Date(assignment.dueDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge variant={assignment.status === 'pending' ? 'secondary' : 'default'}>
+                      {assignment.status}
+                    </Badge>
                   </div>
-                  <Badge variant={assignment.status === 'pending' ? 'secondary' : 'default'}>
-                    {assignment.status}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -210,20 +260,29 @@ export default function StudentDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentGrades.map((grade) => (
-                <div 
-                  key={grade.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{grade.assignment}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {grade.course} • {grade.date}
-                    </p>
+              {recentGrades.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No grades yet</p>
+              ) : (
+                recentGrades.map((grade) => (
+                  <div 
+                    key={grade.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{grade.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {grade.courseName}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-bold text-green-600">{grade.grade}</span>
+                      {grade.score && grade.maxScore && (
+                        <p className="text-xs text-gray-500">{grade.score}/{grade.maxScore}</p>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-lg font-bold text-green-600">{grade.grade}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
