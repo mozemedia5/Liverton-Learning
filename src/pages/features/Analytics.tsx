@@ -21,7 +21,6 @@ import {
   LineChart
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import type { UserRole } from '@/types';
 import {
   subscribeToStudentAnalytics,
   subscribeToTeacherAnalytics,
@@ -38,7 +37,6 @@ import {
 // Role-based analytics component
 export default function Analytics() {
   const { userRole, currentUser } = useAuth();
-  const [loading, setLoading] = useState(true);
 
   if (!userRole || !currentUser) {
     return (
