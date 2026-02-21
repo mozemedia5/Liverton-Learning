@@ -71,11 +71,14 @@ const SUBJECTS = [
 ];
 
 const GRADES = [
-  'Kindergarten',
-  'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5',
-  'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9',
-  'Grade 10', 'Grade 11', 'Grade 12',
-  'University'
+  'Senior 1',
+  'Senior 2',
+  'Senior 3',
+  'Senior 4',
+  'Senior 5',
+  'Senior 6',
+  'University',
+  'Other'
 ];
 
 interface UploadedFile {
@@ -94,8 +97,11 @@ export default function CreateCourse() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [subject, setSubject] = useState('');
+  const [subjectOther, setSubjectOther] = useState('');
   const [grade, setGrade] = useState('');
+  const [gradeOther, setGradeOther] = useState('');
   const [price, setPrice] = useState('');
+  const [currency, setCurrency] = useState('USD');
   const [maxStudents, setMaxStudents] = useState('');
 
   // Materials state
@@ -114,6 +120,13 @@ export default function CreateCourse() {
   // Submit state
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+  const CURRENCIES = [
+    { code: 'USD', symbol: '$', label: 'US Dollar' },
+    { code: 'UGX', symbol: 'USh', label: 'Ugandan Shilling' },
+    { code: 'KES', symbol: 'KSh', label: 'Kenyan Shilling' },
+    { code: 'TZS', symbol: 'TSh', label: 'Tanzanian Shilling' },
+    { code: 'RWF', symbol: 'FRw', label: 'Rwandan Franc' }
+  ];
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -278,6 +291,18 @@ export default function CreateCourse() {
       return;
     }
 
+    if (subject === 'Other' && !subjectOther.trim()) {
+      toast.error('Please specify the other subject');
+      setActiveTab('details');
+      return;
+    }
+
+    if (grade === 'Other' && !gradeOther.trim()) {
+      toast.error('Please specify the other grade/class');
+      setActiveTab('details');
+      return;
+    }
+
     if (!currentUser?.uid) {
       toast.error('You must be logged in to create a course');
       return;
@@ -287,15 +312,19 @@ export default function CreateCourse() {
 
     try {
       // Create course
+      const finalSubject = subject === 'Other' ? subjectOther.trim() : subject;
+      const finalGrade = grade === 'Other' ? gradeOther.trim() : (grade || undefined);
+      
       const courseId = await createCourse(
         currentUser.uid,
         userData?.fullName || 'Unknown Teacher',
         {
           title: title.trim(),
           description: description.trim(),
-          subject,
-          grade: grade || undefined,
+          subject: finalSubject,
+          grade: finalGrade,
           price: parseFloat(price) || 0,
+          currency,
           status: 'active',
           maxStudents: maxStudents ? parseInt(maxStudents) : undefined,
           lessons: uploadedFiles.length
@@ -452,7 +481,7 @@ export default function CreateCourse() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="grade">Grade Level</Label>
+                    <Label htmlFor="grade">Grade/Class Level</Label>
                     <Select value={grade} onValueChange={setGrade}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select grade (optional)" />
@@ -466,9 +495,49 @@ export default function CreateCourse() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {grade === 'Other' && (
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price ($)</Label>
+                    <Label htmlFor="gradeOther">Please specify the grade/class</Label>
+                    <Input
+                      id="gradeOther"
+                      placeholder="e.g., Form 1, Diploma, Certificate"
+                      value={gradeOther}
+                      onChange={(e) => setGradeOther(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {subject === 'Other' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subjectOther">Please specify the subject</Label>
+                    <Input
+                      id="subjectOther"
+                      placeholder="e.g., Environmental Science, Digital Marketing"
+                      value={subjectOther}
+                      onChange={(e) => setSubjectOther(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select value={currency} onValueChange={setCurrency}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map(c => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.label} ({c.symbol})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price ({CURRENCIES.find(c => c.code === currency)?.symbol})</Label>
                     <Input
                       id="price"
                       type="number"

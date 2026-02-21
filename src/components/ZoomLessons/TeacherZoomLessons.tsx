@@ -298,7 +298,7 @@ export default function TeacherZoomLessons() {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="e.g., Advanced JavaScript Fundamentals"
+                  placeholder="e.g., Introduction to Biology"
                   required
                 />
               </div>

@@ -185,7 +185,7 @@ export default function TeacherCourses() {
             {course.status}
           </Badge>
           <p className="text-lg font-bold">
-            {course.price > 0 ? `$${course.price}` : 'Free'}
+            {course.price > 0 ? `${course.currency || 'USD'} ${course.price}` : 'Free'}
           </p>
         </div>
       </CardContent>

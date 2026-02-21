@@ -66,6 +66,7 @@ export interface Course {
   subject: string;
   grade?: string;
   price: number;
+  currency?: string;
   status: 'draft' | 'active' | 'archived';
   materials: CourseMaterial[];
   enrolledStudents: string[];
