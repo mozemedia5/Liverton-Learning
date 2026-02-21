@@ -66,12 +66,28 @@ export default function TeacherCourses() {
     if (!currentUser?.uid) return;
 
     setLoading(true);
-    const unsubscribe = subscribeToTeacherCourses(currentUser.uid, (data) => {
-      setCourses(data);
-      setLoading(false);
-    });
+    let unsubscribe: (() => void) | undefined;
 
-    return () => unsubscribe();
+    try {
+      unsubscribe = subscribeToTeacherCourses(currentUser.uid, (data) => {
+        setCourses(data);
+        setLoading(false);
+      });
+    } catch (error) {
+      console.error('Error subscribing to courses:', error);
+      toast.error('Failed to load courses');
+      setLoading(false);
+    }
+
+    // Fallback timeout
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      clearTimeout(timeout);
+    };
   }, [currentUser?.uid]);
 
   const filteredCourses = courses.filter(course => {

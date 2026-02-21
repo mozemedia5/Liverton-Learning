@@ -208,7 +208,7 @@ export function subscribeToStudentAssignments(
   const assignmentsQuery = query(
     collection(db, 'assignments'),
     where('studentId', '==', studentId),
-    orderBy('dueDate', 'desc'),
+
     limit(10)
   );
   
@@ -319,7 +319,7 @@ export function subscribeToTeacherEnrollments(
   const enrollmentsQuery = query(
     collection(db, 'enrollments'),
     where('teacherId', '==', teacherId),
-    orderBy('enrolledAt', 'desc'),
+
     limit(10)
   );
   

@@ -273,7 +273,7 @@ export function subscribeToTeacherCourses(
   const q = query(
     collection(db, 'courses'),
     where('teacherId', '==', teacherId),
-    orderBy('createdAt', 'desc')
+
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -300,7 +300,7 @@ export function subscribeToStudentCourses(
   const q = query(
     collection(db, 'courses'),
     where('enrolledStudents', 'array-contains', studentId),
-    orderBy('createdAt', 'desc')
+
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -326,7 +326,7 @@ export function subscribeToAllCourses(
   const q = query(
     collection(db, 'courses'),
     where('status', '==', 'active'),
-    orderBy('createdAt', 'desc')
+
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -486,7 +486,7 @@ export async function getCourseQuizzes(courseId: string): Promise<Quiz[]> {
   const q = query(
     collection(db, 'quizzes'),
     where('courseId', '==', courseId),
-    orderBy('createdAt', 'desc')
+
   );
 
   const snapshot = await getDocs(q);
@@ -510,7 +510,7 @@ export function subscribeToCourseQuizzes(
   const q = query(
     collection(db, 'quizzes'),
     where('courseId', '==', courseId),
-    orderBy('createdAt', 'desc')
+
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -537,7 +537,7 @@ export async function getTeacherCourses(teacherId: string): Promise<Course[]> {
   const q = query(
     collection(db, 'courses'),
     where('teacherId', '==', teacherId),
-    orderBy('createdAt', 'desc')
+
   );
 
   const snapshot = await getDocs(q);
@@ -559,7 +559,7 @@ export async function getStudentCourses(studentId: string): Promise<Course[]> {
   const q = query(
     collection(db, 'courses'),
     where('enrolledStudents', 'array-contains', studentId),
-    orderBy('createdAt', 'desc')
+
   );
 
   const snapshot = await getDocs(q);
@@ -581,7 +581,7 @@ export async function getAllCourses(): Promise<Course[]> {
   const q = query(
     collection(db, 'courses'),
     where('status', '==', 'active'),
-    orderBy('createdAt', 'desc')
+
   );
 
   const snapshot = await getDocs(q);
