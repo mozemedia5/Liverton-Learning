@@ -277,29 +277,35 @@ export function subscribeToTeacherAnalytics(
     where('teacherId', '==', teacherId)
   );
   
-  return onSnapshot(coursesQuery, async (snapshot) => {
+  return onSnapshot(coursesQuery, (snapshot) => {
     const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
     
-    // Get enrollments for all courses
+    // Calculate analytics from course data
     let totalStudents = 0;
     let totalRevenue = 0;
+    let totalLessons = 0;
+    let completedLessons = 0;
     
     for (const course of courses) {
       totalRevenue += course.revenue || 0;
-      totalStudents += course.studentCount || 0;
+      totalStudents += (course.enrolledStudents?.length || 0);
+      totalLessons += (course.lessons || 0);
+      completedLessons += (course.completedLessons || 0);
     }
     
     callback({
       totalCourses: courses.length,
       totalStudents,
-      activeStudents: totalStudents, // Simplified
+      activeStudents: totalStudents,
       totalEarnings: totalRevenue,
       monthlyEarnings: Math.round(totalRevenue / 12),
       pendingEarnings: Math.round(totalRevenue * 0.1),
       averageCourseRating: calculateAverageRating(courses),
-      totalLessons: courses.reduce((sum, c) => sum + (c.lessonCount || 0), 0),
-      completedLessons: courses.reduce((sum, c) => sum + (c.completedLessons || 0), 0),
+      totalLessons,
+      completedLessons,
     });
+  }, (error) => {
+    console.error('[Analytics] Error fetching teacher analytics:', error);
   });
 }
 

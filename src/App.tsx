@@ -48,6 +48,7 @@ import PublicDocument from '@/pages/features/PublicDocument';
 // Teacher Pages
 import TeacherCourses from '@/pages/teacher/TeacherCourses';
 import CreateCourse from '@/pages/teacher/CreateCourse';
+import TeacherStudents from '@/pages/teacher/TeacherStudents';
 
 // New Global Features
 import DocumentManagement from '@/pages/features/DocumentManagement';
@@ -248,6 +249,11 @@ function AppRoutes() {
       <Route path="/teacher/courses" element={
         <ProtectedRoute allowedRoles={['teacher']}>
           <AuthenticatedLayout><TeacherCourses /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/students" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <TeacherStudents />
         </ProtectedRoute>
       } />
       <Route path="/teacher/courses/create" element={

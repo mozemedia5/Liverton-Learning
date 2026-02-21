@@ -47,12 +47,18 @@ export default function TeacherDashboard() {
     if (!currentUser?.uid) return;
 
     setLoading(true);
+    let loadedCount = 0;
+    const totalSubscriptions = 3;
     
     // Subscribe to teacher analytics
     const unsubscribeAnalytics = subscribeToTeacherAnalytics(
       currentUser.uid,
       (data) => {
         setAnalytics(data);
+        loadedCount++;
+        if (loadedCount === totalSubscriptions) {
+          setLoading(false);
+        }
       }
     );
 
@@ -61,6 +67,10 @@ export default function TeacherDashboard() {
       currentUser.uid,
       (data) => {
         setRecentEnrollments(data);
+        loadedCount++;
+        if (loadedCount === totalSubscriptions) {
+          setLoading(false);
+        }
       }
     );
 
@@ -69,11 +79,20 @@ export default function TeacherDashboard() {
       currentUser.uid,
       (data) => {
         setMyCourses(data);
-        setLoading(false);
+        loadedCount++;
+        if (loadedCount === totalSubscriptions) {
+          setLoading(false);
+        }
       }
     );
 
+    // Set a timeout to stop loading after 5 seconds even if data hasn't arrived
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     return () => {
+      clearTimeout(timeout);
       unsubscribeAnalytics();
       unsubscribeEnrollments();
       unsubscribeCourses();
