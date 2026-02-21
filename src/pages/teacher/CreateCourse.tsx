@@ -326,7 +326,7 @@ export default function CreateCourse() {
           price: parseFloat(price) || 0,
           currency,
           status: 'active',
-          maxStudents: maxStudents ? parseInt(maxStudents) : undefined,
+          ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
           lessons: uploadedFiles.length
         }
       );
