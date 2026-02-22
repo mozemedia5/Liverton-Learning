@@ -144,8 +144,8 @@ export default function SideNavbar() {
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Documents', path: '/features/document-workspace', icon: FileText, hasSubmenu: true },
-    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles, roles: ['student', 'teacher', 'school_admin', 'parent', 'platform_admin'] },
-    { label: 'Calculator', path: '/features/calculator', icon: Calculator, roles: ['student', 'teacher', 'school_admin', 'parent', 'platform_admin'] },
+    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
+    { label: 'Calculator', path: '/features/calculator', icon: Calculator },
     { label: 'Analytics', path: '/features/analytics', icon: BarChart3, roles: ['student', 'teacher', 'school_admin', 'parent'] },
   ];
 

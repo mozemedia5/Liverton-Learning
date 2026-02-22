@@ -251,7 +251,7 @@ export default function PlatformAdminDashboard() {
         </div>
 
         {/* Quick Access Tools */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card 
             className="hover:shadow-md transition-shadow cursor-pointer border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/10"
             onClick={() => navigate('/features/hanna-ai')}
@@ -263,8 +263,8 @@ export default function PlatformAdminDashboard() {
                     <Sparkles className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="font-semibold">Hanna AI Assistant</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Platform-wide insights & support</p>
+                    <p className="font-semibold">Hanna AI</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">AI Assistant</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">Open</Button>
@@ -284,7 +284,47 @@ export default function PlatformAdminDashboard() {
                   </div>
                   <div>
                     <p className="font-semibold">Calculator</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Basic & scientific calculations</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Math tools</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm">Open</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-md transition-shadow cursor-pointer border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/10"
+            onClick={() => navigate('/chat')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Chat</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Communication</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm">Open</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-md transition-shadow cursor-pointer border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-900/10"
+            onClick={() => navigate('/announcements')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                    <Bell className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Announcements</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Latest updates</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">Open</Button>

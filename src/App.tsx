@@ -304,12 +304,12 @@ function AppRoutes() {
 
       {/* Shared Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/announcements" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/chat" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Chat /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
