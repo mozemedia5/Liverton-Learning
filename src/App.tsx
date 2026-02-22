@@ -319,12 +319,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/profile" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Profile /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/settings" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Settings /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
