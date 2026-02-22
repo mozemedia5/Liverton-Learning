@@ -11,7 +11,9 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Loader2
+  Loader2,
+  Calculator,
+  Sparkles
 } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import { 
@@ -239,6 +241,49 @@ export default function PlatformAdminDashboard() {
                     ${stats.totalRevenue.toLocaleString()}
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Access Tools */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card 
+            className="hover:shadow-md transition-shadow cursor-pointer border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/10"
+            onClick={() => navigate('/features/hanna-ai')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Hanna AI Assistant</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Platform-wide insights & support</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm">Open</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-md transition-shadow cursor-pointer border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-900/10"
+            onClick={() => navigate('/features/calculator')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                    <Calculator className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Calculator</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Basic & scientific calculations</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm">Open</Button>
               </div>
             </CardContent>
           </Card>

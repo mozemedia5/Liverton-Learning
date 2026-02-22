@@ -362,7 +362,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/features/calculator" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Calculator /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
@@ -372,7 +372,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/features/hanna-ai" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><HannaAI /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
