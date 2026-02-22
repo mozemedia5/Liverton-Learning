@@ -12,6 +12,10 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
+  Bell,
+  MessageSquare,
+  Plus,
+  ArrowRight,
   Calculator,
   Sparkles
 } from 'lucide-react';
@@ -335,9 +339,102 @@ export default function PlatformAdminDashboard() {
                   {stats.pendingVerifications} user{stats.pendingVerifications !== 1 ? 's' : ''} pending verification
                 </span>
               </div>
+              <Button 
+                variant="link" 
+                className="mt-2 p-0 h-auto text-yellow-700 dark:text-yellow-300"
+                onClick={() => navigate('/admin/users')}
+              >
+                Review pending users
+              </Button>
             </CardContent>
           </Card>
         )}
+
+        {/* Quick Access: Announcements & Chat */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Announcements Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="space-y-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-blue-600" />
+                  Announcements
+                </CardTitle>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => navigate('/announcements')}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+                  <div className="flex justify-between items-start mb-1">
+                    <Badge variant="outline" className="text-[10px]">System</Badge>
+                    <span className="text-[10px] text-gray-500">Today</span>
+                  </div>
+                  <h4 className="text-sm font-semibold">Platform Maintenance</h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">Scheduled maintenance on Feb 25th...</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-sm justify-between"
+                  onClick={() => navigate('/announcements')}
+                >
+                  View all announcements
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Chat Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="space-y-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-green-600" />
+                  Recent Chats
+                </CardTitle>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => navigate('/chat')}
+              >
+                Open Chat
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer" onClick={() => navigate('/chat')}>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                    H
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium truncate">Hanna AI</p>
+                      <span className="text-[10px] text-gray-500">Now</span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">How can I help you today?</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-sm justify-between"
+                  onClick={() => navigate('/chat')}
+                >
+                  Go to messages
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Lists Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
