@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,9 +15,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { getAnnouncements, type Announcement } from '@/services/announcementService';
+import { type Announcement } from '@/services/announcementService';
 import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { showAnnouncementNotification, areNotificationsEnabled, requestNotificationPermission } from '@/services/notificationService';
 
 const categories = ['All', 'General', 'Academic', 'Financial', 'Events', 'System', 'Urgent'];
 const priorities = ['All', 'High', 'Normal', 'Low'];
@@ -29,6 +30,14 @@ export default function Announcements() {
   const [selectedPriority, setSelectedPriority] = useState('All');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const previousAnnouncementsRef = useRef<string[]>([]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const isInitialLoadRef = useRef(true);
+
+  useEffect(() => {
+    // Check notification permission on mount
+    setNotificationsEnabled(areNotificationsEnabled());
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -45,17 +54,38 @@ export default function Announcements() {
       });
 
       // Filter in memory based on role
+      let filteredData = data;
       if (userRole && userRole !== 'platform_admin') {
-        const filtered = data.filter(a => 
+        filteredData = data.filter(a => 
           a.targetAudience.includes('all') || 
           a.targetAudience.includes(userRole + 's') || 
           a.senderRole === userRole
         );
-        setAnnouncements(filtered);
-      } else {
-        setAnnouncements(data);
       }
+
+      // Check for new announcements and show notifications (skip on initial load)
+      if (!isInitialLoadRef.current && previousAnnouncementsRef.current.length > 0) {
+        const newAnnouncements = filteredData.filter(
+          a => a.id && !previousAnnouncementsRef.current.includes(a.id)
+        );
+
+        // Show notifications for new announcements
+        newAnnouncements.forEach(announcement => {
+          if (areNotificationsEnabled()) {
+            showAnnouncementNotification(
+              announcement.title,
+              announcement.message,
+              announcement.id || ''
+            );
+          }
+        });
+      }
+
+      // Update the reference for next comparison
+      previousAnnouncementsRef.current = filteredData.map(a => a.id || '').filter(id => id !== '');
+      setAnnouncements(filteredData);
       setLoading(false);
+      isInitialLoadRef.current = false;
     }, (error) => {
       console.error('Error listening to announcements:', error);
       toast.error('Failed to load announcements');
@@ -72,6 +102,16 @@ export default function Announcements() {
   });
 
   const canCreateAnnouncement = userRole === 'school_admin' || userRole === 'teacher' || userRole === 'platform_admin';
+
+  const handleEnableNotifications = async () => {
+    const enabled = await requestNotificationPermission();
+    if (enabled) {
+      setNotificationsEnabled(true);
+      toast.success('Notifications enabled! You will receive alerts for new announcements.');
+    } else {
+      toast.error('Failed to enable notifications. Please check your browser settings.');
+    }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -108,12 +148,24 @@ export default function Announcements() {
               <span className="font-semibold">Announcements</span>
             </div>
           </div>
-          {canCreateAnnouncement && (
-            <Button onClick={() => navigate('/announcements/create')}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Announcement
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!notificationsEnabled && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleEnableNotifications}
+              >
+                <Bell className="w-4 h-4 mr-2" />
+                Enable Notifications
+              </Button>
+            )}
+            {canCreateAnnouncement && (
+              <Button onClick={() => navigate('/announcements/create')}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Announcement
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
