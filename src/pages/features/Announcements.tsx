@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,82 +10,14 @@ import {
   Calendar,
   User,
   Plus,
-  Filter
+  Filter,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { getAnnouncements, type Announcement } from '@/services/announcementService';
 
-interface Announcement {
-  id: string;
-  title: string;
-  message: string;
-  sender: string;
-  senderRole: string;
-  targetAudience: string[];
-  category: string;
-  date: string;
-  priority: 'low' | 'normal' | 'high';
-}
-
-const mockAnnouncements: Announcement[] = [
-  {
-    id: '1',
-    title: 'Term 2 Examination Schedule',
-    message: 'The Term 2 examinations will begin on March 15th. Please ensure all students are prepared and have reviewed the examination guidelines.',
-    sender: 'Principal Williams',
-    senderRole: 'school_admin',
-    targetAudience: ['students', 'teachers', 'parents'],
-    category: 'Academic',
-    date: '2026-02-10',
-    priority: 'high',
-  },
-  {
-    id: '2',
-    title: 'New Course: Advanced Physics',
-    message: 'We are excited to announce a new Advanced Physics course starting next month. Enroll now to secure your spot!',
-    sender: 'Mr. Johnson',
-    senderRole: 'teacher',
-    targetAudience: ['students'],
-    category: 'Courses',
-    date: '2026-02-09',
-    priority: 'normal',
-  },
-  {
-    id: '3',
-    title: 'School Fee Payment Reminder',
-    message: 'This is a reminder that Term 2 school fees are due by February 28th. Please make payments through the portal.',
-    sender: 'Finance Office',
-    senderRole: 'school_admin',
-    targetAudience: ['students', 'parents'],
-    category: 'Finance',
-    date: '2026-02-08',
-    priority: 'high',
-  },
-  {
-    id: '4',
-    title: 'Teacher Training Workshop',
-    message: 'All teachers are invited to attend a professional development workshop on February 20th.',
-    sender: 'Ms. Davis',
-    senderRole: 'school_admin',
-    targetAudience: ['teachers'],
-    category: 'Professional Development',
-    date: '2026-02-07',
-    priority: 'normal',
-  },
-  {
-    id: '5',
-    title: 'Platform Maintenance Notice',
-    message: 'The platform will undergo maintenance on February 15th from 2 AM to 4 AM UTC. Some features may be unavailable.',
-    sender: 'Liverton Support',
-    senderRole: 'platform_admin',
-    targetAudience: ['students', 'teachers', 'school_admin', 'parents'],
-    category: 'System',
-    date: '2026-02-06',
-    priority: 'low',
-  },
-];
-
-const categories = ['All', 'Academic', 'Courses', 'Finance', 'System', 'Professional Development'];
+const categories = ['All', 'General', 'Academic', 'Financial', 'Events', 'System', 'Urgent'];
 const priorities = ['All', 'High', 'Normal', 'Low'];
 
 export default function Announcements() {
@@ -93,8 +25,27 @@ export default function Announcements() {
   const { userRole } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedPriority, setSelectedPriority] = useState('All');
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredAnnouncements = mockAnnouncements.filter(announcement => {
+  useEffect(() => {
+    loadAnnouncements();
+  }, [userRole]);
+
+  const loadAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const data = await getAnnouncements(userRole || undefined);
+      setAnnouncements(data);
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+      toast.error('Failed to load announcements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredAnnouncements = announcements.filter(announcement => {
     const matchesCategory = selectedCategory === 'All' || announcement.category === selectedCategory;
     const matchesPriority = selectedPriority === 'All' || announcement.priority === selectedPriority.toLowerCase();
     return matchesCategory && matchesPriority;
@@ -109,6 +60,16 @@ export default function Announcements() {
       case 'low': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
       default: return '';
     }
+  };
+
+  const formatDate = (date: any) => {
+    if (!date) return 'Unknown';
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   return (
@@ -128,7 +89,7 @@ export default function Announcements() {
             </div>
           </div>
           {canCreateAnnouncement && (
-            <Button onClick={() => toast.info('Create announcement feature coming soon!')}>
+            <Button onClick={() => navigate('/announcements/create')}>
               <Plus className="w-4 h-4 mr-2" />
               New Announcement
             </Button>
@@ -171,49 +132,54 @@ export default function Announcements() {
 
         {/* Announcements List */}
         <div className="space-y-4">
-          {filteredAnnouncements.map((announcement) => (
-            <Card key={announcement.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-lg">{announcement.title}</h3>
-                      <Badge className={getPriorityColor(announcement.priority)}>
-                        {announcement.priority}
-                      </Badge>
-                      <Badge variant="outline">{announcement.category}</Badge>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {announcement.message}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        {announcement.sender}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {announcement.date}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Bell className="w-4 h-4" />
-                        For: {announcement.targetAudience.join(', ')}
-                      </span>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-10 h-10 animate-spin text-gray-400 mb-4" />
+              <p className="text-gray-500">Loading announcements...</p>
+            </div>
+          ) : filteredAnnouncements.length === 0 ? (
+            <div className="text-center py-12">
+              <Bell className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold">No announcements found</h3>
+              <p className="text-gray-600 dark:text-gray-400">Try adjusting your filters or check back later</p>
+            </div>
+          ) : (
+            filteredAnnouncements.map((announcement) => (
+              <Card key={announcement.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-lg">{announcement.title}</h3>
+                        <Badge className={getPriorityColor(announcement.priority)}>
+                          {announcement.priority}
+                        </Badge>
+                        <Badge variant="outline">{announcement.category}</Badge>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                        {announcement.message}
+                      </p>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <User className="w-4 h-4" />
+                          {announcement.sender} ({announcement.senderRole.replace('_', ' ')})
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDate(announcement.createdAt)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Bell className="w-4 h-4" />
+                          For: {announcement.targetAudience.map(a => a.replace('_', ' ')).join(', ')}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-
-        {filteredAnnouncements.length === 0 && (
-          <div className="text-center py-12">
-            <Bell className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold">No announcements found</h3>
-            <p className="text-gray-600 dark:text-gray-400">Try adjusting your filters</p>
-          </div>
-        )}
       </main>
     </div>
   );

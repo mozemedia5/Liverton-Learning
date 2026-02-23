@@ -36,6 +36,7 @@ import ParentFees from '@/pages/ParentFees';
 // Feature Pages
 import Courses from '@/pages/features/Courses';
 import Announcements from '@/pages/features/Announcements';
+import CreateAnnouncement from '@/pages/features/CreateAnnouncement';
 import Chat from '@/pages/features/Chat';
 import Payments from '@/pages/features/Payments';
 import Profile from '@/pages/features/Profile';
@@ -306,6 +307,11 @@ function AppRoutes() {
       <Route path="/announcements" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/announcements/create" element={
+        <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
+          <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/chat" element={
