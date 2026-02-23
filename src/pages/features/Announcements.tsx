@@ -16,6 +16,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { getAnnouncements, type Announcement } from '@/services/announcementService';
+import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const categories = ['All', 'General', 'Academic', 'Financial', 'Events', 'System', 'Urgent'];
 const priorities = ['All', 'High', 'Normal', 'Low'];
@@ -29,21 +31,39 @@ export default function Announcements() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAnnouncements();
-  }, [userRole]);
+    setLoading(true);
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => {
+        const announcementData = doc.data();
+        return {
+          id: doc.id,
+          ...announcementData,
+          createdAt: announcementData.createdAt?.toDate() || new Date()
+        } as Announcement;
+      });
 
-  const loadAnnouncements = async () => {
-    try {
-      setLoading(true);
-      const data = await getAnnouncements(userRole || undefined);
-      setAnnouncements(data);
-    } catch (error) {
-      console.error('Error loading announcements:', error);
-      toast.error('Failed to load announcements');
-    } finally {
+      // Filter in memory based on role
+      if (userRole && userRole !== 'platform_admin') {
+        const filtered = data.filter(a => 
+          a.targetAudience.includes('all') || 
+          a.targetAudience.includes(userRole + 's') || 
+          a.senderRole === userRole
+        );
+        setAnnouncements(filtered);
+      } else {
+        setAnnouncements(data);
+      }
       setLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error('Error listening to announcements:', error);
+      toast.error('Failed to load announcements');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userRole]);
 
   const filteredAnnouncements = announcements.filter(announcement => {
     const matchesCategory = selectedCategory === 'All' || announcement.category === selectedCategory;
