@@ -5,7 +5,6 @@ import {
   getDocs, 
   orderBy, 
   Timestamp,
-  where,
   type DocumentData,
   type QueryDocumentSnapshot
 } from 'firebase/firestore';

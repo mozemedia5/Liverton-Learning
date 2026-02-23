@@ -8,8 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   ArrowLeft, 
   Send, 
-  CheckCircle2,
-  AlertCircle,
   Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
