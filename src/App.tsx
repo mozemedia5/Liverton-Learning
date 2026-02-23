@@ -36,7 +36,6 @@ import ParentFees from '@/pages/ParentFees';
 // Feature Pages
 import Courses from '@/pages/features/Courses';
 import Announcements from '@/pages/features/Announcements';
-import CreateAnnouncement from '@/pages/features/CreateAnnouncement';
 import Chat from '@/pages/features/Chat';
 import Payments from '@/pages/features/Payments';
 import Profile from '@/pages/features/Profile';
@@ -45,11 +44,6 @@ import Quizzes from '@/pages/features/Quizzes';
 import Documents from '@/pages/features/Documents';
 import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
-
-// Teacher Pages
-import TeacherCourses from '@/pages/teacher/TeacherCourses';
-import CreateCourse from '@/pages/teacher/CreateCourse';
-import TeacherStudents from '@/pages/teacher/TeacherStudents';
 
 // New Global Features
 import DocumentManagement from '@/pages/features/DocumentManagement';
@@ -248,18 +242,8 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/teacher/courses" element={
-        <ProtectedRoute allowedRoles={['teacher']}>
-          <AuthenticatedLayout><TeacherCourses /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher/students" element={
-        <ProtectedRoute allowedRoles={['teacher']}>
-          <TeacherStudents />
-        </ProtectedRoute>
-      } />
-      <Route path="/teacher/courses/create" element={
-        <ProtectedRoute allowedRoles={['teacher']}>
-          <CreateCourse />
+      <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><Courses /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
@@ -309,18 +293,13 @@ function AppRoutes() {
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      <Route path="/announcements/create" element={
-        <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
-          <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
       <Route path="/chat" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><Chat /></AuthenticatedLayout>
+          <Chat />
         </ProtectedRoute>
       } />
       <Route path="/payments" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin']}> 
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'platform_admin']}> 
           <AuthenticatedLayout><Payments /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
@@ -337,12 +316,12 @@ function AppRoutes() {
 
       {/* Document Routes - Protected, accessible to all authenticated users */}
       <Route path="/dashboard/documents" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Documents /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/dashboard/documents/:docId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><DocumentEditor /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
@@ -351,19 +330,19 @@ function AppRoutes() {
 
       {/* Document Workspace Routes - Microsoft Office 365 Style */}
       <Route path="/features/document-workspace" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><DocumentWorkspaceWrapper /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/editor/:type/:docId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <UnifiedDocumentEditor />
         </ProtectedRoute>
       } />
 
       {/* Global Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/features/document-management" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><DocumentManagement /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
@@ -373,7 +352,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/features/profile" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><ProfileSystem /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
@@ -383,7 +362,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/features/analytics" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Analytics /></AuthenticatedLayout>
         </ProtectedRoute>
       } />

@@ -1,17 +1,9 @@
-/**
- * Chat Component
- * Main chat interface supporting both user-to-user messaging and Hanna AI assistant
- * Features: Real-time messaging, chat history, Hanna AI integration
- */
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
-  BookOpen, 
-  ArrowLeft, 
   Search, 
   Send, 
   MoreVertical,
@@ -20,561 +12,476 @@ import {
   Paperclip,
   Smile,
   Zap,
+  Menu,
+  X,
+  Plus,
+  ArrowLeft,
+  Loader2,
+  UserPlus,
+  Settings,
+  Trash2,
+  Info
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, Timestamp, orderBy, limit, updateDoc, doc, onSnapshot } from 'firebase/firestore';
-
-interface ChatUser {
-  id: string;
-  name: string;
-  role: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unread: number;
-  online: boolean;
-  isHanna?: boolean;
-}
-
-interface Message {
-  id: string;
-  senderId: string;
-  content: string;
-  timestamp: string;
-  read: boolean;
-}
-
-interface HannaChatSession {
-  id: string;
-  userId: string;
-  title: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  messageCount?: number;
-}
-
-interface HannaMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Timestamp;
-}
-
-/**
- * Mock chat data - includes Hanna AI as a contact
- * Hanna is marked with isHanna flag for special handling
- */
-const mockChats: ChatUser[] = [
-  { 
-    id: 'hanna', 
-    name: 'Hanna AI', 
-    role: 'ai_assistant', 
-    lastMessage: 'Hi! I\'m here to help with your learning journey.', 
-    lastMessageTime: 'Now', 
-    unread: 0, 
-    online: true,
-    isHanna: true
-  },
-  { id: '1', name: 'Mr. Johnson', role: 'teacher', lastMessage: 'Don\'t forget about the quiz tomorrow!', lastMessageTime: '10:30 AM', unread: 2, online: true },
-  { id: '2', name: 'Alice Smith', role: 'student', lastMessage: 'Can you help me with question 5?', lastMessageTime: 'Yesterday', unread: 0, online: false },
-  { id: '3', name: 'School Admin', role: 'school_admin', lastMessage: 'Important announcement regarding exams', lastMessageTime: 'Yesterday', unread: 1, online: true },
-  { id: '4', name: 'Ms. Davis', role: 'teacher', lastMessage: 'Great work on your assignment!', lastMessageTime: '2 days ago', unread: 0, online: false },
-  { id: '5', name: 'Bob Wilson', role: 'student', lastMessage: 'Thanks for the help!', lastMessageTime: '3 days ago', unread: 0, online: true },
-];
-
-const mockMessages: Message[] = [
-  { id: '1', senderId: '1', content: 'Hello! How are you doing with the coursework?', timestamp: '10:15 AM', read: true },
-  { id: '2', senderId: 'me', content: 'I\'m doing well, thanks! Just reviewing for the quiz.', timestamp: '10:20 AM', read: true },
-  { id: '3', senderId: '1', content: 'Great! Don\'t forget about the quiz tomorrow!', timestamp: '10:30 AM', read: false },
-];
-
-/**
- * AI responses for Hanna - used when no real API is available
- * In production, these would be replaced with actual Gemini API calls
- */
-const AI_RESPONSES = [
-  "That's an interesting question! Let me help you with that.",
-  "I'd be happy to assist you. Here's what I think...",
-  "Great question! This is something many people wonder about.",
-  "Let me provide you with some insights on this topic.",
-  "That's a thoughtful inquiry. Consider this perspective...",
-  "Absolutely! This is an important concept to understand...",
-  "I appreciate your curiosity. Here's my analysis...",
-  "That's a complex topic, but I can break it down for you...",
-];
+import { 
+  listenToUserChats, 
+  listenToMessages, 
+  sendMessage, 
+  searchUsers, 
+  getOrCreateChat,
+  type ChatContact 
+} from '@/services/chatService';
+import type { Chat as ChatType, Message, UserRole } from '@/types';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 
 export default function Chat() {
-  const { currentUser } = useAuth();
-  const [selectedChat, setSelectedChat] = useState<ChatUser | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const { currentUser, userData } = useAuth();
+  const [chats, setChats] = useState<ChatType[]>([]);
+  const [selectedChat, setSelectedChat] = useState<ChatType | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [hannaSessions, setHannaSessions] = useState<HannaChatSession[]>([]);
-  const [currentHannaSession, setCurrentHannaSession] = useState<string | null>(null);
-  const [hannaMessages, setHannaMessages] = useState<HannaMessage[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatContact[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Get user initials for avatar fallback
-   * @param name - User's full name
-   * @returns Two-letter initials
-   */
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  // Scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  /**
-   * Filter chats based on search query
-   * Searches through chat names and last messages
-   */
-  const filteredChats = mockChats.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  /**
-   * Load Hanna chat sessions from Firestore
-   * Fetches all sessions for the current user
-   */
-  const loadHannaSessions = async () => {
-    if (!currentUser) return;
-    try {
-      const q = query(
-        collection(db, 'hannaChats'),
-        where('userId', '==', currentUser.uid),
-        orderBy('updatedAt', 'desc'),
-        limit(10)
-      );
-      const snapshot = await getDocs(q);
-      const sessions = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as HannaChatSession[];
-      setHannaSessions(sessions);
-      
-      // Auto-select first session if available
-      if (sessions.length > 0 && !currentHannaSession) {
-        setCurrentHannaSession(sessions[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading Hanna sessions:', error);
-      // Don't show error toast - this is expected if user hasn't used Hanna yet
-    }
-  };
-
-  /**
-   * Load messages for the current Hanna session
-   * Sets up real-time listener for message updates
-   */
-  const loadHannaMessages = (sessionId: string) => {
-    try {
-      const q = query(
-        collection(db, 'hannaChats', sessionId, 'messages'),
-        orderBy('timestamp', 'asc')
-      );
-
-      // Set up real-time listener for messages
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messages = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as HannaMessage[];
-        setHannaMessages(messages);
-      });
-
-      return unsubscribe;
-    } catch (error) {
-      console.error('Error loading Hanna messages:', error);
-      return undefined;
-    }
-  };
-
-  /**
-   * Send a message to Hanna AI
-   * Creates user message, generates AI response, saves both to Firestore
-   */
-  const handleSendHannaMessage = async () => {
-    if (!messageInput.trim() || !currentUser || !currentHannaSession) return;
-
-    const userMessageText = messageInput.trim();
-    setMessageInput('');
-    setLoading(true);
-
-    try {
-      // Save user message to Firestore
-      await addDoc(
-        collection(db, 'hannaChats', currentHannaSession, 'messages'),
-        {
-          role: 'user',
-          content: userMessageText,
-          timestamp: Timestamp.now(),
-        }
-      );
-
-      // Simulate AI response delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Generate AI response (placeholder - would call Gemini API in production)
-      const aiResponse = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
-
-      // Save AI response to Firestore
-      await addDoc(
-        collection(db, 'hannaChats', currentHannaSession, 'messages'),
-        {
-          role: 'assistant',
-          content: aiResponse,
-          timestamp: Timestamp.now(),
-        }
-      );
-
-      // Update session metadata
-      await updateDoc(doc(db, 'hannaChats', currentHannaSession), {
-        updatedAt: Timestamp.now(),
-        messageCount: hannaMessages.length + 2,
-      });
-
-      await loadHannaSessions();
-    } catch (error) {
-      console.error('Error sending Hanna message:', error);
-      toast.error('Failed to send message');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Send a regular message to another user
-   * In production, this would save to a messages collection
-   */
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedChat) return;
-
-    setMessageInput('');
-    setLoading(true);
-
-    try {
-      // In production, this would save to Firestore
-      // For now, just show a toast
-      toast.success('Message sent');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Load Hanna sessions on component mount
-   */
   useEffect(() => {
-    if (currentUser) {
-      loadHannaSessions();
-    }
+    scrollToBottom();
+  }, [messages]);
+
+  // Listen to user's chats
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const unsubscribe = listenToUserChats(currentUser.uid, (updatedChats) => {
+      setChats(updatedChats);
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
   }, [currentUser]);
 
-  /**
-   * Load messages when current Hanna session changes
-   */
+  // Listen to messages when a chat is selected
   useEffect(() => {
-    if (currentHannaSession) {
-      const unsubscribe = loadHannaMessages(currentHannaSession);
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
+    if (!selectedChat) {
+      setMessages([]);
+      return;
     }
-  }, [currentHannaSession]);
+    
+    const unsubscribe = listenToMessages(selectedChat.id, (updatedMessages) => {
+      setMessages(updatedMessages);
+    });
+    
+    return () => unsubscribe();
+  }, [selectedChat]);
 
-  /**
-   * Handle chat selection
-   * When Hanna is selected, load her session
-   * When regular user is selected, clear Hanna session
-   */
-  const handleSelectChat = (chat: ChatUser) => {
-    setSelectedChat(chat);
-    if (chat.isHanna) {
-      // Load or create Hanna session
-      if (hannaSessions.length > 0) {
-        setCurrentHannaSession(hannaSessions[0].id);
+  // Handle user search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchTerm.length >= 2 && currentUser) {
+        setIsSearching(true);
+        try {
+          const results = await searchUsers(searchTerm, currentUser.uid);
+          setSearchResults(results);
+        } catch (error) {
+          toast.error('Failed to search users');
+        } finally {
+          setIsSearching(false);
+        }
       } else {
-        // Create new session if none exists
-        createNewHannaSession();
+        setSearchResults([]);
       }
-    } else {
-      setCurrentHannaSession(null);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, currentUser]);
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!messageInput.trim() || !selectedChat || !currentUser) return;
+
+    const content = messageInput.trim();
+    setMessageInput('');
+    
+    try {
+      await sendMessage(
+        selectedChat.id, 
+        currentUser.uid, 
+        userData?.fullName || 'Me', 
+        content
+      );
+    } catch (error) {
+      toast.error('Failed to send message');
+      setMessageInput(content); // Restore input on failure
     }
   };
 
-  /**
-   * Create a new Hanna chat session
-   * Called when user starts chatting with Hanna for the first time
-   */
-  const createNewHannaSession = async () => {
-    if (!currentUser) return;
+  const handleStartChat = async (contact: ChatContact) => {
+    if (!currentUser || !userData) return;
+    
     try {
-      const docRef = await addDoc(collection(db, 'hannaChats'), {
-        userId: currentUser.uid,
-        title: 'New Chat',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        messageCount: 0,
-      });
-      setCurrentHannaSession(docRef.id);
-      await loadHannaSessions();
+      const chatId = await getOrCreateChat(
+        currentUser.uid, 
+        contact.uid, 
+        userData, 
+        contact
+      );
+      
+      // Find the chat in our list or wait for it to appear via listener
+      const chat = chats.find(c => c.id === chatId);
+      if (chat) {
+        setSelectedChat(chat);
+      } else {
+        // If it's a brand new chat, we might need to wait for the listener
+        // For now, let's just close search and wait
+        toast.success('Starting new chat...');
+      }
+      
+      setIsSearchOpen(false);
+      setSearchTerm('');
+      if (window.innerWidth < 1024) setIsSidebarOpen(false);
     } catch (error) {
-      console.error('Error creating Hanna session:', error);
-      toast.error('Failed to create chat session');
+      toast.error('Failed to start chat');
     }
   };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getOtherParticipantName = (chat: ChatType) => {
+    if (!currentUser) return 'Unknown';
+    const otherId = chat.participants.find(id => id !== currentUser.uid);
+    return otherId ? chat.participantNames[otherId] : 'Unknown';
+  };
+
+  const getOtherParticipantRole = (chat: ChatType) => {
+    if (!currentUser) return 'student';
+    const otherId = chat.participants.find(id => id !== currentUser.uid);
+    return otherId ? chat.participantRoles[otherId] : 'student';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white dark:bg-black">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-white dark:bg-black">
-      {/* Sidebar */}
-      <div className="w-80 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-black">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-          <h2 className="text-2xl font-bold mb-4">Messages</h2>
+    <div className="flex h-screen bg-white dark:bg-black overflow-hidden">
+      {/* Sidebar - Chat List */}
+      <aside 
+        className={`
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          fixed inset-y-0 left-0 z-30 w-full sm:w-80 lg:relative lg:translate-x-0
+          bg-white dark:bg-black border-r border-gray-200 dark:border-gray-800
+          transition-transform duration-300 ease-in-out flex flex-col
+        `}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+          <h1 className="text-xl font-bold">Messages</h1>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsSearchOpen(true)}
+              className="rounded-full"
+            >
+              <UserPlus className="w-5 h-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="lg:hidden rounded-full"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Search/Filter */}
+        <div className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-            <Input
-              placeholder="Search chats..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input 
+              placeholder="Search chats..." 
+              className="pl-10 bg-gray-100 dark:bg-gray-900 border-none rounded-full"
             />
           </div>
         </div>
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-1 flex-1 overflow-y-auto">
-            {/* Hanna AI Contact - Always at top */}
-            <button
-              onClick={() => handleSelectChat(mockChats[0])}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                selectedChat?.id === 'hanna'
-                  ? 'bg-gray-100 dark:bg-gray-900'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-900/50'
-              }`}
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium truncate">Hanna AI</p>
-                  <span className="text-xs text-gray-500">Now</span>
+          {chats.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
+              <p>No conversations yet</p>
+              <Button 
+                variant="link" 
+                onClick={() => setIsSearchOpen(true)}
+                className="mt-2"
+              >
+                Start a new chat
+              </Button>
+            </div>
+          ) : (
+            chats.map((chat) => (
+              <button
+                key={chat.id}
+                onClick={() => {
+                  setSelectedChat(chat);
+                  if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                }}
+                className={`
+                  w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors
+                  ${selectedChat?.id === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-600' : ''}
+                `}
+              >
+                <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800">
+                  <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    {getInitials(getOtherParticipantName(chat))}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <h3 className="font-semibold truncate">{getOtherParticipantName(chat)}</h3>
+                    <span className="text-xs text-gray-500">
+                      {chat.updatedAt ? new Date(chat.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 truncate">
+                    {chat.lastMessage?.content || 'No messages yet'}
+                  </p>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                  Hi! I'm here to help with your learning journey.
-                </p>
-              </div>
-            </button>
-
-            {/* Divider */}
-            <div className="px-2 py-2">
-              <div className="h-px bg-gray-200 dark:bg-gray-800" />
-            </div>
-
-            {/* Regular Chats */}
-            <div className="space-y-1 flex-1 overflow-y-auto">
-              <p className="text-xs font-semibold text-gray-500 px-2">CONTACTS</p>
-              {filteredChats.slice(1).map((chat) => (
-                <button
-                  key={chat.id}
-                  onClick={() => handleSelectChat(chat)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                    selectedChat?.id === chat.id && !selectedChat?.isHanna
-                      ? 'bg-gray-100 dark:bg-gray-900'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-900/50'
-                  }`}
-                >
-                  <div className="relative">
-                    <Avatar>
-                      <AvatarFallback>{getInitials(chat.name)}</AvatarFallback>
-                    </Avatar>
-                    {chat.online && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-black" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium truncate">{chat.name}</p>
-                      <span className="text-xs text-gray-500">{chat.lastMessageTime}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                        {chat.lastMessage}
-                      </p>
-                      {chat.unread > 0 && (
-                        <Badge variant="default" className="ml-2">{chat.unread}</Badge>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+              </button>
+            ))
+          )}
         </div>
-      </div>
+      </aside>
 
-      {/* Chat Area */}
-      <div className={`flex-1 flex flex-col bg-gray-50 dark:bg-black ${selectedChat ? 'block' : 'hidden md:block'}`}>
+      {/* Main Chat Area */}
+      <main className="flex-1 flex flex-col min-w-0 relative">
         {selectedChat ? (
           <>
             {/* Chat Header */}
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+            <header className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-black/80 backdrop-blur-md sticky top-0 z-20">
               <div className="flex items-center gap-3">
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="md:hidden"
-                  onClick={() => setSelectedChat(null)}
+                  className="lg:hidden"
+                  onClick={() => setIsSidebarOpen(true)}
                 >
-                  <ArrowLeft className="w-5 h-5" />
+                  <Menu className="w-5 h-5" />
                 </Button>
-                {selectedChat.isHanna ? (
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                ) : (
-                  <Avatar>
-                    <AvatarFallback>{getInitials(selectedChat.name)}</AvatarFallback>
-                  </Avatar>
-                )}
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                    {getInitials(getOtherParticipantName(selectedChat))}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
-                  <p className="font-medium">{selectedChat.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {selectedChat.online ? 'Online' : 'Offline'}
-                  </p>
+                  <h2 className="font-bold leading-tight">{getOtherParticipantName(selectedChat)}</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-xs text-gray-500 capitalize">{getOtherParticipantRole(selectedChat).replace('_', ' ')}</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {!selectedChat.isHanna && (
-                  <>
-                    <Button variant="ghost" size="icon">
-                      <Phone className="w-5 h-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Video className="w-5 h-5" />
-                    </Button>
-                  </>
-                )}
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="w-5 h-5" />
-                </Button>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex"><Phone className="w-5 h-5" /></Button>
+                <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex"><Video className="w-5 h-5" /></Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-5 h-5" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem className="gap-2"><Info className="w-4 h-4" /> View Profile</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2"><Settings className="w-4 h-4" /> Chat Settings</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-red-600"><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            </div>
+            </header>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {selectedChat.isHanna ? (
-                // Hanna Messages
-                hannaMessages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Zap className="w-8 h-8 text-white" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Welcome to Hanna AI</h3>
-                      <p className="text-gray-600 dark:text-gray-400">Start a conversation by typing a message below</p>
-                    </div>
-                  </div>
-                ) : (
-                  hannaMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] p-3 rounded-2xl ${
-                          message.role === 'user'
-                            ? 'bg-black text-white dark:bg-white dark:text-black'
-                            : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800'
-                        }`}
-                      >
-                        <p>{message.content}</p>
-                        <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500'}`}>
-                          {new Date(message.timestamp.toMillis()).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )
-              ) : (
-                // Regular Messages
-                mockMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.senderId === 'me' ? 'justify-end' : 'justify-start'}`}
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-black/40">
+              {messages.map((msg, idx) => {
+                const isMe = msg.senderId === currentUser?.uid;
+                return (
+                  <div 
+                    key={msg.id || idx} 
+                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div
-                      className={`max-w-[70%] p-3 rounded-2xl ${
-                        message.senderId === 'me'
-                          ? 'bg-black text-white dark:bg-white dark:text-black'
-                          : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800'
-                      }`}
-                    >
-                      <p>{message.content}</p>
-                      <p className={`text-xs mt-1 ${message.senderId === 'me' ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500'}`}>
-                        {message.timestamp}
-                      </p>
+                    <div className={`
+                      max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
+                      ${isMe 
+                        ? 'bg-blue-600 text-white rounded-tr-none' 
+                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
+                    `}>
+                      <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
+                      <span className={`text-[10px] mt-1 block ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
                     </div>
                   </div>
-                ))
-              )}
+                );
+              })}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
-                  <Paperclip className="w-5 h-5" />
-                </Button>
-                <Input
-                  placeholder={selectedChat.isHanna ? "Ask Hanna anything..." : "Type a message..."}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (selectedChat.isHanna) {
-                        handleSendHannaMessage();
-                      } else {
-                        handleSendMessage();
-                      }
-                    }
-                  }}
-                  disabled={loading}
-                  className="flex-1"
-                />
-                <Button variant="ghost" size="icon">
-                  <Smile className="w-5 h-5" />
-                </Button>
+            {/* Message Input */}
+            <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
+              <form 
+                onSubmit={handleSendMessage}
+                className="flex items-center gap-2 max-w-5xl mx-auto"
+              >
+                <Button type="button" variant="ghost" size="icon" className="rounded-full text-gray-500"><Paperclip className="w-5 h-5" /></Button>
+                <div className="flex-1 relative">
+                  <Input 
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    placeholder="Type a message..." 
+                    className="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-full py-6 px-6 focus-visible:ring-1 focus-visible:ring-blue-500"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full text-gray-500"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </Button>
+                </div>
                 <Button 
-                  onClick={selectedChat.isHanna ? handleSendHannaMessage : handleSendMessage}
-                  disabled={loading || !messageInput.trim()}
+                  type="submit" 
+                  disabled={!messageInput.trim()}
+                  className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95"
                 >
                   <Send className="w-5 h-5" />
                 </Button>
-              </div>
-            </div>
+              </form>
+            </footer>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold">Select a chat to start messaging</h3>
-              <p className="text-gray-600 dark:text-gray-400">Choose from your existing conversations or chat with Hanna AI</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50 dark:bg-black">
+            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
+              <MessageSquare className="w-10 h-10 text-blue-600" />
             </div>
+            <h2 className="text-2xl font-bold mb-2">Your Messages</h2>
+            <p className="text-gray-500 max-w-xs mb-8">
+              Select a conversation from the sidebar or start a new one to begin chatting.
+            </p>
+            <Button 
+              onClick={() => setIsSearchOpen(true)}
+              className="rounded-full px-8 bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Conversation
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="lg:hidden mt-4"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              Show Conversations
+            </Button>
           </div>
         )}
-      </div>
+      </main>
+
+      {/* New Chat Search Modal */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-lg font-bold">New Message</h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(false)} className="rounded-full">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input 
+                  autoFocus
+                  placeholder="Search by name or email..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-100 dark:bg-gray-800 border-none rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {isSearching ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                </div>
+              ) : searchResults.length > 0 ? (
+                searchResults.map((user) => (
+                  <button
+                    key={user.uid}
+                    onClick={() => handleStartChat(user)}
+                    className="w-full p-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-left"
+                  >
+                    <Avatar className="w-10 h-10">
+                      <AvatarFallback className="bg-blue-100 text-blue-600">
+                        {getInitials(user.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{user.fullName}</p>
+                      <p className="text-xs text-gray-500 capitalize">{user.role.replace('_', ' ')} • {user.email}</p>
+                    </div>
+                  </button>
+                ))
+              ) : searchTerm.length >= 2 ? (
+                <p className="text-center py-8 text-gray-500">No users found</p>
+              ) : (
+                <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters to search</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Missing icon from lucide-react in previous import
+function MessageSquare(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
   );
 }
