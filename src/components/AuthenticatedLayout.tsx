@@ -3,10 +3,14 @@ import { Outlet, useLocation } from 'react-router-dom';
 import SideNavbar from '@/components/SideNavbar';
 import { HannaButton } from '@/components/HannaButton';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAnnouncementListener } from '@/hooks/useAnnouncementListener';
 
 export default function AuthenticatedLayout(props: { children?: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+
+  // Listen for real-time announcements
+  useAnnouncementListener();
 
   // When not authenticated, this layout should not be used (routes are protected),
   // but we keep it safe.
