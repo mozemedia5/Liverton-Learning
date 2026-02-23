@@ -129,8 +129,7 @@ export default function HannaChat() {
     setIsLoading(true);
     const q = query(
       collection(db, 'hanna_chats'),
-      where('userId', '==', currentUser.uid),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(
@@ -141,18 +140,24 @@ export default function HannaChat() {
           ...doc.data(),
         })) as ChatSession[];
 
-        setChatSessions(sessions);
+        // Sort in memory
+        const sortedSessions = sessions.sort((a, b) => {
+          const timeA = a.updatedAt?.toMillis?.() || 0;
+          const timeB = b.updatedAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        });
+
+        setChatSessions(sortedSessions);
 
         // Auto-select first chat if none selected
-        if (sessions.length > 0 && !currentChatId) {
-          setCurrentChatId(sessions[0].id);
+        if (sortedSessions.length > 0 && !currentChatId) {
+          setCurrentChatId(sortedSessions[0].id);
         }
 
         setIsLoading(false);
       },
       (error) => {
         console.error('Error loading chats:', error);
-        toast.error('Failed to load chats');
         setIsLoading(false);
       }
     );
@@ -169,8 +174,7 @@ export default function HannaChat() {
 
     const q = query(
       collection(db, 'hanna_messages'),
-      where('chatId', '==', currentChatId),
-      orderBy('createdAt', 'asc')
+      where('chatId', '==', currentChatId)
     );
 
     const unsubscribe = onSnapshot(
@@ -181,11 +185,17 @@ export default function HannaChat() {
           ...doc.data(),
         })) as Message[];
 
-        setMessages(msgs);
+        // Sort in memory
+        const sortedMsgs = msgs.sort((a, b) => {
+          const timeA = a.createdAt?.toMillis?.() || 0;
+          const timeB = b.createdAt?.toMillis?.() || 0;
+          return timeA - timeB;
+        });
+
+        setMessages(sortedMsgs);
       },
       (error) => {
         console.error('Error loading messages:', error);
-        toast.error('Failed to load messages');
       }
     );
 

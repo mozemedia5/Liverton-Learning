@@ -16,9 +16,14 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   // but we keep it safe.
   const show = isAuthenticated;
 
-  // If some pages already include their own HannaButton, we can avoid duplicates by
-  // allowing them to opt out via query param; keep default to show.
-  const hideHanna = new URLSearchParams(location.search).get('hideHanna') === '1';
+  // Only show HannaButton on dashboard pages
+  const isDashboardPage = [
+    '/student/dashboard',
+    '/teacher/dashboard',
+    '/school-admin/dashboard',
+    '/parent/dashboard',
+    '/admin/dashboard'
+  ].includes(location.pathname);
 
   useEffect(() => {
     // Close any open hanna modal on route change (optional future enhancement)
@@ -33,7 +38,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
         {props.children ?? <Outlet />}
       </main>
 
-      {show && !hideHanna && <HannaButton />}
+      {show && isDashboardPage && <HannaButton />}
     </div>
   );
 }

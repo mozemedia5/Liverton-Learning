@@ -91,10 +91,10 @@ export default function Chat() {
     if (!currentUser) return;
 
     setIsLoading(true);
+    // Simple query without ordering to avoid index issues during development
     const q = query(
       collection(db, 'chats'),
-      where('userId', '==', currentUser.uid),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -103,13 +103,23 @@ export default function Chat() {
         ...doc.data()
       })) as ChatSession[];
       
-      setChatSessions(sessions);
+      // Sort in memory instead of Firestore to avoid index requirement
+      const sortedSessions = sessions.sort((a, b) => {
+        const timeA = a.updatedAt?.toMillis?.() || 0;
+        const timeB = b.updatedAt?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
+
+      setChatSessions(sortedSessions);
       
       // Auto-select first chat if none selected
-      if (sessions.length > 0 && !currentChatId) {
-        setCurrentChatId(sessions[0].id);
+      if (sortedSessions.length > 0 && !currentChatId) {
+        setCurrentChatId(sortedSessions[0].id);
       }
       
+      setIsLoading(false);
+    }, (error) => {
+      console.error('Error loading chat sessions:', error);
       setIsLoading(false);
     });
 
@@ -124,8 +134,7 @@ export default function Chat() {
 
     const q = query(
       collection(db, 'messages'),
-      where('chatId', '==', currentChatId),
-      orderBy('createdAt', 'asc')
+      where('chatId', '==', currentChatId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -134,7 +143,16 @@ export default function Chat() {
         ...doc.data()
       })) as Message[];
       
-      setMessages(msgs);
+      // Sort in memory
+      const sortedMsgs = msgs.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis?.() || 0;
+        const timeB = b.createdAt?.toMillis?.() || 0;
+        return timeA - timeB;
+      });
+
+      setMessages(sortedMsgs);
+    }, (error) => {
+      console.error('Error loading messages:', error);
     });
 
     return () => unsubscribe();
