@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Search, 
   Send, 
@@ -11,11 +10,9 @@ import {
   Video,
   Paperclip,
   Smile,
-  Zap,
   Menu,
   X,
   Plus,
-  ArrowLeft,
   Loader2,
   UserPlus,
   Settings,
@@ -32,7 +29,7 @@ import {
   getOrCreateChat,
   type ChatContact 
 } from '@/services/chatService';
-import type { Chat as ChatType, Message, UserRole } from '@/types';
+import type { Chat as ChatType, Message } from '@/types';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 

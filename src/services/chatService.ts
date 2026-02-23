@@ -9,10 +9,7 @@ import {
   onSnapshot, 
   orderBy, 
   Timestamp,
-  limit,
-  getDoc,
-  or,
-  and
+  limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
