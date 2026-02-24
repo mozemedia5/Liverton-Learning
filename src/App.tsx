@@ -36,6 +36,7 @@ import ParentFees from '@/pages/ParentFees';
 // Feature Pages
 import Courses from '@/pages/features/Courses';
 import Announcements from '@/pages/features/Announcements';
+import CreateAnnouncement from '@/pages/features/CreateAnnouncement';
 import Chat from '@/pages/features/Chat';
 import Payments from '@/pages/features/Payments';
 import Profile from '@/pages/features/Profile';
@@ -52,6 +53,7 @@ import UnifiedDocumentEditor from '@/pages/features/UnifiedDocumentEditor';
 import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaAI from '@/pages/features/HannaAI';
+import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
 import Analytics from '@/pages/features/Analytics';
 import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
 import StudentZoomLessons from '@/components/ZoomLessons/StudentZoomLessons';
@@ -293,6 +295,11 @@ function AppRoutes() {
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+      <Route path="/announcements/create" element={
+        <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
+          <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
       <Route path="/chat" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <Chat />
@@ -358,7 +365,7 @@ function AppRoutes() {
       } />
       <Route path="/features/hanna-ai" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><HannaAI /></AuthenticatedLayout>
+          <HannaChatIntegrated />
         </ProtectedRoute>
       } />
       <Route path="/features/analytics" element={

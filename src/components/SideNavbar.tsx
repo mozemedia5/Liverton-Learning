@@ -141,10 +141,10 @@ export default function SideNavbar() {
     // Shared routes for all authenticated users
     { label: 'Announcements', path: '/announcements', icon: Bell },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
+    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Documents', path: '/features/document-workspace', icon: FileText, hasSubmenu: true },
-    { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
     { label: 'Calculator', path: '/features/calculator', icon: Calculator },
     { label: 'Analytics', path: '/features/analytics', icon: BarChart3, roles: ['student', 'teacher', 'school_admin', 'parent'] },
   ];

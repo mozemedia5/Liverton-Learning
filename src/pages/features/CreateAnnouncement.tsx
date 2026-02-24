@@ -76,7 +76,7 @@ export default function CreateAnnouncement() {
         targetAudience: formData.targetAudience,
         sender: userData?.fullName || userData?.name || 'Unknown',
         senderId: currentUser?.uid || '',
-        senderRole: userRole || 'unknown',
+        senderRole: (userRole || 'unknown') as any,
       });
 
       toast.success('Announcement created successfully!');
