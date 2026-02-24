@@ -11,7 +11,8 @@ import {
   User,
   Plus,
   Filter,
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -217,12 +218,28 @@ export default function Announcements() {
             </div>
           ) : (
             filteredAnnouncements.map((announcement) => (
-              <Card key={announcement.id} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={announcement.id} 
+                className={`hover:shadow-md transition-all ${
+                  announcement.link ? 'cursor-pointer hover:border-black dark:hover:border-white' : ''
+                }`}
+                onClick={() => {
+                  if (announcement.link) {
+                    navigate(announcement.link);
+                  }
+                }}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-lg">{announcement.title}</h3>
+                        {announcement.link && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" />
+                            Has Link
+                          </Badge>
+                        )}
                         <Badge className={getPriorityColor(announcement.priority)}>
                           {announcement.priority}
                         </Badge>
@@ -231,7 +248,7 @@ export default function Announcements() {
                       <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
                         {announcement.message}
                       </p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                         <span className="flex items-center gap-1">
                           <User className="w-4 h-4" />
                           {announcement.sender} ({announcement.senderRole.replace('_', ' ')})
@@ -245,6 +262,14 @@ export default function Announcements() {
                           For: {announcement.targetAudience.map(a => a.replace('_', ' ')).join(', ')}
                         </span>
                       </div>
+                      {announcement.link && (
+                        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-800">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" />
+                            Click to visit: {announcement.link}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

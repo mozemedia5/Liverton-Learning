@@ -21,6 +21,7 @@ export interface Announcement {
   category: string;
   createdAt: Timestamp | Date;
   priority: 'low' | 'normal' | 'high';
+  link?: string; // Optional internal link (course or lesson page)
 }
 
 const convertDocToAnnouncement = (doc: QueryDocumentSnapshot<DocumentData>): Announcement => {
@@ -36,6 +37,7 @@ const convertDocToAnnouncement = (doc: QueryDocumentSnapshot<DocumentData>): Ann
     category: data.category || 'General',
     createdAt: data.createdAt?.toDate() || new Date(),
     priority: data.priority || 'normal',
+    link: data.link || undefined,
   };
 };
 

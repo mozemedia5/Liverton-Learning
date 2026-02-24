@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   ArrowLeft, 
   Send, 
-  Loader2
+  Loader2,
+  Link as LinkIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ export default function CreateAnnouncement() {
     category: 'General',
     priority: 'normal' as 'low' | 'normal' | 'high',
     targetAudience: [] as string[],
+    link: '', // Optional internal link
   });
 
   const audienceOptions = [
@@ -77,6 +79,7 @@ export default function CreateAnnouncement() {
         sender: userData?.fullName || userData?.name || 'Unknown',
         senderId: currentUser?.uid || '',
         senderRole: (userRole || 'unknown') as any,
+        link: formData.link.trim() || undefined, // Only include if not empty
       });
 
       toast.success('Announcement created successfully!');
@@ -179,6 +182,23 @@ export default function CreateAnnouncement() {
                   onChange={e => setFormData({ ...formData, message: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="link" className="flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4" />
+                  Link (Optional)
+                </Label>
+                <Input 
+                  id="link" 
+                  type="text"
+                  placeholder="e.g., /courses/123 or /lessons/456" 
+                  value={formData.link}
+                  onChange={e => setFormData({ ...formData, link: e.target.value })}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Add an internal link to redirect users to a specific course or lesson page
+                </p>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
