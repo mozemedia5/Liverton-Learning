@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Send,
@@ -11,11 +10,9 @@ import {
   MessageCircle,
   Plus,
   Trash2,
-  Clock,
   MessageSquare,
   Menu,
-  X,
-  Copy
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
@@ -57,7 +54,6 @@ export default function HannaChatIntegrated() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -74,7 +70,6 @@ export default function HannaChatIntegrated() {
   useEffect(() => {
     if (!currentUser) return;
 
-    setIsLoading(true);
     const q = query(
       collection(db, 'hanna_chats'),
       where('userId', '==', currentUser.uid)
@@ -98,11 +93,9 @@ export default function HannaChatIntegrated() {
         if (sortedSessions.length > 0 && !currentChatId) {
           setCurrentChatId(sortedSessions[0].id);
         }
-        setIsLoading(false);
       },
       (error) => {
         console.error('Error loading chats:', error);
-        setIsLoading(false);
       }
     );
 
@@ -145,7 +138,6 @@ export default function HannaChatIntegrated() {
     if (!currentUser) return;
 
     try {
-      setIsLoading(true);
       const chatRef = await addDoc(collection(db, 'hanna_chats'), {
         userId: currentUser.uid,
         title: `Chat with Hanna - ${new Date().toLocaleDateString()}`,
@@ -161,8 +153,6 @@ export default function HannaChatIntegrated() {
     } catch (error) {
       console.error('Error creating chat:', error);
       toast.error('Failed to create new chat');
-    } finally {
-      setIsLoading(false);
     }
   };
 

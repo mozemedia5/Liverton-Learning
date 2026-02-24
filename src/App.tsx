@@ -52,7 +52,6 @@ import DocumentWorkspaceWrapper from "@/components/DocumentWorkspaceWrapper";
 import UnifiedDocumentEditor from '@/pages/features/UnifiedDocumentEditor';
 import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
-import HannaAI from '@/pages/features/HannaAI';
 import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
 import Analytics from '@/pages/features/Analytics';
 import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
