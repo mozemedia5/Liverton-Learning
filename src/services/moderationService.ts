@@ -160,8 +160,6 @@ export async function getAllQuizzesForModeration(): Promise<ModerationContent[]>
     return [];
   }
 }
-  }
-}
 
 /**
  * Fetch all activities (events, lessons, zoom sessions) for moderation

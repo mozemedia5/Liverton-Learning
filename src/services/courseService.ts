@@ -469,7 +469,6 @@ export async function createQuiz(
   const docRef = await addDoc(quizRef, newQuiz);
   return docRef.id;
 }
-}
 
 /**
  * Update a quiz
