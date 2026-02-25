@@ -34,7 +34,6 @@ import {
   updateDoc,
   doc,
   deleteDoc,
-  Timestamp,
 } from 'firebase/firestore';
 
 /**
@@ -48,7 +47,7 @@ interface Message {
   senderName: string;
   senderRole: 'user' | 'hanna';
   content: string;
-  createdAt: any;
+  createdAt: { toMillis: () => number } | null;
   attachments?: Array<{
     type: string;
     url: string;
@@ -64,8 +63,8 @@ interface ChatSession {
   id: string;
   userId: string;
   title: string;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: { toMillis: () => number } | null;
+  updatedAt: { toMillis: () => number } | null;
   messageCount: number;
   archived?: boolean;
 }
@@ -415,10 +414,9 @@ export default function HannaChat() {
   /**
    * Format timestamp for display
    */
-  const formatTime = (timestamp: any) => {
+  const formatTime = (timestamp: { toMillis: () => number } | null) => {
     if (!timestamp) return '';
-    const date =
-      timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp.toMillis());
     return date.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
