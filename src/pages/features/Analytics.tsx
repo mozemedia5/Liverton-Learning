@@ -18,8 +18,11 @@ import {
   CreditCard,
   Activity,
   PieChart,
-  LineChart
+  LineChart,
+  ArrowLeft
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   subscribeToStudentAnalytics,
@@ -75,6 +78,7 @@ export default function Analytics() {
 // STUDENT ANALYTICS VIEW
 // ==========================================
 function StudentAnalyticsView({ studentId }: { studentId: string }) {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -130,12 +134,29 @@ function StudentAnalyticsView({ studentId }: { studentId: string }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Analytics</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            My Learning Analytics
+            Learning Analytics
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Track your learning progress and performance metrics
@@ -251,6 +272,7 @@ function StudentAnalyticsView({ studentId }: { studentId: string }) {
 // TEACHER ANALYTICS VIEW
 // ==========================================
 function TeacherAnalyticsView({ teacherId }: { teacherId: string }) {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -455,21 +477,35 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
   ];
 
   const totalFees = (analytics?.feesCollected || 0) + (analytics?.feesPending || 0) + (analytics?.feesOverdue || 0);
-  const collectionRate = totalFees > 0 ? Math.round((analytics?.feesCollected || 0) / totalFees * 100) : 0;
+  const collectionRate = totalFees > 0 ? Math.round((analytics?.feesCollected || 0) / totalFees * 100)   return (
+    <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Teaching Analytics</span>
+            </div>
+          </div>
+        </div>
+      </header>
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            School Analytics
+            Performance Overview
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Monitor your school's performance and metrics
+            Monitor your course performance and student engagement
           </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        </div>id grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (

@@ -5,7 +5,8 @@ import { collection, addDoc, query, where, getDocs, Timestamp, orderBy } from 'f
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { History, Trash2, Copy } from 'lucide-react';
+import { History, Trash2, Copy, ArrowLeft, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface CalculationHistory {
@@ -18,6 +19,7 @@ interface CalculationHistory {
 }
 
 export default function Calculator() {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [mode, setMode] = useState<'basic' | 'scientific'>('basic');
   const [display, setDisplay] = useState('0');
@@ -227,12 +229,29 @@ export default function Calculator() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Calculator</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-2xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Calculator</h1>
-          <p className="text-gray-600">Basic and Scientific calculations with history</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Scientific Calculator</h1>
+          <p className="text-gray-600 dark:text-gray-400">Perform calculations with ease</p>
         </div>
 
         <Card className="shadow-lg">

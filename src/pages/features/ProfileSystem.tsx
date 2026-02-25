@@ -9,7 +9,8 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '../../components/ui/alert-dialog';
-import { User, Mail, Phone, MapPin, Briefcase, Award, Settings, Upload, Save, X } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, Award, Settings, Upload, Save, X, ArrowLeft, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface UserProfile {
@@ -42,6 +43,7 @@ interface Achievement {
 }
 
 export default function ProfileSystem() {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -250,12 +252,29 @@ export default function ProfileSystem() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">My Profile</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">My Profile</h1>
-          <p className="text-gray-600">Manage your profile information and settings</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Profile Details</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage your profile information and settings</p>
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">

@@ -175,10 +175,10 @@ export default function SideNavbar() {
       */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 lg:hidden transition-all duration-200"
+        className="fixed top-3 left-3 z-[60] p-1.5 rounded-lg bg-black/80 dark:bg-white/80 backdrop-blur-sm text-white dark:text-black hover:bg-black dark:hover:bg-white lg:hidden transition-all duration-200 shadow-md"
         aria-label="Toggle navigation menu"
       >
-        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        {isOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
       </button>
 
       {/* Overlay Backdrop - Prevents interaction with content behind sidebar */}
