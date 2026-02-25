@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap } from 'lucide-react';
+import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap, Trophy } from 'lucide-react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { getLinkedStudents } from '@/lib/parentService';
 import { 
@@ -259,6 +259,10 @@ export default function ParentDashboard() {
                 <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/courses')}>
                   <BookOpen className="h-4 w-4 mr-2" />
                   Courses
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/quizzes')}>
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Quizzes & Results
                 </Button>
                 <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/fees')}>
                   <DollarSign className="h-4 w-4 mr-2" />
