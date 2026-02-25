@@ -44,6 +44,8 @@ import Profile from '@/pages/features/Profile';
 import Settings from '@/pages/features/Settings';
 import Quizzes from '@/pages/features/Quizzes';
 import CreateQuiz from '@/pages/teacher/CreateQuiz';
+import TeacherQuizzes from '@/pages/teacher/TeacherQuizzes';
+import QuizAnalytics from '@/pages/teacher/QuizAnalytics';
 import TakeQuiz from '@/pages/student/TakeQuiz';
 import Documents from '@/pages/features/Documents';
 import DocumentEditor from '@/pages/features/DocumentEditor';
@@ -264,6 +266,17 @@ function AppRoutes() {
       <Route path="/teacher/quizzes/create" element={
         <ProtectedRoute allowedRoles={['teacher']}>
           <CreateQuiz />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/teacher/quizzes" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><TeacherQuizzes /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/quizzes/:quizId/analytics" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><QuizAnalytics /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 

@@ -12,7 +12,8 @@ import {
   Users,
   Plus,
   CheckCircle,
-  Loader2
+  Loader2,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -23,6 +24,7 @@ import {
   type Enrollment
 } from '@/services/analyticsService';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
+import { subscribeToTeacherQuizzes, type Quiz } from '@/services/quizService';
 
 /**
  * TeacherDashboard Component
@@ -31,6 +33,7 @@ import { subscribeToTeacherCourses, type Course } from '@/services/courseService
  * - Uses AuthenticatedLayout for standardized navigation
  * - Displays real-time teacher-specific statistics (earnings, courses, students)
  * - Course management and student tracking
+ * - Quiz management with real-time analytics
  * - Responsive design with mobile support
  * - Dark mode support
  */
@@ -40,6 +43,7 @@ export default function TeacherDashboard() {
   const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
   const [recentEnrollments, setRecentEnrollments] = useState<Enrollment[]>([]);
   const [myCourses, setMyCourses] = useState<Course[]>([]);
+  const [myQuizzes, setMyQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Real-time data subscription
@@ -48,7 +52,7 @@ export default function TeacherDashboard() {
 
     setLoading(true);
     let loadedCount = 0;
-    const totalSubscriptions = 3;
+    const totalSubscriptions = 4;
     
     // Subscribe to teacher analytics
     const unsubscribeAnalytics = subscribeToTeacherAnalytics(
@@ -86,6 +90,18 @@ export default function TeacherDashboard() {
       }
     );
 
+    // Subscribe to teacher quizzes
+    const unsubscribeQuizzes = subscribeToTeacherQuizzes(
+      currentUser.uid,
+      (data) => {
+        setMyQuizzes(data);
+        loadedCount++;
+        if (loadedCount === totalSubscriptions) {
+          setLoading(false);
+        }
+      }
+    );
+
     // Set a timeout to stop loading after 5 seconds even if data hasn't arrived
     const timeout = setTimeout(() => {
       setLoading(false);
@@ -96,6 +112,7 @@ export default function TeacherDashboard() {
       unsubscribeAnalytics();
       unsubscribeEnrollments();
       unsubscribeCourses();
+      unsubscribeQuizzes();
     };
   }, [currentUser?.uid]);
 
@@ -234,16 +251,69 @@ export default function TeacherDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-teal-600" />
+                  <HelpCircle className="w-5 h-5 text-teal-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Lessons</p>
-                  <p className="text-xl font-bold">{analytics?.totalLessons || 0}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Quizzes</p>
+                  <p className="text-xl font-bold">{myQuizzes.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* My Quizzes Section */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5" />
+              My Quizzes
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => navigate('/teacher/quizzes')}>
+              View All
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {myQuizzes.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">You haven't created any quizzes yet</p>
+                <Button onClick={() => navigate('/teacher/quizzes/create')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Quiz
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myQuizzes.slice(0, 5).map((quiz) => (
+                  <div 
+                    key={quiz.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/teacher/quizzes/${quiz.id}/analytics`)}
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{quiz.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {quiz.questionCount} questions 
+                        {quiz.totalAttempts && quiz.totalAttempts > 0 && ` • ${quiz.totalAttempts} attempt${quiz.totalAttempts !== 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {quiz.averageScore !== undefined && quiz.totalAttempts && quiz.totalAttempts > 0 && (
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-green-600">{quiz.averageScore.toFixed(1)}%</p>
+                          <p className="text-xs text-gray-500">avg score</p>
+                        </div>
+                      )}
+                      <Badge variant={quiz.status === 'published' ? 'default' : 'secondary'}>
+                        {quiz.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* My Courses Section */}
         <Card>
