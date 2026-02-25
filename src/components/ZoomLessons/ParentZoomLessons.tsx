@@ -1,5 +1,5 @@
 /**
- * Parent Zoom Lessons Component
+ * Parent Live Lessons Component
  * 
  * Features:
  * - View children's enrolled lessons
@@ -41,7 +41,7 @@ import { getLinkedStudents } from '@/lib/parentService';
 import type { LinkedStudent } from '@/lib/parentService';
 
 /**
- * Parent Zoom Lessons Component
+ * Parent Live Lessons Component
  */
 export default function ParentZoomLessons() {
   const { currentUser } = useAuth();

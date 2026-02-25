@@ -1,5 +1,5 @@
 /**
- * Student Zoom Lessons Component
+ * Student Live Lessons Component
  * 
  * Features:
  * - Browse available lessons
@@ -7,7 +7,7 @@
  * - View upcoming lessons
  * - Track lesson history
  * - Access learning materials
- * - Join Zoom meetings
+ * - Join Live meetings
  */
 
 import { useState, useEffect } from 'react';
@@ -43,7 +43,7 @@ import {
 } from '@/lib/zoomService';
 
 /**
- * Student Zoom Lessons Component
+ * Student Live Lessons Component
  */
 export default function StudentZoomLessons() {
   const { currentUser } = useAuth();
