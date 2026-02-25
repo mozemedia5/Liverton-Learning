@@ -133,7 +133,7 @@ export default function StudentZoomLessons() {
     <div className="container mx-auto py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Zoom Lessons</h1>
+        <h1 className="text-3xl font-bold mb-2">Live Lessons</h1>
         <p className="text-muted-foreground">
           Browse and enroll in lessons from expert teachers
         </p>
