@@ -1,5 +1,5 @@
 /**
- * Teacher Zoom Lessons Component
+ * Teacher Live Lessons Component
  * 
  * Features:
  * - Create new lessons with comprehensive details
@@ -44,7 +44,7 @@ import {
 } from '@/lib/zoomService';
 
 /**
- * Teacher Zoom Lessons Component
+ * Teacher Live Lessons Component
  */
 export default function TeacherZoomLessons() {
   const { currentUser } = useAuth();
@@ -245,7 +245,7 @@ export default function TeacherZoomLessons() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">My Zoom Lessons</h1>
+          <h1 className="text-3xl font-bold mb-2">My Live Lessons</h1>
           <p className="text-muted-foreground">
             Create and manage your online lessons
           </p>
