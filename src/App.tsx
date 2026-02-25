@@ -45,6 +45,7 @@ import Settings from '@/pages/features/Settings';
 import Quizzes from '@/pages/features/Quizzes';
 import CreateQuiz from '@/pages/teacher/CreateQuiz';
 import TeacherQuizzes from '@/pages/teacher/TeacherQuizzes';
+import MyQuiz from '@/pages/teacher/MyQuiz';
 import QuizAnalytics from '@/pages/teacher/QuizAnalytics';
 import TakeQuiz from '@/pages/student/TakeQuiz';
 import Documents from '@/pages/features/Documents';
@@ -277,6 +278,11 @@ function AppRoutes() {
       <Route path="/teacher/quizzes/:quizId/analytics" element={
         <ProtectedRoute allowedRoles={['teacher']}>
           <AuthenticatedLayout><QuizAnalytics /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/my-quiz" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <MyQuiz />
         </ProtectedRoute>
       } />
 

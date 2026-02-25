@@ -121,6 +121,7 @@ export default function SideNavbar() {
     
     // Teacher-specific routes
     { label: 'My Courses', path: '/teacher/courses', icon: BookOpen, roles: ['teacher'] },
+    { label: 'My Quiz', path: '/teacher/my-quiz', icon: HelpCircle, roles: ['teacher'] },
     { label: 'Students', path: '/teacher/students', icon: Users, roles: ['teacher'] },
     { label: 'Live Lessons', path: '/teacher/zoom-lessons', icon: Video, roles: ['teacher'] },
     { label: 'Earnings', path: '/payments', icon: CreditCard, roles: ['teacher'] },
