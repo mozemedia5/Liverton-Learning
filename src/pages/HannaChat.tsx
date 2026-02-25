@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
+import HannaService from '@/lib/hannaService';
 import {
   collection,
   addDoc,
@@ -335,6 +336,7 @@ export default function HannaChat() {
 
   /**
    * Delete a chat session
+   * Optimally uses backend service to perform batched deletion
    */
   const handleDeleteChat = async (chatId: string) => {
     if (!window.confirm('Are you sure you want to delete this chat?')) {
@@ -342,19 +344,8 @@ export default function HannaChat() {
     }
 
     try {
-      // Delete all messages in the chat
-      const messagesSnapshot = await fetch(
-        `/api/hanna/messages?chatId=${chatId}`
-      );
-      if (messagesSnapshot.ok) {
-        const data = await messagesSnapshot.json();
-        for (const message of data.messages) {
-          await deleteDoc(doc(db, 'hanna_messages', message.id));
-        }
-      }
-
-      // Delete the chat
-      await deleteDoc(doc(db, 'hanna_chats', chatId));
+      // Leverage optimized backend function for batched deletion
+      await HannaService.deleteChat(chatId);
 
       if (currentChatId === chatId) {
         setCurrentChatId(null);

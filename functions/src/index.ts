@@ -606,18 +606,22 @@ export const deleteHannaChat = functions.https.onRequest((req, res) => {
         });
       }
 
-      // Delete all messages in the chat
+      // Delete all messages and the chat session using batches (Firestore limit is 500 ops)
       const messagesSnapshot = await db
         .collection('hanna_messages')
         .where('chatId', '==', chatId)
         .get();
 
-      for (const doc of messagesSnapshot.docs) {
-        await doc.ref.delete();
-      }
+      const allRefs = messagesSnapshot.docs.map(doc => doc.ref);
+      allRefs.push(db.collection('hanna_chats').doc(chatId));
 
-      // Delete the chat session
-      await db.collection('hanna_chats').doc(chatId).delete();
+      // Commit deletions in chunks of 500 to stay within Firestore limits
+      for (let i = 0; i < allRefs.length; i += 500) {
+        const batch = db.batch();
+        const chunk = allRefs.slice(i, i + 500);
+        chunk.forEach(ref => batch.delete(ref));
+        await batch.commit();
+      }
 
       console.log(`Chat deleted: ${chatId}`);
 
