@@ -1,21 +1,21 @@
 /**
- * Chat Themes Configuration
- * Predefined themes with customizable colors and wallpapers
+ * Chat Theme Definitions
+ * Defines color schemes and styling for different chat themes
  */
 
-import { ThemeConfig } from '@/types/chat';
+import type { ThemeConfig } from '@/types/chat';
 
 /**
- * Built-in chat themes
- * Each theme includes colors and optional wallpaper
+ * Available chat themes with their color configurations
+ * Each theme includes colors for sent/received messages and accent colors
  */
 export const CHAT_THEMES: Record<string, ThemeConfig> = {
   light: {
     name: 'light',
     label: 'Light',
     colors: {
-      sentMessageBg: '#007AFF', // iOS blue
-      receivedMessageBg: '#E5E5EA', // Light gray
+      sentMessageBg: '#007AFF',
+      receivedMessageBg: '#E5E5EA',
       textColor: '#000000',
       accentColor: '#007AFF',
       wallpaper: '#FFFFFF',
@@ -26,8 +26,8 @@ export const CHAT_THEMES: Record<string, ThemeConfig> = {
     name: 'dark',
     label: 'Dark',
     colors: {
-      sentMessageBg: '#0084FF', // Facebook blue
-      receivedMessageBg: '#262626', // Dark gray
+      sentMessageBg: '#0084FF',
+      receivedMessageBg: '#262626',
       textColor: '#FFFFFF',
       accentColor: '#0084FF',
       wallpaper: '#121212',
@@ -38,117 +38,53 @@ export const CHAT_THEMES: Record<string, ThemeConfig> = {
     name: 'ocean',
     label: 'Ocean',
     colors: {
-      sentMessageBg: '#0066CC', // Ocean blue
-      receivedMessageBg: '#B3E5FC', // Light cyan
-      textColor: '#001A4D',
-      accentColor: '#0066CC',
-      wallpaper: 'linear-gradient(135deg, #E0F7FA 0%, #B3E5FC 100%)',
+      sentMessageBg: '#0099FF',
+      receivedMessageBg: '#E0F2FE',
+      textColor: '#003366',
+      accentColor: '#0099FF',
+      wallpaper: '#F0F8FF',
     },
-    wallpaper: 'linear-gradient(135deg, #E0F7FA 0%, #B3E5FC 100%)',
+    wallpaper: '#F0F8FF',
   },
   forest: {
     name: 'forest',
     label: 'Forest',
     colors: {
-      sentMessageBg: '#2E7D32', // Forest green
-      receivedMessageBg: '#C8E6C9', // Light green
-      textColor: '#1B5E20',
-      accentColor: '#2E7D32',
-      wallpaper: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)',
+      sentMessageBg: '#2D5016',
+      receivedMessageBg: '#D4E8D4',
+      textColor: '#1B3A1B',
+      accentColor: '#2D5016',
+      wallpaper: '#E8F5E9',
     },
-    wallpaper: 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)',
+    wallpaper: '#E8F5E9',
   },
   sunset: {
     name: 'sunset',
     label: 'Sunset',
     colors: {
-      sentMessageBg: '#FF6B35', // Sunset orange
-      receivedMessageBg: '#FFE5CC', // Light peach
-      textColor: '#8B3A00',
+      sentMessageBg: '#FF6B35',
+      receivedMessageBg: '#FFE5CC',
+      textColor: '#8B4513',
       accentColor: '#FF6B35',
-      wallpaper: 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
+      wallpaper: '#FFF5E6',
     },
-    wallpaper: 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
-  },
-  custom: {
-    name: 'custom',
-    label: 'Custom',
-    colors: {
-      sentMessageBg: '#007AFF',
-      receivedMessageBg: '#E5E5EA',
-      textColor: '#000000',
-      accentColor: '#007AFF',
-      wallpaper: '#FFFFFF',
-    },
+    wallpaper: '#FFF5E6',
   },
 };
 
 /**
  * Get theme configuration by name
- * @param themeName - Name of the theme
- * @returns Theme configuration object
+ * @param themeName - The name of the theme to retrieve
+ * @returns Theme configuration object or default light theme
  */
 export function getThemeConfig(themeName: string): ThemeConfig {
   return CHAT_THEMES[themeName] || CHAT_THEMES.light;
 }
 
 /**
- * Get all available themes
+ * Get all available theme names
  * @returns Array of theme names
  */
-export function getAvailableThemes(): string[] {
-  return Object.keys(CHAT_THEMES).filter(theme => theme !== 'custom');
-}
-
-/**
- * Validate hex color
- * @param color - Color string to validate
- * @returns True if valid hex color
- */
-export function isValidHexColor(color: string): boolean {
-  return /^#[0-9A-F]{6}$/i.test(color);
-}
-
-/**
- * Convert RGB to Hex
- * @param r - Red value (0-255)
- * @param g - Green value (0-255)
- * @param b - Blue value (0-255)
- * @returns Hex color string
- */
-export function rgbToHex(r: number, g: number, b: number): string {
-  return '#' + [r, g, b].map(x => {
-    const hex = x.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  }).join('').toUpperCase();
-}
-
-/**
- * Convert Hex to RGB
- * @param hex - Hex color string
- * @returns Object with r, g, b values
- */
-export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16),
-  } : null;
-}
-
-/**
- * Get contrasting text color (black or white) based on background
- * @param bgColor - Background color in hex
- * @returns 'black' or 'white' for best contrast
- */
-export function getContrastingTextColor(bgColor: string): string {
-  const rgb = hexToRgb(bgColor);
-  if (!rgb) return '#000000';
-  
-  // Calculate luminance
-  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-  
-  // Return black text for light backgrounds, white for dark
-  return luminance > 0.5 ? '#000000' : '#FFFFFF';
+export function getThemeNames(): string[] {
+  return Object.keys(CHAT_THEMES);
 }

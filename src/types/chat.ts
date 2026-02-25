@@ -72,6 +72,12 @@ export interface ChatSettings {
   fontFamily?: string;
   notificationsEnabled: boolean;
   muteNotifications: boolean;
+  colors?: {
+    sentMessageBg: string;
+    receivedMessageBg: string;
+    textColor: string;
+    accentColor: string;
+  };
   customColors?: {
     sentMessageBg: string;
     receivedMessageBg: string;
@@ -104,6 +110,9 @@ export interface UserProfile {
   courses?: string[];
   lastSeen?: any;
   isOnline?: boolean;
+  status?: string; // Online status message
+  phone?: string; // Phone number
+  location?: string; // User location
 }
 
 /**

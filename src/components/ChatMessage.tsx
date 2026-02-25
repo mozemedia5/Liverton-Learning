@@ -3,7 +3,7 @@
  * Displays individual messages with read status, timestamps, and formatting
  */
 
-import { Message } from '@/types/chat';
+import type { Message } from '@/types/chat';
 import { Check, CheckCheck } from 'lucide-react';
 
 interface ChatMessageProps {
@@ -21,147 +21,83 @@ interface ChatMessageProps {
 }
 
 /**
- * Chat Message Component
- * Displays:
- * - Message content
- * - Sender name and avatar
- * - Timestamp
- * - Read status (single tick for sent, double pink tick for read)
- * - Date separator (Today, Yesterday, or date)
- * - Custom styling (colors, font size, style)
+ * Renders a single chat message with status indicators
+ * Shows WhatsApp-style ticks for message status (sent/read)
  */
 export function ChatMessage({
   message,
   isCurrentUser,
-  showDate = false,
-  dateLabel = '',
+  showDate,
+  dateLabel,
   customColors,
   fontSize = 14,
   fontStyle = 'normal',
 }: ChatMessageProps) {
-  /**
-   * Format timestamp to readable format
-   */
-  const formatTime = (date: any): string => {
-    if (!date) return '';
-    try {
-      const d = new Date(date.seconds ? date.seconds * 1000 : date);
-      return d.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return '';
+  // Determine message background color based on sender
+  const bgColor = isCurrentUser
+    ? customColors?.sentMessageBg || 'bg-blue-500'
+    : customColors?.receivedMessageBg || 'bg-gray-200';
+
+  // Determine text color
+  const textColor = customColors?.textColor || (isCurrentUser ? 'text-white' : 'text-black');
+
+  // Render status indicator (ticks)
+  const renderStatusTick = () => {
+    if (!isCurrentUser) return null;
+
+    // Double pink ticks for read status
+    if (message.readStatus === 'read') {
+      return (
+        <div className="flex gap-0.5 ml-1">
+          <CheckCheck size={14} className="text-pink-500" />
+        </div>
+      );
     }
+
+    // Single white tick for sent status
+    return (
+      <div className="flex gap-0.5 ml-1">
+        <Check size={14} className="text-white" />
+      </div>
+    );
   };
-
-  /**
-   * Get font style CSS
-   */
-  const getFontStyleCSS = () => {
-    const styles: React.CSSProperties = {
-      fontSize: `${fontSize}px`,
-    };
-
-    if (fontStyle.includes('italic')) {
-      styles.fontStyle = 'italic';
-    }
-    if (fontStyle.includes('bold')) {
-      styles.fontWeight = 'bold';
-    }
-
-    return styles;
-  };
-
-  /**
-   * Get message bubble colors
-   */
-  const getBubbleColors = () => {
-    if (customColors) {
-      return {
-        bg: isCurrentUser
-          ? customColors.sentMessageBg
-          : customColors.receivedMessageBg,
-        text: customColors.textColor,
-      };
-    }
-
-    // Default colors
-    return {
-      bg: isCurrentUser ? '#007AFF' : '#E5E5EA',
-      text: isCurrentUser ? '#FFFFFF' : '#000000',
-    };
-  };
-
-  const bubbleColors = getBubbleColors();
 
   return (
-    <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} max-w-xs`}>
-        {/* Date Separator */}
-        {showDate && dateLabel && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 text-center w-full">
+    <div className="flex flex-col gap-2">
+      {/* Date separator - WhatsApp style */}
+      {showDate && dateLabel && (
+        <div className="flex justify-center my-2">
+          <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
             {dateLabel}
-          </div>
-        )}
+          </span>
+        </div>
+      )}
 
-        {/* Message Bubble */}
+      {/* Message bubble */}
+      <div
+        className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}
+      >
         <div
-          className={`rounded-lg px-4 py-2 break-words ${
-            isCurrentUser ? 'rounded-br-none' : 'rounded-bl-none'
-          }`}
+          className={`${bgColor} ${textColor} rounded-lg px-3 py-2 max-w-xs break-words`}
           style={{
-            backgroundColor: bubbleColors.bg,
-            color: bubbleColors.text,
-            ...getFontStyleCSS(),
+            fontSize: `${fontSize}px`,
+            fontStyle: fontStyle as any,
           }}
         >
-          {/* Sender Name (for group chats or received messages) */}
-          {!isCurrentUser && message.senderName && (
-            <p className="text-xs font-semibold opacity-75 mb-1">
-              {message.senderName}
-            </p>
-          )}
+          <p className="m-0">{message.content}</p>
 
-          {/* Message Content */}
-          <p className="text-sm">{message.content}</p>
-        </div>
-
-        {/* Timestamp and Read Status */}
-        <div
-          className={`flex items-center gap-1 mt-1 text-xs ${
-            isCurrentUser
-              ? 'text-gray-500 dark:text-gray-400'
-              : 'text-gray-500 dark:text-gray-400'
-          }`}
-        >
-          {/* Time */}
-          <span>{formatTime(message.createdAt)}</span>
-
-          {/* Read Status Indicator (only for sent messages) */}
-          {isCurrentUser && (
-            <>
-              {message.readStatus === 'sent' && (
-                <Check className="w-3 h-3 text-gray-400" />
-              )}
-              {message.readStatus === 'delivered' && (
-                <Check className="w-3 h-3 text-gray-400" />
-              )}
-              {message.readStatus === 'read' && (
-                <CheckCheck className="w-3 h-3 text-pink-500" />
-              )}
-            </>
-          )}
-
-          {/* Edited Indicator */}
-          {message.isEdited && (
-            <span className="text-gray-400 italic">(edited)</span>
-          )}
+          {/* Timestamp and status indicator */}
+          <div className="flex items-center justify-end gap-1 mt-1">
+            <span className="text-xs opacity-70">
+              {new Date(message.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+            {renderStatusTick()}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default ChatMessage;
