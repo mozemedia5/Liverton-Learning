@@ -128,6 +128,9 @@ export async function getAllAssignmentsForModeration(): Promise<ModerationConten
 /**
  * Fetch all quizzes for moderation
  */
+/**
+ * Fetch all quizzes for moderation
+ */
 export async function getAllQuizzesForModeration(): Promise<ModerationContent[]> {
   try {
     const quizzesRef = collection(db, 'quizzes');
@@ -140,8 +143,8 @@ export async function getAllQuizzesForModeration(): Promise<ModerationContent[]>
         type: 'quiz',
         title: data.title || 'Untitled Quiz',
         description: data.description,
-        author: data.createdBy || 'Unknown',
-        authorId: data.createdById || '',
+        author: data.teacherName || 'Unknown',
+        authorId: data.teacherId || '',
         createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
         updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt),
         status: data.status || 'active',
@@ -155,6 +158,8 @@ export async function getAllQuizzesForModeration(): Promise<ModerationContent[]>
   } catch (error) {
     console.error('Error fetching quizzes for moderation:', error);
     return [];
+  }
+}
   }
 }
 

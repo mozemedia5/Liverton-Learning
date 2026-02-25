@@ -105,10 +105,15 @@ export function subscribeToTeacherQuizzes(
   );
 
   return onSnapshot(q, (snapshot) => {
-    const quizzes = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Quiz));
+    const quizzes = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        totalAttempts: data.totalAttempts || 0,
+        averageScore: data.averageScore || 0,
+      } as Quiz;
+    });
     callback(quizzes);
   });
 }
@@ -118,7 +123,7 @@ export function subscribeToTeacherQuizzes(
  */
 export async function getQuizById(quizId: string): Promise<Quiz | null> {
   try {
-      const docSnap = await getDocs(query(collection(db, 'quizzes'), where('id', '==', quizId)));
+    const docSnap = await getDocs(query(collection(db, 'quizzes'), where('id', '==', quizId)));
     
     if (docSnap.empty) return null;
     
@@ -126,6 +131,8 @@ export async function getQuizById(quizId: string): Promise<Quiz | null> {
     return {
       id: docSnap.docs[0].id,
       ...data,
+      totalAttempts: data.totalAttempts || 0,
+      averageScore: data.averageScore || 0,
     } as Quiz;
   } catch (error) {
     console.error('Error fetching quiz:', error);
@@ -174,19 +181,17 @@ export async function submitQuizAttempt(
 
     // Update quiz with attempt count and average score
     const quizRef = doc(db, 'quizzes', quizId);
-    const quizDoc = await getDocs(query(collection(db, 'quizzes'), where('id', '==', quizId)));
-    
-    if (!quizDoc.empty) {
-      const currentQuiz = quizDoc.docs[0].data() as Quiz;
-      const totalAttempts = (currentQuiz.totalAttempts || 0) + 1;
-      const currentAverage = currentQuiz.averageScore || 0;
-      const newAverage = (currentAverage * (totalAttempts - 1) + score) / totalAttempts;
+    const currentTotalAttempts = (quiz.totalAttempts || 0);
+    const currentAverage = (quiz.averageScore || 0);
+    const newTotalAttempts = currentTotalAttempts + 1;
+    const newAverage = currentTotalAttempts === 0 
+      ? score 
+      : (currentAverage * currentTotalAttempts + score) / newTotalAttempts;
 
-      await updateDoc(quizRef, {
-        totalAttempts,
-        averageScore: newAverage,
-      });
-    }
+    await updateDoc(quizRef, {
+      totalAttempts: newTotalAttempts,
+      averageScore: newAverage,
+    });
 
     return attemptRef.id;
   } catch (error) {

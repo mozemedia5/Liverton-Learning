@@ -445,8 +445,13 @@ export function subscribeToTeacherEnrollments(
 /**
  * Create a quiz for a course
  */
+/**
+ * Create a quiz for a course
+ */
 export async function createQuiz(
   courseId: string,
+  teacherId: string,
+  teacherName: string,
   quizData: Omit<Quiz, 'id' | 'courseId' | 'createdAt'>
 ): Promise<string> {
   const quizRef = collection(db, 'quizzes');
@@ -454,11 +459,16 @@ export async function createQuiz(
   const newQuiz = {
     ...quizData,
     courseId,
+    teacherId,
+    teacherName,
+    totalAttempts: 0,
+    averageScore: 0,
     createdAt: serverTimestamp()
   };
 
   const docRef = await addDoc(quizRef, newQuiz);
   return docRef.id;
+}
 }
 
 /**

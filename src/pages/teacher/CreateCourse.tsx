@@ -344,7 +344,7 @@ export default function CreateCourse() {
 
       // Create quiz if questions exist
       if (questions.length > 0) {
-        await createQuiz(courseId, {
+        await createQuiz(courseId, currentUser.uid, userData?.fullName || 'Unknown Teacher', {
           title: quizTitle || 'Course Quiz',
           questions,
           timeLimit: parseInt(quizTimeLimit) || undefined
