@@ -272,7 +272,6 @@ function StudentAnalyticsView({ studentId }: { studentId: string }) {
 // TEACHER ANALYTICS VIEW
 // ==========================================
 function TeacherAnalyticsView({ teacherId }: { teacherId: string }) {
-  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -476,8 +475,11 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
     },
   ];
 
+  const navigate = useNavigate();
   const totalFees = (analytics?.feesCollected || 0) + (analytics?.feesPending || 0) + (analytics?.feesOverdue || 0);
-  const collectionRate = totalFees > 0 ? Math.round((analytics?.feesCollected || 0) / totalFees * 100)   return (
+  const collectionRate = totalFees > 0 ? Math.round((analytics?.feesCollected || 0) / totalFees * 100) : 0;
+
+  return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
@@ -490,7 +492,7 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <BarChart3 className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Teaching Analytics</span>
+              <span className="font-semibold">School Analytics</span>
             </div>
           </div>
         </div>
@@ -503,9 +505,11 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
             Performance Overview
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Monitor your course performance and student engagement
+            Monitor your school performance and student engagement
           </p>
-        </div>id grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
