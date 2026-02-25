@@ -47,6 +47,7 @@ import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
 
 // New Global Features
+import CalendarPage from '@/pages/features/CalendarPage';
 import DocumentManagement from '@/pages/features/DocumentManagement';
 import DocumentWorkspaceWrapper from "@/components/DocumentWorkspaceWrapper";
 import UnifiedDocumentEditor from '@/pages/features/UnifiedDocumentEditor';
@@ -343,6 +344,13 @@ function AppRoutes() {
       <Route path="/editor/:type/:docId" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <UnifiedDocumentEditor />
+        </ProtectedRoute>
+      } />
+
+      {/* Calendar Route - Protected, accessible to all authenticated users */}
+      <Route path="/calendar" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <CalendarPage />
         </ProtectedRoute>
       } />
 

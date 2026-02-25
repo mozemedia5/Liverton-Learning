@@ -139,6 +139,7 @@ export default function SideNavbar() {
     { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['platform_admin'] },
 
     // Shared routes for all authenticated users
+    { label: 'Calendar', path: '/calendar', icon: Calendar },
     { label: 'Announcements', path: '/announcements', icon: Bell },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },

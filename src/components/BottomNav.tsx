@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
-import { Home, MessageSquare, Settings, LogOut, FileText } from 'lucide-react';
+import { Home, MessageSquare, Settings, LogOut, FileText, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/types';
 
@@ -34,6 +34,7 @@ export function BottomNav({ userRole }: BottomNavProps) {
   const navItems: NavItem[] = useMemo(
     () => [
       { icon: Home, label: 'Home', path: getHomePath(userRole) },
+      { icon: Calendar, label: 'Calendar', path: '/calendar' },
       { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
       { icon: MessageSquare, label: 'Chat', path: '/chat' },
       { icon: Settings, label: 'Settings', path: '/settings' },
