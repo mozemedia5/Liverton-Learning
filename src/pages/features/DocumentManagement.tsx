@@ -28,7 +28,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from '../../components/ui/alert-dialog';
-import { FileText, Sheet, Presentation, Download, Trash2, Plus,  Loader2, ArrowLeft, BookOpen } from 'lucide-react';
+import { FileText, Sheet, Presentation, Download, Trash2, Plus,  Loader2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 

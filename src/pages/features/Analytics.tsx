@@ -324,11 +324,29 @@ function TeacherAnalyticsView({ teacherId }: { teacherId: string }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Teaching Analytics</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Teaching Analytics
+            Performance Overview
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Track your teaching performance and earnings
@@ -426,6 +444,7 @@ function TeacherAnalyticsView({ teacherId }: { teacherId: string }) {
 // SCHOOL ADMIN ANALYTICS VIEW
 // ==========================================
 function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<SchoolAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -477,7 +496,8 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
   ];
 
   const totalFees = (analytics?.feesCollected || 0) + (analytics?.feesPending || 0) + (analytics?.feesOverdue || 0);
-  const collectionRate = totalFees > 0 ? Math.round((analytics?.feesCollected || 0) / totalFees * 100)   return (
+  const collectionRate = totalFees > 0 ? Math.round((analytics?.feesCollected || 0) / totalFees * 100) : 0;
+  return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
@@ -505,7 +525,8 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
           <p className="text-gray-600 dark:text-gray-400">
             Monitor your course performance and student engagement
           </p>
-        </div>id grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -611,6 +632,7 @@ function SchoolAnalyticsView({ schoolId }: { schoolId: string }) {
 // PARENT ANALYTICS VIEW
 // ==========================================
 function ParentAnalyticsView({ parentId }: { parentId: string }) {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<ParentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -669,11 +691,29 @@ function ParentAnalyticsView({ parentId }: { parentId: string }) {
   const paymentRate = totalFees > 0 ? Math.round((analytics?.feesPaid || 0) / totalFees * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Family Analytics</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Family Analytics
+            Performance Overview
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Track your children's progress and academic performance
@@ -787,6 +827,7 @@ function ParentAnalyticsView({ parentId }: { parentId: string }) {
 // PLATFORM ADMIN ANALYTICS VIEW
 // ==========================================
 function PlatformAnalyticsView() {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -838,11 +879,29 @@ function PlatformAnalyticsView() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Platform Analytics</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto p-4 lg:p-6">
+        {/* Sub-Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Platform Analytics
+            Performance Overview
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Monitor platform-wide metrics and user activity
