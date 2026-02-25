@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, deleteDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, deleteDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 
 /**
  * OTP Service for handling email-based OTP verification
@@ -99,8 +99,12 @@ export async function createAndSendOTP(
       query(collection(db, 'otpCodes'), where('email', '==', studentEmail))
     );
 
-    for (const doc of existingOTPs.docs) {
-      await deleteDoc(doc.ref);
+    if (!existingOTPs.empty) {
+      const batch = writeBatch(db);
+      existingOTPs.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
     }
 
     // Generate new OTP
@@ -235,16 +239,7 @@ export async function resendOTP(
   studentName: string = 'Student'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Delete existing OTP
-    const existingOTPs = await getDocs(
-      query(collection(db, 'otpCodes'), where('email', '==', studentEmail))
-    );
-
-    for (const doc of existingOTPs.docs) {
-      await deleteDoc(doc.ref);
-    }
-
-    // Create and send new OTP
+    // Create and send new OTP (it handles cleanup of existing OTPs)
     return await createAndSendOTP(studentEmail, studentName);
   } catch (error) {
     console.error('Error resending OTP:', error);
