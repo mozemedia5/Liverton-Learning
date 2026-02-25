@@ -23,7 +23,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { 
   type Announcement, 
-  getAnnouncements, 
   hideAnnouncement, 
   unhideAnnouncement,
   deleteAnnouncement,

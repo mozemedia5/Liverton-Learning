@@ -9,7 +9,6 @@ import {
   type QueryDocumentSnapshot,
   updateDoc,
   doc,
-  where,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';

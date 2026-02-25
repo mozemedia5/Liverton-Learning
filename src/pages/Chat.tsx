@@ -24,12 +24,8 @@ import {
   onSnapshot,
   serverTimestamp,
   updateDoc,
-  doc,
-  getDocs,
-  orderBy,
-  limit
+  doc
 } from 'firebase/firestore';
-import { getChatDisplayTitle } from '@/services/chatService';
 interface Message {
   id: string;
   chatId: string;

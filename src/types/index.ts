@@ -221,9 +221,11 @@ export interface Chat {
   participants: string[];
   participantNames: Record<string, string>;
   participantRoles: Record<string, UserRole>;
+  title?: string;
+  type?: 'hanna' | 'direct';
   lastMessage?: Message;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | any;
+  updatedAt: Date | any;
 }
 
 export interface Message {
