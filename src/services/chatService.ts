@@ -9,7 +9,8 @@ import {
   onSnapshot, 
   orderBy, 
   Timestamp,
-  limit
+  limit,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
@@ -21,6 +22,49 @@ export interface ChatContact {
   role: UserRole;
   profilePicture?: string;
 }
+
+/**
+ * Generate a chat title based on message content (gist)
+ * Uses the first message or a summary to create a meaningful title
+ */
+const generateChatTitle = (firstMessage: string): string => {
+  if (!firstMessage) return 'New Chat';
+  
+  // Remove extra whitespace and limit length
+  const cleanMessage = firstMessage.trim().replace(/\s+/g, ' ');
+  
+  // Extract the first sentence or first 50 characters
+  const firstSentence = cleanMessage.split(/[.!?]/)[0];
+  const truncated = firstSentence.length > 50 
+    ? firstSentence.substring(0, 47) + '...' 
+    : firstSentence;
+  
+  return truncated || 'New Chat';
+};
+
+/**
+ * Format date for chat title
+ * Returns a short date string like "Jan 15" or "Today" or "Yesterday"
+ */
+const formatChatDate = (date: Date): string => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const chatDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  if (chatDate.getTime() === today.getTime()) {
+    return 'Today';
+  } else if (chatDate.getTime() === yesterday.getTime()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  }
+};
 
 /**
  * Search for users by name or email to start a new chat
@@ -55,8 +99,15 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
 /**
  * Find or create a chat between two users
+ * Chat title will be updated based on the first message content
  */
-export const getOrCreateChat = async (currentUserId: string, targetUserId: string, currentUserData: any, targetUserData: any): Promise<string> => {
+export const getOrCreateChat = async (
+  currentUserId: string, 
+  targetUserId: string, 
+  currentUserData: any, 
+  targetUserData: any,
+  initialMessage?: string
+): Promise<string> => {
   try {
     const chatsRef = collection(db, 'chats');
     
@@ -76,6 +127,11 @@ export const getOrCreateChat = async (currentUserId: string, targetUserId: strin
       return existingChat.id;
     }
     
+    // Generate title based on initial message or default
+    const title = initialMessage 
+      ? `${generateChatTitle(initialMessage)} - ${formatChatDate(new Date())}`
+      : `Chat with ${targetUserData.fullName || 'User'} - ${formatChatDate(new Date())}`;
+    
     // Create new chat
     const newChatData = {
       participants: [currentUserId, targetUserId],
@@ -87,6 +143,7 @@ export const getOrCreateChat = async (currentUserId: string, targetUserId: strin
         [currentUserId]: currentUserData.role || 'student',
         [targetUserId]: targetUserData.role || 'student'
       },
+      title: title,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     };
@@ -100,7 +157,42 @@ export const getOrCreateChat = async (currentUserId: string, targetUserId: strin
 };
 
 /**
+ * Update chat title based on message content
+ * Called when a new message is sent to rename the chat by its gist
+ */
+export const updateChatTitleByGist = async (
+  chatId: string, 
+  messageContent: string,
+  isFirstMessage: boolean = false
+): Promise<void> => {
+  try {
+    const chatRef = doc(db, 'chats', chatId);
+    const chatSnap = await getDoc(chatRef);
+    
+    if (!chatSnap.exists()) return;
+    
+    const chatData = chatSnap.data();
+    const currentTitle = chatData.title || '';
+    
+    // Only update if it's the first message or title is generic
+    const shouldUpdate = isFirstMessage || 
+      currentTitle.startsWith('Chat with') || 
+      currentTitle === 'New Chat' ||
+      currentTitle.includes(' - Today') ||
+      currentTitle.includes(' - Yesterday');
+    
+    if (shouldUpdate && messageContent) {
+      const newTitle = `${generateChatTitle(messageContent)} - ${formatChatDate(new Date())}`;
+      await updateDoc(chatRef, { title: newTitle });
+    }
+  } catch (error) {
+    console.error('Error updating chat title:', error);
+  }
+};
+
+/**
  * Listen to user's chats
+ * Chats are now named according to their content with dates
  */
 export const listenToUserChats = (userId: string, callback: (chats: Chat[]) => void) => {
   const chatsRef = collection(db, 'chats');
@@ -144,8 +236,15 @@ export const listenToMessages = (chatId: string, callback: (messages: Message[])
 
 /**
  * Send a message
+ * Automatically renames the chat based on the first message content (gist)
  */
-export const sendMessage = async (chatId: string, senderId: string, senderName: string, content: string) => {
+export const sendMessage = async (
+  chatId: string, 
+  senderId: string, 
+  senderName: string, 
+  content: string,
+  isFirstMessage: boolean = false
+) => {
   try {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
     const messageData = {
@@ -166,8 +265,65 @@ export const sendMessage = async (chatId: string, senderId: string, senderName: 
       lastMessage: messageData,
       updatedAt: Timestamp.now()
     });
+    
+    // Update chat title based on message gist (for first message or generic titles)
+    await updateChatTitleByGist(chatId, content, isFirstMessage);
+    
   } catch (error) {
     console.error('Error sending message:', error);
     throw error;
   }
+};
+
+/**
+ * Create a new chat with Hanna AI
+ * Chat will be named based on the first question asked
+ */
+export const createHannaChat = async (userId: string, userName: string): Promise<string> => {
+  try {
+    const chatsRef = collection(db, 'chats');
+    
+    const newChatData = {
+      participants: [userId, 'hanna-ai'],
+      participantNames: {
+        [userId]: userName || 'Me',
+        'hanna-ai': 'Hanna AI'
+      },
+      participantRoles: {
+        [userId]: 'student',
+        'hanna-ai': 'assistant'
+      },
+      title: `Hanna Chat - ${formatChatDate(new Date())}`,
+      type: 'hanna',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
+    
+    const docRef = await addDoc(chatsRef, newChatData);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating Hanna chat:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get chat title with date
+ * Returns formatted chat title with creation date
+ */
+export const getChatDisplayTitle = (chat: Chat): string => {
+  if (chat.title) return chat.title;
+  
+  // Fallback: create title from participant names
+  const names = Object.values(chat.participantNames || {});
+  const otherNames = names.filter(name => name !== 'Me' && name !== 'You');
+  
+  if (otherNames.length > 0) {
+    const date = chat.createdAt 
+      ? formatChatDate(chat.createdAt instanceof Date ? chat.createdAt : chat.createdAt.toDate())
+      : formatChatDate(new Date());
+    return `${otherNames.join(', ')} - ${date}`;
+  }
+  
+  return `Chat - ${formatChatDate(new Date())}`;
 };
