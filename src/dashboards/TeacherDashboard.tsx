@@ -123,13 +123,22 @@ export default function TeacherDashboard() {
             <h1 className="text-2xl font-bold">Welcome, {userData?.fullName || 'Teacher'}!</h1>
             <p className="text-gray-600 dark:text-gray-400">Manage your courses and students</p>
           </div>
-          <Button 
-            onClick={() => navigate('/teacher/courses/create')}
-            className="bg-black dark:bg-white text-white dark:text-black"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Course
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => navigate('/teacher/quizzes/create')}
+              className="bg-black dark:bg-white text-white dark:text-black"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Quiz
+            </Button>
+            <Button
+              onClick={() => navigate('/teacher/courses/create')}
+              className="bg-black dark:bg-white text-white dark:text-black"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Course
+            </Button>
+          </div>
         </div>
 
         {/* Earnings Statistics Cards */}

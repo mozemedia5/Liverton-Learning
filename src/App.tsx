@@ -32,6 +32,7 @@ import ParentStudents from '@/pages/ParentStudents';
 import ParentPerformance from '@/pages/ParentPerformance';
 import ParentCourses from '@/pages/ParentCourses';
 import ParentFees from '@/pages/ParentFees';
+import ParentQuizzes from '@/pages/ParentQuizzes';
 
 // Feature Pages
 import Courses from '@/pages/features/Courses';
@@ -42,6 +43,8 @@ import Payments from '@/pages/features/Payments';
 import Profile from '@/pages/features/Profile';
 import Settings from '@/pages/features/Settings';
 import Quizzes from '@/pages/features/Quizzes';
+import CreateQuiz from '@/pages/teacher/CreateQuiz';
+import TakeQuiz from '@/pages/student/TakeQuiz';
 import Documents from '@/pages/features/Documents';
 import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
@@ -201,6 +204,11 @@ function AppRoutes() {
           <AuthenticatedLayout><Quizzes /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+      <Route path="/student/quiz/:id" element={
+        <ProtectedRoute allowedRoles={['student']}>
+          <TakeQuiz />
+        </ProtectedRoute>
+      } />
 
       <Route path="/student/zoom-lessons" element={<ProtectedRoute allowedRoles={['student', 'parent']}><AuthenticatedLayout><StudentZoomLessons /></AuthenticatedLayout></ProtectedRoute>} />
 
@@ -230,6 +238,11 @@ function AppRoutes() {
           <ParentFees />
         </ProtectedRoute>
       } />
+      <Route path="/parent/quizzes" element={
+        <ProtectedRoute allowedRoles={['parent']}>
+          <ParentQuizzes />
+        </ProtectedRoute>
+      } />
 
       <Route path="/parent/zoom-lessons" element={
         <ProtectedRoute allowedRoles={['parent']}>
@@ -246,6 +259,11 @@ function AppRoutes() {
       <Route path="/teacher/courses" element={
       <ProtectedRoute allowedRoles={['teacher']}>
           <AuthenticatedLayout><Courses /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/quizzes/create" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <CreateQuiz />
         </ProtectedRoute>
       } />
 

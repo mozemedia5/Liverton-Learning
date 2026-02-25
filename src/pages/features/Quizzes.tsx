@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,114 +12,108 @@ import {
   Trophy,
   Play,
   BarChart3,
-  AlertCircle
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface Quiz {
   id: string;
   title: string;
   subject: string;
-  questions: number;
-  timeLimit: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  status: 'available' | 'completed' | 'locked';
+  questions: unknown[]; // We just need count
+  questionCount?: number;
+  timeLimitPerQuestion: number; // in seconds
+  status: 'published';
+}
+
+interface QuizAttempt {
+  quizId: string;
+  score: number;
+  completedAt: { seconds: number; nanoseconds: number } | null;
+}
+
+interface ProcessedQuiz extends Quiz {
+  studentStatus: 'available' | 'completed';
   score?: number;
   completedAt?: string;
 }
 
-const mockQuizzes: Quiz[] = [
-  {
-    id: '1',
-    title: 'Algebra Basics',
-    subject: 'Mathematics',
-    questions: 20,
-    timeLimit: 30,
-    difficulty: 'easy',
-    status: 'completed',
-    score: 85,
-    completedAt: '2026-02-08',
-  },
-  {
-    id: '2',
-    title: 'Newton\'s Laws',
-    subject: 'Physics',
-    questions: 15,
-    timeLimit: 25,
-    difficulty: 'medium',
-    status: 'completed',
-    score: 92,
-    completedAt: '2026-02-06',
-  },
-  {
-    id: '3',
-    title: 'Chemical Reactions',
-    subject: 'Chemistry',
-    questions: 25,
-    timeLimit: 40,
-    difficulty: 'hard',
-    status: 'available',
-  },
-  {
-    id: '4',
-    title: 'Grammar & Composition',
-    subject: 'English',
-    questions: 30,
-    timeLimit: 35,
-    difficulty: 'medium',
-    status: 'available',
-  },
-  {
-    id: '5',
-    title: 'World War II',
-    subject: 'History',
-    questions: 20,
-    timeLimit: 30,
-    difficulty: 'medium',
-    status: 'locked',
-  },
-];
-
-const getDifficultyColor = (difficulty: string) => {
-  switch (difficulty) {
-    case 'easy': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-    case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-    case 'hard': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-    default: return '';
-  }
-};
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case 'completed': return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Completed</Badge>;
-    case 'available': return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Available</Badge>;
-    case 'locked': return <Badge variant="secondary">Locked</Badge>;
-    default: return null;
-  }
-};
-
 export default function Quizzes() {
   const navigate = useNavigate();
-  useAuth();
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'available' | 'completed'>('available');
+  const [quizzes, setQuizzes] = useState<ProcessedQuiz[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredQuizzes = mockQuizzes.filter(quiz => 
-    activeTab === 'available' ? quiz.status !== 'completed' : quiz.status === 'completed'
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch all published quizzes
+        const quizzesQuery = query(collection(db, 'quizzes'), where('status', '==', 'published'));
+        const quizzesSnapshot = await getDocs(quizzesQuery);
+        const quizzesData = quizzesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quiz));
+
+        // Fetch user attempts
+        const attemptsQuery = query(collection(db, 'quiz_attempts'), where('studentId', '==', currentUser.uid));
+        const attemptsSnapshot = await getDocs(attemptsQuery);
+        const attemptsMap = new Map<string, QuizAttempt>();
+
+        attemptsSnapshot.forEach(doc => {
+            const data = doc.data();
+            attemptsMap.set(data.quizId, {
+                quizId: data.quizId,
+                score: data.score,
+                completedAt: data.completedAt
+            });
+        });
+
+        // Combine data
+        const processed: ProcessedQuiz[] = quizzesData.map(q => {
+            const attempt = attemptsMap.get(q.id);
+            return {
+                ...q,
+                studentStatus: attempt ? 'completed' : 'available',
+                score: attempt?.score,
+                completedAt: attempt?.completedAt ? new Date(attempt.completedAt.seconds * 1000).toLocaleDateString() : undefined
+            };
+        });
+
+        setQuizzes(processed);
+      } catch (error) {
+        console.error("Error fetching quizzes:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [currentUser]);
+
+  const filteredQuizzes = quizzes.filter(quiz =>
+    activeTab === 'available' ? quiz.studentStatus !== 'completed' : quiz.studentStatus === 'completed'
   );
 
-  const handleStartQuiz = (quiz: Quiz) => {
-    if (quiz.status === 'locked') {
-      toast.error('Complete previous quizzes to unlock this one!');
-      return;
-    }
-    toast.info(`Starting ${quiz.title}...`);
+  const handleStartQuiz = (quiz: ProcessedQuiz) => {
+    navigate(`/student/quiz/${quiz.id}`);
   };
 
-  const averageScore = mockQuizzes
-    .filter(q => q.status === 'completed' && q.score)
-    .reduce((sum, q) => sum + (q.score || 0), 0) / 
-    mockQuizzes.filter(q => q.status === 'completed').length || 0;
+  const completedQuizzes = quizzes.filter(q => q.studentStatus === 'completed');
+  const averageScore = completedQuizzes.length > 0
+    ? completedQuizzes.reduce((sum, q) => sum + (q.score || 0), 0) / completedQuizzes.length
+    : 0;
+
+  if (loading) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
@@ -152,7 +146,7 @@ export default function Quizzes() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-                  <p className="text-xl font-bold">{mockQuizzes.filter(q => q.status === 'completed').length}</p>
+                  <p className="text-xl font-bold">{completedQuizzes.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -178,7 +172,7 @@ export default function Quizzes() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Available</p>
-                  <p className="text-xl font-bold">{mockQuizzes.filter(q => q.status === 'available').length}</p>
+                  <p className="text-xl font-bold">{quizzes.filter(q => q.studentStatus === 'available').length}</p>
                 </div>
               </div>
             </CardContent>
@@ -191,7 +185,7 @@ export default function Quizzes() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-                  <p className="text-xl font-bold">{mockQuizzes.length}</p>
+                  <p className="text-xl font-bold">{quizzes.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -224,24 +218,25 @@ export default function Quizzes() {
                     <h3 className="font-semibold text-lg">{quiz.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{quiz.subject}</p>
                   </div>
-                  {getStatusBadge(quiz.status)}
+                  {quiz.studentStatus === 'completed' ? (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Completed</Badge>
+                  ) : (
+                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Available</Badge>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
                   <span className="flex items-center gap-1">
                     <CheckCircle className="w-4 h-4" />
-                    {quiz.questions} questions
+                    {quiz.questionCount || quiz.questions?.length || 0} questions
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {quiz.timeLimit} min
+                    {quiz.timeLimitPerQuestion}s / q
                   </span>
-                  <Badge className={getDifficultyColor(quiz.difficulty)}>
-                    {quiz.difficulty}
-                  </Badge>
                 </div>
 
-                {quiz.status === 'completed' && quiz.score && (
+                {quiz.studentStatus === 'completed' && quiz.score !== undefined && (
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm">Score</span>
@@ -254,14 +249,11 @@ export default function Quizzes() {
 
                 <Button
                   onClick={() => handleStartQuiz(quiz)}
-                  disabled={quiz.status === 'locked'}
                   className="w-full"
-                  variant={quiz.status === 'completed' ? 'outline' : 'default'}
+                  variant={quiz.studentStatus === 'completed' ? 'outline' : 'default'}
                 >
-                  {quiz.status === 'completed' ? (
-                    <><BarChart3 className="w-4 h-4 mr-2" /> View Results</>
-                  ) : quiz.status === 'locked' ? (
-                    <><AlertCircle className="w-4 h-4 mr-2" /> Locked</>
+                  {quiz.studentStatus === 'completed' ? (
+                    <><BarChart3 className="w-4 h-4 mr-2" /> Retake Quiz</>
                   ) : (
                     <><Play className="w-4 h-4 mr-2" /> Start Quiz</>
                   )}
