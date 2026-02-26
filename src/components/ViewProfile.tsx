@@ -5,10 +5,9 @@
  * Hides: Email, Phone, Sensitive personal information
  */
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { X, Mail, BookOpen, Building2, Calendar } from 'lucide-react';
+import { X, BookOpen, Building2, Calendar } from 'lucide-react';
 import type { UserProfile } from '@/types/chat';
 
 interface ViewProfileProps {

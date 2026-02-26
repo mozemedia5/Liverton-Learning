@@ -86,10 +86,16 @@ export function ChatSettingsEnhanced({
     setSelectedWallpaper(wallpaperId);
     const wallpaper = WALLPAPERS.find((wp) => wp.id === wallpaperId);
     if (wallpaper) {
+      // Map wallpaper types to ChatSettings wallpaperType
+      const wallpaperTypeMap: Record<string, 'color' | 'gradient' | 'image'> = {
+        solid: 'color',
+        gradient: 'gradient',
+        pattern: 'image',
+      };
       onSettingsChange({
         ...currentSettings,
         wallpaper: wallpaper.value,
-        wallpaperType: wallpaper.type,
+        wallpaperType: wallpaperTypeMap[wallpaper.type] || 'color',
       });
     }
   };
@@ -155,7 +161,9 @@ export function ChatSettingsEnhanced({
       ...currentSettings,
       messageAccentColor: color,
       colors: {
-        ...currentSettings.colors,
+        sentMessageBg: currentSettings.colors?.sentMessageBg ?? '#007AFF',
+        receivedMessageBg: currentSettings.colors?.receivedMessageBg ?? '#E5E5EA',
+        textColor: currentSettings.colors?.textColor ?? '#000000',
         accentColor: color,
       },
     });
