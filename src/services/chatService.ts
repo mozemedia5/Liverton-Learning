@@ -5,16 +5,15 @@ import {
   getDocs, 
   addDoc, 
   updateDoc, 
-  deleteDoc,
   doc, 
   onSnapshot, 
   orderBy, 
   Timestamp,
   limit,
-  getDoc
+  getDoc,
+  writeBatch
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
 
 export interface ChatContact {
@@ -245,10 +244,7 @@ export const sendMessage = async (
   senderId: string, 
   senderName: string, 
   content: string,
-  isFirstMessage: boolean = false,
-  fileUrl?: string,
-  fileName?: string,
-  type: 'text' | 'image' | 'file' = 'text'
+  isFirstMessage: boolean = false
 ) => {
   try {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
@@ -257,18 +253,11 @@ export const sendMessage = async (
       senderId,
       senderName,
       content,
-      type,
-      fileUrl,
-      fileName,
+      type: 'text',
       createdAt: Timestamp.now(),
       readBy: [senderId]
     };
     
-    // Remove undefined fields
-    Object.keys(messageData).forEach(key =>
-      (messageData as any)[key] === undefined && delete (messageData as any)[key]
-    );
-
     await addDoc(messagesRef, messageData);
     
     // Update chat's last message and updatedAt
@@ -279,47 +268,10 @@ export const sendMessage = async (
     });
     
     // Update chat title based on message gist (for first message or generic titles)
-    if (type === 'text') {
-      await updateChatTitleByGist(chatId, content, isFirstMessage);
-    }
+    await updateChatTitleByGist(chatId, content, isFirstMessage);
     
   } catch (error) {
     console.error('Error sending message:', error);
-    throw error;
-  }
-};
-
-/**
- * Upload a file to Firebase Storage
- */
-export const uploadFile = async (file: File, path: string): Promise<string> => {
-  try {
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    throw error;
-  }
-};
-
-/**
- * Delete a chat and all its messages
- */
-export const deleteChat = async (chatId: string): Promise<void> => {
-  try {
-    // Delete all messages in the subcollection
-    const messagesRef = collection(db, 'chats', chatId, 'messages');
-    const snapshot = await getDocs(messagesRef);
-
-    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-    await Promise.all(deletePromises);
-
-    // Delete the chat document itself
-    const chatRef = doc(db, 'chats', chatId);
-    await deleteDoc(chatRef);
-  } catch (error) {
-    console.error('Error deleting chat:', error);
     throw error;
   }
 };
@@ -375,4 +327,96 @@ export const getChatDisplayTitle = (chat: Chat): string => {
   }
   
   return `Chat - ${formatChatDate(new Date())}`;
+};
+
+/**
+ * Delete a chat and all its messages
+ * @param chatId - The ID of the chat to delete
+ */
+export const deleteChat = async (chatId: string): Promise<void> => {
+  try {
+    const batch = writeBatch(db);
+
+    // Delete all messages in the chat
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const messagesSnapshot = await getDocs(messagesRef);
+
+    messagesSnapshot.docs.forEach((messageDoc) => {
+      batch.delete(messageDoc.ref);
+    });
+
+    // Delete the chat document
+    const chatRef = doc(db, 'chats', chatId);
+    batch.delete(chatRef);
+
+    // Commit the batch
+    await batch.commit();
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+    throw error;
+  }
+};
+
+/**
+ * Send message with file attachment
+ * @param chatId - Chat ID
+ * @param senderId - Sender user ID
+ * @param senderName - Sender name
+ * @param content - Message text content
+ * @param fileURL - Optional file attachment URL
+ * @param fileName - Optional file name
+ * @param fileType - Optional file type
+ */
+export const sendMessageWithFile = async (
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  content: string,
+  fileURL?: string,
+  fileName?: string,
+  fileType?: string,
+  isFirstMessage: boolean = false
+) => {
+  try {
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const messageData: any = {
+      chatId,
+      senderId,
+      senderName,
+      content,
+      type: fileURL ? 'file' : 'text',
+      createdAt: Timestamp.now(),
+      readBy: [senderId]
+    };
+
+    // Add file attachment info if present
+    if (fileURL) {
+      messageData.attachments = [{
+        type: fileType || 'file',
+        url: fileURL,
+        name: fileName || 'file'
+      }];
+    }
+
+    await addDoc(messagesRef, messageData);
+
+    // Update chat's last message and updatedAt
+    const chatRef = doc(db, 'chats', chatId);
+    await updateDoc(chatRef, {
+      lastMessage: {
+        ...messageData,
+        content: fileURL ? `📎 ${fileName || 'File'}` : content
+      },
+      updatedAt: Timestamp.now()
+    });
+
+    // Update chat title based on message gist (for first message or generic titles)
+    if (content && !fileURL) {
+      await updateChatTitleByGist(chatId, content, isFirstMessage);
+    }
+
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
+  }
 };

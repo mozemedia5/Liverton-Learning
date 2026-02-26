@@ -1,116 +1,110 @@
 /**
- * Date Utility Functions
- * Provides helper functions for formatting dates in chat messages
- * Shows "Today", "Yesterday", or specific date format
+ * Date Separator Utilities
+ * Helper functions for grouping messages by date and rendering date separators
  */
+
+import type { Message } from '@/types';
 
 /**
- * Format date for chat display
- * Returns "Today", "Yesterday", or formatted date like "January 2, 2025"
- * @param date - Date to format (Date object or Firestore timestamp)
- * @returns Formatted date string
+ * Format date for display in chat
+ * Returns "Today", "Yesterday", or formatted date
  */
-export function formatChatDate(date: any): string {
-  if (!date) return '';
-
-  // Convert Firestore timestamp to Date if needed
-  let dateObj: Date;
-  if (date.toDate && typeof date.toDate === 'function') {
-    dateObj = date.toDate();
-  } else if (date instanceof Date) {
-    dateObj = date;
-  } else {
-    return '';
-  }
-
-  const today = new Date();
+export const formatMessageDate = (date: Date): string => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // Check if date is today
-  if (
-    dateObj.getDate() === today.getDate() &&
-    dateObj.getMonth() === today.getMonth() &&
-    dateObj.getFullYear() === today.getFullYear()
-  ) {
+  const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (messageDate.getTime() === today.getTime()) {
     return 'Today';
-  }
-
-  // Check if date is yesterday
-  if (
-    dateObj.getDate() === yesterday.getDate() &&
-    dateObj.getMonth() === yesterday.getMonth() &&
-    dateObj.getFullYear() === yesterday.getFullYear()
-  ) {
+  } else if (messageDate.getTime() === yesterday.getTime()) {
     return 'Yesterday';
+  } else if (now.getTime() - messageDate.getTime() < 7 * 24 * 60 * 60 * 1000) {
+    // Within last week - show day name
+    return messageDate.toLocaleDateString('en-US', { weekday: 'long' });
+  } else {
+    // Older - show full date
+    return messageDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: messageDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
   }
-
-  // Format as "Month Day, Year"
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+};
 
 /**
- * Check if two dates are on different days
- * Used to determine when to show date separator in chat
- * @param date1 - First date
- * @param date2 - Second date
- * @returns True if dates are on different days
+ * Format timestamp into HH:MM AM/PM
  */
-export function isDifferentDay(date1: any, date2: any): boolean {
-  if (!date1 || !date2) return false;
-
-  let d1: Date;
-  let d2: Date;
-
-  if (date1.toDate && typeof date1.toDate === 'function') {
-    d1 = date1.toDate();
-  } else if (date1 instanceof Date) {
-    d1 = date1;
-  } else {
-    return false;
-  }
-
-  if (date2.toDate && typeof date2.toDate === 'function') {
-    d2 = date2.toDate();
-  } else if (date2 instanceof Date) {
-    d2 = date2;
-  } else {
-    return false;
-  }
-
-  return (
-    d1.getDate() !== d2.getDate() ||
-    d1.getMonth() !== d2.getMonth() ||
-    d1.getFullYear() !== d2.getFullYear()
-  );
-}
+export const formatMessageTime = (date: Date): string => {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 /**
- * Format time for message timestamp
- * Returns time in HH:MM format (e.g., "14:30" or "2:30 PM")
- * @param date - Date to format
- * @param use24Hour - Whether to use 24-hour format (default: false for 12-hour)
- * @returns Formatted time string
+ * Format date for chat list
  */
-export function formatMessageTime(date: any, use24Hour: boolean = false): string {
-  if (!date) return '';
+export const formatChatDate = (date: Date): string => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
-  let dateObj: Date;
-  if (date.toDate && typeof date.toDate === 'function') {
-    dateObj = date.toDate();
-  } else if (date instanceof Date) {
-    dateObj = date;
+  const chatDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (chatDate.getTime() === today.getTime()) {
+    return formatMessageTime(date);
+  } else if (chatDate.getTime() === yesterday.getTime()) {
+    return 'Yesterday';
   } else {
-    return '';
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
   }
+};
 
-  return dateObj.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: !use24Hour,
-  });
+/**
+ * Check if two dates are on the same day
+ */
+export const isSameDay = (date1: Date, date2: Date): boolean => {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
+};
+
+/**
+ * Group messages by date
+ * Returns array of message groups with date labels
+ */
+export interface MessageGroup {
+  date: Date;
+  dateLabel: string;
+  messages: Message[];
 }
+
+export const groupMessagesByDate = (messages: Message[]): MessageGroup[] => {
+  const groups: MessageGroup[] = [];
+  let currentGroup: MessageGroup | null = null;
+
+  messages.forEach((message) => {
+    const messageDate = message.createdAt instanceof Date
+      ? message.createdAt
+      : message.createdAt?.toDate ? message.createdAt.toDate() : new Date();
+
+    if (!currentGroup || !isSameDay(currentGroup.date, messageDate)) {
+      // Start a new group
+      currentGroup = {
+        date: messageDate,
+        dateLabel: formatMessageDate(messageDate),
+        messages: [message],
+      };
+      groups.push(currentGroup);
+    } else {
+      // Add to existing group
+      currentGroup.messages.push(message);
+    }
+  });
+
+  return groups;
+};

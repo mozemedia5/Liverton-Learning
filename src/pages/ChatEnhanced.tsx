@@ -253,15 +253,15 @@ export default function ChatEnhanced() {
       )}
 
       {/* Delete Chat Confirmation */}
-      {showDeleteConfirm && (
-        <DeleteChatConfirmation
-          onConfirm={() => {
-            setMessages([]);
-            setShowDeleteConfirm(false);
-          }}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
-      )}
+      <DeleteChatConfirmation
+        isOpen={showDeleteConfirm}
+        chatTitle="Current Chat"
+        onConfirm={() => {
+          setMessages([]);
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

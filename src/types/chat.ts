@@ -23,10 +23,10 @@ export interface Message {
   senderId: string;
   senderName: string;
   senderAvatar?: string;
-  senderRole: 'user' | 'hanna';
+  senderRole?: 'user' | 'hanna';
   content: string;
   createdAt: any;
-  readStatus: MessageReadStatus; // 'sent', 'delivered', 'read'
+  readStatus?: MessageReadStatus; // 'sent', 'delivered', 'read'
   readAt?: any; // Timestamp when message was read
   editedAt?: any; // Timestamp if message was edited
   isEdited?: boolean;
