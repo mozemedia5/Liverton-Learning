@@ -117,7 +117,7 @@ export default function ChatEnhanced() {
    * Groups messages by date for display
    * Returns array of message groups with date labels
    */
-  const messageGroups = groupMessagesByDate(messages);
+  const messageGroups = groupMessagesByDate(messages as any);
 
   return (
     <div className="flex flex-col h-screen bg-white">

@@ -3,11 +3,11 @@
  * Displays individual messages with read status, timestamps, and formatting
  */
 
-import type { Message } from '@/types/chat';
-import { Check, CheckCheck } from 'lucide-react';
+import type { Message } from '@/types';
+import { Check, CheckCheck, FileText, Download } from 'lucide-react';
 
 interface ChatMessageProps {
-  message: Message;
+  message: Message | any; // Allow flexibility for now
   isCurrentUser: boolean;
   showDate?: boolean;
   dateLabel?: string;
@@ -84,7 +84,41 @@ export function ChatMessage({
             fontStyle: fontStyle as any,
           }}
         >
-          <p className="m-0">{message.content}</p>
+          {message.type === 'image' && message.fileUrl ? (
+            <div className="mb-2">
+              <img
+                src={message.fileUrl}
+                alt="Shared image"
+                className="max-w-full rounded-lg max-h-60 object-cover cursor-pointer"
+                onClick={() => window.open(message.fileUrl, '_blank')}
+              />
+              {message.content && <p className="m-0 mt-1">{message.content}</p>}
+            </div>
+          ) : message.type === 'file' && message.fileUrl ? (
+            <div className="mb-2">
+              <div className="flex items-center gap-3 bg-black/10 dark:bg-white/10 p-3 rounded-lg">
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 opacity-70" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate max-w-[150px]">
+                    {message.fileName || 'Attachment'}
+                  </p>
+                  <a
+                    href={message.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs opacity-70 hover:underline flex items-center gap-1"
+                  >
+                    <Download className="w-3 h-3" /> Download
+                  </a>
+                </div>
+              </div>
+              {message.content && <p className="m-0 mt-2">{message.content}</p>}
+            </div>
+          ) : (
+            <p className="m-0">{message.content}</p>
+          )}
 
           {/* Timestamp and status indicator */}
           <div className="flex items-center justify-end gap-1 mt-1">

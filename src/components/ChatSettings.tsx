@@ -6,7 +6,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Palette, Type, Image as ImageIcon } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Palette, Type, Image as ImageIcon, Lock } from 'lucide-react';
 import type { ChatSettings as ChatSettingsType, ChatTheme, FontStyle } from '@/types/chat';
 import { CHAT_THEMES, getThemeNames } from '@/lib/chatThemes';
 
@@ -29,6 +30,7 @@ export function ChatSettings({
   const [fontSize, setFontSize] = useState<number>(currentSettings.fontSize || 14);
   const [fontStyle, setFontStyle] = useState<FontStyle>(currentSettings.fontStyle || 'normal');
   const [wallpaper, setWallpaper] = useState<string>(currentSettings.wallpaper || '');
+  const [encryptionEnabled, setEncryptionEnabled] = useState<boolean>(currentSettings.encryptionEnabled || false);
 
   // Handle theme selection
   const handleThemeSelect = (themeName: string) => {
@@ -72,6 +74,15 @@ export function ChatSettings({
     onSettingsChange({
       ...currentSettings,
       wallpaper: url,
+    });
+  };
+
+  // Handle encryption toggle
+  const handleEncryptionChange = (checked: boolean) => {
+    setEncryptionEnabled(checked);
+    onSettingsChange({
+      ...currentSettings,
+      encryptionEnabled: checked,
     });
   };
 
@@ -148,6 +159,21 @@ export function ChatSettings({
             onChange={(e) => handleWallpaperChange(e.target.value)}
             placeholder="Enter image URL"
             className="w-full px-3 py-2 border rounded-md"
+          />
+        </div>
+
+        {/* Encryption */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock size={20} />
+            <div>
+              <h3 className="font-semibold">End-to-End Encryption</h3>
+              <p className="text-xs text-gray-500">Enable enhanced security for this chat</p>
+            </div>
+          </div>
+          <Switch
+            checked={encryptionEnabled}
+            onCheckedChange={handleEncryptionChange}
           />
         </div>
 

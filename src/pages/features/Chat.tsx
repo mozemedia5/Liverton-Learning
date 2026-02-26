@@ -37,6 +37,14 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { ChatSettings } from '@/components/ChatSettings';
+import { ViewUserProfile } from '@/components/ViewUserProfile';
+import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
+import { ChatMessage } from '@/components/ChatMessage';
+import { groupMessagesByDate } from '@/lib/messageUtils';
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
+import { deleteChat, uploadFile } from '@/services/chatService';
+import type { ChatSettings as ChatSettingsType } from '@/types/chat';
 
 export default function Chat() {
   const { currentUser, userData } = useAuth();
@@ -51,6 +59,22 @@ export default function Chat() {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  // New state for enhanced features
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
+    theme: 'light',
+    fontSize: 14,
+    fontStyle: 'normal',
+    wallpaper: '',
+    notificationsEnabled: true,
+    muteNotifications: false,
+    encryptionEnabled: false,
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of messages
@@ -108,6 +132,56 @@ export default function Chat() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm, currentUser]);
+
+  const handleSettingsChange = (newSettings: ChatSettingsType) => {
+    setChatSettings(newSettings);
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setMessageInput((prev) => prev + emojiData.emoji);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat || !currentUser) return;
+
+    try {
+      const path = `chats/${selectedChat.id}/${Date.now()}_${file.name}`;
+      const url = await uploadFile(file, path);
+
+      const type = file.type.startsWith('image/') ? 'image' : 'file';
+
+      await sendMessage(
+        selectedChat.id,
+        currentUser.uid,
+        userData?.fullName || 'Me',
+        messageInput.trim(), // Can send text with file
+        false,
+        url,
+        file.name,
+        type
+      );
+
+      setMessageInput('');
+      toast.success('File sent');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to upload file');
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!selectedChat) return;
+    try {
+      await deleteChat(selectedChat.id);
+      setSelectedChat(null);
+      setShowDeleteConfirm(false);
+      toast.success('Chat deleted');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to delete chat');
+    }
+  };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -173,6 +247,8 @@ export default function Chat() {
     const otherId = chat.participants.find(id => id !== currentUser.uid);
     return otherId ? chat.participantRoles[otherId] : 'student';
   };
+
+  const messageGroups = groupMessagesByDate(messages);
 
   if (loading) {
     return (
@@ -312,47 +388,76 @@ export default function Chat() {
                     <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-5 h-5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem className="gap-2"><Info className="w-4 h-4" /> View Profile</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2"><Settings className="w-4 h-4" /> Chat Settings</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 text-red-600"><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={() => setShowProfile(true)}><Info className="w-4 h-4" /> View Profile</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={() => setShowSettings(true)}><Settings className="w-4 h-4" /> Chat Settings</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-red-600" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </header>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-black/40">
-              {messages.map((msg, idx) => {
-                const isMe = msg.senderId === currentUser?.uid;
-                return (
-                  <div 
-                    key={msg.id || idx} 
-                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`
-                      max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
-                      ${isMe 
-                        ? 'bg-blue-600 text-white rounded-tr-none' 
-                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
-                    `}>
-                      <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
-                      <span className={`text-[10px] mt-1 block ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
-                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-black/40"
+              style={{
+                backgroundImage: chatSettings.wallpaper ? `url(${chatSettings.wallpaper})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            >
+              {messageGroups.map((group, groupIdx) => (
+                <div key={groupIdx}>
+                  {/* Date Separator */}
+                  {group.dateLabel && (
+                    <div className="flex justify-center my-4 sticky top-0 z-10">
+                      <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm backdrop-blur-sm bg-opacity-80">
+                        {group.dateLabel}
                       </span>
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+
+                  {/* Messages */}
+                  {group.messages.map((msg) => (
+                    <ChatMessage
+                      key={msg.id}
+                      message={msg}
+                      isCurrentUser={msg.senderId === currentUser?.uid}
+                      fontSize={chatSettings.fontSize}
+                      fontStyle={chatSettings.fontStyle}
+                      customColors={chatSettings.colors}
+                    />
+                  ))}
+                </div>
+              ))}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Message Input */}
-            <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
+            <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 relative">
+              {showEmojiPicker && (
+                <div className="absolute bottom-20 right-4 z-50">
+                  <EmojiPicker onEmojiClick={onEmojiClick} />
+                </div>
+              )}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileUpload}
+              />
               <form 
                 onSubmit={handleSendMessage}
                 className="flex items-center gap-2 max-w-5xl mx-auto"
               >
-                <Button type="button" variant="ghost" size="icon" className="rounded-full text-gray-500"><Paperclip className="w-5 h-5" /></Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full text-gray-500"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Paperclip className="w-5 h-5" />
+                </Button>
                 <div className="flex-1 relative">
                   <Input 
                     value={messageInput}
@@ -365,6 +470,7 @@ export default function Chat() {
                     variant="ghost" 
                     size="icon" 
                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full text-gray-500"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   >
                     <Smile className="w-5 h-5" />
                   </Button>
@@ -405,6 +511,36 @@ export default function Chat() {
           </div>
         )}
       </main>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <ChatSettings
+          currentSettings={chatSettings}
+          onSettingsChange={handleSettingsChange}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {showProfile && selectedChat && (
+        <ViewUserProfile
+          profile={{
+            id: selectedChat.participants.find(id => id !== currentUser?.uid) || '',
+            name: getOtherParticipantName(selectedChat),
+            role: getOtherParticipantRole(selectedChat) as any,
+            joinedDate: new Date().toISOString(),
+          }}
+          onClose={() => setShowProfile(false)}
+        />
+      )}
+
+      {/* Delete Chat Confirmation */}
+      {showDeleteConfirm && (
+        <DeleteChatConfirmation
+          onConfirm={handleDeleteChat}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
 
       {/* New Chat Search Modal */}
       {isSearchOpen && (

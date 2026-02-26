@@ -236,6 +236,7 @@ export interface Message {
   content: string;
   type: 'text' | 'image' | 'file';
   fileUrl?: string;
+  fileName?: string;
   createdAt: Date;
   readBy: string[];
 }
