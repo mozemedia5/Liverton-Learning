@@ -76,13 +76,16 @@ export function ChatSettings({
   // Handle accent color change
   const handleAccentColorChange = (color: string) => {
     setAccentColor(color);
-    onSettingsChange({
+    const newSettings: ChatSettingsType = {
       ...currentSettings,
       colors: {
-        ...currentSettings.colors,
+        sentMessageBg: currentSettings.colors?.sentMessageBg || '#007AFF',
+        receivedMessageBg: currentSettings.colors?.receivedMessageBg || '#E8E8ED',
+        textColor: currentSettings.colors?.textColor || '#000000',
         accentColor: color,
       },
-    });
+    };
+    onSettingsChange(newSettings);
   };
 
   const themeNames = getThemeNames();

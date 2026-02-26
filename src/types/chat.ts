@@ -8,7 +8,7 @@
 export type MessageReadStatus = 'sent' | 'delivered' | 'read';
 
 // Chat theme types
-export type ChatTheme = 'light' | 'dark' | 'ocean' | 'forest' | 'sunset' | 'custom';
+export type ChatTheme = 'light' | 'dark' | 'material' | 'ocean' | 'forest' | 'sunset' | 'purple' | 'mint' | 'custom';
 
 // Font styles for chat
 export type FontStyle = 'normal' | 'italic' | 'bold' | 'bold-italic';

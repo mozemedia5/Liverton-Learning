@@ -29,7 +29,7 @@ import {
 } from 'firebase/firestore';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatSettings } from '@/components/ChatSettings';
-import type { ChatSettings as ChatSettingsType } from '@/types/chat';
+import type { ChatSettings as ChatSettingsType, Message as ChatMessageType } from '@/types/chat';
 
 interface Message {
   id: string;
@@ -78,11 +78,12 @@ export default function Chat() {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [recipientOnlineStatus, setRecipientOnlineStatus] = useState<Record<string, boolean>>({});
   const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
     theme: 'light',
     fontSize: 14,
     fontStyle: 'normal',
+    notificationsEnabled: true,
+    muteNotifications: false,
     colors: {
       sentMessageBg: '#007AFF',
       receivedMessageBg: '#E8E8ED',
@@ -193,10 +194,12 @@ export default function Chat() {
 
     setIsSendingMessage(true);
     try {
+      const senderName = (userData as any)?.displayName || 'Anonymous';
+      
       const messageData = {
         chatId: currentChatId,
         senderId: currentUser.uid,
-        senderName: userData?.displayName || 'Anonymous',
+        senderName: senderName,
         senderRole: 'user' as const,
         content: inputValue.trim(),
         createdAt: serverTimestamp(),
@@ -377,12 +380,12 @@ export default function Chat() {
                 messages.map(message => (
                   <ChatMessage
                     key={message.id}
-                    message={message}
+                    message={message as ChatMessageType}
                     isCurrentUser={message.senderId === currentUser?.uid}
                     customColors={chatSettings.colors}
                     fontSize={chatSettings.fontSize}
                     fontStyle={chatSettings.fontStyle}
-                    isRecipientOnline={recipientOnlineStatus[message.senderId] || false}
+                    isRecipientOnline={false}
                     isMessageRead={message.readStatus === 'read'}
                   />
                 ))
