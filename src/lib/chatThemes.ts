@@ -1,13 +1,14 @@
 /**
- * Chat Theme Definitions
- * Defines color schemes and styling for different chat themes
+ * Chat Theme Definitions - Enhanced
+ * Modern color schemes inspired by Google Material Design and Gboard
+ * Each theme includes optimized colors for sent/received messages and accents
  */
 
 import type { ThemeConfig } from '@/types/chat';
 
 /**
- * Available chat themes with their color configurations
- * Each theme includes colors for sent/received messages and accent colors
+ * Available chat themes with modern color configurations
+ * Inspired by Google Material Design 3 and Gboard keyboard themes
  */
 export const CHAT_THEMES: Record<string, ThemeConfig> = {
   light: {
@@ -15,7 +16,7 @@ export const CHAT_THEMES: Record<string, ThemeConfig> = {
     label: 'Light',
     colors: {
       sentMessageBg: '#007AFF',
-      receivedMessageBg: '#E5E5EA',
+      receivedMessageBg: '#E8E8ED',
       textColor: '#000000',
       accentColor: '#007AFF',
       wallpaper: '#FFFFFF',
@@ -33,6 +34,18 @@ export const CHAT_THEMES: Record<string, ThemeConfig> = {
       wallpaper: '#121212',
     },
     wallpaper: '#121212',
+  },
+  material: {
+    name: 'material',
+    label: 'Material',
+    colors: {
+      sentMessageBg: '#1F88E5',
+      receivedMessageBg: '#F0F0F0',
+      textColor: '#202124',
+      accentColor: '#1F88E5',
+      wallpaper: '#FFFFFF',
+    },
+    wallpaper: '#FFFFFF',
   },
   ocean: {
     name: 'ocean',
@@ -69,6 +82,30 @@ export const CHAT_THEMES: Record<string, ThemeConfig> = {
       wallpaper: '#FFF5E6',
     },
     wallpaper: '#FFF5E6',
+  },
+  purple: {
+    name: 'purple',
+    label: 'Purple',
+    colors: {
+      sentMessageBg: '#7C3AED',
+      receivedMessageBg: '#F3E8FF',
+      textColor: '#4C1D95',
+      accentColor: '#7C3AED',
+      wallpaper: '#FAF5FF',
+    },
+    wallpaper: '#FAF5FF',
+  },
+  mint: {
+    name: 'mint',
+    label: 'Mint',
+    colors: {
+      sentMessageBg: '#10B981',
+      receivedMessageBg: '#D1FAE5',
+      textColor: '#065F46',
+      accentColor: '#10B981',
+      wallpaper: '#F0FDF4',
+    },
+    wallpaper: '#F0FDF4',
   },
 };
 

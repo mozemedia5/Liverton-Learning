@@ -12,7 +12,8 @@ import {
   MessageCircle,
   Plus,
   X,
-  Users
+  Users,
+  Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
@@ -26,6 +27,10 @@ import {
   updateDoc,
   doc
 } from 'firebase/firestore';
+import { ChatMessage } from '@/components/ChatMessage';
+import { ChatSettings } from '@/components/ChatSettings';
+import type { ChatSettings as ChatSettingsType } from '@/types/chat';
+
 interface Message {
   id: string;
   chatId: string;
@@ -34,13 +39,14 @@ interface Message {
   senderRole: 'user' | 'hanna';
   content: string;
   createdAt: any;
+  readStatus?: 'sent' | 'delivered' | 'read';
 }
 
 interface ChatSession {
   id: string;
   userId: string;
   title: string;
-  type: 'direct' | 'hanna'; // 'direct' for user-to-user, 'hanna' for AI
+  type: 'direct' | 'hanna';
   participants?: string[];
   createdAt: any;
   updatedAt: any;
@@ -48,15 +54,16 @@ interface ChatSession {
 }
 
 /**
- * Chat Page Component
+ * Enhanced Chat Page Component
  * 
  * Features:
- * - Real-time chat with other users
+ * - Real-time chat with WhatsApp-style message status indicators
  * - Hanna AI assistant integration
  * - Multiple chat sessions
  * - Firebase Firestore message persistence
- * - Create new chats with users or Hanna
- * - Professional UI with real-time updates
+ * - Modern Material Design UI
+ * - Customizable chat settings
+ * - Online status tracking
  */
 export default function Chat() {
   const navigate = useNavigate();
@@ -70,6 +77,20 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [recipientOnlineStatus, setRecipientOnlineStatus] = useState<Record<string, boolean>>({});
+  const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
+    theme: 'light',
+    fontSize: 14,
+    fontStyle: 'normal',
+    colors: {
+      sentMessageBg: '#007AFF',
+      receivedMessageBg: '#E8E8ED',
+      textColor: '#000000',
+      accentColor: '#007AFF',
+    },
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -90,7 +111,6 @@ export default function Chat() {
     if (!currentUser) return;
 
     setIsLoading(true);
-    // Simple query without ordering to avoid index issues during development
     const q = query(
       collection(db, 'chats'),
       where('userId', '==', currentUser.uid)
@@ -102,7 +122,6 @@ export default function Chat() {
         ...doc.data()
       })) as ChatSession[];
       
-      // Sort in memory instead of Firestore to avoid index requirement
       const sortedSessions = sessions.sort((a, b) => {
         const timeA = a.updatedAt?.toMillis?.() || 0;
         const timeB = b.updatedAt?.toMillis?.() || 0;
@@ -111,7 +130,6 @@ export default function Chat() {
 
       setChatSessions(sortedSessions);
       
-      // Auto-select first chat if none selected
       if (sortedSessions.length > 0 && !currentChatId) {
         setCurrentChatId(sortedSessions[0].id);
       }
@@ -126,7 +144,7 @@ export default function Chat() {
   }, [currentUser, currentChatId]);
 
   /**
-   * Load messages for current chat
+   * Load messages for current chat with real-time updates
    */
   useEffect(() => {
     if (!currentChatId) return;
@@ -142,7 +160,6 @@ export default function Chat() {
         ...doc.data()
       })) as Message[];
       
-      // Sort in memory
       const sortedMsgs = msgs.sort((a, b) => {
         const timeA = a.createdAt?.toMillis?.() || 0;
         const timeB = b.createdAt?.toMillis?.() || 0;
@@ -150,124 +167,50 @@ export default function Chat() {
       });
 
       setMessages(sortedMsgs);
+
+      // Mark messages as read
+      sortedMsgs.forEach(msg => {
+        if (msg.senderId !== currentUser?.uid && msg.readStatus !== 'read') {
+          updateDoc(doc(db, 'messages', msg.id), {
+            readStatus: 'read'
+          }).catch(err => console.error('Error updating read status:', err));
+        }
+      });
     }, (error) => {
       console.error('Error loading messages:', error);
     });
 
     return () => unsubscribe();
-  }, [currentChatId]);
+  }, [currentChatId, currentUser?.uid]);
 
   /**
-   * Create a new chat session
-   */
-  const handleCreateNewChat = async (type: 'hanna' | 'direct') => {
-    if (!currentUser) {
-      toast.error('User not authenticated');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      const chatData = {
-        userId: currentUser.uid,
-        type: type,
-        title: type === 'hanna' 
-          ? `Chat with Hanna - ${new Date().toLocaleDateString()}`
-          : `New Chat - ${new Date().toLocaleDateString()}`,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        messageCount: 0,
-      };
-
-      const chatRef = await addDoc(collection(db, 'chats'), chatData);
-
-      setCurrentChatId(chatRef.id);
-      setMessages([]);
-      setShowNewChatModal(false);
-      toast.success(`New ${type === 'hanna' ? 'Hanna AI' : 'chat'} created!`);
-    } catch (error) {
-      console.error('Error creating chat:', error);
-      toast.error('Failed to create new chat');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Send message to chat
-   * If chat type is 'hanna', calls backend Cloud Function to get AI response
+   * Handle sending a message
    */
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!inputValue.trim() || !currentChatId || !currentUser) return;
 
-    if (!inputValue.trim() || !currentChatId || !currentUser) {
-      return;
-    }
-
-    const userMessage = inputValue.trim();
-    setInputValue('');
     setIsSendingMessage(true);
-
     try {
-      // Get current chat to check type
-      const currentChat = chatSessions.find(c => c.id === currentChatId);
-      const isHannaChat = currentChat?.type === 'hanna';
-
-      // Add user message to Firestore
-      await addDoc(collection(db, 'messages'), {
+      const messageData = {
         chatId: currentChatId,
         senderId: currentUser.uid,
-        senderName: userData?.fullName || 'User',
-        senderRole: 'user',
-        content: userMessage,
+        senderName: userData?.displayName || 'Anonymous',
+        senderRole: 'user' as const,
+        content: inputValue.trim(),
         createdAt: serverTimestamp(),
-      });
+        readStatus: 'sent' as const,
+      };
 
-      // Update chat session
+      await addDoc(collection(db, 'messages'), messageData);
+
+      // Update chat session timestamp
       await updateDoc(doc(db, 'chats', currentChatId), {
         updatedAt: serverTimestamp(),
       });
 
-      // If Hanna chat, get AI response
-      if (isHannaChat) {
-        try {
-          const response = await fetch('/api/hanna/chat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chatId: currentChatId,
-              userId: currentUser.uid,
-              userMessage: userMessage,
-              userName: userData?.fullName || 'User',
-              userRole: userData?.role || 'student',
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to get AI response');
-          }
-
-          const data = await response.json();
-
-          // Add Hanna's response to Firestore
-          await addDoc(collection(db, 'messages'), {
-            chatId: currentChatId,
-            senderId: 'hanna-ai',
-            senderName: 'Hanna',
-            senderRole: 'hanna',
-            content: data.response,
-            createdAt: serverTimestamp(),
-          });
-        } catch (error) {
-          console.error('Error getting Hanna response:', error);
-          toast.error('Failed to get AI response');
-        }
-      }
-
-      toast.success('Message sent!');
+      setInputValue('');
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
@@ -277,50 +220,95 @@ export default function Chat() {
   };
 
   /**
-   * Select a chat session
+   * Handle selecting a chat
    */
   const handleSelectChat = (chatId: string) => {
     setCurrentChatId(chatId);
   };
 
   /**
-   * Get chat icon based on type
+   * Handle creating a new chat
    */
-  const getChatIcon = (chatType: string) => {
-    return chatType === 'hanna' ? (
+  const handleCreateNewChat = async (type: 'direct' | 'hanna') => {
+    if (!currentUser) return;
+
+    try {
+      const chatData = {
+        userId: currentUser.uid,
+        title: type === 'hanna' ? 'Chat with Hanna AI' : 'New Direct Chat',
+        type,
+        participants: [currentUser.uid],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        messageCount: 0,
+      };
+
+      const docRef = await addDoc(collection(db, 'chats'), chatData);
+      setCurrentChatId(docRef.id);
+      setShowNewChatModal(false);
+      toast.success(`New ${type === 'hanna' ? 'AI' : 'direct'} chat created`);
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      toast.error('Failed to create chat');
+    }
+  };
+
+  /**
+   * Get icon for chat type
+   */
+  const getChatIcon = (type: 'direct' | 'hanna') => {
+    return type === 'hanna' ? (
       <Sparkles className="w-4 h-4 text-purple-500" />
     ) : (
       <Users className="w-4 h-4 text-blue-500" />
     );
   };
 
+  /**
+   * Handle settings change
+   */
+  const handleSettingsChange = (settings: ChatSettingsType) => {
+    setChatSettings(settings);
+    localStorage.setItem('chatSettings', JSON.stringify(settings));
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-black dark:text-white transition-colors duration-300 flex">
-      {/* Sidebar - Chat Sessions */}
-      <aside className="w-full md:w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+    <div className="flex h-screen bg-white dark:bg-gray-950">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800 pl-12 md:pl-4">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-2 mb-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="font-semibold flex items-center gap-2">
+            <h1 className="font-semibold flex items-center gap-2 text-gray-900 dark:text-white">
               <MessageCircle className="w-5 h-5" />
               Messages
             </h1>
           </div>
-          <Button 
-            onClick={() => setShowNewChatModal(true)}
-            className="w-full bg-blue-600 hover:bg-blue-700"
-            disabled={isLoading}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Chat
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowNewChatModal(true)}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              disabled={isLoading}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New
+            </Button>
+            <Button
+              onClick={() => setShowSettings(true)}
+              variant="outline"
+              size="icon"
+              className="rounded-lg"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Chat Sessions List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
@@ -328,18 +316,18 @@ export default function Chat() {
           ) : chatSessions.length === 0 ? (
             <div className="text-center py-8">
               <MessageCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">No chats yet</p>
-              <p className="text-xs text-gray-400 mt-1">Start a new chat to begin</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">No chats yet</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Start a new chat</p>
             </div>
           ) : (
             chatSessions.map(session => (
               <button
                 key={session.id}
                 onClick={() => handleSelectChat(session.id)}
-                className={`w-full text-left p-3 rounded-lg transition-colors flex items-start gap-2 ${
+                className={`w-full text-left p-3 rounded-lg transition-all flex items-start gap-3 ${
                   currentChatId === session.id
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100'
                 }`}
               >
                 <div className="mt-1">
@@ -358,7 +346,7 @@ export default function Chat() {
       </aside>
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col bg-white dark:bg-gray-950">
         {currentChatId ? (
           <>
             {/* Messages Area */}
@@ -369,7 +357,7 @@ export default function Chat() {
                     {chatSessions.find(c => c.id === currentChatId)?.type === 'hanna' ? (
                       <>
                         <Sparkles className="w-12 h-12 text-purple-500 mx-auto mb-4" />
-                        <h2 className="text-xl font-semibold mb-2">Welcome to Hanna AI</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Welcome to Hanna AI</h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-md">
                           I'm Hanna, your AI assistant. Ask me anything about your courses, learning progress, or any questions you have!
                         </p>
@@ -377,7 +365,7 @@ export default function Chat() {
                     ) : (
                       <>
                         <MessageCircle className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                        <h2 className="text-xl font-semibold mb-2">Start a Conversation</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Start a Conversation</h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-md">
                           Send a message to begin chatting with other users.
                         </p>
@@ -387,27 +375,16 @@ export default function Chat() {
                 </div>
               ) : (
                 messages.map(message => (
-                  <div
+                  <ChatMessage
                     key={message.id}
-                    className={`flex ${
-                      message.senderRole === 'user' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <Card
-                      className={`max-w-md p-4 ${
-                        message.senderRole === 'user'
-                          ? 'bg-blue-600 text-white dark:bg-blue-700'
-                          : message.senderRole === 'hanna'
-                          ? 'bg-purple-100 dark:bg-purple-900 text-black dark:text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white'
-                      }`}
-                    >
-                      <p className="text-xs font-semibold mb-1 opacity-75">
-                        {message.senderName}
-                      </p>
-                      <p className="text-sm">{message.content}</p>
-                    </Card>
-                  </div>
+                    message={message}
+                    isCurrentUser={message.senderId === currentUser?.uid}
+                    customColors={chatSettings.colors}
+                    fontSize={chatSettings.fontSize}
+                    fontStyle={chatSettings.fontStyle}
+                    isRecipientOnline={recipientOnlineStatus[message.senderId] || false}
+                    isMessageRead={message.readStatus === 'read'}
+                  />
                 ))
               )}
               <div ref={messagesEndRef} />
@@ -426,12 +403,12 @@ export default function Chat() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   disabled={isSendingMessage}
-                  className="flex-1"
+                  className="flex-1 rounded-lg border-gray-300 dark:border-gray-700"
                 />
                 <Button
                   type="submit"
                   disabled={isSendingMessage || !inputValue.trim()}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
                 >
                   {isSendingMessage ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -446,11 +423,11 @@ export default function Chat() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">No Chat Selected</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Chat Selected</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Create a new chat or select one from the sidebar to get started
               </p>
-              <Button onClick={() => setShowNewChatModal(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={() => setShowNewChatModal(true)} className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
                 <Plus className="w-4 h-4 mr-2" />
                 New Chat
               </Button>
@@ -461,16 +438,15 @@ export default function Chat() {
 
       {/* New Chat Modal */}
       {showNewChatModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-96 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Start New Chat</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-sm p-6 bg-white dark:bg-gray-900 shadow-xl rounded-lg">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Start New Chat</h2>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => {
-                  setShowNewChatModal(false);
-                }}
+                onClick={() => setShowNewChatModal(false)}
+                className="rounded-lg"
               >
                 <X className="w-5 h-5" />
               </Button>
@@ -479,7 +455,7 @@ export default function Chat() {
             <div className="space-y-3">
               <Button
                 onClick={() => handleCreateNewChat('hanna')}
-                className="w-full bg-purple-600 hover:bg-purple-700 justify-start"
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white justify-start rounded-lg"
                 disabled={isLoading}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -487,7 +463,7 @@ export default function Chat() {
               </Button>
               <Button
                 onClick={() => handleCreateNewChat('direct')}
-                className="w-full bg-blue-600 hover:bg-blue-700 justify-start"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white justify-start rounded-lg"
                 disabled={isLoading}
               >
                 <Users className="w-4 h-4 mr-2" />
@@ -496,6 +472,15 @@ export default function Chat() {
             </div>
           </Card>
         </div>
+      )}
+
+      {/* Chat Settings Modal */}
+      {showSettings && (
+        <ChatSettings
+          currentSettings={chatSettings}
+          onSettingsChange={handleSettingsChange}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   );
