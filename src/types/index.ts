@@ -236,8 +236,13 @@ export interface Message {
   content: string;
   type: 'text' | 'image' | 'file';
   fileUrl?: string;
-  createdAt: Date;
+  createdAt: Date | any;
   readBy: string[];
+  attachments?: Array<{
+    type: string;
+    url: string;
+    name: string;
+  }>;
 }
 
 export interface Attendance {
@@ -363,3 +368,6 @@ export interface HannaQueueItem {
   createdAt: Date;
   payload: DocumentContent;
 }
+
+// Re-export chat types
+export type { ChatSettings, ChatTheme, FontStyle, UserProfile, ThemeConfig } from './chat';

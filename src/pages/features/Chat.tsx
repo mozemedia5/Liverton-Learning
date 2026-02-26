@@ -18,7 +18,9 @@ import {
   Trash2,
   Info,
   MessageSquare,
-  Plus
+  Plus,
+  FileText,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -26,17 +28,27 @@ import {
   listenToUserChats, 
   listenToMessages, 
   sendMessage, 
+  sendMessageWithFile,
   searchUsers, 
   getOrCreateChat,
+  deleteChat,
   type ChatContact 
 } from '@/services/chatService';
+import { uploadChatFile, getFileType } from '@/services/fileUploadService';
 import type { Chat as ChatType, Message } from '@/types';
+import type { ChatSettings as ChatSettingsType } from '@/types/chat';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { ViewUserProfile } from '@/components/ViewUserProfile';
+import { ChatSettingsEnhanced } from '@/components/ChatSettingsEnhanced';
+import { EmojiPicker } from '@/components/EmojiPicker';
+import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
+import { groupMessagesByDate } from '@/lib/dateUtils';
+import { DateSeparator } from '@/components/DateSeparator';
 
 export default function Chat() {
   const { currentUser, userData } = useAuth();
@@ -51,7 +63,31 @@ export default function Chat() {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  // New feature states
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{isOpen: boolean; chatId?: string; chatTitle?: string}>({
+    isOpen: false
+  });
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Chat settings state
+  const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
+    theme: 'light',
+    wallpaper: '#FFFFFF',
+    wallpaperType: 'color',
+    fontStyle: 'normal',
+    fontSize: 14,
+    notificationsEnabled: true,
+    muteNotifications: false,
+    encryptionEnabled: false,
+    dataProtectionEnabled: false,
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
@@ -129,6 +165,44 @@ export default function Chat() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat || !currentUser || !userData) return;
+
+    setUploadingFile(true);
+    setUploadProgress(0);
+
+    try {
+      const downloadURL = await uploadChatFile(
+        file,
+        selectedChat.id,
+        (progress) => {
+          setUploadProgress(progress.progress);
+        }
+      );
+
+      await sendMessageWithFile(
+        selectedChat.id,
+        currentUser.uid,
+        userData.fullName || 'Me',
+        file.name,
+        downloadURL,
+        file.name,
+        getFileType(downloadURL)
+      );
+
+      toast.success('File sent successfully!');
+    } catch (error) {
+      toast.error('Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleStartChat = async (contact: ChatContact) => {
     if (!currentUser || !userData) return;
     
@@ -140,13 +214,10 @@ export default function Chat() {
         contact
       );
       
-      // Find the chat in our list or wait for it to appear via listener
       const chat = chats.find(c => c.id === chatId);
       if (chat) {
         setSelectedChat(chat);
       } else {
-        // If it's a brand new chat, we might need to wait for the listener
-        // For now, let's just close search and wait
         toast.success('Starting new chat...');
       }
       
@@ -156,6 +227,31 @@ export default function Chat() {
     } catch (error) {
       toast.error('Failed to start chat');
     }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!deleteConfirmation.chatId) return;
+    
+    try {
+      await deleteChat(deleteConfirmation.chatId);
+      toast.success('Chat deleted successfully');
+      setSelectedChat(null);
+      setDeleteConfirmation({ isOpen: false });
+    } catch (error) {
+      toast.error('Failed to delete chat');
+    }
+  };
+
+  const handleViewProfile = () => {
+    if (!selectedChat || !currentUser) return;
+    const otherId = selectedChat.participants.find(id => id !== currentUser.uid);
+    if (otherId) {
+      setViewProfileUserId(otherId);
+    }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessageInput(prev => prev + emoji);
   };
 
   const getInitials = (name: string) => {
@@ -174,6 +270,28 @@ export default function Chat() {
     return otherId ? chat.participantRoles[otherId] : 'student';
   };
 
+  // Get wallpaper style
+  const getWallpaperStyle = (): React.CSSProperties => {
+    if (!chatSettings.wallpaper) return {};
+    
+    if (chatSettings.wallpaperType === 'image') {
+      return {
+        backgroundImage: `url(${chatSettings.wallpaper})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+    } else if (chatSettings.wallpaperType === 'gradient') {
+      return {
+        background: chatSettings.wallpaper,
+      };
+    } else {
+      return {
+        backgroundColor: chatSettings.wallpaper,
+      };
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-black">
@@ -181,6 +299,9 @@ export default function Chat() {
       </div>
     );
   }
+
+  // Group messages by date
+  const messageGroups = groupMessagesByDate(messages);
 
   return (
     <div className="flex h-screen bg-white dark:bg-black overflow-hidden">
@@ -312,39 +433,118 @@ export default function Chat() {
                     <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-5 h-5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem className="gap-2"><Info className="w-4 h-4" /> View Profile</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2"><Settings className="w-4 h-4" /> Chat Settings</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 text-red-600"><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={handleViewProfile}>
+                      <Info className="w-4 h-4" /> View Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={() => setIsSettingsOpen(true)}>
+                      <Settings className="w-4 h-4" /> Chat Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="gap-2 text-red-600"
+                      onClick={() => setDeleteConfirmation({
+                        isOpen: true,
+                        chatId: selectedChat.id,
+                        chatTitle: getOtherParticipantName(selectedChat)
+                      })}
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete Chat
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </header>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-black/40">
-              {messages.map((msg, idx) => {
-                const isMe = msg.senderId === currentUser?.uid;
-                return (
-                  <div 
-                    key={msg.id || idx} 
-                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`
-                      max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
-                      ${isMe 
-                        ? 'bg-blue-600 text-white rounded-tr-none' 
-                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
-                    `}>
-                      <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
-                      <span className={`text-[10px] mt-1 block ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
-                        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Messages Area with Wallpaper */}
+            <div 
+              className="flex-1 overflow-y-auto p-4 space-y-1" 
+              style={getWallpaperStyle()}
+            >
+              {messageGroups.map((group, groupIdx) => (
+                <div key={groupIdx}>
+                  {/* Date Separator */}
+                  <DateSeparator dateLabel={group.dateLabel} />
+                  
+                  {/* Messages for this date */}
+                  {group.messages.map((msg, idx) => {
+                    const isMe = msg.senderId === currentUser?.uid;
+                    const hasAttachment = msg.attachments && msg.attachments.length > 0;
+                    
+                    return (
+                      <div 
+                        key={msg.id || idx} 
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}
+                      >
+                        <div className={`
+                          max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
+                          ${isMe 
+                            ? `bg-blue-600 text-white rounded-tr-none` 
+                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
+                        `}
+                        style={{
+                          fontSize: `${chatSettings.fontSize}px`,
+                          fontStyle: chatSettings.fontStyle.includes('italic') ? 'italic' : 'normal',
+                          fontWeight: chatSettings.fontStyle.includes('bold') ? 'bold' : 'normal',
+                        }}
+                        >
+                          {hasAttachment && (
+                            <div className="mb-2">
+                              {msg.attachments?.map((attachment, attIdx) => (
+                                <div key={attIdx} className="flex items-center gap-2 p-2 bg-white/10 rounded-lg">
+                                  {attachment.type === 'image' ? (
+                                    <img 
+                                      src={attachment.url} 
+                                      alt={attachment.name}
+                                      className="max-w-full rounded-lg"
+                                    />
+                                  ) : (
+                                    <>
+                                      <FileText className="w-5 h-5" />
+                                      <span className="text-sm flex-1">{attachment.name}</span>
+                                      <a 
+                                        href={attachment.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="p-1 hover:bg-white/20 rounded"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </a>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
+                          <span className={`text-[10px] mt-1 block ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Upload Progress */}
+            {uploadingFile && (
+              <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <div className="flex-1">
+                    <p className="text-sm text-blue-900 dark:text-blue-200">Uploading file...</p>
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 mt-1">
+                      <div 
+                        className="bg-blue-600 h-1.5 rounded-full transition-all"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-xs text-blue-600">{Math.round(uploadProgress)}%</span>
+                </div>
+              </div>
+            )}
 
             {/* Message Input */}
             <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
@@ -352,26 +552,51 @@ export default function Chat() {
                 onSubmit={handleSendMessage}
                 className="flex items-center gap-2 max-w-5xl mx-auto"
               >
-                <Button type="button" variant="ghost" size="icon" className="rounded-full text-gray-500"><Paperclip className="w-5 h-5" /></Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full text-gray-500"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                >
+                  <Paperclip className="w-5 h-5" />
+                </Button>
                 <div className="flex-1 relative">
                   <Input 
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     placeholder="Type a message..." 
-                    className="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-full py-6 px-6 focus-visible:ring-1 focus-visible:ring-blue-500"
+                    className="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-full py-6 px-6 pr-12 focus-visible:ring-1 focus-visible:ring-blue-500"
                   />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full text-gray-500"
-                  >
-                    <Smile className="w-5 h-5" />
-                  </Button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full text-gray-500"
+                      onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                    >
+                      <Smile className="w-5 h-5" />
+                    </Button>
+                    {isEmojiPickerOpen && (
+                      <EmojiPicker 
+                        onEmojiSelect={handleEmojiSelect}
+                        onClose={() => setIsEmojiPickerOpen(false)}
+                      />
+                    )}
+                  </div>
                 </div>
                 <Button 
                   type="submit" 
-                  disabled={!messageInput.trim()}
+                  disabled={!messageInput.trim() || uploadingFile}
                   className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95"
                 >
                   <Send className="w-5 h-5" />
@@ -460,8 +685,31 @@ export default function Chat() {
           </div>
         </div>
       )}
+
+      {/* View Profile Modal */}
+      {viewProfileUserId && (
+        <ViewUserProfile
+          userId={viewProfileUserId}
+          onClose={() => setViewProfileUserId(null)}
+        />
+      )}
+
+      {/* Chat Settings Modal */}
+      {isSettingsOpen && (
+        <ChatSettingsEnhanced
+          currentSettings={chatSettings}
+          onSettingsChange={setChatSettings}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+
+      {/* Delete Chat Confirmation */}
+      <DeleteChatConfirmation
+        isOpen={deleteConfirmation.isOpen}
+        chatTitle={deleteConfirmation.chatTitle || ''}
+        onConfirm={handleDeleteChat}
+        onCancel={() => setDeleteConfirmation({ isOpen: false })}
+      />
     </div>
   );
 }
-
-
