@@ -1,6 +1,7 @@
 /**
  * Chat Types and Interfaces
  * Defines all TypeScript types for the chat system
+ * Enhanced with new features: date labels, wallpapers, emojis, profiles
  */
 
 // Message read status tracking
@@ -29,6 +30,11 @@ export interface Message {
   readAt?: any; // Timestamp when message was read
   editedAt?: any; // Timestamp if message was edited
   isEdited?: boolean;
+  attachments?: Array<{
+    type: string;
+    url: string;
+    name: string;
+  }>;
 }
 
 /**
@@ -59,12 +65,13 @@ export interface ChatSession {
 }
 
 /**
- * Chat Settings interface
+ * Chat Settings interface - Enhanced
  * Stores user preferences for individual chats
+ * Now includes wallpapers, accent colors, file uploads, emoji support
  */
 export interface ChatSettings {
   theme: ChatTheme;
-  wallpaper?: string; // URL or gradient
+  wallpaper?: string; // URL, gradient, or color
   wallpaperType?: 'color' | 'gradient' | 'image';
   messageAccentColor?: string; // Hex color for message bubbles
   fontStyle: FontStyle;
@@ -84,6 +91,10 @@ export interface ChatSettings {
     textColor: string;
     accentColor: string;
   };
+  // New security settings
+  securityLevel?: 'low' | 'medium' | 'high';
+  encryptionEnabled?: boolean;
+  dataProtectionEnabled?: boolean;
 }
 
 /**
@@ -94,25 +105,30 @@ export interface ParticipantDetail {
   name: string;
   avatar?: string;
   role?: 'admin' | 'member';
+  school?: string;
+  class?: string;
 }
 
 /**
  * User profile for view profile feature
+ * Contains non-sensitive public information only
  */
 export interface UserProfile {
   id: string;
   name: string;
-  email: string;
+  email?: string; // Optional - may not be shown
   avatar?: string;
   bio?: string;
   role: 'student' | 'teacher' | 'admin';
   joinedDate: any;
-  courses?: string[];
+  courses?: string[]; // Classes/courses the user is in
+  school?: string; // School/institution name
+  class?: string; // Class/grade level
   lastSeen?: any;
   isOnline?: boolean;
   status?: string; // Online status message
-  phone?: string; // Phone number
-  location?: string; // User location
+  phone?: string; // Phone number - NOT shown in profile view
+  location?: string; // User location/school
 }
 
 /**
@@ -138,4 +154,25 @@ export interface DeleteChatConfirmation {
   isOpen: boolean;
   chatId?: string;
   chatTitle?: string;
+}
+
+/**
+ * File attachment interface
+ */
+export interface FileAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  uploadedAt: any;
+}
+
+/**
+ * Emoji interface
+ */
+export interface EmojiData {
+  emoji: string;
+  category: string;
+  name: string;
 }
