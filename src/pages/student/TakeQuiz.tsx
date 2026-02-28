@@ -6,15 +6,23 @@ import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/fires
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Timer, Trophy, BarChart3, ArrowRight } from 'lucide-react';
+import { Loader2, Timer, Trophy, BarChart3, ArrowRight, CheckCircle2, XCircle, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Question {
   id: string;
   text: string;
   options: string[];
   correctOptionIndex: number;
+}
+
+interface QuestionExplanation {
+  questionIndex: number;
+  explanation: string;
+  loading: boolean;
+  error?: string;
 }
 
 interface Quiz {
@@ -34,10 +42,13 @@ export default function TakeQuiz() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [answers, setAnswers] = useState<{[key: number]: number}>({}); // questionIndex -> optionIndex
-  const [quizStatus, setQuizStatus] = useState<'loading' | 'active' | 'completed'>('loading');
+  const [quizStatus, setQuizStatus] = useState<'loading' | 'active' | 'completed' | 'review'>('loading');
   const [score, setScore] = useState(0);
+  const [explanations, setExplanations] = useState<QuestionExplanation[]>([]);
+  const [showReview, setShowReview] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch Quiz
   useEffect(() => {
@@ -68,12 +79,29 @@ export default function TakeQuiz() {
     fetchQuiz();
   }, [id, currentUser]);
 
-  // Timer Logic
+  // Initialize audio for timer alert
+  useEffect(() => {
+    // Create audio element for timer alert (using a beep sound)
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0NVKzn77BfGgU7k9r1xnMqBSh+zPLaizsIGGS57OihUhELTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBSp8yfHajjwIF2W67+mjUhENTqXh8bllHAU2jdXzzn0vBQ==');
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Timer Logic with sound alert
   useEffect(() => {
     if (quizStatus !== 'active' || !quiz) return;
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
+        // Play alert sound when time is low (10 seconds remaining)
+        if (prev === 10 && audioRef.current) {
+          audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+        }
+        
         if (prev <= 1) {
            handleNextQuestion(true); // Auto-advance
            return quiz.timeLimitPerQuestion;
@@ -114,6 +142,37 @@ export default function TakeQuiz() {
     }));
   };
 
+  // Fetch explanation from internet using Wikipedia API or general search
+  const fetchExplanation = async (questionText: string, correctAnswer: string): Promise<string> => {
+    try {
+      // Try to extract the main topic from the question
+      const topic = questionText.split(' ').slice(0, 5).join(' ');
+      
+      // Use Wikipedia API to get explanation
+      const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(correctAnswer)}`;
+      const response = await fetch(searchUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.extract || 'No detailed explanation available.';
+      }
+      
+      // Fallback: Try searching with the question topic
+      const fallbackUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`;
+      const fallbackResponse = await fetch(fallbackUrl);
+      
+      if (fallbackResponse.ok) {
+        const data = await fallbackResponse.json();
+        return data.extract || 'No detailed explanation available.';
+      }
+      
+      return `The correct answer is: ${correctAnswer}. For more information, please search online for detailed explanations about this topic.`;
+    } catch (error) {
+      console.error('Error fetching explanation:', error);
+      return `The correct answer is: ${correctAnswer}. Unable to fetch detailed explanation at this time.`;
+    }
+  };
+
   const finishQuiz = async () => {
     if (!quiz || !currentUser) return;
 
@@ -129,7 +188,31 @@ export default function TakeQuiz() {
 
     const finalScore = Math.round((correctCount / quiz.questions.length) * 100);
     setScore(finalScore);
-    setQuizStatus('completed');
+    setQuizStatus('review');
+
+    // Initialize explanations with loading state
+    const initialExplanations: QuestionExplanation[] = quiz.questions.map((_, index) => ({
+      questionIndex: index,
+      explanation: '',
+      loading: true
+    }));
+    setExplanations(initialExplanations);
+
+    // Fetch explanations for all questions
+    quiz.questions.forEach(async (question, index) => {
+      const correctAnswer = question.options[question.correctOptionIndex];
+      const explanation = await fetchExplanation(question.text, correctAnswer);
+      
+      setExplanations(prev => {
+        const updated = [...prev];
+        updated[index] = {
+          questionIndex: index,
+          explanation,
+          loading: false
+        };
+        return updated;
+      });
+    });
 
     // Save Attempt
     try {
@@ -160,10 +243,10 @@ export default function TakeQuiz() {
     );
   }
 
-  if (quizStatus === 'completed') {
+  if (quizStatus === 'review') {
       return (
           <AuthenticatedLayout>
-              <div className="max-w-2xl mx-auto p-6 space-y-6">
+              <div className="max-w-4xl mx-auto p-6 space-y-6">
                   <Card className="text-center p-8">
                       <div className="mb-4 flex justify-center">
                           {score >= 50 ? (
@@ -182,15 +265,108 @@ export default function TakeQuiz() {
                       <p className="text-gray-600 mb-8">
                           {score >= 80 ? 'Excellent work!' : score >= 50 ? 'Good job!' : 'Keep practicing!'}
                       </p>
-                      <div className="flex gap-4 justify-center">
-                          <Button onClick={() => navigate('/student/quizzes')} variant="outline">
-                              Back to Quizzes
-                          </Button>
-                          <Button onClick={() => window.location.reload()}>
-                              Retake Quiz
-                          </Button>
-                      </div>
+                      <Button 
+                        onClick={() => setShowReview(!showReview)} 
+                        variant="outline"
+                        className="mb-4"
+                      >
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        {showReview ? 'Hide' : 'Show'} Answer Review
+                      </Button>
                   </Card>
+
+                  {showReview && quiz && (
+                    <div className="space-y-6">
+                      <h3 className="text-2xl font-bold">Answer Review</h3>
+                      {quiz.questions.map((question, index) => {
+                        const userAnswer = answers[index];
+                        const isCorrect = userAnswer === question.correctOptionIndex;
+                        const explanation = explanations.find(e => e.questionIndex === index);
+                        
+                        return (
+                          <Card key={index} className={`border-2 ${
+                            isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                          }`}>
+                            <CardContent className="p-6 space-y-4">
+                              <div className="flex items-start gap-3">
+                                {isCorrect ? (
+                                  <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+                                ) : (
+                                  <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+                                )}
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-lg mb-2">
+                                    Question {index + 1}: {question.text}
+                                  </h4>
+                                  
+                                  <div className="space-y-2 mb-4">
+                                    {question.options.map((option, optIndex) => {
+                                      const isUserAnswer = userAnswer === optIndex;
+                                      const isCorrectAnswer = question.correctOptionIndex === optIndex;
+                                      
+                                      return (
+                                        <div
+                                          key={optIndex}
+                                          className={`p-3 rounded-lg border-2 ${
+                                            isCorrectAnswer
+                                              ? 'border-green-500 bg-green-100'
+                                              : isUserAnswer
+                                              ? 'border-red-500 bg-red-100'
+                                              : 'border-gray-200 bg-white'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold">
+                                              {String.fromCharCode(65 + optIndex)}.
+                                            </span>
+                                            <span>{option}</span>
+                                            {isCorrectAnswer && (
+                                              <span className="ml-auto text-green-600 font-semibold">
+                                                ✓ Correct
+                                              </span>
+                                            )}
+                                            {isUserAnswer && !isCorrectAnswer && (
+                                              <span className="ml-auto text-red-600 font-semibold">
+                                                ✗ Your answer
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  <Alert className="bg-blue-50 border-blue-200">
+                                    <BookOpen className="h-4 w-4" />
+                                    <AlertDescription>
+                                      <strong className="font-semibold">Explanation:</strong>
+                                      {explanation?.loading ? (
+                                        <div className="flex items-center gap-2 mt-2">
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                          <span>Loading explanation...</span>
+                                        </div>
+                                      ) : (
+                                        <p className="mt-2">{explanation?.explanation}</p>
+                                      )}
+                                    </AlertDescription>
+                                  </Alert>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex gap-4 justify-center pb-8">
+                      <Button onClick={() => navigate('/student/quizzes')} variant="outline">
+                          Back to Quizzes
+                      </Button>
+                      <Button onClick={() => window.location.reload()}>
+                          Retake Quiz
+                      </Button>
+                  </div>
               </div>
           </AuthenticatedLayout>
       );
@@ -207,7 +383,11 @@ export default function TakeQuiz() {
                     <h1 className="text-xl font-bold">{quiz.title}</h1>
                     <p className="text-sm text-gray-500">Question {currentQuestionIndex + 1} of {quiz.questions.length}</p>
                 </div>
-                <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full font-mono font-bold">
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold transition-all ${
+                  timeLeft <= 10 
+                    ? 'bg-red-100 text-red-700 animate-pulse border-2 border-red-500' 
+                    : 'bg-blue-50 text-blue-700'
+                }`}>
                     <Timer className="w-4 h-4" />
                     {timeLeft}s
                 </div>
