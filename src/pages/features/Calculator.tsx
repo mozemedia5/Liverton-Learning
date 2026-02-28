@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { db } from '../../lib/firebase';
-import { collection, addDoc, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -10,11 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface CalculationHistory {
-  id: string;
-  userId: string;
   expression: string;
   result: string;
-  timestamp: Timestamp;
+  timestamp: number;
   mode: 'basic' | 'scientific';
 }
 
@@ -22,52 +18,38 @@ export default function Calculator() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [mode, setMode] = useState<'basic' | 'scientific'>('basic');
+  const [angleMode, setAngleMode] = useState<'deg' | 'rad'>('deg');
   const [display, setDisplay] = useState('0');
+  const [memory, setMemory] = useState<number>(0);
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForNewValue, setWaitingForNewValue] = useState(false);
   const [history, setHistory] = useState<CalculationHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  // Load session history on mount
   useEffect(() => {
-    if (currentUser) {
-      loadHistory();
+    const savedHistory = sessionStorage.getItem('calculatorHistory');
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (error) {
+        console.error('Error loading history:', error);
+      }
     }
-  }, [currentUser]);
+  }, []);
 
-  const loadHistory = async () => {
-    if (!currentUser) return;
-    try {
-      const q = query(
-        collection(db, 'calculations'),
-        where('userId', '==', currentUser.uid),
-        orderBy('timestamp', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const calcs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as CalculationHistory[];
-      setHistory(calcs.slice(0, 20));
-    } catch (error) {
-      console.error('Error loading history:', error);
-    }
-  };
-
-  const saveToHistory = async (expression: string, result: string) => {
-    if (!currentUser) return;
-    try {
-      await addDoc(collection(db, 'calculations'), {
-        userId: currentUser.uid,
-        expression,
-        result,
-        timestamp: Timestamp.now(),
-        mode,
-      });
-      loadHistory();
-    } catch (error) {
-      console.error('Error saving calculation:', error);
-    }
+  // Save to session storage whenever history changes
+  const saveToHistory = (expression: string, result: string) => {
+    const newEntry: CalculationHistory = {
+      expression,
+      result,
+      timestamp: Date.now(),
+      mode,
+    };
+    const newHistory = [newEntry, ...history].slice(0, 50); // Keep last 50 calculations
+    setHistory(newHistory);
+    sessionStorage.setItem('calculatorHistory', JSON.stringify(newHistory));
   };
 
   const handleNumberClick = (num: string) => {
@@ -109,14 +91,19 @@ export default function Calculator() {
         return prev + current;
       case '-':
         return prev - current;
+      case '×':
       case '*':
         return prev * current;
+      case '÷':
       case '/':
         return prev / current;
       case '%':
         return prev % current;
       case '^':
+      case 'x^y':
         return Math.pow(prev, current);
+      case 'mod':
+        return prev % current;
       default:
         return current;
     }
@@ -135,44 +122,147 @@ export default function Calculator() {
     }
   };
 
+  const toRadians = (deg: number) => deg * Math.PI / 180;
+  const toDegrees = (rad: number) => rad * 180 / Math.PI;
+
   const handleScientificFunction = (func: string) => {
     const value = parseFloat(display);
     let result: number;
+    let expression = '';
 
     switch (func) {
+      // Trigonometric functions
       case 'sin':
-        result = Math.sin(value * Math.PI / 180);
+        result = angleMode === 'deg' ? Math.sin(toRadians(value)) : Math.sin(value);
+        expression = `sin(${value}${angleMode})`;
         break;
       case 'cos':
-        result = Math.cos(value * Math.PI / 180);
+        result = angleMode === 'deg' ? Math.cos(toRadians(value)) : Math.cos(value);
+        expression = `cos(${value}${angleMode})`;
         break;
       case 'tan':
-        result = Math.tan(value * Math.PI / 180);
+        result = angleMode === 'deg' ? Math.tan(toRadians(value)) : Math.tan(value);
+        expression = `tan(${value}${angleMode})`;
         break;
+      case 'asin':
+        result = angleMode === 'deg' ? toDegrees(Math.asin(value)) : Math.asin(value);
+        expression = `asin(${value})`;
+        break;
+      case 'acos':
+        result = angleMode === 'deg' ? toDegrees(Math.acos(value)) : Math.acos(value);
+        expression = `acos(${value})`;
+        break;
+      case 'atan':
+        result = angleMode === 'deg' ? toDegrees(Math.atan(value)) : Math.atan(value);
+        expression = `atan(${value})`;
+        break;
+      case 'sinh':
+        result = Math.sinh(value);
+        expression = `sinh(${value})`;
+        break;
+      case 'cosh':
+        result = Math.cosh(value);
+        expression = `cosh(${value})`;
+        break;
+      case 'tanh':
+        result = Math.tanh(value);
+        expression = `tanh(${value})`;
+        break;
+      
+      // Exponential and Logarithmic
       case 'sqrt':
+      case '√':
         result = Math.sqrt(value);
+        expression = `√(${value})`;
+        break;
+      case 'cbrt':
+        result = Math.cbrt(value);
+        expression = `∛(${value})`;
+        break;
+      case 'x²':
+        result = Math.pow(value, 2);
+        expression = `${value}²`;
+        break;
+      case 'x³':
+        result = Math.pow(value, 3);
+        expression = `${value}³`;
         break;
       case 'log':
         result = Math.log10(value);
+        expression = `log(${value})`;
         break;
       case 'ln':
         result = Math.log(value);
+        expression = `ln(${value})`;
         break;
+      case 'log2':
+        result = Math.log2(value);
+        expression = `log2(${value})`;
+        break;
+      case 'exp':
+      case 'e^x':
+        result = Math.exp(value);
+        expression = `e^${value}`;
+        break;
+      case '10^x':
+        result = Math.pow(10, value);
+        expression = `10^${value}`;
+        break;
+      case '2^x':
+        result = Math.pow(2, value);
+        expression = `2^${value}`;
+        break;
+      
+      // Special functions
+      case '!':
       case 'factorial':
-        result = factorial(value);
+        result = factorial(Math.floor(value));
+        expression = `${Math.floor(value)}!`;
         break;
+      case '1/x':
+        result = 1 / value;
+        expression = `1/${value}`;
+        break;
+      case 'abs':
+      case '|x|':
+        result = Math.abs(value);
+        expression = `|${value}|`;
+        break;
+      case 'π':
+        result = Math.PI;
+        expression = 'π';
+        break;
+      case 'e':
+        result = Math.E;
+        expression = 'e';
+        break;
+      case '%':
+        result = value / 100;
+        expression = `${value}%`;
+        break;
+      case '±':
+        result = -value;
+        expression = `-(${value})`;
+        break;
+      case 'rand':
+        result = Math.random();
+        expression = 'rand()';
+        break;
+      
       default:
         result = value;
+        expression = String(value);
     }
 
     setDisplay(String(result));
-    saveToHistory(`${func}(${value})`, String(result));
+    saveToHistory(expression, String(result));
     setWaitingForNewValue(true);
   };
 
   const factorial = (n: number): number => {
     if (n < 0) return NaN;
     if (n === 0 || n === 1) return 1;
+    if (n > 170) return Infinity; // Prevent overflow
     let result = 1;
     for (let i = 2; i <= n; i++) {
       result *= i;
@@ -200,8 +290,9 @@ export default function Calculator() {
     toast.success('Copied to clipboard');
   };
 
-  const handleClearHistory = async () => {
+  const handleClearHistory = () => {
     setHistory([]);
+    sessionStorage.removeItem('calculatorHistory');
     toast.success('History cleared');
   };
 
@@ -211,21 +302,60 @@ export default function Calculator() {
     setWaitingForNewValue(true);
   };
 
+  // Memory functions
+  const handleMemoryClear = () => {
+    setMemory(0);
+    toast.success('Memory cleared');
+  };
+
+  const handleMemoryRecall = () => {
+    setDisplay(String(memory));
+    setWaitingForNewValue(true);
+    toast.success('Memory recalled');
+  };
+
+  const handleMemoryAdd = () => {
+    setMemory(memory + parseFloat(display));
+    toast.success('Added to memory');
+  };
+
+  const handleMemorySubtract = () => {
+    setMemory(memory - parseFloat(display));
+    toast.success('Subtracted from memory');
+  };
+
+  const handleMemoryStore = () => {
+    setMemory(parseFloat(display));
+    toast.success('Stored in memory');
+  };
+
   const basicButtons = [
-    ['7', '8', '9', '/'],
-    ['4', '5', '6', '*'],
+    ['7', '8', '9', '÷'],
+    ['4', '5', '6', '×'],
     ['1', '2', '3', '-'],
     ['0', '.', '=', '+'],
   ];
 
   const scientificButtons = [
-    ['sin', 'cos', 'tan', '/'],
-    ['sqrt', 'log', 'ln', '*'],
-    ['(', ')', '^', '-'],
-    ['7', '8', '9', '+'],
-    ['4', '5', '6', '%'],
-    ['1', '2', '3', '='],
-    ['0', '.', 'C', 'Back'],
+    // Row 1: Angle mode and memory functions
+    ['MC', 'MR', 'M+', 'M-', 'MS'],
+    // Row 2: Trigonometric functions
+    ['sin', 'cos', 'tan', 'asin', 'acos'],
+    // Row 3: Hyperbolic functions  
+    ['sinh', 'cosh', 'tanh', 'atan', '÷'],
+    // Row 4: Powers and roots
+    ['x²', 'x³', '√', '∛', '×'],
+    // Row 5: Exponential and logs
+    ['log', 'ln', 'log2', 'e^x', '-'],
+    // Row 6: Special functions
+    ['10^x', '2^x', 'x^y', '!', '+'],
+    // Row 7: Constants and operations
+    ['π', 'e', '1/x', '|x|', '%'],
+    // Row 8: Numbers
+    ['7', '8', '9', '(', ')'],
+    ['4', '5', '6', 'mod', 'rand'],
+    ['1', '2', '3', '±', '='],
+    ['0', '.', 'C', '⌫', ''],
   ];
 
   return (
@@ -247,11 +377,11 @@ export default function Calculator() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto p-4 lg:p-6">
+      <div className="max-w-4xl mx-auto p-4 lg:p-6">
         {/* Sub-Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Scientific Calculator</h1>
-          <p className="text-gray-600 dark:text-gray-400">Perform calculations with ease</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Advanced Scientific Calculator</h1>
+          <p className="text-gray-600 dark:text-gray-400">Comprehensive calculator with session-based history</p>
         </div>
 
         <Card className="shadow-lg">
@@ -268,7 +398,7 @@ export default function Calculator() {
                 className="gap-2"
               >
                 <History className="w-4 h-4" />
-                History
+                History ({history.length})
               </Button>
             </div>
           </CardHeader>
@@ -286,6 +416,19 @@ export default function Calculator() {
               {/* Display */}
               <div className="mb-6 p-4 bg-gray-900 rounded-lg">
                 <div className="text-right">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="text-xs text-gray-400">
+                      {memory !== 0 && <span>M: {memory}</span>}
+                    </div>
+                    {mode === 'scientific' && (
+                      <button
+                        onClick={() => setAngleMode(angleMode === 'deg' ? 'rad' : 'deg')}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded"
+                      >
+                        {angleMode === 'deg' ? 'DEG' : 'RAD'}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-gray-500 text-sm mb-2 h-6">
                     {operation && previousValue !== null ? `${previousValue} ${operation}` : ''}
                   </p>
@@ -305,10 +448,10 @@ export default function Calculator() {
                             if (btn === '=') handleEquals();
                             else if (btn === 'C') handleClear();
                             else if (btn === '.') handleDecimal();
-                            else if (['+', '-', '*', '/'].includes(btn)) handleOperation(btn);
+                            else if (['+', '-', '×', '÷', '*', '/'].includes(btn)) handleOperation(btn);
                             else handleNumberClick(btn);
                           }}
-                          variant={['=', '+', '-', '*', '/'].includes(btn) ? 'default' : 'outline'}
+                          variant={['=', '+', '-', '×', '÷'].includes(btn) ? 'default' : 'outline'}
                           className={`h-16 text-lg font-semibold ${
                             btn === '=' ? 'bg-green-600 hover:bg-green-700' : ''
                           }`}
@@ -322,23 +465,30 @@ export default function Calculator() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={handleClear} variant="outline" className="h-12">
-                    Clear
+                    Clear (C)
                   </Button>
                   <Button onClick={handleBackspace} variant="outline" className="h-12">
-                    Backspace
+                    Backspace (⌫)
                   </Button>
                 </div>
               </TabsContent>
 
               {/* Scientific Mode */}
               <TabsContent value="scientific" className="space-y-4">
-                <div className="grid grid-cols-4 gap-2 mb-4">
+                <div className="grid grid-cols-5 gap-2 mb-4">
                   {scientificButtons.map((row, rowIdx) => (
                     <div key={rowIdx} className="contents">
-                      {row.map((btn) => {
-                        const isFunction = ['sin', 'cos', 'tan', 'sqrt', 'log', 'ln'].includes(btn);
-                        const isOperation = ['+', '-', '*', '/', '%', '^', '='].includes(btn);
-                        const isControl = ['C', 'Back'].includes(btn);
+                      {row.map((btn, btnIdx) => {
+                        if (btn === '') return <div key={`empty-${rowIdx}-${btnIdx}`} />;
+                        
+                        const isMemory = ['MC', 'MR', 'M+', 'M-', 'MS'].includes(btn);
+                        const isFunction = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 
+                          'sinh', 'cosh', 'tanh', 'sqrt', 'cbrt', 'log', 'ln', 'log2', 
+                          'exp', 'e^x', '10^x', '2^x', '√', '∛', 'x²', 'x³', '!', 
+                          '1/x', '|x|', 'abs', 'factorial', 'rand'].includes(btn);
+                        const isOperation = ['+', '-', '×', '÷', '*', '/', '%', '^', 'x^y', 'mod', '='].includes(btn);
+                        const isConstant = ['π', 'e'].includes(btn);
+                        const isControl = ['C', '⌫', '±'].includes(btn);
 
                         return (
                           <Button
@@ -346,16 +496,25 @@ export default function Calculator() {
                             onClick={() => {
                               if (btn === '=') handleEquals();
                               else if (btn === 'C') handleClear();
-                              else if (btn === 'Back') handleBackspace();
+                              else if (btn === '⌫') handleBackspace();
                               else if (btn === '.') handleDecimal();
+                              else if (btn === 'MC') handleMemoryClear();
+                              else if (btn === 'MR') handleMemoryRecall();
+                              else if (btn === 'M+') handleMemoryAdd();
+                              else if (btn === 'M-') handleMemorySubtract();
+                              else if (btn === 'MS') handleMemoryStore();
+                              else if (isConstant) handleScientificFunction(btn);
                               else if (isFunction) handleScientificFunction(btn);
                               else if (isOperation) handleOperation(btn);
+                              else if (btn === '(' || btn === ')') handleNumberClick(btn);
                               else handleNumberClick(btn);
                             }}
                             variant={isOperation || isFunction ? 'default' : 'outline'}
-                            className={`h-12 text-sm font-semibold ${
+                            className={`h-12 text-xs font-semibold ${
                               btn === '=' ? 'bg-green-600 hover:bg-green-700' : ''
-                            } ${isControl ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                            } ${isControl ? 'bg-red-600 hover:bg-red-700' : ''} ${
+                              isMemory ? 'bg-purple-600 hover:bg-purple-700' : ''
+                            } ${isConstant ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
                           >
                             {btn}
                           </Button>
@@ -384,7 +543,7 @@ export default function Calculator() {
           <Card className="mt-6">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Calculation History</CardTitle>
+                <CardTitle>Session History</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -395,26 +554,34 @@ export default function Calculator() {
                   Clear
                 </Button>
               </div>
+              <CardDescription>
+                History is stored temporarily and will disappear when you reload the page
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No calculations yet</p>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {history.map((calc) => (
+                  {history.map((calc, index) => (
                     <div
-                      key={calc.id}
+                      key={index}
                       onClick={() => handleHistoryClick(calc.result)}
-                      className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                      className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="text-sm font-mono text-gray-700">{calc.expression}</p>
-                          <p className="text-xs text-gray-500">= {calc.result}</p>
+                          <p className="text-sm font-mono text-gray-700 dark:text-gray-300">{calc.expression}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">= {calc.result}</p>
                         </div>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                          {calc.mode}
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                            {calc.mode}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(calc.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
