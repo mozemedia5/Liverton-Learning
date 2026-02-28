@@ -147,7 +147,7 @@ export function EmojiPicker({ onEmojiSelect, onClose }: EmojiPickerProps) {
   };
 
   return (
-    <div className="absolute bottom-full right-0 mb-2 w-80 sm:w-96 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+    <div className="absolute bottom-full right-0 mb-2 w-[340px] sm:w-[420px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border-2 border-gray-200 dark:border-gray-700 z-50">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
         <h3 className="font-semibold text-lg">Emojis</h3>
@@ -199,13 +199,13 @@ export function EmojiPicker({ onEmojiSelect, onClose }: EmojiPickerProps) {
       )}
 
       {/* Emoji Grid */}
-      <div className="p-3 max-h-64 overflow-y-auto">
-        <div className="grid grid-cols-8 gap-1">
+      <div className="p-3 max-h-72 overflow-y-auto">
+        <div className="grid grid-cols-7 sm:grid-cols-8 gap-1">
           {filteredEmojis.map((emoji, idx) => (
             <button
               key={idx}
               onClick={() => handleEmojiClick(emoji)}
-              className="text-2xl p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors active:scale-90"
+              className="text-3xl sm:text-4xl p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all active:scale-90 hover:scale-110"
               title={emoji}
             >
               {emoji}

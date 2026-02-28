@@ -199,16 +199,32 @@ export function ChatSettings({
 
         {/* Accent Color */}
         <div className="mb-8">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Accent Color</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Message Accent Color</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Customize the color of your sent message bubbles
+          </p>
           <div className="flex items-center gap-3">
             <input
               type="color"
               value={accentColor}
               onChange={(e) => handleAccentColorChange(e.target.value)}
-              className="w-12 h-12 rounded-lg cursor-pointer border-2 border-gray-200 dark:border-gray-700"
+              className="w-16 h-16 rounded-lg cursor-pointer border-2 border-gray-200 dark:border-gray-700"
             />
-            <div className="flex-1">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Current: {accentColor}</p>
+            <div className="flex-1 space-y-2">
+              <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">Current Color: {accentColor}</p>
+              <div className="flex gap-2 flex-wrap">
+                {['#007AFF', '#34C759', '#FF3B30', '#FF9500', '#AF52DE', '#5856D6'].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => handleAccentColorChange(color)}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                      accentColor === color ? 'border-gray-900 dark:border-white scale-110' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>

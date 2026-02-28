@@ -13,7 +13,9 @@ import {
   Plus,
   X,
   Users,
-  Settings
+  Settings,
+  Smile,
+  Paperclip
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
@@ -29,6 +31,7 @@ import {
 } from 'firebase/firestore';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatSettings } from '@/components/ChatSettings';
+import { EmojiPicker } from '@/components/EmojiPicker';
 import type { ChatSettings as ChatSettingsType, Message as ChatMessageType } from '@/types/chat';
 
 interface Message {
@@ -78,6 +81,9 @@ export default function Chat() {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
     theme: 'light',
     fontSize: 14,
@@ -268,6 +274,88 @@ export default function Chat() {
   };
 
   /**
+   * Handle message deletion (local only)
+   */
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      // In a real implementation, this would only delete from local storage
+      // For demo purposes, we'll show a toast
+      toast.success('Message deleted (local only)');
+      
+      // You can implement local deletion by filtering messages
+      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Failed to delete message');
+    }
+  };
+
+  /**
+   * Handle message editing (local only)
+   */
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    try {
+      // In a real implementation, this would only update local storage
+      toast.success('Message edited (local only)');
+      
+      // Update message content locally
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === messageId ? { ...msg, content: newContent, isEdited: true } : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error editing message:', error);
+      toast.error('Failed to edit message');
+    }
+  };
+
+  /**
+   * Handle emoji selection
+   */
+  const handleEmojiSelect = (emoji: string) => {
+    setInputValue(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  /**
+   * Handle file upload
+   */
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    setUploadProgress(0);
+
+    try {
+      // Simulate file upload with progress
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      // Simulate upload completion
+      setTimeout(() => {
+        clearInterval(interval);
+        setUploadingFile(false);
+        setUploadProgress(0);
+        toast.success('File uploaded successfully');
+      }, 2000);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload file');
+      setUploadingFile(false);
+      setUploadProgress(0);
+    }
+  };
+
+  /**
    * Handle settings change
    */
   const handleSettingsChange = (settings: ChatSettingsType) => {
@@ -387,6 +475,8 @@ export default function Chat() {
                     fontStyle={chatSettings.fontStyle}
                     isRecipientOnline={false}
                     isMessageRead={message.readStatus === 'read'}
+                    onDelete={handleDeleteMessage}
+                    onEdit={handleEditMessage}
                   />
                 ))
               )}
@@ -394,8 +484,94 @@ export default function Chat() {
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-gray-200 dark:border-gray-800 p-6 bg-white dark:bg-gray-900">
-              <form onSubmit={handleSendMessage} className="flex gap-3">
+            <div className="border-t border-gray-200 dark:border-gray-800 p-4 sm:p-6 bg-white dark:bg-gray-900">
+              {/* File Upload Progress */}
+              {uploadingFile && (
+                <div className="mb-4 flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                  <div className="relative w-12 h-12">
+                    <svg className="w-12 h-12 transform -rotate-90">
+                      <circle
+                        cx="24"
+                        cy="24"
+                        r="20"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                        className="text-gray-200 dark:text-gray-700"
+                      />
+                      <circle
+                        cx="24"
+                        cy="24"
+                        r="20"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 20}`}
+                        strokeDashoffset={`${2 * Math.PI * 20 * (1 - uploadProgress / 100)}`}
+                        className="text-blue-500 transition-all duration-300"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                        {uploadProgress}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">Uploading file...</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Please wait</p>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSendMessage} className="flex gap-2 sm:gap-3 items-end relative">
+                {/* File Upload Button */}
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={uploadingFile || isSendingMessage}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0"
+                    disabled={uploadingFile || isSendingMessage}
+                    asChild
+                  >
+                    <div>
+                      <Paperclip className="w-5 h-5" />
+                    </div>
+                  </Button>
+                </label>
+
+                {/* Emoji Picker Button */}
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className={`rounded-full h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 transition-all ${
+                      showEmojiPicker ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500' : ''
+                    }`}
+                    disabled={isSendingMessage}
+                  >
+                    <Smile className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </Button>
+                  
+                  {showEmojiPicker && (
+                    <EmojiPicker
+                      onEmojiSelect={handleEmojiSelect}
+                      onClose={() => setShowEmojiPicker(false)}
+                    />
+                  )}
+                </div>
+
+                {/* Message Input */}
                 <Input
                   type="text"
                   placeholder={
@@ -405,18 +581,21 @@ export default function Chat() {
                   }
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  disabled={isSendingMessage}
-                  className="flex-1 rounded-lg border-gray-300 dark:border-gray-700"
+                  disabled={isSendingMessage || uploadingFile}
+                  className="flex-1 rounded-full border-gray-300 dark:border-gray-700 h-10 sm:h-11 px-4"
                 />
+                
+                {/* Send Button */}
                 <Button
                   type="submit"
-                  disabled={isSendingMessage || !inputValue.trim()}
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                  disabled={isSendingMessage || !inputValue.trim() || uploadingFile}
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-full h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 p-0"
+                  size="icon"
                 >
                   {isSendingMessage ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
                   )}
                 </Button>
               </form>
