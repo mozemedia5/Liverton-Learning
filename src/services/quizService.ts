@@ -115,6 +115,63 @@ export function subscribeToTeacherQuizzes(
       } as Quiz;
     });
     callback(quizzes);
+  }, (error) => {
+    console.error("Error subscribing to teacher quizzes:", error);
+    // Fallback without ordering
+    const simpleQ = query(collection(db, 'quizzes'), where('teacherId', '==', teacherId));
+    onSnapshot(simpleQ, (snapshot) => {
+      const quizzes = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          totalAttempts: data.totalAttempts || 0,
+          averageScore: data.averageScore || 0,
+        } as Quiz;
+      });
+      callback(quizzes);
+    });
+  });
+}
+
+/**
+ * Subscribe to all quizzes (for platform admin)
+ */
+export function subscribeToAllQuizzesAdmin(
+  callback: (quizzes: Quiz[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'quizzes'),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const quizzes = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        totalAttempts: data.totalAttempts || 0,
+        averageScore: data.averageScore || 0,
+      } as Quiz;
+    });
+    callback(quizzes);
+  }, (error) => {
+    console.error("Error subscribing to all quizzes:", error);
+    // Fallback without ordering
+    const simpleQ = query(collection(db, 'quizzes'));
+    onSnapshot(simpleQ, (snapshot) => {
+      const quizzes = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          totalAttempts: data.totalAttempts || 0,
+          averageScore: data.averageScore || 0,
+        } as Quiz;
+      });
+      callback(quizzes);
+    });
   });
 }
 

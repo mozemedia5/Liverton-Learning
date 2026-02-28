@@ -344,6 +344,47 @@ export function subscribeToAllCourses(
   });
 }
 
+/**
+ * Subscribe to all courses (for platform admin)
+ */
+export function subscribeToAllCoursesAdmin(
+  callback: (courses: Course[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'courses'),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const courses = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
+        updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt)
+      } as Course;
+    });
+    callback(courses);
+  }, (error) => {
+    console.error("Error subscribing to all courses:", error);
+    // Fallback without ordering if index is missing
+    const simpleQ = query(collection(db, 'courses'));
+    onSnapshot(simpleQ, (snapshot) => {
+      const courses = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
+          updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt)
+        } as Course;
+      });
+      callback(courses);
+    });
+  });
+}
+
 // ==========================================
 // ENROLLMENT OPERATIONS
 // ==========================================

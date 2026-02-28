@@ -17,7 +17,9 @@ import {
   Plus,
   ArrowRight,
   Calculator,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import { 
@@ -27,6 +29,8 @@ import {
   updateUserStatus,
   type FirestoreUser
 } from '@/services/userService';
+import { subscribeToAllCoursesAdmin, type Course } from '@/services/courseService';
+import { subscribeToAllQuizzesAdmin, type Quiz } from '@/services/quizService';
 import { toast } from 'sonner';
 
 interface PlatformStats {
@@ -56,11 +60,27 @@ export default function PlatformAdminDashboard() {
   });
   const [pendingUsers, setPendingUsers] = useState<FirestoreUser[]>([]);
   const [recentUsers, setRecentUsers] = useState<FirestoreUser[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
+
+    // Subscribe to all courses and quizzes for full visibility
+    const unsubscribeCourses = subscribeToAllCoursesAdmin((courses) => {
+      setAllCourses(courses);
+    });
+
+    const unsubscribeQuizzes = subscribeToAllQuizzesAdmin((quizzes) => {
+      setAllQuizzes(quizzes);
+    });
+
+    return () => {
+      unsubscribeCourses();
+      unsubscribeQuizzes();
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -334,7 +354,7 @@ export default function PlatformAdminDashboard() {
         </div>
 
         {/* Detailed Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <Card className="bg-gray-100 dark:bg-gray-900">
             <CardContent className="p-4 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">Students</p>
@@ -348,6 +368,22 @@ export default function PlatformAdminDashboard() {
               <p className="text-sm text-gray-600 dark:text-gray-400">Parents</p>
               <p className="text-2xl font-bold">
                 {loading ? '-' : stats.totalParents.toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-100 dark:bg-gray-900">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Courses</p>
+              <p className="text-2xl font-bold">
+                {allCourses.length}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-100 dark:bg-gray-900">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Quizzes</p>
+              <p className="text-2xl font-bold">
+                {allQuizzes.length}
               </p>
             </CardContent>
           </Card>
@@ -471,6 +507,85 @@ export default function PlatformAdminDashboard() {
                   Go to messages
                   <ArrowRight className="w-4 h-4" />
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Platform Content Visibility Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* All Courses Monitor */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-blue-600" />
+                All Platform Courses
+                <Badge variant="secondary" className="ml-2">{allCourses.length}</Badge>
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/student/courses')}>View Browse</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                {allCourses.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No courses created on platform yet</p>
+                ) : (
+                  allCourses.map((course) => (
+                    <div key={course.id} className="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-sm">{course.title}</h4>
+                          <p className="text-xs text-gray-500">Teacher: {course.teacherName}</p>
+                          <div className="flex gap-2 mt-1">
+                            <Badge variant="outline" className="text-[10px]">{course.subject}</Badge>
+                            <Badge variant="outline" className="text-[10px]">{course.status}</Badge>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold">${course.price}</p>
+                          <p className="text-[10px] text-gray-400">{course.lessons} lessons</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* All Quizzes Monitor */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
+                All Platform Quizzes
+                <Badge variant="secondary" className="ml-2">{allQuizzes.length}</Badge>
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/teacher/quizzes')}>Manage</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                {allQuizzes.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No quizzes created on platform yet</p>
+                ) : (
+                  allQuizzes.map((quiz) => (
+                    <div key={quiz.id} className="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-sm">{quiz.title}</h4>
+                          <p className="text-xs text-gray-500">Teacher: {quiz.teacherName}</p>
+                          <div className="flex gap-2 mt-1">
+                            <Badge variant="outline" className="text-[10px]">{quiz.subject}</Badge>
+                            <Badge variant="outline" className="text-[10px]">{quiz.status}</Badge>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold">{quiz.questionCount} Qs</p>
+                          <p className="text-[10px] text-gray-400">{quiz.totalAttempts || 0} attempts</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
