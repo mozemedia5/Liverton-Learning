@@ -48,6 +48,10 @@ import TeacherQuizzes from '@/pages/teacher/TeacherQuizzes';
 import MyQuiz from '@/pages/teacher/MyQuiz';
 import QuizAnalytics from '@/pages/teacher/QuizAnalytics';
 import TakeQuiz from '@/pages/student/TakeQuiz';
+import CreateCourse from '@/pages/teacher/CreateCourse';
+import TeacherCourses from '@/pages/teacher/TeacherCourses';
+import ViewCourse from '@/pages/teacher/ViewCourse';
+import EditCourse from '@/pages/teacher/EditCourse';
 import Documents from '@/pages/features/Documents';
 import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
@@ -260,8 +264,23 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/teacher/courses" element={
-      <ProtectedRoute allowedRoles={['teacher']}>
-          <AuthenticatedLayout><Courses /></AuthenticatedLayout>
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <TeacherCourses />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/courses/create" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <CreateCourse />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/courses/:courseId" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <ViewCourse />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/courses/:courseId/edit" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <EditCourse />
         </ProtectedRoute>
       } />
       <Route path="/teacher/quizzes/create" element={

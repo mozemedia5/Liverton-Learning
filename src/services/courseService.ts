@@ -127,7 +127,7 @@ function getFileType(mimeType: string): CourseMaterial['type'] | null {
 }
 
 /**
- * Upload a course material file to Firebase Storage
+ * Upload a course material file to Firebase Storage and add to course
  */
 export async function uploadCourseMaterial(
   courseId: string, 
@@ -153,7 +153,7 @@ export async function uploadCourseMaterial(
   const snapshot = await uploadBytes(storageRef, file);
   const downloadUrl = await getDownloadURL(snapshot.ref);
 
-  return {
+  const material: CourseMaterial = {
     id: `${timestamp}_${safeFileName}`,
     name: file.name,
     type: fileType,
@@ -161,14 +161,28 @@ export async function uploadCourseMaterial(
     size: file.size,
     uploadedAt: new Date()
   };
+
+  // Add material to course
+  await addCourseMaterial(courseId, material);
+
+  return material;
 }
 
 /**
- * Delete a course material from Firebase Storage
+ * Delete a course material from Firebase Storage and Firestore
  */
-export async function deleteCourseMaterial(courseId: string, material: CourseMaterial): Promise<void> {
-  const storageRef = ref(storage, `courses/${courseId}/materials/${material.id}`);
-  await deleteObject(storageRef);
+export async function deleteCourseMaterial(courseId: string, materialId: string): Promise<void> {
+  // First remove from Firestore
+  await removeCourseMaterial(courseId, materialId);
+  
+  // Then delete from storage
+  try {
+    const storageRef = ref(storage, `courses/${courseId}/materials/${materialId}`);
+    await deleteObject(storageRef);
+  } catch (error) {
+    console.error('Error deleting file from storage:', error);
+    // Continue even if storage deletion fails
+  }
 }
 
 // ==========================================
@@ -462,6 +476,56 @@ export function subscribeToTeacherEnrollments(
   const q = query(
     collection(db, 'enrollments'),
     where('teacherId', '==', teacherId),
+    orderBy('enrolledAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const enrollments = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        enrolledAt: data.enrolledAt?.toDate?.() || new Date(data.enrolledAt),
+        lastAccessed: data.lastAccessed?.toDate?.() || undefined
+      } as Enrollment;
+    });
+    callback(enrollments);
+  });
+}
+
+/**
+ * Subscribe to course materials (real-time)
+ */
+export function subscribeToCourseMaterials(
+  courseId: string,
+  callback: (materials: CourseMaterial[]) => void
+): Unsubscribe {
+  const courseRef = doc(db, 'courses', courseId);
+  
+  return onSnapshot(courseRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      const materials = (data.materials || []).map((m: any) => ({
+        ...m,
+        uploadedAt: m.uploadedAt?.toDate?.() || new Date(m.uploadedAt)
+      }));
+      callback(materials);
+    } else {
+      callback([]);
+    }
+  });
+}
+
+/**
+ * Subscribe to enrollments for a specific course
+ */
+export function subscribeToEnrollmentsForCourse(
+  courseId: string,
+  callback: (enrollments: Enrollment[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'enrollments'),
+    where('courseId', '==', courseId),
     orderBy('enrolledAt', 'desc')
   );
 
