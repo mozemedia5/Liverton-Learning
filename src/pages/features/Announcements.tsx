@@ -258,7 +258,7 @@ export default function Announcements() {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <BookOpen className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Announcements</span>
+              <span className="font-semibold">Dashboard Banners</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function Announcements() {
             {canCreateAnnouncement && (
               <Button onClick={() => navigate('/announcements/create')}>
                 <Plus className="w-4 h-4 mr-2" />
-                New Announcement
+                New Banner
               </Button>
             )}
           </div>
@@ -338,7 +338,7 @@ export default function Announcements() {
           ) : filteredAnnouncements.length === 0 ? (
             <div className="text-center py-12">
               <Bell className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold">No announcements found</h3>
+              <h3 className="text-lg font-semibold">No dashboard banners found</h3>
               <p className="text-gray-600 dark:text-gray-400">Try adjusting your filters or check back later</p>
             </div>
           ) : (

@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap, Trophy } from 'lucide-react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import DashboardBanner from '@/components/DashboardBanner';
 import { getLinkedStudents } from '@/lib/parentService';
 import { 
   subscribeToParentAnalytics,
@@ -112,6 +113,11 @@ export default function ParentDashboard() {
   return (
     <AuthenticatedLayout>
       <div className="p-4 md:p-8 lg:ml-0">
+        {/* Dashboard Banner */}
+        <div className="mb-6">
+          <DashboardBanner maxItems={5} showControls={true} autoScroll={true} />
+        </div>
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Parent Dashboard</h1>

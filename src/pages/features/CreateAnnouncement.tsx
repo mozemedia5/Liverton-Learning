@@ -100,7 +100,7 @@ export default function CreateAnnouncement() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Create Announcement</h1>
+            <h1 className="text-2xl font-bold">Create Dashboard Banner</h1>
             <p className="text-gray-600 dark:text-gray-400">Post a new update for the platform</p>
           </div>
         </div>
