@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { 
   subscribeToTeacherAnalytics, 
   subscribeToTeacherEnrollments,
@@ -25,6 +26,9 @@ import {
 } from '@/services/analyticsService';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
 import { subscribeToTeacherQuizzes, type Quiz } from '@/services/quizService';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { DashboardAnnouncement } from '@/types/announcement';
 
 /**
  * TeacherDashboard Component
@@ -44,6 +48,7 @@ export default function TeacherDashboard() {
   const [recentEnrollments, setRecentEnrollments] = useState<Enrollment[]>([]);
   const [myCourses, setMyCourses] = useState<Course[]>([]);
   const [myQuizzes, setMyQuizzes] = useState<Quiz[]>([]);
+  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Real-time data subscription
@@ -52,7 +57,7 @@ export default function TeacherDashboard() {
 
     setLoading(true);
     let loadedCount = 0;
-    const totalSubscriptions = 4;
+    const totalSubscriptions = 5;
     
     // Subscribe to teacher analytics
     const unsubscribeAnalytics = subscribeToTeacherAnalytics(
@@ -102,6 +107,37 @@ export default function TeacherDashboard() {
       }
     );
 
+    // Subscribe to dashboard announcements
+    const announcementsQuery = query(
+      collection(db, 'dashboardAnnouncements'),
+      where('isActive', '==', true),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (snapshot) => {
+      const announcementsList = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }) as DashboardAnnouncement)
+        .filter(announcement => {
+          // Filter by target audience
+          if (announcement.targetAudience === 'all' || announcement.targetAudience === 'teachers') {
+            // Check if not expired
+            const expiresAt = announcement.expiresAt?.toMillis?.() || 0;
+            return expiresAt > Date.now();
+          }
+          return false;
+        })
+        .sort((a, b) => b.priority - a.priority); // Sort by priority
+
+      setAnnouncements(announcementsList);
+      loadedCount++;
+      if (loadedCount === totalSubscriptions) {
+        setLoading(false);
+      }
+    });
+
     // Set a timeout to stop loading after 5 seconds even if data hasn't arrived
     const timeout = setTimeout(() => {
       setLoading(false);
@@ -113,10 +149,11 @@ export default function TeacherDashboard() {
       unsubscribeEnrollments();
       unsubscribeCourses();
       unsubscribeQuizzes();
+      unsubscribeAnnouncements();
     };
   }, [currentUser?.uid]);
 
-  const announcements = [
+  const courseAnnouncements = [
     { id: 1, title: 'New Course Guidelines', sender: 'Platform Admin', date: new Date().toISOString().split('T')[0] },
     { id: 2, title: 'Payment Processing Update', sender: 'Platform Admin', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
   ];
@@ -157,6 +194,14 @@ export default function TeacherDashboard() {
             </Button>
           </div>
         </div>
+
+        {/* Dashboard Announcements Banner */}
+        {announcements.length > 0 && (
+          <AnnouncementBanner
+            announcements={announcements}
+            autoSlideInterval={5000}
+          />
+        )}
 
         {/* Earnings Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -402,7 +447,7 @@ export default function TeacherDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {announcements.map((announcement) => (
+              {courseAnnouncements.map((announcement) => (
                 <div 
                   key={announcement.id}
                   className="p-3 border border-gray-200 dark:border-gray-800 rounded-lg"

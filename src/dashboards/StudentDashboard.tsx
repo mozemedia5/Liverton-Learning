@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { 
   subscribeToStudentAnalytics, 
   subscribeToStudentAssignments,
@@ -21,6 +22,9 @@ import {
   type Assignment
 } from '@/services/analyticsService';
 import { subscribeToStudentCourses, type Course } from '@/services/courseService';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { DashboardAnnouncement } from '@/types/announcement';
 
 /**
  * StudentDashboard Component
@@ -39,6 +43,7 @@ export default function StudentDashboard() {
   const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Real-time data subscription
@@ -72,10 +77,38 @@ export default function StudentDashboard() {
       }
     );
 
+    // Subscribe to dashboard announcements
+    const announcementsQuery = query(
+      collection(db, 'dashboardAnnouncements'),
+      where('isActive', '==', true),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (snapshot) => {
+      const announcementsList = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }) as DashboardAnnouncement)
+        .filter(announcement => {
+          // Filter by target audience
+          if (announcement.targetAudience === 'all' || announcement.targetAudience === 'students') {
+            // Check if not expired
+            const expiresAt = announcement.expiresAt?.toMillis?.() || 0;
+            return expiresAt > Date.now();
+          }
+          return false;
+        })
+        .sort((a, b) => b.priority - a.priority); // Sort by priority
+
+      setAnnouncements(announcementsList);
+    });
+
     return () => {
       unsubscribeAnalytics();
       unsubscribeAssignments();
       unsubscribeCourses();
+      unsubscribeAnnouncements();
     };
   }, [currentUser?.uid]);
 
@@ -88,7 +121,7 @@ export default function StudentDashboard() {
     a.status === 'graded'
   ).slice(0, 3);
 
-  const announcements = [
+  const courseAnnouncements = [
     { id: 1, title: 'New Course Materials Available', course: 'Advanced Mathematics', date: new Date().toISOString().split('T')[0] },
     { id: 2, title: 'Exam Schedule Released', course: 'Physics Fundamentals', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
   ];
@@ -119,6 +152,14 @@ export default function StudentDashboard() {
             Browse Courses
           </Button>
         </div>
+
+        {/* Dashboard Announcements Banner */}
+        {announcements.length > 0 && (
+          <AnnouncementBanner
+            announcements={announcements}
+            autoSlideInterval={5000}
+          />
+        )}
 
         {/* Student Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -304,7 +345,7 @@ export default function StudentDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {announcements.map((announcement) => (
+              {courseAnnouncements.map((announcement) => (
                 <div 
                   key={announcement.id}
                   className="p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
