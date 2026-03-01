@@ -35,6 +35,7 @@ import {
   Calendar,
   Bell,
   Activity,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -141,7 +142,8 @@ export default function SideNavbar() {
 
     // Shared routes for all authenticated users
     { label: 'Calendar', path: '/calendar', icon: Calendar },
-    { label: 'Dashboard Banners', path: '/announcements', icon: Bell },
+    { label: 'Announcements', path: '/announcements', icon: Bell },
+    { label: 'Dashboard Banners', path: '/dashboard-banners', icon: ImageIcon },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
     { label: 'Profile', path: '/profile', icon: User },

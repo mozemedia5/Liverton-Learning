@@ -39,6 +39,7 @@ import ParentQuizzes from '@/pages/ParentQuizzes';
 import Courses from '@/pages/features/Courses';
 import Announcements from '@/pages/features/Announcements';
 import CreateAnnouncement from '@/pages/features/CreateAnnouncement';
+import DashboardBanners from '@/pages/features/DashboardBanners';
 import Chat from '@/pages/features/Chat';
 import Payments from '@/pages/features/Payments';
 import Profile from '@/pages/features/Profile';
@@ -360,6 +361,11 @@ function AppRoutes() {
       <Route path="/announcements/create" element={
         <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
           <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard-banners" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><DashboardBanners /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/chat" element={
