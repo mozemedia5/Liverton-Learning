@@ -23,7 +23,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
-import DashboardBanner from '@/components/DashboardBanner';
+import BannerCarousel from '@/components/BannerCarousel';
 import { 
   getDashboardStats, 
   getPendingVerifications,
@@ -187,7 +187,7 @@ export default function PlatformAdminDashboard() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Dashboard Banner */}
-        <DashboardBanner maxItems={5} showControls={true} autoScroll={true} />
+        <BannerCarousel />
 
         {/* Welcome */}
         <div className="flex items-center justify-between">

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import DashboardBanner from '@/components/DashboardBanner';
+import BannerCarousel from '@/components/BannerCarousel';
 import { 
   subscribeToStudentAnalytics, 
   subscribeToStudentAssignments,
@@ -140,7 +140,7 @@ export default function StudentDashboard() {
     <AuthenticatedLayout>
       <div className="p-4 lg:p-6 space-y-6">
         {/* Dashboard Banner */}
-        <DashboardBanner maxItems={5} showControls={true} autoScroll={true} />
+        <BannerCarousel />
 
         {/* Welcome Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

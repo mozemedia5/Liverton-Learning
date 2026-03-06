@@ -139,11 +139,11 @@ export default function SideNavbar() {
     { label: 'Moderation', path: '/admin/moderation', icon: Shield, roles: ['platform_admin'] },
     { label: 'Monitoring', path: '/admin/monitoring', icon: Activity, roles: ['platform_admin'] },
     { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['platform_admin'] },
+    { label: 'Dashboard Banners', path: '/dashboard-banners', icon: ImageIcon, roles: ['platform_admin'] },
 
     // Shared routes for all authenticated users
     { label: 'Calendar', path: '/calendar', icon: Calendar },
     { label: 'Announcements', path: '/announcements', icon: Bell },
-    { label: 'Dashboard Banners', path: '/dashboard-banners', icon: ImageIcon },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
     { label: 'Profile', path: '/profile', icon: User },
