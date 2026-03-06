@@ -468,8 +468,3 @@ export default function TeacherDashboard() {
     </AuthenticatedLayout>
   );
 }
-d>
-      </div>
-    </AuthenticatedLayout>
-  );
-}
