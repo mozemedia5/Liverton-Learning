@@ -114,18 +114,10 @@ export default function ParentDashboard() {
     <AuthenticatedLayout>
       <div className="p-4 md:p-8 lg:ml-0">
         {/* Dashboard Banner */}
-        <div className="mb-6">
-          <BannerCarousel />
-        </div>
-
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Parent Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here's an overview of your children's education</p>
-        </div>
+        <BannerCarousel />
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6 mb-8">
           {/* Children Count */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

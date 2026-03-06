@@ -43,19 +43,26 @@ export default function BannerCarousel() {
     if (!userRole) return;
 
     try {
+      // Query all active banners, filter client-side
       const q = query(
         collection(db, 'dashboardBanners'),
         where('isActive', '==', true),
         where('isDraft', '==', false),
-        where('targetRoles', 'array-contains', userRole),
         orderBy('order', 'asc')
       );
       
       const snapshot = await getDocs(q);
-      const bannersData = snapshot.docs.map(doc => ({
+      const allBanners = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as Banner[];
+      
+      // Filter banners by targetRoles
+      const bannersData = allBanners.filter(banner => 
+        banner.targetRoles && 
+        Array.isArray(banner.targetRoles) && 
+        banner.targetRoles.includes(userRole)
+      );
       
       setBanners(bannersData);
     } catch (error) {

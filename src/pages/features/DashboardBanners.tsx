@@ -484,8 +484,8 @@ export default function DashboardBanners() {
                               alt={banner.title}
                               className="w-full h-full object-cover"
                               onError={(e) => {
+                                console.error('Failed to load banner image:', banner.imageUrl);
                                 e.currentTarget.style.display = 'none';
-                                toast.error('Failed to load image');
                               }}
                             />
                           )}
@@ -894,8 +894,8 @@ export default function DashboardBanners() {
                     alt="Preview"
                     className="w-full h-full object-cover"
                     onError={(e) => {
+                      console.error('Failed to load image:', imagePreview);
                       e.currentTarget.style.display = 'none';
-                      toast.error('Failed to load image preview');
                     }}
                   />
                 ) : (

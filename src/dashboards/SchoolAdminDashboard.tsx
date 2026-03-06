@@ -100,12 +100,8 @@ export default function SchoolAdminDashboard() {
         {/* Dashboard Banner */}
         <BannerCarousel />
 
-        {/* Welcome Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Welcome, {userData?.fullName || 'Admin'}!</h1>
-            <p className="text-gray-600 dark:text-gray-400">Manage your school and monitor key metrics</p>
-          </div>
+        {/* Quick Actions */}
+        <div className="flex justify-end">
           <Button 
             onClick={() => navigate('/school-admin/students')}
             className="bg-black dark:bg-white text-white dark:text-black"
