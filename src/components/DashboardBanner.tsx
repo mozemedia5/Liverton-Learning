@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
-  Bell, 
   X, 
-  ExternalLink, 
   ChevronLeft, 
   ChevronRight,
-  AlertCircle,
-  Info,
-  CheckCircle,
-  AlertTriangle
+  ExternalLink,
+  Play,
+  Pause
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
@@ -27,20 +23,20 @@ interface DashboardBannerProps {
 }
 
 /**
- * DashboardBanner Component
+ * DashboardBanner Component - Modern Media Advertisement Display
  * 
- * Professional banner component for displaying announcements on dashboards
  * Features:
- * - Auto-scrolling carousel of announcements
- * - Priority-based styling (high, normal, low)
- * - Category badges
- * - Link support (internal and external)
+ * - Image and video support
+ * - Auto-scrolling carousel
+ * - Click-to-redirect functionality
+ * - External URL support (Pinterest, Instagram, etc.)
+ * - Role-based targeting
  * - Dismissible banners
  * - Mobile responsive
  * - Dark mode support
  */
 export default function DashboardBanner({ 
-  maxItems = 3, 
+  maxItems = 5, 
   showControls = true,
   autoScroll = true,
   autoScrollInterval = 5000 
@@ -50,6 +46,8 @@ export default function DashboardBanner({
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -76,11 +74,14 @@ export default function DashboardBanner({
       // Filter by role, expiry, and dismissed status
       const filtered = data.filter(a => {
         const isNotExpired = !a.expiresAt || a.expiresAt > now;
+        
+        // Check if announcement targets current user's role
         const isTargetAudience = a.targetAudience?.includes('all') || 
-                                 (userRole && a.targetAudience?.includes(userRole + 's'));
+                                 (userRole && a.targetAudience?.includes(userRole));
+        
         const isNotDismissed = !dismissedIds.includes(a.id || '');
         
-        return isNotExpired && isTargetAudience && isNotDismissed;
+        return isNotExpired && isTargetAudience && isNotDismissed && a.mediaUrl;
       }).slice(0, maxItems);
 
       setAnnouncements(filtered);
@@ -96,14 +97,14 @@ export default function DashboardBanner({
 
   // Auto-scroll effect
   useEffect(() => {
-    if (!autoScroll || announcements.length <= 1) return;
+    if (!autoScroll || !isPlaying || announcements.length <= 1) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % announcements.length);
     }, autoScrollInterval);
 
     return () => clearInterval(interval);
-  }, [autoScroll, announcements.length, autoScrollInterval]);
+  }, [autoScroll, isPlaying, announcements.length, autoScrollInterval]);
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % announcements.length);
@@ -113,68 +114,25 @@ export default function DashboardBanner({
     setCurrentIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
   };
 
-  const handleDismiss = (id: string) => {
+  const handleDismiss = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     setDismissedIds([...dismissedIds, id]);
   };
 
-  const handleClick = (announcement: Announcement) => {
-    if (announcement.link) {
-      if (announcement.link.startsWith('http')) {
-        window.open(announcement.link, '_blank', 'noopener,noreferrer');
+  const handleBannerClick = (announcement: Announcement) => {
+    if (!announcement.redirectUrl) return;
+
+    // Check if it's an external URL
+    if (announcement.redirectUrl.startsWith('http://') || announcement.redirectUrl.startsWith('https://')) {
+      if (announcement.openInNewTab) {
+        window.open(announcement.redirectUrl, '_blank', 'noopener,noreferrer');
       } else {
-        const url = announcement.link.startsWith('/') ? announcement.link : '/' + announcement.link;
-        navigate(url);
+        window.location.href = announcement.redirectUrl;
       }
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <AlertCircle className="w-5 h-5" />;
-      case 'normal':
-        return <Info className="w-5 h-5" />;
-      case 'low':
-        return <CheckCircle className="w-5 h-5" />;
-      default:
-        return <Bell className="w-5 h-5" />;
-    }
-  };
-
-  const getPriorityColors = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return {
-          bg: 'bg-red-50 dark:bg-red-900/20',
-          border: 'border-red-200 dark:border-red-800',
-          text: 'text-red-900 dark:text-red-100',
-          icon: 'text-red-600 dark:text-red-400',
-          badge: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        };
-      case 'normal':
-        return {
-          bg: 'bg-blue-50 dark:bg-blue-900/20',
-          border: 'border-blue-200 dark:border-blue-800',
-          text: 'text-blue-900 dark:text-blue-100',
-          icon: 'text-blue-600 dark:text-blue-400',
-          badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        };
-      case 'low':
-        return {
-          bg: 'bg-gray-50 dark:bg-gray-900/20',
-          border: 'border-gray-200 dark:border-gray-800',
-          text: 'text-gray-900 dark:text-gray-100',
-          icon: 'text-gray-600 dark:text-gray-400',
-          badge: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-        };
-      default:
-        return {
-          bg: 'bg-blue-50 dark:bg-blue-900/20',
-          border: 'border-blue-200 dark:border-blue-800',
-          text: 'text-blue-900 dark:text-blue-100',
-          icon: 'text-blue-600 dark:text-blue-400',
-          badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        };
+    } else {
+      // Internal route
+      const url = announcement.redirectUrl.startsWith('/') ? announcement.redirectUrl : '/' + announcement.redirectUrl;
+      navigate(url);
     }
   };
 
@@ -183,120 +141,148 @@ export default function DashboardBanner({
   }
 
   const currentAnnouncement = announcements[currentIndex];
-  const colors = getPriorityColors(currentAnnouncement.priority);
+  const hasRedirect = !!currentAnnouncement.redirectUrl;
 
   return (
-    <Card 
-      className={`${colors.bg} ${colors.border} border-2 overflow-hidden transition-all duration-300 hover:shadow-lg ${
-        currentAnnouncement.link ? 'cursor-pointer' : ''
-      }`}
-      onClick={() => currentAnnouncement.link && handleClick(currentAnnouncement)}
-    >
-      <CardContent className="p-4 relative">
-        {/* Close button */}
+    <div className="w-full space-y-2">
+      {/* Main Banner */}
+      <Card 
+        className={`
+          relative overflow-hidden border-2 transition-all duration-300 
+          ${hasRedirect ? 'cursor-pointer hover:shadow-2xl hover:scale-[1.02]' : ''}
+          bg-white dark:bg-gray-900
+        `}
+        onClick={() => hasRedirect && handleBannerClick(currentAnnouncement)}
+      >
+        {/* Close Button */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDismiss(currentAnnouncement.id || '');
-          }}
-          className="absolute top-2 right-2 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          onClick={(e) => handleDismiss(e, currentAnnouncement.id || '')}
+          className="absolute top-3 right-3 z-20 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all backdrop-blur-sm"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="flex items-start gap-4 pr-8">
-          {/* Icon */}
-          <div className={`${colors.icon} flex-shrink-0 mt-1`}>
-            {getPriorityIcon(currentAnnouncement.priority)}
+        {/* Redirect Indicator */}
+        {hasRedirect && (
+          <div className="absolute top-3 left-3 z-20 px-3 py-1.5 bg-black/60 text-white rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm">
+            <ExternalLink className="w-3 h-3" />
+            Click to visit
           </div>
+        )}
 
-          {/* Content */}
-          <div className="flex-1 space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className={`font-semibold text-lg ${colors.text}`}>
-                {currentAnnouncement.title}
-              </h3>
-            </div>
-
-            <p className={`text-sm ${colors.text} opacity-90`}>
-              {currentAnnouncement.message}
-            </p>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={colors.badge}>
-                {currentAnnouncement.priority}
-              </Badge>
-              <Badge variant="outline" className={colors.text}>
-                {currentAnnouncement.category}
-              </Badge>
-              {currentAnnouncement.link && (
-                <Badge variant="outline" className={`${colors.text} flex items-center gap-1`}>
-                  <ExternalLink className="w-3 h-3" />
-                  Has Link
-                </Badge>
+        {/* Media Content */}
+        <div className="relative w-full">
+          {currentAnnouncement.mediaType === 'image' ? (
+            <img 
+              src={currentAnnouncement.mediaUrl} 
+              alt="Dashboard Banner" 
+              className="w-full h-auto max-h-[400px] object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="400"%3E%3Crect fill="%23f3f4f6" width="800" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" fill="%239ca3af"%3EImage Not Available%3C/text%3E%3C/svg%3E';
+              }}
+            />
+          ) : (
+            <div className="relative">
+              <video 
+                src={currentAnnouncement.mediaUrl}
+                className="w-full h-auto max-h-[400px] object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                onError={(e) => {
+                  setVideoError('Video failed to load');
+                  const target = e.target as HTMLVideoElement;
+                  target.style.display = 'none';
+                }}
+              >
+                Your browser does not support video playback.
+              </video>
+              
+              {videoError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  <p className="text-gray-500">Video not available</p>
+                </div>
               )}
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Controls */}
+        {/* Controls Overlay */}
         {showControls && announcements.length > 1 && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-current/10">
-            <div className="flex items-center gap-2">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-4">
+            <div className="flex items-center justify-between">
+              {/* Navigation */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrev();
+                  }}
+                  className="text-white hover:bg-white/20"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                
+                <span className="text-white text-sm font-medium px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
+                  {currentIndex + 1} / {announcements.length}
+                </span>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNext();
+                  }}
+                  className="text-white hover:bg-white/20"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Play/Pause */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handlePrev();
+                  setIsPlaying(!isPlaying);
                 }}
-                className={colors.text}
+                className="text-white hover:bg-white/20"
               >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className={`text-sm ${colors.text}`}>
-                {currentIndex + 1} / {announcements.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNext();
-                }}
-                className={colors.text}
-              >
-                <ChevronRight className="w-4 h-4" />
+                {isPlaying ? (
+                  <Pause className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate('/announcements');
-              }}
-              className={colors.text}
-            >
-              View All
-            </Button>
           </div>
         )}
+      </Card>
 
-        {/* Progress indicators */}
-        {announcements.length > 1 && (
-          <div className="flex gap-1 mt-3">
-            {announcements.map((_, idx) => (
-              <div
-                key={idx}
-                className={`h-1 flex-1 rounded-full transition-all ${
-                  idx === currentIndex ? 'bg-current opacity-100' : 'bg-current opacity-20'
-                }`}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {/* Progress Indicators */}
+      {announcements.length > 1 && (
+        <div className="flex gap-2 justify-center px-4">
+          {announcements.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`
+                h-1.5 rounded-full transition-all duration-300
+                ${idx === currentIndex 
+                  ? 'bg-black dark:bg-white w-8' 
+                  : 'bg-gray-300 dark:bg-gray-700 w-6 hover:bg-gray-400 dark:hover:bg-gray-600'
+                }
+              `}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

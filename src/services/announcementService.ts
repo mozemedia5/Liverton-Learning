@@ -15,16 +15,22 @@ import { db } from '@/lib/firebase';
 
 export interface Announcement {
   id?: string;
-  title: string;
-  message: string;
+  
+  // Media content (image or video URL)
+  mediaUrl: string; // Required: image or video URL (external URLs supported)
+  mediaType: 'image' | 'video'; // Type of media
+  
+  // Optional redirect URL (where users go when clicking the banner)
+  redirectUrl?: string; // Optional: URL to redirect when clicked
+  openInNewTab?: boolean; // Whether to open redirect in new tab
+  
+  // Metadata
   sender: string;
   senderId: string;
   senderRole: string;
-  targetAudience: string[];
-  category: string;
+  targetAudience: string[]; // students, teachers, parents, school_admins, platform_admin
   createdAt: Timestamp | Date;
-  priority: 'low' | 'normal' | 'high';
-  link?: string;
+  
   // Moderation fields
   isHidden?: boolean;
   hiddenBy?: string;
@@ -37,16 +43,15 @@ const convertDocToAnnouncement = (doc: QueryDocumentSnapshot<DocumentData>): Ann
   const data = doc.data();
   return {
     id: doc.id,
-    title: data.title || '',
-    message: data.message || '',
+    mediaUrl: data.mediaUrl || '',
+    mediaType: data.mediaType || 'image',
+    redirectUrl: data.redirectUrl || undefined,
+    openInNewTab: data.openInNewTab ?? true,
     sender: data.sender || 'Unknown',
     senderId: data.senderId || '',
     senderRole: data.senderRole || '',
     targetAudience: data.targetAudience || [],
-    category: data.category || 'General',
     createdAt: data.createdAt?.toDate() || new Date(),
-    priority: data.priority || 'normal',
-    link: data.link || undefined,
     isHidden: data.isHidden || false,
     hiddenBy: data.hiddenBy || undefined,
     hiddenAt: data.hiddenAt?.toDate() || undefined,

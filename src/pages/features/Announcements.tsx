@@ -10,14 +10,16 @@ import {
   Calendar,
   User,
   Plus,
-  Filter,
   Loader2,
   ExternalLink,
   Trash2,
   EyeOff,
   Eye,
   Shield,
-  Clock
+  Clock,
+  Image as ImageIcon,
+  Video,
+  Play
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -41,14 +43,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-const categories = ['All', 'General', 'Academic', 'Financial', 'Events', 'System', 'Urgent'];
-const priorities = ['All', 'High', 'Normal', 'Low'];
-
 export default function Announcements() {
   const navigate = useNavigate();
   const { userRole, currentUser } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedPriority, setSelectedPriority] = useState('All');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const previousAnnouncementsRef = useRef<string[]>([]);
@@ -58,8 +55,17 @@ export default function Announcements() {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [hideReason, setHideReason] = useState('');
   const [showHideDialog, setShowHideDialog] = useState(false);
+  const [filterAudience, setFilterAudience] = useState<string>('all');
 
   const isAdmin = userRole === 'platform_admin';
+
+  const audienceFilters = [
+    { id: 'all', label: 'All Audiences' },
+    { id: 'students', label: 'Students' },
+    { id: 'teachers', label: 'Teachers' },
+    { id: 'parents', label: 'Parents' },
+    { id: 'school_admins', label: 'School Admins' },
+  ];
 
   useEffect(() => {
     setNotificationsEnabled(areNotificationsEnabled());
@@ -96,7 +102,7 @@ export default function Announcements() {
           const isNotHidden = !a.isHidden;
           const isNotExpired = !a.expiresAt || a.expiresAt > now;
           const isTargetAudience = a.targetAudience?.includes('all') || 
-                                   (userRole && a.targetAudience?.includes(userRole + 's'));
+                                   (userRole && a.targetAudience?.includes(userRole));
           
           return isNotHidden && isNotExpired && isTargetAudience;
         });
@@ -111,8 +117,8 @@ export default function Announcements() {
         newAnnouncements.forEach(announcement => {
           if (areNotificationsEnabled() && !announcement.isHidden) {
             showAnnouncementNotification(
-              announcement.title,
-              announcement.message,
+              'New Banner',
+              `A new banner has been posted`,
               announcement.id || ''
             );
           }
@@ -133,9 +139,8 @@ export default function Announcements() {
   }, [userRole, currentUser, isAdmin]);
 
   const filteredAnnouncements = announcements.filter(announcement => {
-    const matchesCategory = selectedCategory === 'All' || announcement.category === selectedCategory;
-    const matchesPriority = selectedPriority === 'All' || announcement.priority === selectedPriority.toLowerCase();
-    return matchesCategory && matchesPriority;
+    if (filterAudience === 'all') return true;
+    return announcement.targetAudience?.includes(filterAudience);
   });
 
   const canCreateAnnouncement = userRole === 'school_admin' || userRole === 'teacher' || userRole === 'platform_admin';
@@ -144,7 +149,7 @@ export default function Announcements() {
     const enabled = await requestNotificationPermission();
     if (enabled) {
       setNotificationsEnabled(true);
-      toast.success('Notifications enabled! You will receive alerts for new announcements.');
+      toast.success('Notifications enabled! You will receive alerts for new banners.');
     } else {
       toast.error('Failed to enable notifications. Please check your browser settings.');
     }
@@ -155,12 +160,12 @@ export default function Announcements() {
     
     try {
       await hideAnnouncement(selectedAnnouncement.id, currentUser.uid, hideReason);
-      toast.success('Announcement hidden from users');
+      toast.success('Banner hidden from users');
       setShowHideDialog(false);
       setHideReason('');
       setSelectedAnnouncement(null);
     } catch (error) {
-      toast.error('Failed to hide announcement');
+      toast.error('Failed to hide banner');
     }
   };
 
@@ -169,9 +174,9 @@ export default function Announcements() {
     
     try {
       await unhideAnnouncement(announcement.id);
-      toast.success('Announcement restored');
+      toast.success('Banner restored');
     } catch (error) {
-      toast.error('Failed to restore announcement');
+      toast.error('Failed to restore banner');
     }
   };
 
@@ -180,38 +185,28 @@ export default function Announcements() {
     
     try {
       await deleteAnnouncement(selectedAnnouncement.id);
-      toast.success('Announcement permanently deleted');
+      toast.success('Banner permanently deleted');
       setShowDeleteDialog(false);
       setSelectedAnnouncement(null);
     } catch (error) {
-      toast.error('Failed to delete announcement');
+      toast.error('Failed to delete banner');
     }
   };
 
-  const openLink = (link: string) => {
-    if (!link) return;
+  const handleBannerClick = (announcement: Announcement) => {
+    if (!announcement.redirectUrl) return;
     
-    // Ensure link is properly formatted
-    let url = link;
-    if (!url.startsWith('http') && !url.startsWith('/')) {
-      url = '/' + url;
-    }
-    
-    if (url.startsWith('http')) {
-      // External link - open in new tab
-      window.open(url, '_blank', 'noopener,noreferrer');
+    // Check if it's an external URL
+    if (announcement.redirectUrl.startsWith('http://') || announcement.redirectUrl.startsWith('https://')) {
+      if (announcement.openInNewTab) {
+        window.open(announcement.redirectUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = announcement.redirectUrl;
+      }
     } else {
-      // Internal link - use router navigation
+      // Internal route
+      const url = announcement.redirectUrl.startsWith('/') ? announcement.redirectUrl : '/' + announcement.redirectUrl;
       navigate(url);
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'normal': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'low': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-      default: return '';
     }
   };
 
@@ -221,7 +216,9 @@ export default function Announcements() {
     return d.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -229,7 +226,7 @@ export default function Announcements() {
     if (!announcement.expiresAt) return null;
     const expiry = announcement.expiresAt instanceof Date 
       ? announcement.expiresAt 
-      : announcement.expiresAt.toDate();
+      : new Date(announcement.expiresAt);
     const now = new Date();
     
     if (expiry < now) {
@@ -285,34 +282,17 @@ export default function Announcements() {
       {/* Main Content */}
       <main className="p-4 lg:p-6 space-y-6">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <Filter className="w-5 h-5 mt-2 text-gray-500" />
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-                className="whitespace-nowrap"
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {priorities.map((priority) => (
-              <Button
-                key={priority}
-                variant={selectedPriority === priority ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedPriority(priority)}
-                className="whitespace-nowrap"
-              >
-                {priority}
-              </Button>
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {audienceFilters.map((filter) => (
+            <Button
+              key={filter.id}
+              variant={filterAudience === filter.id ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterAudience(filter.id)}
+            >
+              {filter.label}
+            </Button>
+          ))}
         </div>
 
         {/* Admin Info Banner */}
@@ -322,18 +302,18 @@ export default function Announcements() {
               <Shield className="w-5 h-5" />
               <span className="font-medium">Admin View</span>
               <span className="text-sm text-blue-600 dark:text-blue-300">
-                - You can see all announcements including hidden and expired ones
+                - You can see all banners including hidden and expired ones
               </span>
             </div>
           </div>
         )}
 
-        {/* Announcements List */}
+        {/* Banners Grid */}
         <div className="space-y-4">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-10 h-10 animate-spin text-gray-400 mb-4" />
-              <p className="text-gray-500">Loading announcements...</p>
+              <p className="text-gray-500">Loading banners...</p>
             </div>
           ) : filteredAnnouncements.length === 0 ? (
             <div className="text-center py-12">
@@ -342,139 +322,171 @@ export default function Announcements() {
               <p className="text-gray-600 dark:text-gray-400">Try adjusting your filters or check back later</p>
             </div>
           ) : (
-            filteredAnnouncements.map((announcement) => {
-              const expiryInfo = getExpiryText(announcement);
-              const displayName = getAnnouncementDisplayName(announcement);
-              const isExpired = isAnnouncementExpired(announcement);
-              
-              return (
-                <Card 
-                  key={announcement.id} 
-                  className={`hover:shadow-md transition-all ${
-                    announcement.link ? 'cursor-pointer hover:border-black dark:hover:border-white' : ''
-                  } ${announcement.isHidden ? 'opacity-60 border-red-200 dark:border-red-800' : ''} ${isExpired ? 'opacity-70' : ''}`}
-                  onClick={() => {
-                    if (announcement.link) {
-                      openLink(announcement.link);
-                    }
-                  }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-lg">{announcement.title}</h3>
-                          {announcement.link && (
-                            <Badge variant="outline" className="flex items-center gap-1">
-                              <ExternalLink className="w-3 h-3" />
-                              Has Link
-                            </Badge>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredAnnouncements.map((announcement) => {
+                const expiryInfo = getExpiryText(announcement);
+                const displayName = getAnnouncementDisplayName(announcement);
+                const isExpired = isAnnouncementExpired(announcement);
+                
+                return (
+                  <Card 
+                    key={announcement.id} 
+                    className={`
+                      hover:shadow-xl transition-all overflow-hidden group
+                      ${announcement.redirectUrl ? 'cursor-pointer hover:scale-105' : ''} 
+                      ${announcement.isHidden ? 'opacity-60 border-red-200 dark:border-red-800' : ''} 
+                      ${isExpired ? 'opacity-70' : ''}
+                    `}
+                    onClick={() => announcement.redirectUrl && handleBannerClick(announcement)}
+                  >
+                    {/* Media Preview */}
+                    <div className="relative aspect-video bg-gray-100 dark:bg-gray-900 overflow-hidden">
+                      {announcement.mediaType === 'image' ? (
+                        <img 
+                          src={announcement.mediaUrl} 
+                          alt="Banner"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="%239ca3af"%3EImage Not Available%3C/text%3E%3C/svg%3E';
+                          }}
+                        />
+                      ) : (
+                        <div className="relative w-full h-full">
+                          <video 
+                            src={announcement.mediaUrl}
+                            className="w-full h-full object-cover"
+                            muted
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play className="w-12 h-12 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Media Type Badge */}
+                      <div className="absolute top-2 left-2">
+                        <Badge className="bg-black/60 text-white backdrop-blur-sm">
+                          {announcement.mediaType === 'image' ? (
+                            <><ImageIcon className="w-3 h-3 mr-1" /> Image</>
+                          ) : (
+                            <><Video className="w-3 h-3 mr-1" /> Video</>
                           )}
-                          <Badge className={getPriorityColor(announcement.priority)}>
-                            {announcement.priority}
+                        </Badge>
+                      </div>
+
+                      {/* Status Badges */}
+                      <div className="absolute top-2 right-2 flex gap-1 flex-col items-end">
+                        {announcement.isHidden && (
+                          <Badge variant="destructive" className="backdrop-blur-sm">
+                            <EyeOff className="w-3 h-3 mr-1" />
+                            Hidden
                           </Badge>
-                          <Badge variant="outline">{announcement.category}</Badge>
-                          {announcement.isHidden && (
-                            <Badge variant="destructive" className="flex items-center gap-1">
-                              <EyeOff className="w-3 h-3" />
-                              Hidden
-                            </Badge>
-                          )}
-                          {isExpired && (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Expired
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                          {announcement.message}
-                        </p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                          {/* Show sender info - hide name for platform admin, show 'Liverton' instead */}
-                          <span className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            {displayName}
-                            {announcement.senderRole !== 'platform_admin' && (
-                              <span className="text-xs text-gray-400">
-                                ({announcement.senderRole.replace('_', ' ')})
-                              </span>
-                            )}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {formatDate(announcement.createdAt)}
-                          </span>
-                          {expiryInfo && (
-                            <span className={`flex items-center gap-1 ${expiryInfo.color}`}>
-                              <Clock className="w-4 h-4" />
-                              {expiryInfo.text}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Bell className="w-4 h-4" />
-                            For: {announcement.targetAudience?.map(a => a.replace('_', ' ')).join(', ')}
-                          </span>
-                        </div>
-                        {announcement.link && (
-                          <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-800">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                              <ExternalLink className="w-3 h-3" />
-                              Click to visit: {announcement.link}
-                            </p>
-                          </div>
                         )}
-                        {/* Admin Moderation Controls */}
-                        {isAdmin && (
-                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {announcement.isHidden ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUnhideAnnouncement(announcement);
-                                  }}
-                                >
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  Unhide
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedAnnouncement(announcement);
-                                    setShowHideDialog(true);
-                                  }}
-                                >
-                                  <EyeOff className="w-4 h-4 mr-1" />
-                                  Hide
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAnnouncement(announcement);
-                                  setShowDeleteDialog(true);
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
+                        {isExpired && (
+                          <Badge variant="secondary" className="backdrop-blur-sm">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Expired
+                          </Badge>
+                        )}
+                        {announcement.redirectUrl && (
+                          <Badge className="bg-blue-500 text-white backdrop-blur-sm">
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            Clickable
+                          </Badge>
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })
+
+                    {/* Info Section */}
+                    <CardContent className="p-4 space-y-3">
+                      {/* Metadata */}
+                      <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          <span>{displayName}</span>
+                          {announcement.senderRole !== 'platform_admin' && (
+                            <span className="text-xs">
+                              ({announcement.senderRole.replace('_', ' ')})
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(announcement.createdAt)}</span>
+                        </div>
+                        
+                        {expiryInfo && (
+                          <div className={`flex items-center gap-2 ${expiryInfo.color}`}>
+                            <Clock className="w-4 h-4" />
+                            <span>{expiryInfo.text}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4" />
+                          <span>For: {announcement.targetAudience?.map(a => a.replace('_', ' ')).join(', ')}</span>
+                        </div>
+                        
+                        {announcement.redirectUrl && (
+                          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                            <ExternalLink className="w-4 h-4" />
+                            <span className="truncate">{announcement.redirectUrl}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Admin Moderation Controls */}
+                      {isAdmin && (
+                        <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {announcement.isHidden ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUnhideAnnouncement(announcement);
+                                }}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                Unhide
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAnnouncement(announcement);
+                                  setShowHideDialog(true);
+                                }}
+                              >
+                                <EyeOff className="w-4 h-4 mr-1" />
+                                Hide
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAnnouncement(announcement);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </div>
       </main>
@@ -483,9 +495,9 @@ export default function Announcements() {
       <Dialog open={showHideDialog} onOpenChange={setShowHideDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hide Announcement</DialogTitle>
+            <DialogTitle>Hide Banner</DialogTitle>
             <DialogDescription>
-              This will hide the announcement from regular users. The announcement will still be visible to you and the creator.
+              This will hide the banner from regular users. The banner will still be visible to you and the creator.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -503,7 +515,7 @@ export default function Announcements() {
               Cancel
             </Button>
             <Button variant="default" onClick={handleHideAnnouncement}>
-              Hide Announcement
+              Hide Banner
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -513,9 +525,9 @@ export default function Announcements() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Announcement</DialogTitle>
+            <DialogTitle>Delete Banner</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. The announcement will be permanently deleted from the system.
+              This action cannot be undone. The banner will be permanently deleted from the system.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
