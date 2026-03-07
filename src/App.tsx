@@ -351,6 +351,11 @@ function AppRoutes() {
           <AdminLayout><DashboardAnnouncementManagement /></AdminLayout>
         </ProtectedRoute>
       } />
+      <Route path="/admin/dashboard-banners" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><DashboardBanners /></AdminLayout>
+        </ProtectedRoute>
+      } />
 
       {/* Shared Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/announcements" element={
@@ -361,11 +366,6 @@ function AppRoutes() {
       <Route path="/announcements/create" element={
         <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
           <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/dashboard-banners" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><DashboardBanners /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/chat" element={

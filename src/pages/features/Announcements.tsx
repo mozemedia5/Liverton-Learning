@@ -1,39 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  BookOpen, 
-  ArrowLeft, 
   Bell, 
-  Calendar,
-  User,
+  ArrowLeft, 
   Plus,
   Loader2,
-  ExternalLink,
   Trash2,
-  EyeOff,
-  Eye,
   Shield,
+  User,
+  Calendar,
   Clock,
-  Image as ImageIcon,
-  Video,
-  Play
+  Megaphone,
+  AlertTriangle,
+  Info,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { 
-  type Announcement, 
-  hideAnnouncement, 
-  unhideAnnouncement,
-  deleteAnnouncement,
-  getAnnouncementDisplayName,
-  isAnnouncementExpired
-} from '@/services/announcementService';
-import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { showAnnouncementNotification, areNotificationsEnabled, requestNotificationPermission } from '@/services/notificationService';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  deleteDoc, 
+  doc, 
+  updateDoc,
+  Timestamp
+} from 'firebase/firestore';
 import {
   Dialog,
   DialogContent,
@@ -43,24 +41,39 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
+interface TextAnnouncement {
+  id?: string;
+  title: string;
+  message: string;
+  priority: 'normal' | 'urgent' | 'info';
+  targetAudience: string[];
+  sender: string;
+  senderId: string;
+  senderRole: string;
+  createdAt: Date | Timestamp;
+  expiresAt?: Date | Timestamp;
+  isHidden?: boolean;
+  hiddenBy?: string;
+  hiddenAt?: Date | Timestamp;
+  hideReason?: string;
+}
+
 export default function Announcements() {
   const navigate = useNavigate();
   const { userRole, currentUser } = useAuth();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcements, setAnnouncements] = useState<TextAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
-  const previousAnnouncementsRef = useRef<string[]>([]);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const isInitialLoadRef = useRef(true);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
-  const [hideReason, setHideReason] = useState('');
-  const [showHideDialog, setShowHideDialog] = useState(false);
   const [filterAudience, setFilterAudience] = useState<string>('all');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showHideDialog, setShowHideDialog] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<TextAnnouncement | null>(null);
+  const [hideReason, setHideReason] = useState('');
 
   const isAdmin = userRole === 'platform_admin';
+  const canCreate = userRole === 'platform_admin' || userRole === 'school_admin' || userRole === 'teacher';
 
   const audienceFilters = [
-    { id: 'all', label: 'All Audiences' },
+    { id: 'all', label: 'All' },
     { id: 'students', label: 'Students' },
     { id: 'teachers', label: 'Teachers' },
     { id: 'parents', label: 'Parents' },
@@ -68,69 +81,50 @@ export default function Announcements() {
   ];
 
   useEffect(() => {
-    setNotificationsEnabled(areNotificationsEnabled());
-  }, []);
-
-  useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'textAnnouncements'), orderBy('createdAt', 'desc'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => {
-        const announcementData = doc.data();
+      const data = snapshot.docs.map(docSnap => {
+        const d = docSnap.data();
         return {
-          id: doc.id,
-          ...announcementData,
-          createdAt: announcementData.createdAt?.toDate() || new Date(),
-          expiresAt: announcementData.expiresAt?.toDate() || undefined,
-          hiddenAt: announcementData.hiddenAt?.toDate() || undefined,
-        } as Announcement;
+          id: docSnap.id,
+          title: d.title || '',
+          message: d.message || '',
+          priority: d.priority || 'normal',
+          targetAudience: d.targetAudience || [],
+          sender: d.sender || 'Unknown',
+          senderId: d.senderId || '',
+          senderRole: d.senderRole || '',
+          createdAt: d.createdAt?.toDate() || new Date(),
+          expiresAt: d.expiresAt?.toDate() || undefined,
+          isHidden: d.isHidden || false,
+          hiddenBy: d.hiddenBy || undefined,
+          hiddenAt: d.hiddenAt?.toDate() || undefined,
+          hideReason: d.hideReason || undefined,
+        } as TextAnnouncement;
       });
 
-      // Filter announcements based on role and ownership
-      let filteredData = data;
       const now = new Date();
-      
+      let filtered = data;
+
       if (!isAdmin) {
-        filteredData = data.filter(a => {
-          // User can see their own announcements (even if expired or hidden)
-          if (currentUser?.uid && a.senderId === currentUser.uid) {
-            return true;
-          }
-          
-          // For others: show only non-hidden, non-expired announcements
-          const isNotHidden = !a.isHidden;
-          const isNotExpired = !a.expiresAt || a.expiresAt > now;
-          const isTargetAudience = a.targetAudience?.includes('all') || 
-                                   (userRole && a.targetAudience?.includes(userRole));
-          
-          return isNotHidden && isNotExpired && isTargetAudience;
+        filtered = data.filter(a => {
+          // User can always see their own
+          if (currentUser?.uid && a.senderId === currentUser.uid) return true;
+          // Otherwise: non-hidden, non-expired, targeted at this user
+          const notHidden = !a.isHidden;
+          const notExpired = !a.expiresAt || (a.expiresAt instanceof Date ? a.expiresAt > now : true);
+          const targeted = a.targetAudience?.includes('all') || 
+                           (userRole && a.targetAudience?.includes(userRole));
+          return notHidden && notExpired && targeted;
         });
       }
 
-      // Check for new announcements and show notifications
-      if (!isInitialLoadRef.current && previousAnnouncementsRef.current.length > 0) {
-        const newAnnouncements = filteredData.filter(
-          a => a.id && !previousAnnouncementsRef.current.includes(a.id)
-        );
-
-        newAnnouncements.forEach(announcement => {
-          if (areNotificationsEnabled() && !announcement.isHidden) {
-            showAnnouncementNotification(
-              'New Banner',
-              `A new banner has been posted`,
-              announcement.id || ''
-            );
-          }
-        });
-      }
-
-      previousAnnouncementsRef.current = filteredData.map(a => a.id || '').filter(id => id !== '');
-      setAnnouncements(filteredData);
+      setAnnouncements(filtered);
       setLoading(false);
-      isInitialLoadRef.current = false;
     }, (error) => {
-      console.error('Error listening to announcements:', error);
+      console.error('Error loading announcements:', error);
       toast.error('Failed to load announcements');
       setLoading(false);
     });
@@ -138,108 +132,80 @@ export default function Announcements() {
     return () => unsubscribe();
   }, [userRole, currentUser, isAdmin]);
 
-  const filteredAnnouncements = announcements.filter(announcement => {
+  const filteredAnnouncements = announcements.filter(a => {
     if (filterAudience === 'all') return true;
-    return announcement.targetAudience?.includes(filterAudience);
+    return a.targetAudience?.includes(filterAudience);
   });
 
-  const canCreateAnnouncement = userRole === 'school_admin' || userRole === 'teacher' || userRole === 'platform_admin';
-
-  const handleEnableNotifications = async () => {
-    const enabled = await requestNotificationPermission();
-    if (enabled) {
-      setNotificationsEnabled(true);
-      toast.success('Notifications enabled! You will receive alerts for new banners.');
-    } else {
-      toast.error('Failed to enable notifications. Please check your browser settings.');
+  const handleDelete = async () => {
+    if (!selectedAnnouncement?.id) return;
+    try {
+      await deleteDoc(doc(db, 'textAnnouncements', selectedAnnouncement.id));
+      toast.success('Announcement deleted');
+      setShowDeleteDialog(false);
+      setSelectedAnnouncement(null);
+    } catch (error) {
+      toast.error('Failed to delete announcement');
     }
   };
 
-  const handleHideAnnouncement = async () => {
+  const handleHide = async () => {
     if (!selectedAnnouncement?.id || !currentUser?.uid) return;
-    
     try {
-      await hideAnnouncement(selectedAnnouncement.id, currentUser.uid, hideReason);
-      toast.success('Banner hidden from users');
+      await updateDoc(doc(db, 'textAnnouncements', selectedAnnouncement.id), {
+        isHidden: true,
+        hiddenBy: currentUser.uid,
+        hiddenAt: Timestamp.now(),
+        hideReason: hideReason || '',
+      });
+      toast.success('Announcement hidden from users');
       setShowHideDialog(false);
       setHideReason('');
       setSelectedAnnouncement(null);
     } catch (error) {
-      toast.error('Failed to hide banner');
+      toast.error('Failed to hide announcement');
     }
   };
 
-  const handleUnhideAnnouncement = async (announcement: Announcement) => {
-    if (!announcement.id) return;
-    
+  const handleUnhide = async (a: TextAnnouncement) => {
+    if (!a.id) return;
     try {
-      await unhideAnnouncement(announcement.id);
-      toast.success('Banner restored');
+      await updateDoc(doc(db, 'textAnnouncements', a.id), {
+        isHidden: false,
+        hiddenBy: null,
+        hiddenAt: null,
+        hideReason: null,
+      });
+      toast.success('Announcement restored');
     } catch (error) {
-      toast.error('Failed to restore banner');
+      toast.error('Failed to restore announcement');
     }
   };
 
-  const handleDeleteAnnouncement = async () => {
-    if (!selectedAnnouncement?.id) return;
-    
-    try {
-      await deleteAnnouncement(selectedAnnouncement.id);
-      toast.success('Banner permanently deleted');
-      setShowDeleteDialog(false);
-      setSelectedAnnouncement(null);
-    } catch (error) {
-      toast.error('Failed to delete banner');
-    }
-  };
-
-  const handleBannerClick = (announcement: Announcement) => {
-    if (!announcement.redirectUrl) return;
-    
-    // Check if it's an external URL
-    if (announcement.redirectUrl.startsWith('http://') || announcement.redirectUrl.startsWith('https://')) {
-      if (announcement.openInNewTab) {
-        window.open(announcement.redirectUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        window.location.href = announcement.redirectUrl;
-      }
-    } else {
-      // Internal route
-      const url = announcement.redirectUrl.startsWith('/') ? announcement.redirectUrl : '/' + announcement.redirectUrl;
-      navigate(url);
+  const getPriorityConfig = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return { icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', badge: 'destructive' as const, label: '🚨 Urgent' };
+      case 'info':
+        return { icon: Info, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', badge: 'secondary' as const, label: 'ℹ️ Info' };
+      default:
+        return { icon: Megaphone, color: 'text-gray-700', bg: 'bg-white dark:bg-gray-900', border: 'border-gray-200 dark:border-gray-800', badge: 'outline' as const, label: '📢 Announcement' };
     }
   };
 
   const formatDate = (date: any) => {
-    if (!date) return 'Unknown';
+    if (!date) return '';
     const d = date instanceof Date ? date : new Date(date);
-    return d.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const getExpiryText = (announcement: Announcement) => {
-    if (!announcement.expiresAt) return null;
-    const expiry = announcement.expiresAt instanceof Date 
-      ? announcement.expiresAt 
-      : new Date(announcement.expiresAt);
+  const getExpiryText = (a: TextAnnouncement) => {
+    if (!a.expiresAt) return null;
+    const expiry = a.expiresAt instanceof Date ? a.expiresAt : new Date((a.expiresAt as any).seconds * 1000);
     const now = new Date();
-    
-    if (expiry < now) {
-      return { text: 'Expired', color: 'text-red-500' };
-    }
-    
-    const hoursLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60));
-    if (hoursLeft <= 24) {
-      return { text: `Expires in ${hoursLeft}h`, color: 'text-orange-500' };
-    }
-    
-    const daysLeft = Math.ceil(hoursLeft / 24);
-    return { text: `Expires in ${daysLeft} days`, color: 'text-gray-500' };
+    if (expiry < now) return { text: 'Expired', color: 'text-red-500' };
+    const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return { text: `Expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`, color: 'text-gray-500' };
   };
 
   return (
@@ -253,26 +219,16 @@ export default function Announcements() {
             </Button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white dark:text-black" />
+                <Bell className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Dashboard Banners</span>
+              <span className="font-semibold">Announcements</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!notificationsEnabled && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleEnableNotifications}
-              >
-                <Bell className="w-4 h-4 mr-2" />
-                Enable Notifications
-              </Button>
-            )}
-            {canCreateAnnouncement && (
+            {canCreate && (
               <Button onClick={() => navigate('/announcements/create')}>
                 <Plus className="w-4 h-4 mr-2" />
-                New Banner
+                New Announcement
               </Button>
             )}
           </div>
@@ -280,8 +236,22 @@ export default function Announcements() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 lg:p-6 space-y-6">
-        {/* Filters */}
+      <main className="p-4 lg:p-6 space-y-4">
+        
+        {/* Admin Info Banner */}
+        {isAdmin && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+              <Shield className="w-5 h-5" />
+              <span className="font-medium">Admin View</span>
+              <span className="text-sm text-blue-600 dark:text-blue-300">
+                — You can see all announcements including hidden and expired ones
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Audience Filters */}
         <div className="flex flex-wrap gap-2">
           {audienceFilters.map((filter) => (
             <Button
@@ -295,228 +265,182 @@ export default function Announcements() {
           ))}
         </div>
 
-        {/* Admin Info Banner */}
-        {isAdmin && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-              <Shield className="w-5 h-5" />
-              <span className="font-medium">Admin View</span>
-              <span className="text-sm text-blue-600 dark:text-blue-300">
-                - You can see all banners including hidden and expired ones
-              </span>
-            </div>
+        {/* Announcements List */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 animate-spin text-gray-400 mb-4" />
+            <p className="text-gray-500">Loading announcements...</p>
           </div>
-        )}
+        ) : filteredAnnouncements.length === 0 ? (
+          <div className="text-center py-16">
+            <Bell className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">No announcements yet</h3>
+            <p className="text-gray-500 dark:text-gray-500 mt-1">
+              {canCreate ? 'Click "New Announcement" to create one.' : 'Check back later for updates.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredAnnouncements.map((announcement) => {
+              const config = getPriorityConfig(announcement.priority);
+              const PriorityIcon = config.icon;
+              const expiryInfo = getExpiryText(announcement);
+              const isExpired = expiryInfo?.text === 'Expired';
 
-        {/* Banners Grid */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-10 h-10 animate-spin text-gray-400 mb-4" />
-              <p className="text-gray-500">Loading banners...</p>
-            </div>
-          ) : filteredAnnouncements.length === 0 ? (
-            <div className="text-center py-12">
-              <Bell className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold">No dashboard banners found</h3>
-              <p className="text-gray-600 dark:text-gray-400">Try adjusting your filters or check back later</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredAnnouncements.map((announcement) => {
-                const expiryInfo = getExpiryText(announcement);
-                const displayName = getAnnouncementDisplayName(announcement);
-                const isExpired = isAnnouncementExpired(announcement);
-                
-                return (
-                  <Card 
-                    key={announcement.id} 
-                    className={`
-                      hover:shadow-xl transition-all overflow-hidden group
-                      ${announcement.redirectUrl ? 'cursor-pointer hover:scale-105' : ''} 
-                      ${announcement.isHidden ? 'opacity-60 border-red-200 dark:border-red-800' : ''} 
-                      ${isExpired ? 'opacity-70' : ''}
-                    `}
-                    onClick={() => announcement.redirectUrl && handleBannerClick(announcement)}
-                  >
-                    {/* Media Preview */}
-                    <div className="relative aspect-video bg-gray-100 dark:bg-gray-900 overflow-hidden">
-                      {announcement.mediaType === 'image' ? (
-                        <img 
-                          src={announcement.mediaUrl} 
-                          alt="Banner"
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="%239ca3af"%3EImage Not Available%3C/text%3E%3C/svg%3E';
-                          }}
-                        />
-                      ) : (
-                        <div className="relative w-full h-full">
-                          <video 
-                            src={announcement.mediaUrl}
-                            className="w-full h-full object-cover"
-                            muted
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <Play className="w-12 h-12 text-white" />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Media Type Badge */}
-                      <div className="absolute top-2 left-2">
-                        <Badge className="bg-black/60 text-white backdrop-blur-sm">
-                          {announcement.mediaType === 'image' ? (
-                            <><ImageIcon className="w-3 h-3 mr-1" /> Image</>
-                          ) : (
-                            <><Video className="w-3 h-3 mr-1" /> Video</>
+              return (
+                <Card
+                  key={announcement.id}
+                  className={`
+                    border transition-all
+                    ${config.border}
+                    ${config.bg}
+                    ${announcement.isHidden ? 'opacity-60' : ''}
+                    ${isExpired ? 'opacity-70' : ''}
+                  `}
+                >
+                  <CardContent className="p-5">
+                    <div className="space-y-3">
+                      {/* Top Row: Priority + Badges */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <PriorityIcon className={`w-5 h-5 ${config.color} flex-shrink-0`} />
+                          <h3 className="font-bold text-base text-gray-900 dark:text-white">
+                            {announcement.title}
+                          </h3>
+                          <Badge variant={config.badge} className="text-xs">
+                            {config.label}
+                          </Badge>
+                          {announcement.isHidden && (
+                            <Badge variant="destructive" className="text-xs">
+                              <EyeOff className="w-3 h-3 mr-1" />
+                              Hidden
+                            </Badge>
                           )}
-                        </Badge>
+                          {isExpired && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Expired
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Status Badges */}
-                      <div className="absolute top-2 right-2 flex gap-1 flex-col items-end">
-                        {announcement.isHidden && (
-                          <Badge variant="destructive" className="backdrop-blur-sm">
-                            <EyeOff className="w-3 h-3 mr-1" />
-                            Hidden
-                          </Badge>
-                        )}
-                        {isExpired && (
-                          <Badge variant="secondary" className="backdrop-blur-sm">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Expired
-                          </Badge>
-                        )}
-                        {announcement.redirectUrl && (
-                          <Badge className="bg-blue-500 text-white backdrop-blur-sm">
-                            <ExternalLink className="w-3 h-3 mr-1" />
-                            Clickable
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                      {/* Message */}
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                        {announcement.message}
+                      </p>
 
-                    {/* Info Section */}
-                    <CardContent className="p-4 space-y-3">
                       {/* Metadata */}
-                      <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          <span>{displayName}</span>
-                          {announcement.senderRole !== 'platform_admin' && (
-                            <span className="text-xs">
-                              ({announcement.senderRole.replace('_', ' ')})
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>{formatDate(announcement.createdAt)}</span>
-                        </div>
-                        
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <span className="flex items-center gap-1">
+                          <User className="w-3.5 h-3.5" />
+                          {announcement.sender}
+                          <span className="capitalize opacity-70">({announcement.senderRole?.replace('_', ' ')})</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {formatDate(announcement.createdAt)}
+                        </span>
                         {expiryInfo && (
-                          <div className={`flex items-center gap-2 ${expiryInfo.color}`}>
-                            <Clock className="w-4 h-4" />
-                            <span>{expiryInfo.text}</span>
-                          </div>
+                          <span className={`flex items-center gap-1 ${expiryInfo.color}`}>
+                            <Clock className="w-3.5 h-3.5" />
+                            {expiryInfo.text}
+                          </span>
                         )}
-                        
-                        <div className="flex items-center gap-2">
-                          <Bell className="w-4 h-4" />
-                          <span>For: {announcement.targetAudience?.map(a => a.replace('_', ' ')).join(', ')}</span>
-                        </div>
-                        
-                        {announcement.redirectUrl && (
-                          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                            <ExternalLink className="w-4 h-4" />
-                            <span className="truncate">{announcement.redirectUrl}</span>
-                          </div>
-                        )}
+                        <span className="flex items-center gap-1">
+                          <Bell className="w-3.5 h-3.5" />
+                          For: {announcement.targetAudience?.map(a => a.replace('_', ' ')).join(', ')}
+                        </span>
                       </div>
 
-                      {/* Admin Moderation Controls */}
+                      {/* Admin Controls */}
                       {isAdmin && (
-                        <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {announcement.isHidden ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUnhideAnnouncement(announcement);
-                                }}
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                Unhide
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAnnouncement(announcement);
-                                  setShowHideDialog(true);
-                                }}
-                              >
-                                <EyeOff className="w-4 h-4 mr-1" />
-                                Hide
-                              </Button>
-                            )}
+                        <div className="flex items-center gap-2 pt-2 flex-wrap">
+                          {announcement.isHidden ? (
                             <Button
                               size="sm"
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              variant="outline"
+                              onClick={() => handleUnhide(announcement)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Unhide
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
                                 setSelectedAnnouncement(announcement);
-                                setShowDeleteDialog(true);
+                                setShowHideDialog(true);
                               }}
                             >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete
+                              <EyeOff className="w-4 h-4 mr-1" />
+                              Hide
                             </Button>
-                          </div>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedAnnouncement(announcement);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
+
+                      {/* Own announcement controls (for teachers/school admins) */}
+                      {!isAdmin && currentUser?.uid === announcement.senderId && (
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedAnnouncement(announcement);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </main>
 
       {/* Hide Dialog */}
       <Dialog open={showHideDialog} onOpenChange={setShowHideDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hide Banner</DialogTitle>
+            <DialogTitle>Hide Announcement</DialogTitle>
             <DialogDescription>
-              This will hide the banner from regular users. The banner will still be visible to you and the creator.
+              This will hide the announcement from regular users. It will still be visible to admins.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <label className="text-sm font-medium">Reason (optional)</label>
             <input
               type="text"
-              className="w-full mt-1 px-3 py-2 border rounded-md"
+              className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-900"
               placeholder="Enter reason for hiding..."
               value={hideReason}
               onChange={(e) => setHideReason(e.target.value)}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowHideDialog(false)}>
+            <Button variant="outline" onClick={() => { setShowHideDialog(false); setHideReason(''); }}>
               Cancel
             </Button>
-            <Button variant="default" onClick={handleHideAnnouncement}>
-              Hide Banner
-            </Button>
+            <Button onClick={handleHide}>Hide Announcement</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -525,16 +449,16 @@ export default function Announcements() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Banner</DialogTitle>
+            <DialogTitle>Delete Announcement</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. The banner will be permanently deleted from the system.
+              This action cannot be undone. The announcement will be permanently deleted.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAnnouncement}>
+            <Button variant="destructive" onClick={handleDelete}>
               Delete Permanently
             </Button>
           </DialogFooter>

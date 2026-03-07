@@ -1,40 +1,32 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   ArrowLeft, 
   Send, 
   Loader2,
-  Upload,
-  Image as ImageIcon,
-  Video,
-  X,
-  ExternalLink,
-  Eye
+  Bell,
+  Users
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { createAnnouncement } from '@/services/announcementService';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
 export default function CreateAnnouncement() {
   const navigate = useNavigate();
   const { userRole, userData, currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
-    mediaType: 'image' as 'image' | 'video',
-    mediaUrl: '',
-    mediaFile: null as File | null,
-    redirectUrl: '',
-    openInNewTab: true,
+    title: '',
+    message: '',
     targetAudience: [] as string[],
-    expiryDays: 7,
+    priority: 'normal' as 'normal' | 'urgent' | 'info',
   });
 
   const audienceOptions = [
@@ -45,117 +37,37 @@ export default function CreateAnnouncement() {
     { id: 'all', label: 'Everyone', icon: '🌍' },
   ];
 
+  const priorityOptions = [
+    { id: 'info', label: 'ℹ️ Info', description: 'General information' },
+    { id: 'normal', label: '📢 Normal', description: 'Standard announcement' },
+    { id: 'urgent', label: '🚨 Urgent', description: 'Requires immediate attention' },
+  ];
+
   const handleAudienceChange = (id: string) => {
     setFormData(prev => {
-      // If "all" is selected, clear others
       if (id === 'all') {
         return { ...prev, targetAudience: ['all'] };
       }
-      
-      // If selecting specific role, remove "all"
       let current = [...prev.targetAudience.filter(a => a !== 'all')];
-      
       if (current.includes(id)) {
         current = current.filter(item => item !== id);
       } else {
         current.push(id);
       }
-      
       return { ...prev, targetAudience: current };
     });
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    
-    if (!isImage && !isVideo) {
-      toast.error('Please select an image or video file');
-      return;
-    }
-
-    // Validate file size (max 50MB for videos, 10MB for images)
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast.error(`File too large. Max size: ${isVideo ? '50MB' : '10MB'}`);
-      return;
-    }
-
-    // Create preview URL
-    const previewUrl = URL.createObjectURL(file);
-    
-    setFormData(prev => ({
-      ...prev,
-      mediaFile: file,
-      mediaUrl: previewUrl,
-      mediaType: isVideo ? 'video' : 'image',
-    }));
-
-    toast.success('File selected successfully');
-  };
-
-  const handleUrlInput = () => {
-    const url = prompt('Enter image or video URL (e.g., from Pinterest, Instagram, etc.):');
-    if (!url) return;
-
-    // Basic URL validation
-    try {
-      new URL(url);
-      
-      // Determine type from URL or extension
-      const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(url) || url.includes('video');
-      
-      setFormData(prev => ({
-        ...prev,
-        mediaUrl: url,
-        mediaFile: null,
-        mediaType: isVideo ? 'video' : 'image',
-      }));
-
-      toast.success('URL added successfully');
-    } catch {
-      toast.error('Invalid URL format');
-    }
-  };
-
-  const clearMedia = () => {
-    if (formData.mediaUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(formData.mediaUrl);
-    }
-    setFormData(prev => ({
-      ...prev,
-      mediaUrl: '',
-      mediaFile: null,
-    }));
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const uploadFile = async (file: File): Promise<string> => {
-    const storage = getStorage();
-    const fileName = `banners/${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, fileName);
-    
-    setUploadProgress(10);
-    await uploadBytes(storageRef, file);
-    setUploadProgress(80);
-    
-    const downloadUrl = await getDownloadURL(storageRef);
-    setUploadProgress(100);
-    
-    return downloadUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.mediaUrl && !formData.mediaFile) {
-      toast.error('Please select or enter a media URL');
+    if (!formData.title.trim()) {
+      toast.error('Please enter an announcement title');
+      return;
+    }
+
+    if (!formData.message.trim()) {
+      toast.error('Please enter an announcement message');
       return;
     }
 
@@ -166,230 +78,117 @@ export default function CreateAnnouncement() {
 
     try {
       setLoading(true);
-      setUploadProgress(0);
-      
-      let finalMediaUrl = formData.mediaUrl;
-      
-      // Upload file to Firebase Storage if it's a local file
-      if (formData.mediaFile) {
-        toast.info('Uploading media...');
-        finalMediaUrl = await uploadFile(formData.mediaFile);
-        toast.success('Media uploaded successfully');
-      }
 
-      // Calculate expiry date
+      // Calculate expiry date (30 days for announcements)
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + formData.expiryDays);
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
-      await createAnnouncement({
-        mediaUrl: finalMediaUrl,
-        mediaType: formData.mediaType,
-        redirectUrl: formData.redirectUrl.trim() || undefined,
-        openInNewTab: formData.openInNewTab,
+      await addDoc(collection(db, 'textAnnouncements'), {
+        title: formData.title.trim(),
+        message: formData.message.trim(),
+        priority: formData.priority,
+        targetAudience: formData.targetAudience,
         sender: userData?.fullName || userData?.name || 'Unknown',
         senderId: currentUser?.uid || '',
-        senderRole: (userRole || 'unknown') as any,
-        targetAudience: formData.targetAudience,
+        senderRole: userRole || 'unknown',
+        createdAt: Timestamp.now(),
+        expiresAt: Timestamp.fromDate(expiresAt),
+        isHidden: false,
       });
 
-      toast.success('Dashboard banner created successfully!');
+      toast.success('Announcement created successfully!');
       navigate('/announcements');
     } catch (error) {
       console.error('Error creating announcement:', error);
-      toast.error('Failed to create banner');
+      toast.error('Failed to create announcement');
     } finally {
       setLoading(false);
-      setUploadProgress(0);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black p-4 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Create Dashboard Banner</h1>
-            <p className="text-gray-600 dark:text-gray-400">Upload an image or video advertisement</p>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Bell className="w-6 h-6 text-blue-600" />
+              Create Announcement
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Send a message or notification to your audience
+            </p>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Banner Media</CardTitle>
+            <CardTitle>Announcement Details</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               
-              {/* Media Upload Section */}
-              <div className="space-y-4">
-                <Label>Upload Media (Image or Video) *</Label>
-                
-                {/* Preview */}
-                {formData.mediaUrl && (
-                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-800">
-                    {formData.mediaType === 'image' ? (
-                      <img 
-                        src={formData.mediaUrl} 
-                        alt="Banner preview" 
-                        className="w-full h-auto max-h-96 object-contain bg-gray-100 dark:bg-gray-900"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          toast.error('Failed to load image. Please check the URL.');
-                        }}
-                      />
-                    ) : (
-                      <video 
-                        src={formData.mediaUrl} 
-                        controls 
-                        className="w-full h-auto max-h-96 bg-gray-100 dark:bg-gray-900"
-                        onError={() => {
-                          toast.error('Failed to load video. Please check the URL.');
-                        }}
-                      >
-                        Your browser does not support video playback.
-                      </video>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={clearMedia}
-                      className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Upload Progress */}
-                {uploadProgress > 0 && uploadProgress < 100 && (
-                  <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-blue-500 h-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                )}
-
-                {/* Upload Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex items-center gap-2 h-auto py-4"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Upload File</div>
-                      <div className="text-xs text-gray-500">From your device</div>
-                    </div>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex items-center gap-2 h-auto py-4"
-                    onClick={handleUrlInput}
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Enter URL</div>
-                      <div className="text-xs text-gray-500">From external source</div>
-                    </div>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex items-center gap-2 h-auto py-4"
-                    disabled={!formData.mediaUrl}
-                    onClick={() => {
-                      if (formData.mediaUrl) {
-                        window.open(formData.mediaUrl, '_blank');
-                      }
-                    }}
-                  >
-                    <Eye className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Preview</div>
-                      <div className="text-xs text-gray-500">Open in new tab</div>
-                    </div>
-                  </Button>
-                </div>
-
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  💡 Tip: You can upload images/videos from your device or use direct URLs from Pinterest, Instagram, Ideogram, Facebook, or other platforms
-                </p>
-              </div>
-
-              {/* Media Type */}
+              {/* Title */}
               <div className="space-y-2">
-                <Label>Media Type</Label>
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant={formData.mediaType === 'image' ? 'default' : 'outline'}
-                    className="flex-1"
-                    onClick={() => setFormData({ ...formData, mediaType: 'image' })}
-                  >
-                    <ImageIcon className="w-4 h-4 mr-2" />
-                    Image
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={formData.mediaType === 'video' ? 'default' : 'outline'}
-                    className="flex-1"
-                    onClick={() => setFormData({ ...formData, mediaType: 'video' })}
-                  >
-                    <Video className="w-4 h-4 mr-2" />
-                    Video
-                  </Button>
-                </div>
-              </div>
-
-              {/* Redirect URL */}
-              <div className="space-y-2">
-                <Label htmlFor="redirectUrl">Redirect URL (Optional)</Label>
-                <Input 
-                  id="redirectUrl" 
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
                   type="text"
-                  placeholder="https://example.com or /courses/123" 
-                  value={formData.redirectUrl}
-                  onChange={e => setFormData({ ...formData, redirectUrl: e.target.value })}
+                  placeholder="e.g. School Closure Notice, Exam Timetable Released..."
+                  value={formData.title}
+                  onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  maxLength={100}
                 />
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="openInNewTab"
-                    checked={formData.openInNewTab}
-                    onChange={e => setFormData({ ...formData, openInNewTab: e.target.checked })}
-                    className="rounded"
-                  />
-                  <Label htmlFor="openInNewTab" className="cursor-pointer text-sm">
-                    Open in new tab
-                  </Label>
+                <p className="text-xs text-gray-500">{formData.title.length}/100 characters</p>
+              </div>
+
+              {/* Message */}
+              <div className="space-y-2">
+                <Label htmlFor="message">Message *</Label>
+                <Textarea
+                  id="message"
+                  placeholder="Type your announcement here. Be clear and concise..."
+                  value={formData.message}
+                  onChange={e => setFormData({ ...formData, message: e.target.value })}
+                  rows={5}
+                  maxLength={1000}
+                />
+                <p className="text-xs text-gray-500">{formData.message.length}/1000 characters</p>
+              </div>
+
+              {/* Priority */}
+              <div className="space-y-3">
+                <Label>Priority Level</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  {priorityOptions.map(opt => (
+                    <div
+                      key={opt.id}
+                      onClick={() => setFormData({ ...formData, priority: opt.id as any })}
+                      className={`
+                        flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all
+                        ${formData.priority === opt.id 
+                          ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white' 
+                          : 'bg-white text-gray-600 border-gray-200 dark:bg-gray-900 dark:border-gray-800 hover:border-gray-400'}
+                      `}
+                    >
+                      <span className="text-sm font-semibold">{opt.label}</span>
+                      <span className="text-xs mt-1 opacity-70 text-center">{opt.description}</span>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  When users click the banner, they will be redirected to this URL
-                </p>
               </div>
 
               {/* Target Audience */}
               <div className="space-y-3">
-                <Label>Target Audience *</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <Label className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Target Audience *
+                </Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {audienceOptions.map(opt => (
                     <div 
                       key={opt.id}
@@ -408,19 +207,14 @@ export default function CreateAnnouncement() {
                 </div>
               </div>
 
-              {/* Expiry Days */}
-              <div className="space-y-2">
-                <Label htmlFor="expiryDays">Expiry (Days)</Label>
-                <Input 
-                  id="expiryDays" 
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={formData.expiryDays}
-                  onChange={e => setFormData({ ...formData, expiryDays: parseInt(e.target.value) || 7 })}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Banner will automatically hide after {formData.expiryDays} days
+              {/* Sender Info Preview */}
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-sm">
+                <p className="font-medium text-gray-700 dark:text-gray-300">Announcement will be sent by:</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  {userData?.fullName || userData?.name || 'You'} 
+                  <span className="ml-2 text-xs bg-gray-200 dark:bg-gray-800 px-2 py-0.5 rounded-full capitalize">
+                    {userRole?.replace('_', ' ')}
+                  </span>
                 </p>
               </div>
 
@@ -438,12 +232,12 @@ export default function CreateAnnouncement() {
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
+                      Sending...
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Create Banner
+                      Send Announcement
                     </>
                   )}
                 </Button>

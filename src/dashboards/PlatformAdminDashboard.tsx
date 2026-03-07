@@ -20,7 +20,8 @@ import {
   Sparkles,
   BookOpen,
   FileText,
-  Megaphone
+  Megaphone,
+  Image as ImageIcon
 } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import BannerCarousel from '@/components/BannerCarousel';
@@ -339,26 +340,6 @@ export default function PlatformAdminDashboard() {
 
           <Card 
             className="hover:shadow-md transition-shadow cursor-pointer border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-900/10"
-            onClick={() => navigate('/admin/dashboard-announcements')}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-                    <Megaphone className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Announcements</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Dashboard Banners</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm">Manage</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="hover:shadow-md transition-shadow cursor-pointer border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-900/10"
             onClick={() => navigate('/announcements')}
           >
             <CardContent className="p-4">
@@ -369,10 +350,30 @@ export default function PlatformAdminDashboard() {
                   </div>
                   <div>
                     <p className="font-semibold">Announcements</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Latest updates</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Post & view messages</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">Open</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-md transition-shadow cursor-pointer border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/10"
+            onClick={() => navigate('/admin/dashboard-banners')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Dashboard Banners</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Manage rotating banners</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm">Manage</Button>
               </div>
             </CardContent>
           </Card>
@@ -465,7 +466,7 @@ export default function PlatformAdminDashboard() {
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => navigate('/announcements')}
+                onClick={() => navigate('/announcements/create')}
               >
                 <Plus className="w-4 h-4 mr-1" />
                 New
