@@ -5,17 +5,16 @@
  * • Filters by targetRoles (shows banner only if user role matches or 'all')
  * • Auto-cycles every 5 s with smooth fade transition
  * • Supports image, video and url media types
- * • Placed at the very top of every dashboard
- * • Dismiss individual banners (session-only)
+ * • Placed at the very top of every dashboard (EXCEPT platform_admin — they manage banners, not view them)
+ * • Banners are NON-DISMISSIBLE — users cannot close them; they disappear only when expired
  * • Full backward-compat with legacy imageUrl / link / linkType fields
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
-  X,
   ExternalLink,
   Play,
   Pause,
@@ -63,18 +62,20 @@ interface Banner {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function BannerCarousel() {
-  const navigate   = useNavigate();
+  const navigate    = useNavigate();
   const { userRole } = useAuth();
 
-  const [banners,      setBanners]      = useState<Banner[]>([]);
-  const [current,      setCurrent]      = useState(0);
-  const [autoPlay,     setAutoPlay]     = useState(true);
-  const [dismissed,    setDismissed]    = useState<Set<string>>(new Set());
-  const [imgErrors,    setImgErrors]    = useState<Set<string>>(new Set());
-  const [fade,         setFade]         = useState(true);
+  const [banners,   setBanners]  = useState<Banner[]>([]);
+  const [current,   setCurrent]  = useState(0);
+  const [autoPlay,  setAutoPlay] = useState(true);
+  const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
+  const [fade,      setFade]     = useState(true);
 
-  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pauseTimer  = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pauseTimer = useRef<ReturnType<typeof setTimeout>  | null>(null);
+
+  // ── Platform admin does NOT see banners (they create/manage them) ─────────
+  if (userRole === 'platform_admin') return null;
 
   // ── Real-time Firestore listener ──────────────────────────────────────────
   useEffect(() => {
@@ -93,7 +94,7 @@ export default function BannerCarousel() {
         .map((d) => {
           const raw = { id: d.id, ...d.data() } as RawBanner;
 
-          // Expiry check
+          // Expiry check — only the expiry date removes the banner
           if (raw.expiresAt) {
             const expDate = typeof raw.expiresAt.toDate === 'function'
               ? raw.expiresAt.toDate()
@@ -106,12 +107,10 @@ export default function BannerCarousel() {
             ? raw.targetRoles
             : [];
 
-          // Must have at least one role assigned
           if (roles.length === 0) return null;
 
-          // Platform admin sees all; others must match role or 'all'
+          // Only show to target roles (not platform_admin — already returned null above)
           const visible =
-            userRole === 'platform_admin' ||
             roles.includes('all') ||
             roles.includes(userRole);
 
@@ -138,7 +137,7 @@ export default function BannerCarousel() {
             message: raw.message || '',
           } as Banner;
         })
-        .filter((b): b is Banner => b !== null && !dismissed.has(b.id));
+        .filter((b): b is Banner => b !== null);
 
       setBanners(resolved);
       setCurrent(0);
@@ -149,21 +148,9 @@ export default function BannerCarousel() {
   }, [userRole]);
 
   // ── Auto-cycle ────────────────────────────────────────────────────────────
-  const goTo = useCallback((idx: number) => {
-    setFade(false);
-    setTimeout(() => {
-      setCurrent(idx);
-      setFade(true);
-    }, 150);
-  }, []);
-
   useEffect(() => {
     if (!autoPlay || banners.length <= 1) return;
     timerRef.current = setInterval(() => {
-      goTo((prev) => {
-        // Use functional update via ref trick
-        return 0; // will be overridden below
-      });
       setCurrent(prev => {
         const next = (prev + 1) % banners.length;
         setFade(false);
@@ -172,9 +159,9 @@ export default function BannerCarousel() {
       });
     }, 5000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [autoPlay, banners.length, goTo]);
+  }, [autoPlay, banners.length]);
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
+  // ── Pause-and-resume on manual interaction ────────────────────────────────
   const pauseAndResume = () => {
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     setAutoPlay(false);
@@ -206,13 +193,6 @@ export default function BannerCarousel() {
     pauseAndResume();
     setFade(false); setTimeout(() => setFade(true), 150);
     setCurrent(idx);
-  };
-
-  const dismiss = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setDismissed(prev => new Set([...prev, id]));
-    setBanners(prev => prev.filter(b => b.id !== id));
-    setCurrent(0);
   };
 
   const handleClick = (banner: Banner) => {
@@ -284,7 +264,7 @@ export default function BannerCarousel() {
 
           {/* Title / message */}
           {(b.title || b.message) && !failed && (
-            <div className="absolute bottom-3 left-4 right-16 pointer-events-none">
+            <div className="absolute bottom-3 left-4 right-4 pointer-events-none">
               {b.title   && <p className="text-white font-bold text-base sm:text-lg drop-shadow line-clamp-1">{b.title}</p>}
               {b.message && <p className="text-white/85 text-xs sm:text-sm drop-shadow line-clamp-2">{b.message}</p>}
             </div>
@@ -298,20 +278,11 @@ export default function BannerCarousel() {
             </div>
           )}
 
-          {/* Dismiss */}
-          <button
-            onClick={e => dismiss(e, b.id)}
-            className="absolute top-3 right-3 z-20 p-1.5 bg-black/55 hover:bg-black/80 text-white rounded-full backdrop-blur-sm transition-all"
-            aria-label="Dismiss"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Counter + play/pause */}
+          {/* Counter + play/pause — top right (no dismiss button) */}
           {banners.length > 1 && (
-            <div className="absolute top-3 right-11 z-10 flex items-center gap-1.5">
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
               <button
-                onClick={e => { e.stopPropagation(); setAutoPlay(p => !p); }}
+                onClick={e => { e.stopPropagation(); pauseAndResume(); setAutoPlay(p => !p); }}
                 className="p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm"
                 aria-label={autoPlay ? 'Pause' : 'Play'}
               >
@@ -323,7 +294,7 @@ export default function BannerCarousel() {
             </div>
           )}
 
-          {/* Prev / Next arrows */}
+          {/* Prev / Next arrows (visible on hover) */}
           {banners.length > 1 && (
             <>
               <button

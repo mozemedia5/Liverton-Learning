@@ -1,15 +1,14 @@
 /**
  * ShareAppDialog – Share the Liverton Learning application
  *
- * Platforms: WhatsApp, Telegram, Twitter/X, Facebook, LinkedIn,
- *            Instagram (copy), Reddit, Discord (copy), Email,
- *            and native Web Share API.
- *
- * The dialog shows:
- *  • App name + short description
- *  • Role-specific registration link
- *  • Grid of share platform buttons
- *  • Copy-to-clipboard
+ * Design:
+ *  • Uses the official URL: liverton-learning.vercel.app
+ *  • Role-aware link — directs new users to the correct registration page
+ *  • Clean "Share" button that triggers the native Web Share API (mobile)
+ *    or falls back gracefully to a manual share sheet on desktop
+ *  • Copy Link button for quick clipboard access
+ *  • Professional, concise share message
+ *  • No cluttered social media icon grid
  */
 
 import { useState } from 'react';
@@ -28,165 +27,141 @@ import {
   Check,
   X,
   Mail,
+  MessageCircle,
+  ExternalLink,
 } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ShareAppDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-// ─── App meta ─────────────────────────────────────────────────────────────
+// ─── App constants ─────────────────────────────────────────────────────────────
 
-const APP_URL  = 'https://liverton-learning.pages.dev';
-const APP_NAME = 'Liverton Learning';
-const APP_DESC =
-  'A comprehensive educational platform connecting students, teachers, schools and parents for seamless learning, live lessons, quizzes, and progress tracking.';
+const APP_BASE_URL = 'https://liverton-learning.vercel.app';
+const APP_NAME     = 'Liverton Learning';
 
-// Role-specific registration landing
-const REGISTER_PATHS: Record<string, string> = {
-  student:       '/register/student',
-  teacher:       '/register/teacher',
-  school_admin:  '/register/school-admin',
-  parent:        '/register/parent',
+// Role-specific landing pages
+const ROLE_PATHS: Record<string, string> = {
+  student:        '/get-started',
+  teacher:        '/get-started',
+  school_admin:   '/get-started',
+  parent:         '/get-started',
   platform_admin: '/get-started',
 };
 
-// ─── Share platforms ──────────────────────────────────────────────────────
+// Professional share messages per role
+const SHARE_MESSAGES: Record<string, string> = {
+  student:
+    `I've been using Liverton Learning — an advanced education platform that makes studying smarter and more effective. Join me today and take your learning to the next level.`,
+  teacher:
+    `Liverton Learning is transforming how educators teach. Create courses, manage students, conduct live lessons, and track progress — all in one powerful platform. Come explore it with me.`,
+  school_admin:
+    `Liverton Learning provides schools with a complete digital infrastructure — from student enrolment and class management to analytics and parent communication. Discover how it can elevate your institution.`,
+  parent:
+    `I've found a great platform to support my child's education. Liverton Learning keeps parents informed and involved in their child's academic journey. See what it's all about.`,
+  platform_admin:
+    `Liverton Learning is a comprehensive educational platform connecting students, teachers, schools, and parents for seamless, modern learning. Explore the platform today.`,
+};
 
-interface Platform {
-  id:    string;
-  label: string;
-  color: string;
-  bg:    string;
-  icon:  string;
-  build: (text: string, url: string) => string | null; // null = copy-only
-}
+const DEFAULT_MESSAGE =
+  `Liverton Learning is a comprehensive educational platform connecting students, teachers, schools, and parents for seamless, modern learning. Explore the platform today.`;
 
-const platforms: Platform[] = [
-  {
-    id: 'whatsapp', label: 'WhatsApp', color: 'text-white', bg: 'bg-[#25D366]',
-    icon: '💬',
-    build: (t, u) => `https://wa.me/?text=${encodeURIComponent(`${t}\n${u}`)}`,
-  },
-  {
-    id: 'telegram', label: 'Telegram', color: 'text-white', bg: 'bg-[#229ED9]',
-    icon: '✈️',
-    build: (t, u) => `https://t.me/share/url?url=${encodeURIComponent(u)}&text=${encodeURIComponent(t)}`,
-  },
-  {
-    id: 'twitter', label: 'Twitter / X', color: 'text-white', bg: 'bg-black',
-    icon: '𝕏',
-    build: (t, u) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`,
-  },
-  {
-    id: 'facebook', label: 'Facebook', color: 'text-white', bg: 'bg-[#1877F2]',
-    icon: 'f',
-    build: (_t, u) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(u)}`,
-  },
-  {
-    id: 'linkedin', label: 'LinkedIn', color: 'text-white', bg: 'bg-[#0A66C2]',
-    icon: 'in',
-    build: (t, u) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(u)}&summary=${encodeURIComponent(t)}`,
-  },
-  {
-    id: 'reddit', label: 'Reddit', color: 'text-white', bg: 'bg-[#FF4500]',
-    icon: '🔴',
-    build: (t, u) => `https://reddit.com/submit?url=${encodeURIComponent(u)}&title=${encodeURIComponent(t)}`,
-  },
-  {
-    id: 'email', label: 'Email', color: 'text-white', bg: 'bg-gray-600',
-    icon: '✉️',
-    build: (t, u) => `mailto:?subject=${encodeURIComponent(APP_NAME)}&body=${encodeURIComponent(`${t}\n\n${u}`)}`,
-  },
-  {
-    id: 'instagram', label: 'Instagram', color: 'text-white',
-    bg: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
-    icon: '📸',
-    build: () => null, // copy only
-  },
-  {
-    id: 'discord', label: 'Discord', color: 'text-white', bg: 'bg-[#5865F2]',
-    icon: '🎮',
-    build: () => null, // copy only
-  },
-];
-
-// ─── Component ────────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
   const { userRole } = useAuth();
   const [copied, setCopied] = useState(false);
 
-  // Build share text + URL
-  const regPath  = REGISTER_PATHS[userRole || 'student'] ?? '/get-started';
-  const shareUrl = `${APP_URL}${regPath}`;
-  const shareText =
-    `🎓 Join me on ${APP_NAME}!\n\n${APP_DESC}\n\nSign up here 👇`;
+  const regPath    = ROLE_PATHS[userRole || 'student'] ?? '/get-started';
+  const shareUrl   = `${APP_BASE_URL}${regPath}`;
+  const shareText  = SHARE_MESSAGES[userRole || ''] ?? DEFAULT_MESSAGE;
+  const fullMessage = `${shareText}\n\n${shareUrl}`;
 
-  const fullMessage = `${shareText}\n${shareUrl}`;
-
-  // Copy to clipboard
+  // ── Copy to clipboard ──────────────────────────────────────────────────────
   const copyToClipboard = async (value?: string) => {
-    const text = value ?? fullMessage;
+    const text = value ?? shareUrl;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success('Copied to clipboard!');
+      toast.success('Link copied to clipboard!');
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      toast.error('Could not copy – please copy manually.');
+      toast.error('Unable to copy. Please copy the link manually.');
     }
   };
 
-  // Web Share API (mobile)
+  // ── Native Web Share (mobile / modern browsers) ────────────────────────────
   const nativeShare = async () => {
     if (!navigator.share) {
-      copyToClipboard();
+      // Fallback: copy to clipboard
+      await copyToClipboard(fullMessage);
       return;
     }
     try {
       await navigator.share({
         title: APP_NAME,
-        text:  `${shareText}`,
+        text:  shareText,
         url:   shareUrl,
       });
     } catch {
-      // user cancelled or not supported – silent
+      // User dismissed or share failed — silent
     }
   };
 
-  const handlePlatform = (platform: Platform) => {
-    const url = platform.build(shareText, shareUrl);
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      // copy-only platform
-      copyToClipboard(fullMessage);
-      toast.success(`Link copied! Paste it into ${platform.label}.`);
-    }
+  // ── Email share ────────────────────────────────────────────────────────────
+  const shareByEmail = () => {
+    const subject = encodeURIComponent(`Join me on ${APP_NAME}`);
+    const body    = encodeURIComponent(fullMessage);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+  };
+
+  // ── WhatsApp share ─────────────────────────────────────────────────────────
+  const shareWhatsApp = () => {
+    const text = encodeURIComponent(fullMessage);
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden">
+      <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden">
 
-        {/* Header */}
-        <DialogHeader className="p-5 pb-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <DialogHeader className="p-5 pb-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Share2 className="w-5 h-5 text-white" />
+              {/* App icon */}
+              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-md overflow-hidden">
+                <img
+                  src="/icons/icon-96x96.png"
+                  alt="Liverton Learning"
+                  className="w-9 h-9 object-contain"
+                  onError={e => {
+                    const t = e.target as HTMLImageElement;
+                    t.style.display = 'none';
+                    if (t.parentElement) {
+                      t.parentElement.innerHTML =
+                        '<span class="text-purple-700 font-extrabold text-sm">LL</span>';
+                    }
+                  }}
+                />
               </div>
               <div>
-                <DialogTitle className="text-white text-lg font-bold leading-tight">
-                  Share Liverton Learning
+                <DialogTitle className="text-white text-base font-bold leading-tight">
+                  Share {APP_NAME}
                 </DialogTitle>
-                <p className="text-white/80 text-xs mt-0.5">Invite friends & family</p>
+                <p className="text-white/80 text-xs mt-0.5">
+                  Invite others to join the platform
+                </p>
               </div>
             </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+              aria-label="Close"
+            >
               <X className="w-4 h-4 text-white" />
             </button>
           </div>
@@ -194,76 +169,74 @@ export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
 
         <div className="p-5 space-y-5">
 
-          {/* App description card */}
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-                <span className="text-white dark:text-black font-bold text-xs">LL</span>
-              </div>
-              <span className="font-bold text-sm">{APP_NAME}</span>
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-              {APP_DESC}
+          {/* ── Share message preview ─────────────────────────────────────── */}
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 space-y-2 border border-gray-100 dark:border-gray-800">
+            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+              {shareText}
             </p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate">
-                {shareUrl}
-              </span>
-            </div>
-          </div>
-
-          {/* Share platforms grid */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Share via
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {platforms.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => handlePlatform(p)}
-                  className={`${p.bg} ${p.color} flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-center transition-all hover:opacity-90 active:scale-95 shadow-sm`}
-                >
-                  <span className="text-lg leading-none">{p.icon}</span>
-                  <span className="text-[10px] font-semibold leading-tight">{p.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2 pt-1">
-            {/* Native share (mobile) */}
-            {'share' in navigator && (
-              <Button
-                onClick={nativeShare}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl gap-2"
+            <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
+              <a
+                href={shareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1 hover:underline break-all"
               >
-                <Share2 className="w-4 h-4" />
-                Share
-              </Button>
-            )}
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                {shareUrl}
+              </a>
+            </div>
+          </div>
 
-            {/* Copy link */}
+          {/* ── Primary action buttons ────────────────────────────────────── */}
+          <div className="space-y-2">
+
+            {/* Share button (native Web Share / mobile) */}
+            <Button
+              onClick={nativeShare}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl gap-2 h-11 font-semibold"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Now
+            </Button>
+
+            {/* Copy Link */}
             <Button
               onClick={() => copyToClipboard()}
               variant="outline"
-              className="flex-1 rounded-xl gap-2"
+              className="w-full rounded-xl gap-2 h-11"
             >
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Link'}
+              {copied
+                ? <Check className="w-4 h-4 text-green-500" />
+                : <Copy className="w-4 h-4" />
+              }
+              {copied ? 'Link Copied!' : 'Copy Link'}
             </Button>
+          </div>
 
-            {/* Email */}
-            <Button
-              onClick={() => handlePlatform(platforms.find(p => p.id === 'email')!)}
-              variant="outline"
-              size="icon"
-              className="rounded-xl flex-shrink-0"
-              aria-label="Share via email"
-            >
-              <Mail className="w-4 h-4" />
-            </Button>
+          {/* ── Quick share shortcuts ─────────────────────────────────────── */}
+          <div>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              Share via
+            </p>
+            <div className="flex gap-2">
+              {/* WhatsApp */}
+              <button
+                onClick={shareWhatsApp}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#25D366] text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp
+              </button>
+
+              {/* Email */}
+              <button
+                onClick={shareByEmail}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gray-600 text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all"
+              >
+                <Mail className="w-4 h-4" />
+                Email
+              </button>
+            </div>
           </div>
 
         </div>

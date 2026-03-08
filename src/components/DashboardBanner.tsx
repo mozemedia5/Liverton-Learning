@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
-  X, 
   ChevronLeft, 
   ChevronRight,
   ExternalLink,
@@ -24,14 +23,15 @@ interface DashboardBannerProps {
 
 /**
  * DashboardBanner Component - Modern Media Advertisement Display
- * 
+ *
  * Features:
  * - Image and video support
- * - Auto-scrolling carousel
+ * - Auto-scrolling carousel with manual navigation
  * - Click-to-redirect functionality
- * - External URL support (Pinterest, Instagram, etc.)
+ * - External URL support
  * - Role-based targeting
- * - Dismissible banners
+ * - NON-DISMISSIBLE: banners stay until expiry date (set by platform admin)
+ * - Platform admin does NOT see banners (they manage them)
  * - Mobile responsive
  * - Dark mode support
  */
@@ -45,11 +45,12 @@ export default function DashboardBanner({
   const { userRole, currentUser } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  // dismissedIds removed — banners are non-dismissible; only expiry date removes them
   const [isPlaying, setIsPlaying] = useState(true);
   const [videoError, setVideoError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!currentUser) return;
     if (!currentUser) return;
 
     const now = new Date();
@@ -79,9 +80,7 @@ export default function DashboardBanner({
         const isTargetAudience = a.targetAudience?.includes('all') || 
                                  (userRole && a.targetAudience?.includes(userRole));
         
-        const isNotDismissed = !dismissedIds.includes(a.id || '');
-        
-        return isNotExpired && isTargetAudience && isNotDismissed && a.mediaUrl;
+        return isNotExpired && isTargetAudience && a.mediaUrl;
       }).slice(0, maxItems);
 
       setAnnouncements(filtered);
@@ -93,7 +92,7 @@ export default function DashboardBanner({
     });
 
     return () => unsubscribe();
-  }, [currentUser, userRole, maxItems, dismissedIds, currentIndex]);
+  }, [currentUser, userRole, maxItems, currentIndex]);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -114,11 +113,6 @@ export default function DashboardBanner({
     setCurrentIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
   };
 
-  const handleDismiss = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setDismissedIds([...dismissedIds, id]);
-  };
-
   const handleBannerClick = (announcement: Announcement) => {
     if (!announcement.redirectUrl) return;
 
@@ -135,6 +129,9 @@ export default function DashboardBanner({
       navigate(url);
     }
   };
+
+  // Platform admin does not see banners — they create/manage them
+  if (userRole === 'platform_admin') return null;
 
   if (announcements.length === 0) {
     return null; // Don't show anything if no announcements
@@ -154,14 +151,6 @@ export default function DashboardBanner({
         `}
         onClick={() => hasRedirect && handleBannerClick(currentAnnouncement)}
       >
-        {/* Close Button */}
-        <button
-          onClick={(e) => handleDismiss(e, currentAnnouncement.id || '')}
-          className="absolute top-3 right-3 z-20 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all backdrop-blur-sm"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
         {/* Redirect Indicator */}
         {hasRedirect && (
           <div className="absolute top-3 left-3 z-20 px-3 py-1.5 bg-black/60 text-white rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm">
