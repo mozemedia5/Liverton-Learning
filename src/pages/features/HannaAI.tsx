@@ -26,6 +26,7 @@ import { Input } from '../../components/ui/input';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Send, Trash2, Zap, Plus, MessageSquare, Loader } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 
 /**
  * Interface for Hanna AI messages
@@ -79,6 +80,7 @@ const AI_RESPONSES = [
  */
 export default function HannaAI() {
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<HannaMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -264,12 +266,19 @@ export default function HannaAI() {
   }, [messages]);
 
   /**
-   * Load sessions and start new chat on component mount
+   * Load sessions and set current session on component mount
+   * If a ?session= param is provided (from HannaButton), use that session directly
    */
   useEffect(() => {
     if (currentUser) {
       loadSessions();
-      startNewSession();
+      const sessionParam = searchParams.get('session');
+      if (sessionParam) {
+        // Use the pre-created session from HannaButton
+        setCurrentSessionId(sessionParam);
+      } else {
+        startNewSession();
+      }
     }
 
     // Cleanup: unsubscribe from listener on unmount

@@ -79,9 +79,9 @@ export default function CreateAnnouncement() {
     try {
       setLoading(true);
 
-      // Calculate expiry date (30 days for announcements)
+      // Calculate expiry date (2 days for announcements)
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      expiresAt.setDate(expiresAt.getDate() + 2);
 
       await addDoc(collection(db, 'textAnnouncements'), {
         title: formData.title.trim(),

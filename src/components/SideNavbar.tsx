@@ -177,15 +177,37 @@ export default function SideNavbar() {
 
   return (
     <>
-      {/* Mobile Menu Button - Smaller size to avoid blocking messages
-          Fixed position, always visible on mobile
+      {/* Modern Floating Hamburger Button
+          Pill-shaped with gradient glow, smooth animation, non-intrusive
+          Positioned at top-left with subtle design that integrates beautifully  
       */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-3 left-3 z-[60] p-1.5 rounded-lg bg-black/80 dark:bg-white/80 backdrop-blur-sm text-white dark:text-black hover:bg-black dark:hover:bg-white lg:hidden transition-all duration-200 shadow-md"
+        className={`
+          fixed top-4 left-4 z-[60] lg:hidden
+          flex items-center justify-center
+          w-10 h-10 rounded-2xl
+          transition-all duration-300 ease-in-out
+          shadow-lg hover:shadow-xl
+          focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/30 dark:focus:ring-white/30
+          ${isOpen 
+            ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-black rotate-0 scale-105' 
+            : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white hover:scale-110 border border-gray-200 dark:border-gray-700'
+          }
+        `}
         aria-label="Toggle navigation menu"
       >
-        {isOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+        <div className="relative w-5 h-5 flex flex-col items-center justify-center gap-[4px]">
+          {isOpen ? (
+            <X className="w-4 h-4 transition-all duration-200" />
+          ) : (
+            <>
+              <span className={`block h-[2px] w-5 rounded-full bg-current transition-all duration-300`} />
+              <span className={`block h-[2px] w-3.5 rounded-full bg-current transition-all duration-300 self-start`} />
+              <span className={`block h-[2px] w-4 rounded-full bg-current transition-all duration-300`} />
+            </>
+          )}
+        </div>
       </button>
 
       {/* Overlay Backdrop - Prevents interaction with content behind sidebar */}
@@ -199,28 +221,44 @@ export default function SideNavbar() {
 
       {/* Side Navbar - Overlay Style (Drawer) */}
       <nav
-        className={`fixed left-0 top-0 h-screen w-64 bg-white dark:bg-background border-r border-gray-200 dark:border-gray-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto
+        className={`fixed left-0 top-0 h-screen w-72 bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Header Section - Logo and User Info */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-background">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-              <span className="text-white dark:text-black font-bold text-sm">LL</span>
+        {/* Header Section - Gradient brand header */}
+        <div className="relative p-6 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-900 dark:via-gray-950 dark:to-black sticky top-0">
+          {/* Close button inside nav header */}
+          <button
+            onClick={() => setIsOpen(false)}
+            className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all duration-200"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-gray-900 font-black text-sm tracking-tight">LL</span>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Liverton</h1>
+            <div>
+              <h1 className="text-lg font-bold text-white leading-tight">Liverton</h1>
+              <p className="text-xs text-gray-400">Learning Platform</p>
+            </div>
           </div>
-          <p className="text-xs text-gray-600 dark:text-gray-400">Learning Platform</p>
           {userData?.fullName && (
-            <p className="text-sm font-medium text-gray-900 dark:text-white mt-3 truncate">
-              {userData.fullName}
-            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-semibold text-xs">
+                  {userData.fullName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-gray-200 truncate">
+                {userData.fullName}
+              </p>
+            </div>
           )}
         </div>
 
         {/* Main Navigation Items */}
-        <div className="p-4 space-y-2">
+        <div className="p-3 space-y-1">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -236,14 +274,20 @@ export default function SideNavbar() {
                       handleNavigate(item.path);
                     }
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 ${
                     active
-                      ? 'bg-black dark:bg-white text-white dark:text-black font-semibold'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-secondary'
+                      ? 'bg-gray-900 dark:bg-white text-white dark:text-black font-semibold shadow-md'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                      active 
+                        ? 'bg-white/20 dark:bg-black/20' 
+                        : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gray-200'
+                    }`}>
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                    </div>
                     <span className="text-sm font-medium">{item.label}</span>
                   </div>
                   {isDocuments && (
@@ -257,17 +301,17 @@ export default function SideNavbar() {
 
                 {/* Documents Submenu */}
                 {isDocuments && showDocumentsSubmenu && (
-                  <div className="ml-4 pl-4 border-l border-gray-200 dark:border-gray-800 space-y-1 mt-1">
+                  <div className="ml-4 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-1 mt-1">
                     <button
                       onClick={() => handleNavigate('/features/document-workspace')}
-                      className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-secondary transition-all duration-200"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-200"
                     >
                       <FileText className="w-4 h-4" />
                       <span>My Documents</span>
                     </button>
                     <button
                       onClick={() => handleNavigate('/features/document-workspace')}
-                      className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
                     >
                       <Plus className="w-4 h-4" />
                       <span>New Document</span>
@@ -280,12 +324,12 @@ export default function SideNavbar() {
         </div>
 
         {/* Additional Navigation Links (About, Support, etc.) */}
-        <div className="p-4 pt-0 space-y-1">
-          <div className="mx-2 my-4 border-t border-gray-200 dark:border-gray-800" />
+        <div className="p-3 pt-0 space-y-1">
+          <div className="mx-2 my-3 border-t border-gray-100 dark:border-gray-800" />
           
           <button
             onClick={() => handleNavigate('/about')}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-secondary transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-200"
           >
             <Info className="w-4 h-4" />
             <span>About Us</span>
@@ -293,7 +337,7 @@ export default function SideNavbar() {
           
           <button
             onClick={() => handleNavigate('/support')}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-secondary transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-200"
           >
             <HelpCircle className="w-4 h-4" />
             <span>Help & Support</span>
@@ -301,7 +345,7 @@ export default function SideNavbar() {
 
           <button
             onClick={() => handleNavigate('/privacy-policy')}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-secondary transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-200"
           >
             <Shield className="w-4 h-4" />
             <span>Privacy Policy</span>
@@ -310,7 +354,7 @@ export default function SideNavbar() {
           {/* Share App */}
           <button
             onClick={() => { setShowShareApp(true); setIsOpen(false); }}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-200 font-medium"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-200 font-medium"
           >
             <Share2 className="w-4 h-4" />
             <span>Share App</span>
@@ -318,13 +362,15 @@ export default function SideNavbar() {
         </div>
 
         {/* Logout Button Section */}
-        <div className="p-4 mt-auto">
-          <div className="mx-2 mb-4 border-t border-gray-200 dark:border-gray-800" />
+        <div className="p-3 mt-auto pb-6">
+          <div className="mx-2 mb-3 border-t border-gray-100 dark:border-gray-800" />
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200"
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+              <LogOut className="w-4 h-4" />
+            </div>
             <span className="text-sm font-medium">Logout</span>
           </button>
         </div>

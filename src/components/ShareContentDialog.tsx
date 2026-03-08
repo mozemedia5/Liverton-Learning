@@ -43,7 +43,7 @@ interface ShareContentDialogProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-const APP_URL = 'https://liverton-learning.pages.dev';
+const APP_URL = 'https://liverton-learning.vercel.app';
 
 interface ExternalPlatform {
   id:    string;

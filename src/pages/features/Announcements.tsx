@@ -72,12 +72,26 @@ export default function Announcements() {
   const isAdmin = userRole === 'platform_admin';
   const canCreate = userRole === 'platform_admin' || userRole === 'school_admin' || userRole === 'teacher';
 
-  const audienceFilters = [
+  // Map userRole to the audience key used in targetAudience array
+  const getRoleAudienceKey = (role: string | null | undefined) => {
+    switch (role) {
+      case 'student': return 'students';
+      case 'teacher': return 'teachers';
+      case 'parent': return 'parents';
+      case 'school_admin': return 'school_admins';
+      default: return null;
+    }
+  };
+
+  // For admins: show all filter options. For others: only show their own category
+  const audienceFilters = isAdmin ? [
     { id: 'all', label: 'All' },
     { id: 'students', label: 'Students' },
     { id: 'teachers', label: 'Teachers' },
     { id: 'parents', label: 'Parents' },
     { id: 'school_admins', label: 'School Admins' },
+  ] : [
+    { id: 'all', label: 'All' },
   ];
 
   useEffect(() => {
@@ -109,14 +123,19 @@ export default function Announcements() {
       let filtered = data;
 
       if (!isAdmin) {
+        const myAudienceKey = getRoleAudienceKey(userRole);
         filtered = data.filter(a => {
-          // User can always see their own
+          // User can always see their own announcements
           if (currentUser?.uid && a.senderId === currentUser.uid) return true;
-          // Otherwise: non-hidden, non-expired, targeted at this user
+          // Must not be hidden
           const notHidden = !a.isHidden;
+          // Must not be expired (2-day window from createdAt)
           const notExpired = !a.expiresAt || (a.expiresAt instanceof Date ? a.expiresAt > now : true);
+          // STRICT role targeting: only see announcements for own role OR 'all'
+          // e.g. students ONLY see announcements targeted at 'students' or 'all'
+          // teachers ONLY see announcements targeted at 'teachers' or 'all'
           const targeted = a.targetAudience?.includes('all') || 
-                           (userRole && a.targetAudience?.includes(userRole));
+                           (myAudienceKey !== null && a.targetAudience?.includes(myAudienceKey));
           return notHidden && notExpired && targeted;
         });
       }
@@ -238,6 +257,21 @@ export default function Announcements() {
       {/* Main Content */}
       <main className="p-4 lg:p-6 space-y-4">
         
+        {/* Role-based notice for non-admins */}
+        {!isAdmin && userRole && (
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
+              <Bell className="w-5 h-5" />
+              <span className="font-medium capitalize">
+                {userRole.replace('_', ' ')} Announcements
+              </span>
+              <span className="text-sm text-indigo-600 dark:text-indigo-300">
+                — Showing announcements relevant to your role only
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Admin Info Banner */}
         {isAdmin && (
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
