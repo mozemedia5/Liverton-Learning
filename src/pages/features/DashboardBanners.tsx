@@ -287,27 +287,48 @@ export default function DashboardBanners() {
       return;
     }
 
+    setIsUploading(true);
+    setUploadProgress(0);
+    
     try {
-      setIsUploading(true);
-      setUploadProgress(0);
       const path = `banners/${currentUser?.uid}/${Date.now()}_${file.name}`;
       const storageRef = ref(storage, path);
       const task = uploadBytesResumable(storageRef, file);
 
-      await new Promise<void>((resolve, reject) => {
+      // Properly handle upload completion
+      const downloadUrl = await new Promise<string>((resolve, reject) => {
+        let isCompleted = false;
+        
         task.on(
           'state_changed',
-          snap => setUploadProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-          reject,
-          resolve
+          (snap) => {
+            const progress = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+            setUploadProgress(progress);
+          },
+          (error) => {
+            if (!isCompleted) {
+              isCompleted = true;
+              reject(error);
+            }
+          },
+          async () => {
+            if (!isCompleted) {
+              isCompleted = true;
+              try {
+                const url = await getDownloadURL(storageRef);
+                resolve(url);
+              } catch (err) {
+                reject(err);
+              }
+            }
+          }
         );
       });
 
-      const downloadUrl = await getDownloadURL(storageRef);
       setForm(prev => ({ ...prev, mediaUrl: downloadUrl, mediaType: type }));
       toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`);
     } catch (err) {
-      console.error(err);
+      console.error('Upload error:', err);
       toast.error('Upload failed. Please try again.');
     } finally {
       setIsUploading(false);

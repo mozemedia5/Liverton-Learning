@@ -7,14 +7,19 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface Banner {
   id: string;
-  title: string;
-  message: string;
-  imageUrl: string;
-  backgroundColor: string;
-  textColor: string;
-  linkType: 'internal' | 'external' | 'none';
+  title?: string;
+  message?: string;
+  imageUrl?: string;
+  mediaUrl?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  linkType?: 'internal' | 'external' | 'none';
   link?: string;
+  clickUrl?: string;
+  clickUrlType?: 'internal' | 'external';
   targetRoles: string[];
+  mediaType?: 'image' | 'video' | 'url';
+  isActive?: boolean;
 }
 
 export default function BannerCarousel() {
@@ -47,22 +52,32 @@ export default function BannerCarousel() {
       const q = query(
         collection(db, 'dashboardBanners'),
         where('isActive', '==', true),
-        where('isDraft', '==', false),
         orderBy('order', 'asc')
       );
       
       const snapshot = await getDocs(q);
-      const allBanners = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Banner[];
+      const allBanners = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // Support both old and new field names
+          imageUrl: data.imageUrl || data.mediaUrl || '',
+          title: data.title || '',
+          message: data.message || '',
+          backgroundColor: data.backgroundColor || '#000000',
+          textColor: data.textColor || '#FFFFFF',
+          linkType: data.linkType || data.clickUrlType || 'external',
+          link: data.link || data.clickUrl || '',
+        } as Banner;
+      });
       
       // Filter banners by targetRoles
-      const bannersData = allBanners.filter(banner => 
-        banner.targetRoles && 
-        Array.isArray(banner.targetRoles) && 
-        banner.targetRoles.includes(userRole)
-      );
+      const bannersData = allBanners.filter(banner => {
+        if (!banner.targetRoles || !Array.isArray(banner.targetRoles)) return false;
+        // Check if user role is in target roles or if 'all' is included
+        return banner.targetRoles.includes(userRole) || banner.targetRoles.includes('all');
+      });
       
       setBanners(bannersData);
     } catch (error) {
@@ -118,12 +133,16 @@ export default function BannerCarousel() {
         {currentBanner.imageUrl && (
           <img
             src={currentBanner.imageUrl}
-            alt={currentBanner.title}
+            alt={currentBanner.title || 'Banner'}
             className="absolute inset-0 w-full h-full object-cover"
             onError={(e) => {
+              console.warn('Banner image failed to load:', currentBanner.imageUrl);
               e.currentTarget.style.display = 'none';
             }}
           />
+        )}
+        {!currentBanner.imageUrl && (
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-700 to-gray-900" />
         )}
 
         {/* Gradient Overlay for Text Readability (Jumia-style) */}
