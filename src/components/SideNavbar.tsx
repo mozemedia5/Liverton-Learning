@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import ShareAppDialog from '@/components/ShareAppDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,7 @@ import {
   Bell,
   Activity,
   Image as ImageIcon,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -60,6 +62,7 @@ export default function SideNavbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDocumentsSubmenu, setShowDocumentsSubmenu] = useState(false);
+  const [showShareApp, setShowShareApp] = useState(false);
 
   /**
    * Handle logout with confirmation
@@ -303,6 +306,15 @@ export default function SideNavbar() {
             <Shield className="w-4 h-4" />
             <span>Privacy Policy</span>
           </button>
+
+          {/* Share App */}
+          <button
+            onClick={() => { setShowShareApp(true); setIsOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-200 font-medium"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>Share App</span>
+          </button>
         </div>
 
         {/* Logout Button Section */}
@@ -317,6 +329,9 @@ export default function SideNavbar() {
           </button>
         </div>
       </nav>
+
+      {/* Share App Dialog */}
+      <ShareAppDialog open={showShareApp} onClose={() => setShowShareApp(false)} />
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>

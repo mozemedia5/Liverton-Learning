@@ -13,11 +13,13 @@ import {
   Star,
   ShoppingCart,
   FileText,
-  Loader2
+  Loader2,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { subscribeToAllCourses, type Course } from '@/services/courseService';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 const subjects = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Computer Science'];
 
@@ -28,6 +30,20 @@ export default function Courses() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
+
+  const openShare = (course: Course) => {
+    setShareItem({
+      type:        'course',
+      id:          course.id,
+      title:       course.title,
+      description: course.description,
+      teacherName: course.teacherName,
+      subject:     course.subject,
+    });
+    setShowShare(true);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -125,8 +141,16 @@ export default function Courses() {
                     <h3 className="font-semibold text-lg">{course.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{course.teacherName}</p>
                   </div>
-                  <Badge variant="secondary">{course.subject}</Badge>
+                    <Badge variant="secondary">{course.subject}</Badge>
                 </div>
+                  {/* Share button */}
+                  <button
+                    onClick={() => openShare(course)}
+                    className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                    aria-label="Share course"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
                 
                 <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                   {course.description}
@@ -194,6 +218,13 @@ export default function Courses() {
           </div>
         )}
       </main>
+
+      {/* Share Dialog */}
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }

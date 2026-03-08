@@ -33,6 +33,7 @@ import {
   Loader2,
   Download,
   Award,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -41,6 +42,7 @@ import {
   getStudentEnrolledLessons,
   getStudentLessonHistory,
 } from '@/lib/zoomService';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 /**
  * Student Live Lessons Component
@@ -57,6 +59,19 @@ export default function StudentZoomLessons() {
   const [enrolling, setEnrolling] = useState<string | null>(null);
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [enrollmentSuccess, setEnrollmentSuccess] = useState(false);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
+
+  const openShare = (lesson: any) => {
+    setShareItem({
+      type:        'lesson',
+      id:          lesson.id,
+      title:       lesson.title,
+      description: lesson.description,
+      teacherName: lesson.teacherName,
+    });
+    setShowShare(true);
+  };
 
   // Fetch all lessons on component mount
   useEffect(() => {
@@ -196,6 +211,14 @@ export default function StudentZoomLessons() {
                       </div>
                       <Badge variant="outline">Available</Badge>
                     </div>
+                    {/* Share button */}
+                    <button
+                      onClick={() => openShare(lesson)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all"
+                      aria-label="Share lesson"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Lesson Description */}
@@ -424,6 +447,13 @@ export default function StudentZoomLessons() {
           </DialogHeader>
         </DialogContent>
       </Dialog>
+
+      {/* Share Dialog */}
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }

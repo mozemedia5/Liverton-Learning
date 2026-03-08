@@ -33,6 +33,7 @@ import {
   Trash2,
   Loader2,
   X,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -42,6 +43,7 @@ import {
   deleteLesson,
   type ZoomLesson,
 } from '@/lib/zoomService';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 /**
  * Teacher Live Lessons Component
@@ -56,6 +58,18 @@ export default function TeacherZoomLessons() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingLesson, setEditingLesson] = useState<ZoomLesson | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
+
+  const openShare = (lesson: ZoomLesson) => {
+    setShareItem({
+      type:        'lesson',
+      id:          lesson.id,
+      title:       lesson.title,
+      description: lesson.description,
+    });
+    setShowShare(true);
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -571,6 +585,15 @@ export default function TeacherZoomLessons() {
                     Edit
                   </Button>
                   <Button
+                    onClick={() => openShare(lesson)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-shrink-0"
+                    aria-label="Share lesson"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                  <Button
                     onClick={() => handleDelete(lesson.id)}
                     variant="destructive"
                     size="sm"
@@ -585,6 +608,13 @@ export default function TeacherZoomLessons() {
           ))}
         </div>
       )}
+
+      {/* Share Dialog */}
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }

@@ -31,7 +31,8 @@ import {
   FileText,
   Music,
   FileSpreadsheet,
-  Presentation
+  Presentation,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -50,6 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 export default function TeacherCourses() {
   const navigate = useNavigate();
@@ -60,6 +62,20 @@ export default function TeacherCourses() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
+
+  const openShare = (course: Course) => {
+    setShareItem({
+      type:        'course',
+      id:          course.id,
+      title:       course.title,
+      description: course.description,
+      teacherName: course.teacherName,
+      subject:     course.subject,
+    });
+    setShowShare(true);
+  };
 
   // Subscribe to teacher's courses
   useEffect(() => {
@@ -151,6 +167,10 @@ export default function TeacherCourses() {
               <DropdownMenuItem onClick={() => navigate(`/teacher/courses/${course.id}/edit`)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openShare(course)}>
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => setCourseToDelete(course)}
@@ -353,6 +373,13 @@ export default function TeacherCourses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share Dialog */}
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }
