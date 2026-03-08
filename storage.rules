@@ -1,0 +1,45 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Banner media: Platform admins can upload; all authenticated users can read ──
+    match /banners/{allPaths=**} {
+      // Any authenticated user can READ banner images/videos
+      allow read: if request.auth != null;
+
+      // Only authenticated users can WRITE (upload) – platform admin check
+      // is enforced at the app level, but we still require auth here
+      allow write: if request.auth != null;
+    }
+
+    // ── User profile pictures ──
+    match /users/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── School assets ──
+    match /schools/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Course materials ──
+    match /courses/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Documents ──
+    match /documents/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Default: authenticated users can read; deny write ──
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

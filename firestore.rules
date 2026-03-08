@@ -269,6 +269,16 @@ service cloud.firestore {
       allow read: if isSchoolAdmin();
     }
     
+    // ==================== DASHBOARD BANNERS ====================
+    
+    match /dashboardBanners/{bannerId} {
+      // All authenticated users can read banners (role filtering is done client-side)
+      allow read: if isAuthenticated();
+      
+      // Only platform admins can create, update or delete banners
+      allow write: if isPlatformAdmin();
+    }
+    
     // ==================== HANNA AI CHATS ====================
     
     match /hannaChats/{chatId} {

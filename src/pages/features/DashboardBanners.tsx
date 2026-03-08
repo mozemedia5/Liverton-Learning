@@ -289,47 +289,54 @@ export default function DashboardBanners() {
 
     setIsUploading(true);
     setUploadProgress(0);
-    
-    try {
-      const path = `banners/${currentUser?.uid}/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, file);
 
-      // Properly handle upload completion
-      const downloadUrl = await new Promise<string>((resolve, reject) => {
-        let isCompleted = false;
-        
+    try {
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `banners/${currentUser?.uid || 'admin'}/${Date.now()}_${sanitizedName}`;
+      const storageRef = ref(storage, path);
+
+      // Use resumable upload with proper state tracking
+      await new Promise<void>((resolve, reject) => {
+        const task = uploadBytesResumable(storageRef, file, {
+          contentType: file.type,
+        });
+
         task.on(
           'state_changed',
-          (snap) => {
-            const progress = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+          (snapshot) => {
+            const progress = Math.round(
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            );
             setUploadProgress(progress);
           },
           (error) => {
-            if (!isCompleted) {
-              isCompleted = true;
-              reject(error);
-            }
+            console.error('Upload state error:', error.code, error.message);
+            reject(error);
           },
-          async () => {
-            if (!isCompleted) {
-              isCompleted = true;
-              try {
-                const url = await getDownloadURL(storageRef);
-                resolve(url);
-              } catch (err) {
-                reject(err);
-              }
-            }
+          () => {
+            // Upload completed successfully
+            resolve();
           }
         );
       });
 
+      // Get download URL only after upload fully completes
+      const downloadUrl = await getDownloadURL(storageRef);
+
       setForm(prev => ({ ...prev, mediaUrl: downloadUrl, mediaType: type }));
       toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Upload error:', err);
-      toast.error('Upload failed. Please try again.');
+      const errorCode = (err as { code?: string })?.code || '';
+      if (errorCode === 'storage/unauthorized') {
+        toast.error('Upload failed: Permission denied. Please check Firebase Storage rules.');
+      } else if (errorCode === 'storage/canceled') {
+        toast.error('Upload was cancelled.');
+      } else if (errorCode === 'storage/retry-limit-exceeded') {
+        toast.error('Upload failed: Network timeout. Please check your connection and try again.');
+      } else {
+        toast.error('Upload failed. Please try again.');
+      }
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
