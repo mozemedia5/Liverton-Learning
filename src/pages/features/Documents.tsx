@@ -19,12 +19,14 @@ import {
   LayoutGrid,
   List,
   Upload,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardShell } from '@/components/DashboardShell';
 import { useDocuments } from '@/hooks/useDocuments';
 import type { DocumentMeta, DocumentType } from '@/types';
 import { createDocument, renameDocument, deleteDocument } from '@/lib/documents';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 function typeIcon(type: DocumentType) {
   if (type === 'doc') return FileText;
@@ -55,6 +57,8 @@ export default function Documents() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('Untitled');
   const [createType, setCreateType] = useState<DocumentType>('doc');
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -90,6 +94,15 @@ export default function Documents() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to rename');
     }
+  };
+
+  const openShare = (doc: DocumentMeta) => {
+    setShareItem({
+      type: 'document',
+      id: doc.id,
+      title: doc.title,
+    });
+    setShowShare(true);
   };
 
   const onDelete = async (docMeta: DocumentMeta) => {
@@ -182,7 +195,7 @@ export default function Documents() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => navigate(`/dashboard/documents/${d.id}`)}>Open</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onRename(d)}>Rename</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.info('Sharing available inside editor.')}>Share</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openShare(d)}>Share</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onDelete(d)} className="text-red-600">
                             Delete
                           </DropdownMenuItem>
@@ -230,6 +243,7 @@ export default function Documents() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onRename(d)}>Rename</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openShare(d)}>Share</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onDelete(d)} className="text-red-600">
                             Delete
                           </DropdownMenuItem>
@@ -289,6 +303,12 @@ export default function Documents() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </DashboardShell>
   );
 }

@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ShareContentDialog from '@/components/ShareContentDialog';
 import {
   FileText,
   Table,
@@ -602,64 +603,15 @@ export const DocumentWorkspace: React.FC<DocumentWorkspaceProps> = ({ userRole }
       )}
 
       {/* Share Modal */}
-      <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Share2 className="w-5 h-5" />
-              Share Document
-            </DialogTitle>
-            <DialogDescription>
-              Share "{selectedDocument?.title}" with others
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="font-medium text-sm">Anyone with the link</p>
-                  <p className="text-xs text-gray-500">Can view</p>
-                </div>
-              </div>
-              {canSharePublic && (
-                <Button variant="outline" size="sm">
-                  {selectedDocument?.isPublic ? 'Disable' : 'Enable'}
-                </Button>
-              )}
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">Share with specific people</label>
-              <Input placeholder="Enter email addresses..." />
-            </div>
-
-            {selectedDocument && selectedDocument.sharedWith && selectedDocument.sharedWith.length > 0 && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">Currently shared with</label>
-                <div className="space-y-2">
-                  {selectedDocument.sharedWith.map((email, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded">
-                      <span className="text-sm">{email}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsShareModalOpen(false)}>
-              Close
-            </Button>
-            <Button onClick={() => { toast.success('Sharing settings updated'); setIsShareModalOpen(false); }}>
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShareContentDialog
+        open={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        item={selectedDocument ? {
+          type: 'document',
+          id: selectedDocument.id,
+          title: selectedDocument.title,
+        } : null}
+      />
     </div>
   );
 };

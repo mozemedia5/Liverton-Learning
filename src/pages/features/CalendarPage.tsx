@@ -49,8 +49,10 @@ import {
   PartyPopper,
   Briefcase,
   GraduationCap,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -245,6 +247,8 @@ export default function CalendarPage() {
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<EventCategory | 'all'>('all');
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
   // Load events on mount
   useEffect(() => {
@@ -366,6 +370,16 @@ export default function CalendarPage() {
     setShowEventDialog(false);
     setEditingEvent(null);
     setForm(DEFAULT_FORM);
+  }
+
+  function openShare(event: CalendarEvent) {
+    setShareItem({
+      type: 'event',
+      id: event.id,
+      title: event.title,
+      description: event.description,
+    });
+    setShowShare(true);
   }
 
   function confirmDelete(eventId: string) {
@@ -710,6 +724,12 @@ export default function CalendarPage() {
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <button
+                                onClick={() => openShare(event)}
+                                className="p-1 rounded hover:bg-white/50 dark:hover:bg-black/20 transition-colors"
+                              >
+                                <Share2 className="w-3.5 h-3.5 text-blue-600" />
+                              </button>
+                              <button
                                 onClick={() => openEditDialog(event)}
                                 className="p-1 rounded hover:bg-white/50 dark:hover:bg-black/20 transition-colors"
                               >
@@ -1012,6 +1032,12 @@ export default function CalendarPage() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </AuthenticatedLayout>
   );
 }

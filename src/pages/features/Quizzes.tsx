@@ -12,9 +12,11 @@ import {
   Trophy,
   Play,
   BarChart3,
-  Loader2
+  Loader2,
+  Share2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
@@ -46,6 +48,8 @@ export default function Quizzes() {
   const [activeTab, setActiveTab] = useState<'available' | 'completed'>('available');
   const [quizzes, setQuizzes] = useState<ProcessedQuiz[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -100,6 +104,16 @@ export default function Quizzes() {
 
   const handleStartQuiz = (quiz: ProcessedQuiz) => {
     navigate(`/student/quiz/${quiz.id}`);
+  };
+
+  const openShare = (quiz: ProcessedQuiz) => {
+    setShareItem({
+      type: 'quiz',
+      id: quiz.id,
+      title: quiz.title,
+      subject: quiz.subject,
+    });
+    setShowShare(true);
   };
 
   const completedQuizzes = quizzes.filter(q => q.studentStatus === 'completed');
@@ -214,11 +228,20 @@ export default function Quizzes() {
             <Card key={quiz.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-semibold text-lg">{quiz.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{quiz.subject}</p>
                   </div>
-                  {quiz.studentStatus === 'completed' ? (
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600"
+                      onClick={() => openShare(quiz)}
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                    {quiz.studentStatus === 'completed' ? (
                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Completed</Badge>
                   ) : (
                       <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Available</Badge>
@@ -273,6 +296,12 @@ export default function Quizzes() {
           </div>
         )}
       </main>
+
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }

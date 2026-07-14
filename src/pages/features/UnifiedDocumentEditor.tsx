@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from 'sonner';
 import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
+import ShareContentDialog from '@/components/ShareContentDialog';
 
 type EditorType = 'word' | 'spreadsheet' | 'presentation';
 
@@ -89,9 +90,6 @@ export const UnifiedDocumentEditor: React.FC = () => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDocName, setSaveDocName] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [shareEmail, setShareEmail] = useState('');
-  const [shareMode, setShareMode] = useState<'email' | 'app' | 'external'>('app');
-  const [selectedChat, setSelectedChat] = useState<string>('');
   
   // Word Editor State
   const [wordContent, setWordContent] = useState<WordContent[]>([{ text: '' }]);
@@ -260,24 +258,6 @@ export const UnifiedDocumentEditor: React.FC = () => {
     }
   };
 
-  const handleShare = async () => {
-    try {
-      if (shareMode === 'email' && shareEmail) {
-        // Share via email logic
-        toast.success(`Document shared with ${shareEmail}`);
-      } else if (shareMode === 'app' && selectedChat) {
-        // Share in app chat logic
-        toast.success(`Document shared in ${selectedChat}`);
-      } else if (shareMode === 'external') {
-        // Share externally logic
-        toast.success('Document link copied to clipboard');
-      }
-      setShowShareDialog(false);
-    } catch (error) {
-      console.error('Error sharing:', error);
-      toast.error('Failed to share document');
-    }
-  };
 
   // ==================== WORD EDITOR FUNCTIONS ====================
   
@@ -954,65 +934,15 @@ export const UnifiedDocumentEditor: React.FC = () => {
       </Dialog>
 
       {/* Share Dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Share {getEditorDisplayName()}</DialogTitle>
-            <DialogDescription>Choose how to share this document</DialogDescription>
-          </DialogHeader>
-
-          <Tabs value={shareMode} onValueChange={(val: any) => setShareMode(val)}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="app">App Chat</TabsTrigger>
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="external">External</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="app" className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Select Chat:</label>
-                <Select value={selectedChat} onValueChange={setSelectedChat}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a chat" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General Chat</SelectItem>
-                    <SelectItem value="class">Class Discussion</SelectItem>
-                    <SelectItem value="group">Study Group</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="email" className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Email Address:</label>
-                <Input
-                  type="email"
-                  value={shareEmail}
-                  onChange={(e) => setShareEmail(e.target.value)}
-                  placeholder="recipient@example.com"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="external" className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Share this document via WhatsApp, Google Drive, or other apps
-              </p>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleShare}>
-              Share
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShareContentDialog
+        open={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+        item={{
+          type: 'document',
+          id: docId || '',
+          title: documentTitle,
+        }}
+      />
     </div>
   );
 };

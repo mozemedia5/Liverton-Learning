@@ -2,6 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +37,7 @@ import {
   uploadFileToDocument,
 } from '@/lib/documents';
 import { DashboardShell } from '@/components/DashboardShell';
+import ShareContentDialog from '@/components/ShareContentDialog';
 import './editorStyles.css';
 
 export function DocumentEditorShell(props: {
@@ -53,7 +60,6 @@ export function DocumentEditorShell(props: {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
 
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareIds, setShareIds] = useState('');
 
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [versions, setVersions] = useState<{ version: number; id: string; createdAt?: Date }[]>([]);
@@ -152,20 +158,6 @@ export function DocumentEditorShell(props: {
     navigate('/dashboard/documents');
   };
 
-  const onShareInternal = async () => {
-    if (!docRecord) return;
-    const ids = shareIds
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (ids.length === 0) {
-      toast.error('Enter at least one user ID');
-      return;
-    }
-    await shareInternally(docRecord.id, ids);
-    toast.success('Shared internally');
-    setShareOpen(false);
-  };
 
   const onSetVisibility = async (visibility: DocumentVisibility) => {
     if (!docRecord) return;
@@ -248,10 +240,29 @@ export function DocumentEditorShell(props: {
         Upload
       </Button>
 
-      <Button variant="outline" onClick={() => setShareOpen(true)}>
-        <Share2 className="w-4 h-4 mr-2" />
-        Share
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">
+            <Share2 className="w-4 h-4 mr-2" />
+            Share
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => setShareOpen(true)}>
+            <Share2 className="w-4 h-4 mr-2" />
+            Send to Platforms
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSetVisibility('private')}>
+            Private Access
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSetVisibility('internal')}>
+            Internal Access
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSetVisibility('public')} disabled={!canSharePublic}>
+            Public Link
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Button variant="outline" onClick={onShowVersions}>
         <History className="w-4 h-4 mr-2" />
@@ -288,47 +299,38 @@ export function DocumentEditorShell(props: {
         </Card>
 
         {/* Share Dialog */}
-        <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <ShareContentDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          item={docRecord ? {
+            type: 'document',
+            id: docRecord.id,
+            title: docRecord.title,
+          } : null}
+        />
+
+        {/* Visibility Dialog */}
+        <Dialog open={!!publicLink || false} onOpenChange={(open) => !open && setPublicLink(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Share</DialogTitle>
+              <DialogTitle>Public Access</DialogTitle>
             </DialogHeader>
-
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Share internally (comma-separated user IDs)</Label>
-                <Input value={shareIds} onChange={(e) => setShareIds(e.target.value)} placeholder="uid1, uid2" />
-              </div>
-
-              <div className="flex items-center justify-end gap-2">
-                <Button variant="outline" onClick={() => setShareOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={onShareInternal}>Share</Button>
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-2">
-                <div className="text-sm font-medium">Visibility</div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => onSetVisibility('private')}>
-                    Private
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => onSetVisibility('internal')}>
-                    Internal
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => onSetVisibility('public')} disabled={!canSharePublic}>
-                    Public Link
+              <p className="text-sm text-gray-500">Anyone with this link can view the document.</p>
+              {publicLink && (
+                <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border">
+                  <LinkIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <a className="text-sm underline break-all text-blue-600" href={publicLink} target="_blank" rel="noreferrer">
+                    {publicLink}
+                  </a>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 ml-auto" onClick={() => {
+                    navigator.clipboard.writeText(publicLink);
+                    toast.success('Link copied');
+                  }}>
+                    <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                {publicLink && (
-                  <div className="text-sm flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4" />
-                    <a className="underline break-all" href={publicLink} target="_blank" rel="noreferrer">
-                      {publicLink}
-                    </a>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

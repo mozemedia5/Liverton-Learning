@@ -27,6 +27,7 @@ import {
   Eye,
   Loader2,
   HelpCircle,
+  Share2,
   Users,
   TrendingUp,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 export default function TeacherQuizzes() {
   const navigate = useNavigate();
@@ -55,6 +57,8 @@ export default function TeacherQuizzes() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [quizToDelete, setQuizToDelete] = useState<Quiz | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
   // Subscribe to teacher's quizzes
   useEffect(() => {
@@ -92,6 +96,17 @@ export default function TeacherQuizzes() {
     const matchesStatus = selectedStatus === 'all' || quiz.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const openShare = (quiz: Quiz) => {
+    setShareItem({
+      type: 'quiz',
+      id: quiz.id,
+      title: quiz.title,
+      description: quiz.description,
+      subject: quiz.subject,
+    });
+    setShowShare(true);
+  };
 
   const handleDeleteQuiz = async () => {
     if (!quizToDelete) return;
@@ -138,6 +153,10 @@ export default function TeacherQuizzes() {
               <DropdownMenuItem onClick={() => navigate(`/teacher/quizzes/${quiz.id}/edit`)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openShare(quiz)}>
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setQuizToDelete(quiz)}
@@ -348,6 +367,12 @@ export default function TeacherQuizzes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }

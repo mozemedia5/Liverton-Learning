@@ -28,9 +28,10 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from '../../components/ui/alert-dialog';
-import { FileText, Sheet, Presentation, Download, Trash2, Plus, Loader2, ArrowLeft } from 'lucide-react';
+import { FileText, Sheet, Presentation, Download, Trash2, Plus, Loader2, ArrowLeft, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 
 /**
  * Document interface
@@ -70,6 +71,8 @@ export default function DocumentManagement() {
   const [isCreating, setIsCreating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -226,6 +229,15 @@ export default function DocumentManagement() {
    * Filter documents by type
    */
   const filteredDocuments = documents.filter(doc => doc.type === activeTab);
+
+  const openShare = (doc: DocumentItem) => {
+    setShareItem({
+      type: 'document',
+      id: doc.id,
+      title: doc.title,
+    });
+    setShowShare(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
@@ -450,6 +462,15 @@ export default function DocumentManagement() {
                               <Trash2 className="w-4 h-4 mr-1" />
                               Delete
                             </Button>
+                            <Button
+                              onClick={() => openShare(doc)}
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              <Share2 className="w-4 h-4 mr-1" />
+                              Share
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -490,6 +511,12 @@ export default function DocumentManagement() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareContentDialog
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        item={shareItem}
+      />
     </div>
   );
 }
