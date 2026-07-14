@@ -42,7 +42,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
           key={i}
           className="w-full h-full border-[0.5px] border-black/30 rounded-[1px] animate-solve-cube"
           style={{
-            backgroundColor: colors[initialColorKey],
+            '--initial-color': colors[initialColorKey],
             '--target-color': colors[targetColorKey],
             animationDelay: `${Math.random() * 0.2}s`
           } as any}
@@ -53,7 +53,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-background">
-      <div className="flex flex-col items-center gap-12">
+      <div className="flex flex-col items-center gap-8">
         {/* Animated Cube Container */}
         <div className="relative flex items-center justify-center">
           {/* Background glow effect */}
@@ -129,6 +129,7 @@ export default function LogoLoader({ message = 'Loading...', size = 'md' }: Logo
 
         @keyframes solve-cube {
           0% {
+            background-color: var(--initial-color);
             transform: scale(1);
           }
           50% {
