@@ -62,7 +62,7 @@ export function HannaButton() {
       onClick={handleAskHanna}
       title="Ask Hanna AI"
       className="
-        fixed bottom-24 right-5 z-30
+        fixed bottom-28 right-5 z-30 lg:bottom-6
         flex items-center gap-2
         px-4 py-3 rounded-2xl
         bg-gradient-to-br from-violet-600 via-purple-600 to-blue-600

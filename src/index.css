@@ -181,6 +181,53 @@
   @apply animate-out slide-out-to-right-5 fade-out-0;
 }
 
+/* Mobile Bottom Nav Popover Animation */
+@keyframes popover-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes popover-down {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.97);
+  }
+}
+
+.popover-enter {
+  animation: popover-up 0.2s ease-out forwards;
+}
+
+.popover-exit {
+  animation: popover-down 0.15s ease-in forwards;
+}
+
+/* Bottom Nav Tab Bar Entrance */
+@keyframes tab-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-enter {
+  animation: tab-slide-up 0.3s ease-out forwards;
+}
+
 /* Mobile Responsive */
 @media (max-width: 640px) {
   .sonner-toaster {
