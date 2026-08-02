@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,48 @@ export default function Register() {
       case 'school_admin': return 'School Administrator';
       case 'parent': return 'Parent';
       default: return 'Student';
+    }
+  };
+
+  // Get a role-specific dynamic description/tagline for registration
+  const getRoleDescription = () => {
+    const label = (
+      <span className="font-semibold text-gray-800 dark:text-gray-200">
+        {getRoleLabel()}
+      </span>
+    );
+
+    switch (role) {
+      case 'student':
+        return (
+          <>
+            Begin your journey of learning and discovery as a {label}
+          </>
+        );
+      case 'teacher':
+        return (
+          <>
+            Share knowledge, inspire minds, and manage courses as a {label}
+          </>
+        );
+      case 'school_admin':
+        return (
+          <>
+            Oversee operations, manage resources, and empower your school as a {label}
+          </>
+        );
+      case 'parent':
+        return (
+          <>
+            Monitor your child's activities and track their learning progress as a {label}
+          </>
+        );
+      default:
+        return (
+          <>
+            Begin your journey of learning and discovery as a {label}
+          </>
+        );
     }
   };
 
@@ -139,8 +181,8 @@ export default function Register() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
             Join Liverton
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
-            Begin your journey of learning as a <span className="font-semibold text-gray-800 dark:text-gray-200">{getRoleLabel()}</span>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center max-w-[90%] leading-relaxed">
+            {getRoleDescription()}
           </p>
 
           {/* Signup Form */}
