@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import type { UserRole } from '@/types';
 import { toast } from 'sonner';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 
 interface MobileBottomNavProps {
   userRole: UserRole | null;
@@ -372,6 +373,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                 {getMoreItems().map((item, index) => {
                   const Icon = item.icon;
                   const active = isActive(item.path);
+                  const isHannaAI = item.label === 'Hanna AI';
                   return (
                     <button
                       key={item.path + index}
@@ -388,11 +390,19 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                             ? 'bg-emerald-100 dark:bg-emerald-900/40'
                             : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gray-200 dark:group-hover:bg-gray-700'
                         }`}>
-                          <Icon className={`w-4 h-4 ${
-                            active
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-gray-600 dark:text-gray-300'
-                          }`} />
+                          {isHannaAI ? (
+                            <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded-md flex-shrink-0">
+                              <span className="scale-[1.6] flex items-center justify-center">
+                                <AskHannaIcon size={20} showText={false} />
+                              </span>
+                            </span>
+                          ) : (
+                            <Icon className={`w-4 h-4 ${
+                              active
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-gray-600 dark:text-gray-300'
+                            }`} />
+                          )}
                         </div>
                         <span className={`text-sm font-medium ${
                           active

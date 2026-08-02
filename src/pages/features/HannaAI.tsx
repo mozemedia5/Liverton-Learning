@@ -27,6 +27,7 @@ import { ScrollArea } from '../../components/ui/scroll-area';
 import { Send, Trash2, Zap, Plus, MessageSquare, Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 
 /**
  * Interface for Hanna AI messages
@@ -363,7 +364,11 @@ export default function HannaAI() {
         {/* Header */}
         <div className="border-b border-border bg-background p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-500" />
+            <span className="w-6 h-6 flex items-center justify-center overflow-hidden rounded bg-black">
+              <span className="scale-[1.6] flex items-center justify-center">
+                <AskHannaIcon size={24} showText={false} />
+              </span>
+            </span>
             <h1 className="text-xl font-semibold">Hanna AI Assistant</h1>
           </div>
           <Button
@@ -380,7 +385,9 @@ export default function HannaAI() {
           <div className="space-y-4 max-w-2xl mx-auto">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-96 text-center">
-                <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
+                <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-2xl bg-black shadow-lg">
+                  <AskHannaIcon size={64} showText={false} />
+                </div>
                 <h2 className="text-lg font-semibold mb-2">Start a Conversation</h2>
                 <p className="text-muted-foreground">
                   Ask Hanna anything about your learning journey

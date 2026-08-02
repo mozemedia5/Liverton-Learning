@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareAppDialog from '@/components/ShareAppDialog';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -267,6 +268,7 @@ export default function SideNavbar() {
             const Icon = item.icon;
             const active = isActive(item.path);
             const isDocuments = item.label === 'Documents';
+            const isHannaAI = item.label === 'Hanna AI';
 
             return (
               <div key={item.path} className="space-y-1">
@@ -290,7 +292,15 @@ export default function SideNavbar() {
                         ? 'bg-white/20 dark:bg-black/20' 
                         : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gray-200'
                     }`}>
-                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      {isHannaAI ? (
+                        <span className="w-6 h-6 flex items-center justify-center overflow-hidden rounded-md">
+                          <span className="scale-[1.5] flex items-center justify-center">
+                            <AskHannaIcon size={24} showText={false} />
+                          </span>
+                        </span>
+                      ) : (
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                      )}
                     </div>
                     <span className="text-sm font-medium">{item.label}</span>
                   </div>

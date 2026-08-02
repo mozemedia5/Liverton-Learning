@@ -23,6 +23,7 @@ import {
 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 import { db } from '@/lib/firebase';
 import HannaService from '@/lib/hannaService';
 import {
@@ -435,7 +436,11 @@ export default function HannaChat() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h1 className="font-bold text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-500" />
+              <span className="w-6 h-6 flex items-center justify-center overflow-hidden rounded bg-black">
+                <span className="scale-[1.6] flex items-center justify-center">
+                  <AskHannaIcon size={24} showText={false} />
+                </span>
+              </span>
               Hanna AI
             </h1>
           </div>
@@ -592,8 +597,8 @@ export default function HannaChat() {
               {messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md">
-                    <div className="bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                      <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                    <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-2xl bg-black shadow-lg">
+                      <AskHannaIcon size={64} showText={false} />
                     </div>
                     <h2 className="text-xl font-bold mb-2">
                       Welcome to Hanna AI
@@ -755,8 +760,8 @@ export default function HannaChat() {
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+              <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center rounded-2xl bg-black shadow-xl">
+                <AskHannaIcon size={80} showText={false} />
               </div>
               <h2 className="text-2xl font-bold mb-2">No Chat Selected</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
