@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,21 +30,75 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Trash2
+  Trash2,
+  ShieldAlert,
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { sendEmailVerification } from 'firebase/auth';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { userData, userRole, updateUserProfile, changePassword, deleteAccount } = useAuth();
+  const { currentUser, userData, userRole, updateUserProfile, changePassword, deleteAccount } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(userData?.profileImageUrl || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Email verification state
+  const isMockUser = currentUser?.email === 'mock@liverton.com';
+  const [isEmailVerified, setIsEmailVerified] = useState(currentUser?.emailVerified || false);
+  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+  const [verificationCooldown, setVerificationCooldown] = useState(0);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (verificationCooldown > 0) {
+      const timer = setTimeout(() => setVerificationCooldown(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [verificationCooldown]);
+
+  const handleCheckVerification = async () => {
+    if (!currentUser) return;
+    setIsCheckingVerification(true);
+    try {
+      await currentUser.reload();
+      if (currentUser.emailVerified) {
+        setIsEmailVerified(true);
+        toast.success('🎉 Your email has been successfully verified!');
+      } else {
+        toast.error('✉️ Email not verified yet. Please check your inbox or spam folder.');
+      }
+    } catch (error: any) {
+      console.error('Error checking verification status:', error);
+      toast.error('Failed to check status: ' + (error.message || 'unknown error'));
+    } finally {
+      setIsCheckingVerification(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!currentUser) return;
+    if (verificationCooldown > 0) return;
+    setIsSendingVerification(true);
+    try {
+      await sendEmailVerification(currentUser);
+      toast.success('✉️ Verification email sent! Please check your inbox.');
+      setVerificationCooldown(60);
+    } catch (error: any) {
+      console.error('Error sending verification email:', error);
+      toast.error('Failed to resend: ' + (error.message || 'unknown error'));
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
 
   // Change Password State
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -334,6 +388,66 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Email Verification Banner */}
+        {!isEmailVerified && !isMockUser && currentUser && (
+          <Card className="border-amber-200 dark:border-amber-900/40 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/10 dark:to-orange-950/10 overflow-hidden shadow-md">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
+                  <ShieldAlert className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-lg flex items-center gap-2">
+                    Verify your email address
+                  </h3>
+                  <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                    Your email <span className="font-semibold">{currentUser.email}</span> is not verified yet. Please check your inbox (and spam folder) for the verification email to secure your account.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 pt-3">
+                    <Button
+                      onClick={handleCheckVerification}
+                      disabled={isCheckingVerification}
+                      className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs h-9 px-4 font-semibold shadow-sm flex items-center gap-1.5 transition-all duration-200"
+                    >
+                      {isCheckingVerification ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          Check Status
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleResendVerification}
+                      disabled={isSendingVerification || verificationCooldown > 0}
+                      variant="outline"
+                      className="border-amber-200 hover:border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-100/50 dark:hover:bg-amber-950/30 rounded-xl text-xs h-9 px-4 font-semibold transition-all duration-200"
+                    >
+                      {isSendingVerification ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                          Sending...
+                        </>
+                      ) : verificationCooldown > 0 ? (
+                        `Resend in ${verificationCooldown}s`
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                          Resend Verification Email
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Personal Information */}
         <Card>

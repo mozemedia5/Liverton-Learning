@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
+import ShareAppDialog from '@/components/ShareAppDialog';
 import {
   Home,
   MessageSquare,
@@ -65,6 +66,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showShareApp, setShowShareApp] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
@@ -418,7 +420,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
             {/* Bottom Actions */}
             <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
               <button
-                onClick={() => { setShowMoreMenu(false); /* ShareAppDialog could go here */ }}
+                onClick={() => { setShowMoreMenu(false); setShowShareApp(true); }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-150"
               >
                 <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
@@ -517,6 +519,12 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
         onConfirm={handleLogout}
         onOpenChange={(open) => setShowLogoutDialog(open)}
         isLoading={isLoggingOut}
+      />
+
+      {/* Share App Dialog */}
+      <ShareAppDialog
+        open={showShareApp}
+        onClose={() => setShowShareApp(false)}
       />
     </>
   );

@@ -106,11 +106,8 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect unverified users (excluding mock users) to /verify-email
-  const isMockUser = auth.currentUser?.email === 'mock@liverton.com';
-  if (!isMockUser && auth.currentUser && !auth.currentUser.emailVerified) {
-    return <Navigate to="/verify-email" replace />;
-  }
+  // Email verification is now handled elegantly directly in the Profile page
+  // Users are no longer blocked from accessing their dashboard
 
   // Check role-based access control if roles are specified
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
