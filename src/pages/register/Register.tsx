@@ -119,8 +119,9 @@ export default function Register() {
         }
       }
 
-      // 3. Redirect to email verification page
-      navigate('/verify-email', { state: { email, role } });
+      // 3. Redirect to dashboard directly as email verification is handled in Profile
+      toast.success('🎉 Registration successful! Redirecting to dashboard...');
+      navigate('/');
     } catch (err: any) {
       console.error(err);
       toast.error('❌ Registration failed: ' + (err.message || 'Unknown error'));
