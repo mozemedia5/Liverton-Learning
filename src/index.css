@@ -238,3 +238,55 @@
     @apply min-w-full max-w-full pointer-events-auto;
   }
 }
+
+/* SALAF Platform Styling Integration */
+:root {
+  --bg-primary-salaf: #F9FAFB;
+  --bg-secondary-salaf: #FFFFFF;
+  --bg-card-salaf: rgba(255, 255, 255, 0.7);
+  --bg-glass-salaf: rgba(255, 255, 255, 0.65);
+  --text-primary-salaf: #111827;
+  --text-secondary-salaf: #374151;
+  --text-muted-salaf: #6B7280;
+  --border-color-salaf: rgba(229, 231, 235, 0.6);
+}
+
+.dark {
+  --bg-primary-salaf: #0F172A;
+  --bg-secondary-salaf: #1E293B;
+  --bg-card-salaf: rgba(30, 41, 59, 0.7);
+  --bg-glass-salaf: rgba(15, 23, 42, 0.75);
+  --text-primary-salaf: #F9FAFB;
+  --text-secondary-salaf: #E5E7EB;
+  --text-muted-salaf: #9CA3AF;
+  --border-color-salaf: rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  @apply backdrop-blur-xl;
+  background: var(--bg-glass-salaf);
+  border: 1px solid var(--border-color-salaf);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.glass-header {
+  @apply backdrop-blur-xl;
+  background: var(--bg-glass-salaf);
+  border-bottom: 1px solid var(--border-color-salaf);
+}
+
+.gradient-emerald {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

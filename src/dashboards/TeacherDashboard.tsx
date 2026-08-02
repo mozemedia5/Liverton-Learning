@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
+import MotivationCorner from '@/components/MotivationCorner';
 import { 
   subscribeToTeacherAnalytics, 
   subscribeToTeacherEnrollments,
@@ -173,6 +174,9 @@ export default function TeacherDashboard() {
       <div className="p-4 lg:p-6 space-y-6">
         {/* Dashboard Banner */}
         <BannerCarousel />
+
+        {/* Motivation Corner widget */}
+        <MotivationCorner />
 
         {/* Quick Actions */}
         <div className="flex justify-end gap-2">

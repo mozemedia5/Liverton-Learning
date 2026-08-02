@@ -25,6 +25,7 @@ import {
   deleteObject 
 } from 'firebase/storage';
 import type { Unsubscribe } from 'firebase/firestore';
+import { uploadToCloudinary } from './cloudinaryService';
 import { db, storage } from '@/lib/firebase';
 
 // ==========================================
@@ -144,17 +145,22 @@ export async function uploadCourseMaterial(
     throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
 
-  // Create storage reference
-  const timestamp = Date.now();
-  const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const storageRef = ref(storage, `courses/${courseId}/materials/${timestamp}_${safeFileName}`);
+  // Determine Cloudinary upload category preset
+  let cloudinaryCategory: 'image' | 'course_video' | 'short_video' | 'audio' | 'document' = 'document';
+  if (fileType === 'video') {
+    cloudinaryCategory = 'course_video';
+  } else if (fileType === 'audio') {
+    cloudinaryCategory = 'audio';
+  } else if (fileType === 'image') {
+    cloudinaryCategory = 'image';
+  }
 
-  // Upload file
-  const snapshot = await uploadBytes(storageRef, file);
-  const downloadUrl = await getDownloadURL(snapshot.ref);
+  // Upload to Cloudinary with matching preset
+  const downloadUrl = await uploadToCloudinary(file, cloudinaryCategory);
+  const timestamp = Date.now();
 
   const material: CourseMaterial = {
-    id: `${timestamp}_${safeFileName}`,
+    id: `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
     name: file.name,
     type: fileType,
     url: downloadUrl,

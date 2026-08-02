@@ -104,7 +104,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Activity, label: 'Monitoring', path: '/admin/monitoring' },
           { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
           { icon: ImageIcon, label: 'Banners', path: '/admin/dashboard-banners' },
-          { icon: Bell, label: 'Announcements', path: '/admin/dashboard-announcements', badge: 2 },
+          { icon: Bell, label: 'Notifications', path: '/admin/dashboard-announcements', badge: 2 },
           { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
@@ -125,7 +125,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
-          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
         );
         break;
@@ -178,7 +178,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: FileText, label: 'Quizzes', path: '/student/quizzes' },
           { icon: Video, label: 'Live Lessons', path: '/student/zoom-lessons' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
-          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
         );

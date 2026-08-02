@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap, Trophy } from 'lucide-react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
+import MotivationCorner from '@/components/MotivationCorner';
 import { getLinkedStudents } from '@/lib/parentService';
 import { 
   subscribeToParentAnalytics,
@@ -115,6 +116,9 @@ export default function ParentDashboard() {
       <div className="p-4 md:p-8 lg:ml-0">
         {/* Dashboard Banner */}
         <BannerCarousel />
+
+        {/* Motivation Corner widget */}
+        <MotivationCorner />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6 mb-8">

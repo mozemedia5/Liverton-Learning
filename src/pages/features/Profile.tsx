@@ -37,9 +37,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { sendEmailVerification } from 'firebase/auth';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -145,16 +144,8 @@ export default function Profile() {
 
     setIsUploadingImage(true);
     try {
-      // Create a unique filename using timestamp and user ID
-      const timestamp = Date.now();
-      const fileName = `profile-${userData?.uid}-${timestamp}`;
-      const storageRef = ref(storage, `profile-images/${fileName}`);
-
-      // Upload file to Firebase Storage
-      await uploadBytes(storageRef, file);
-      
-      // Get download URL
-      const downloadUrl = await getDownloadURL(storageRef);
+      // Upload file to Cloudinary with 'image' preset
+      const downloadUrl = await uploadToCloudinary(file, 'image');
       
       // Update user profile with image URL
       await updateUserProfile({
