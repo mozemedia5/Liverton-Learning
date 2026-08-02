@@ -5,12 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import {
-  Trophy, Plus, CalendarDays, DollarSign, Users, Trash2,
-  CheckSquare, MessageSquare, CheckCircle2, Circle, ListTodo, MoreHorizontal
+  Plus, CalendarDays, DollarSign, Trash2,
+  CheckCircle2, Circle, ListTodo, FolderKanban, Loader2
 } from 'lucide-react';
 import {
   createTeamProject,
@@ -21,107 +23,118 @@ import {
   getTeamTasks,
   updateTeamTask
 } from '@/services/livTeamsProjectService';
-import type { TeamProject, TeamTask, TeamRole, ProjectStatus } from '@/types/livTeams';
+import type { TeamProject, TeamTask, TeamRole, TeamMember, ProjectStatus } from '@/types/livTeams';
+import { LivEmptyState, LivSectionHeader } from './livTeamsUi';
+import { formatUGX } from './livTeamsUtils';
 
 interface ProjectsProps {
   teamId: string;
   teamRole: TeamRole;
+  members: TeamMember[];
 }
 
-export default function TeamWorkspaceProjects({ teamId, teamRole }: ProjectsProps) {
+const projectStatuses: ProjectStatus[] = ['Idea', 'Planning', 'Active', 'Testing', 'Review', 'Completed', 'Archived'];
+
+const statusStyles: Record<ProjectStatus, string> = {
+  Idea: 'bg-slate-500/10 text-slate-500 border-0',
+  Planning: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0',
+  Active: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0',
+  Testing: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0',
+  Review: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-0',
+  Completed: 'bg-emerald-500 text-white border-0',
+  Archived: 'bg-slate-500/10 text-slate-400 border-0',
+};
+
+export default function TeamWorkspaceProjects({ teamId, teamRole, members }: ProjectsProps) {
   const { currentUser, userData } = useAuth();
 
   const [projects, setProjects] = useState<TeamProject[]>([]);
   const [tasks, setTasks] = useState<TeamTask[]>([]);
   const [activeProject, setActiveProject] = useState<TeamProject | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Creation Modals loaders
   const [projectModalOpen, setProjectOpen] = useState(false);
   const [taskModalOpen, setTaskOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Project forms state
+  // Project form state
   const [projName, setProjName] = useState('');
   const [projDesc, setProjDesc] = useState('');
-  const [projCategory, setProjCategory] = useState('Research');
   const [projBudget, setProjBudget] = useState(0);
   const [projTimeline, setProjTimeline] = useState('');
 
-  // Task forms state
+  // Task form state
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
   const [taskDeadline, setTaskDeadline] = useState('');
   const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
+  const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
 
-  // New Checklist sub-item
+  // Checklist input
   const [checkText, setCheckText] = useState('');
 
   useEffect(() => {
     loadProjectsAndTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
   const loadProjectsAndTasks = async () => {
     if (!teamId) return;
     try {
-      const projs = await getTeamProjects(teamId);
+      const [projs, tks] = await Promise.all([getTeamProjects(teamId), getTeamTasks(teamId)]);
       setProjects(projs);
-      if (projs.length > 0 && !activeProject) {
-        setActiveProject(projs[0]);
-      } else if (activeProject) {
-        const currentActive = projs.find(p => p.id === activeProject.id);
-        if (currentActive) setActiveProject(currentActive);
-      }
-
-      const tks = await getTeamTasks(teamId);
       setTasks(tks);
+      setActiveProject(prev => {
+        if (prev) return projs.find(p => p.id === prev.id) || projs[0] || null;
+        return projs[0] || null;
+      });
     } catch (error) {
       console.error('Error loading projects/tasks:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !projName.trim()) return;
-
+    setSaving(true);
     try {
       await createTeamProject(teamId, {
-        name: projName,
-        description: projDesc,
-        category: projCategory,
-        budget: projBudget,
-        timeline: projTimeline,
-        status: 'Idea',
+        name: projName.trim(),
+        description: projDesc.trim(),
+        category: 'General',
+        budget: projBudget || 0,
+        timeline: projTimeline.trim(),
+        status: 'Planning',
         progress: 0,
         members: []
       }, currentUser.uid, userData?.fullName || 'Anonymous');
 
-      toast.success('Project created successfully!');
+      toast.success('Project created');
       setProjectOpen(false);
-      resetProjectForm();
+      setProjName('');
+      setProjDesc('');
+      setProjBudget(0);
+      setProjTimeline('');
       loadProjectsAndTasks();
-    } catch (error) {
+    } catch {
       toast.error('Failed to create project');
+    } finally {
+      setSaving(false);
     }
-  };
-
-  const resetProjectForm = () => {
-    setProjName('');
-    setProjDesc('');
-    setProjCategory('Research');
-    setProjBudget(0);
-    setProjTimeline('');
   };
 
   const handleDeleteProject = async (projectId: string) => {
     if (!currentUser) return;
-    const ok = window.confirm('Are you sure you want to delete this project and all its tasks?');
+    const ok = window.confirm('Delete this project? Its tasks will remain in the archive but the project board is removed.');
     if (!ok) return;
-
     try {
       await deleteTeamProject(teamId, projectId, currentUser.uid, userData?.fullName || 'Anonymous');
       toast.success('Project deleted');
       if (activeProject?.id === projectId) setActiveProject(null);
       loadProjectsAndTasks();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete project');
     }
   };
@@ -132,7 +145,7 @@ export default function TeamWorkspaceProjects({ teamId, teamRole }: ProjectsProp
       await updateTeamProject(teamId, projectId, { status: nextStatus }, currentUser.uid, userData?.fullName || 'Anonymous');
       toast.success(`Project moved to ${nextStatus}`);
       loadProjectsAndTasks();
-    } catch (error) {
+    } catch {
       toast.error('Failed to change status');
     }
   };
@@ -140,34 +153,37 @@ export default function TeamWorkspaceProjects({ teamId, teamRole }: ProjectsProp
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !activeProject || !taskTitle.trim()) return;
-
+    setSaving(true);
     try {
       await createTeamTask(teamId, activeProject.id, {
-        title: taskTitle,
-        description: taskDesc,
+        title: taskTitle.trim(),
+        description: taskDesc.trim(),
         deadline: taskDeadline,
         priority: taskPriority,
-        assignedMembers: [],
+        assignedMembers: taskAssignees,
         checklist: [],
         comments: [],
         progress: 0,
         isCompleted: false
       }, currentUser.uid, userData?.fullName || 'Anonymous');
 
-      toast.success('Task assigned successfully!');
+      if (taskAssignees.length > 0) {
+        toast.success(`Task assigned to ${taskAssignees.length} member${taskAssignees.length > 1 ? 's' : ''}`);
+      } else {
+        toast.success('Task created');
+      }
       setTaskOpen(false);
-      resetTaskForm();
+      setTaskTitle('');
+      setTaskDesc('');
+      setTaskDeadline('');
+      setTaskPriority('medium');
+      setTaskAssignees([]);
       loadProjectsAndTasks();
-    } catch (error) {
+    } catch {
       toast.error('Failed to create task');
+    } finally {
+      setSaving(false);
     }
-  };
-
-  const resetTaskForm = () => {
-    setTaskTitle('');
-    setTaskDesc('');
-    setTaskDeadline('');
-    setTaskPriority('medium');
   };
 
   const handleToggleTaskCompletion = async (task: TeamTask) => {
@@ -175,28 +191,26 @@ export default function TeamWorkspaceProjects({ teamId, teamRole }: ProjectsProp
     try {
       const isCompleted = !task.isCompleted;
       const progress = isCompleted ? 100 : 0;
-      await updateTeamTask(teamId, task.id, { isCompleted, progress }, currentUser.uid, userData?.fullName || 'Anonymous');
-      toast.success(isCompleted ? 'Task completed! Good work.' : 'Task reopened');
+      await updateTeamTask(teamId, task.id, { isCompleted, progress });
+      toast.success(isCompleted ? 'Task completed. Great work!' : 'Task reopened');
       loadProjectsAndTasks();
-    } catch (error) {
-      toast.error('Failed to update task state');
+    } catch {
+      toast.error('Failed to update task');
     }
   };
 
   const handleAddChecklistItem = async (task: TeamTask) => {
     if (!currentUser || !checkText.trim()) return;
     try {
-      const items = task.checklist || [];
-      items.push({
+      const items = [...(task.checklist || []), {
         id: Math.random().toString(36).substring(2, 9),
         text: checkText.trim(),
         isCompleted: false
-      });
-
-      await updateTeamTask(teamId, task.id, { checklist: items }, currentUser.uid, userData?.fullName || 'Anonymous');
+      }];
+      await updateTeamTask(teamId, task.id, { checklist: items });
       setCheckText('');
       loadProjectsAndTasks();
-    } catch (error) {
+    } catch {
       toast.error('Failed to add checklist item');
     }
   };
@@ -204,21 +218,16 @@ export default function TeamWorkspaceProjects({ teamId, teamRole }: ProjectsProp
   const handleToggleChecklistItem = async (task: TeamTask, itemId: string) => {
     if (!currentUser) return;
     try {
-      const items = task.checklist.map(item => {
-        if (item.id === itemId) {
-          return { ...item, isCompleted: !item.isCompleted };
-        }
-        return item;
-      });
-
+      const items = task.checklist.map(item =>
+        item.id === itemId ? { ...item, isCompleted: !item.isCompleted } : item
+      );
       const completedCount = items.filter(i => i.isCompleted).length;
       const progress = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
-      const isCompleted = progress === 100;
-
-      await updateTeamTask(teamId, task.id, { checklist: items, progress, isCompleted }, currentUser.uid, userData?.fullName || 'Anonymous');
+      const isCompleted = items.length > 0 && progress === 100;
+      await updateTeamTask(teamId, task.id, { checklist: items, progress, isCompleted });
       loadProjectsAndTasks();
-    } catch (error) {
-      toast.error('Error updating checklist item');
+    } catch {
+      toast.error('Error updating checklist');
     }
   };
 
@@ -227,270 +236,347 @@ export default function TeamWorkspaceProjects({ teamId, teamRole }: ProjectsProp
     return tasks.filter(t => t.projectId === activeProject.id);
   }, [tasks, activeProject]);
 
+  const computedProgress = useMemo(() => {
+    if (!activeProject) return 0;
+    if (currentProjectTasks.length === 0) return activeProject.progress || 0;
+    const total = currentProjectTasks.reduce((sum, t) => sum + (t.progress || (t.isCompleted ? 100 : 0)), 0);
+    return Math.round(total / currentProjectTasks.length);
+  }, [activeProject, currentProjectTasks]);
+
+  const assigneeNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    members.forEach(m => { map[m.userId] = m.fullName; });
+    return map;
+  }, [members]);
+
   const isGuest = teamRole === 'guest';
   const isPMOrAbove = ['owner', 'admin', 'project_manager'].includes(teamRole);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="space-y-6">
+      <LivSectionHeader title="Projects & Tasks" subtitle="Plan work, assign deliverables and track completion.">
+        {isPMOrAbove && (
+          <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg" onClick={() => setProjectOpen(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> New Project
+          </Button>
+        )}
+      </LivSectionHeader>
 
-      {/* Left Sidebar: Projects List */}
-      <div className="space-y-4 lg:col-span-1">
-        <div className="flex items-center justify-between border-b pb-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unlimited Projects</span>
-          {!isGuest && (
-            <Button size="icon" variant="ghost" className="w-8 h-8 rounded-lg" onClick={() => setProjectOpen(true)}>
-              <Plus className="w-4 h-4 text-emerald-500" />
-            </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        {/* Projects list */}
+        <div className="space-y-3 lg:col-span-1">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide block">
+            Projects ({projects.length})
+          </span>
+          {loading ? (
+            <p className="text-sm text-slate-400 py-6 text-center">Loading...</p>
+          ) : projects.length === 0 ? (
+            <p className="text-sm text-slate-400 py-6 text-center">No projects yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {projects.map(proj => (
+                <button
+                  key={proj.id}
+                  onClick={() => setActiveProject(proj)}
+                  className={`w-full text-left p-3 rounded-xl border transition-colors ${
+                    activeProject?.id === proj.id
+                      ? 'border-emerald-500 bg-emerald-500/5'
+                      : 'border-gray-200 dark:border-white/10 bg-white/60 dark:bg-slate-900/60 hover:border-emerald-500/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{proj.name}</p>
+                      <p className="text-[11px] text-slate-400">{tasks.filter(t => t.projectId === proj.id).length} tasks</p>
+                    </div>
+                    <Badge className={`text-[10px] capitalize flex-shrink-0 ${statusStyles[proj.status] || statusStyles.Idea}`}>
+                      {proj.status}
+                    </Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        {projects.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-6">No projects defined yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {projects.map(proj => (
-              <Card
-                key={proj.id}
-                onClick={() => setActiveProject(proj)}
-                className={`rounded-xl p-3 border cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/10 transition-colors ${
-                  activeProject?.id === proj.id ? 'border-emerald-500 bg-emerald-500/5' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2 min-w-0">
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm truncate">{proj.name}</p>
-                    <p className="text-[10px] text-slate-400 capitalize">{proj.category} • {proj.status}</p>
-                  </div>
-                  {isPMOrAbove && (
-                    <Button size="icon" variant="ghost" className="w-6 h-6 text-red-500" onClick={(e) => { e.stopPropagation(); handleDeleteProject(proj.id); }}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Main Panel: Active Project Details & Task Checklists */}
-      <div className="lg:col-span-3 space-y-6">
-        {activeProject ? (
-          <Card className="rounded-2xl border shadow-sm">
-            <CardHeader className="border-b pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <CardTitle className="text-base font-extrabold">{activeProject.name}</CardTitle>
-                  <Badge variant="outline" className="text-xs capitalize">{activeProject.status}</Badge>
-                </div>
-                <CardDescription className="text-xs mt-1">{activeProject.description}</CardDescription>
-              </div>
-
-              {/* Status workflow adjustments */}
-              {isPMOrAbove && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <select
-                    value={activeProject.status}
-                    onChange={e => handleUpdateProjectStatus(activeProject.id, e.target.value as ProjectStatus)}
-                    className="border text-xs rounded-lg p-1.5 dark:bg-slate-900"
-                  >
-                    <option value="Idea">Idea</option>
-                    <option value="Planning">Planning</option>
-                    <option value="Active">Active</option>
-                    <option value="Testing">Testing</option>
-                    <option value="Review">Review</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Archived">Archived</option>
-                  </select>
-
-                  <Button size="xs" onClick={() => setTaskOpen(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs py-1 h-8">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Task
-                  </Button>
-                </div>
+        {/* Active project detail */}
+        <div className="lg:col-span-3">
+          {!activeProject ? (
+            <LivEmptyState
+              icon={<FolderKanban className="w-6 h-6" />}
+              title={projects.length === 0 ? 'No projects yet' : 'Select a project'}
+              description={projects.length === 0
+                ? isPMOrAbove ? 'Create your first project to organize tasks and deliverables.' : 'Projects created by project managers will appear here.'
+                : 'Choose a project from the list to review its tasks.'}
+            >
+              {projects.length === 0 && isPMOrAbove && (
+                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg" onClick={() => setProjectOpen(true)}>
+                  <Plus className="w-4 h-4 mr-1" /> Create Project
+                </Button>
               )}
-            </CardHeader>
-
-            <CardContent className="p-6 space-y-6">
-
-              {/* Project Metadata Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/10 text-xs">
-                <div className="space-y-1">
-                  <p className="text-slate-400 font-bold uppercase text-[9px] flex items-center gap-1"><DollarSign className="w-3 h-3" /> Budget Limit</p>
-                  <p className="font-extrabold text-slate-800 dark:text-slate-200">UGX {activeProject.budget.toLocaleString()}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-slate-400 font-bold uppercase text-[9px] flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Project Deadline</p>
-                  <p className="font-extrabold text-slate-800 dark:text-slate-200">{activeProject.timeline || 'No deadline set'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-slate-400 font-bold uppercase text-[9px] flex items-center gap-1"><Trophy className="w-3 h-3" /> Category</p>
-                  <p className="font-extrabold text-slate-800 dark:text-slate-200">{activeProject.category}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-slate-400 font-bold uppercase text-[9px] flex items-center gap-1">Completion Progress</p>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5 dark:bg-slate-800">
-                    <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${activeProject.progress || 0}%` }} />
+            </LivEmptyState>
+          ) : (
+            <Card>
+              <CardHeader className="border-b border-gray-100 dark:border-white/5 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-base font-bold truncate">{activeProject.name}</CardTitle>
+                    <Badge className={`capitalize ${statusStyles[activeProject.status] || statusStyles.Idea}`}>
+                      {activeProject.status}
+                    </Badge>
                   </div>
+                  <CardDescription className="text-sm mt-1">{activeProject.description || 'No description provided.'}</CardDescription>
                 </div>
-              </div>
-
-              {/* Tasks Checklist Grid */}
-              <div className="space-y-4">
-                <h4 className="text-sm font-bold flex items-center gap-1.5 border-b pb-2">
-                  <ListTodo className="w-4 h-4 text-emerald-500" /> Deliverables Checklists
-                </h4>
-
-                {currentProjectTasks.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-6">No tasks defined for this project workspace.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentProjectTasks.map(task => (
-                      <Card key={task.id} className="rounded-xl border shadow-sm overflow-hidden flex flex-col justify-between">
-                        <CardHeader className="p-4 pb-2 border-b bg-slate-50/50 dark:bg-slate-900/10">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className={`font-bold text-xs ${task.isCompleted ? 'line-through text-slate-400' : ''}`}>{task.title}</p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">Due: {task.deadline || 'No deadline'}</p>
-                            </div>
-                            <Badge variant="outline" className={`text-[9px] uppercase ${
-                              task.priority === 'critical' ? 'border-red-500 text-red-500' :
-                              task.priority === 'high' ? 'border-amber-500 text-amber-500' : 'border-slate-300'
-                            }`}>
-                              {task.priority}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="p-4 space-y-3 flex-1 text-xs">
-                          <p className="text-slate-500 text-[11px]">{task.description}</p>
-
-                          {/* Sub-checklists items */}
-                          <div className="space-y-1.5">
-                            {task.checklist?.map(item => (
-                              <div key={item.id} className="flex items-center gap-2 text-xs">
-                                <span className="cursor-pointer" onClick={() => handleToggleChecklistItem(task, item.id)}>
-                                  {item.isCompleted ? <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-current" /> : <Circle className="w-4 h-4 text-slate-300" />}
-                                </span>
-                                <span className={item.isCompleted ? 'line-through text-slate-400' : ''}>{item.text}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-
-                        <CardFooter className="p-3 bg-slate-50/30 border-t flex items-center justify-between gap-2 flex-wrap">
-                          {!isGuest && (
-                            <div className="flex gap-1.5 w-full">
-                              <Input
-                                placeholder="Add checklist item..."
-                                className="h-7 text-xs rounded-lg"
-                                value={checkText}
-                                onChange={e => setCheckText(e.target.value)}
-                              />
-                              <Button size="xs" onClick={() => handleAddChecklistItem(task)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-7">Add</Button>
-                            </div>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className={`w-full text-xs font-bold ${task.isCompleted ? 'text-amber-500' : 'text-emerald-500'}`}
-                            onClick={() => handleToggleTaskCompletion(task)}
-                          >
-                            {task.isCompleted ? 'Reopen Deliverable' : 'Mark Completed'}
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
+                {isPMOrAbove && (
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                    <Select value={activeProject.status} onValueChange={(val) => handleUpdateProjectStatus(activeProject.id, val as ProjectStatus)}>
+                      <SelectTrigger className="h-8 w-32 text-xs rounded-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projectStatuses.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={() => setTaskOpen(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Task
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" className="text-red-500" onClick={() => handleDeleteProject(activeProject.id)} aria-label="Delete project">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
-              </div>
+              </CardHeader>
 
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="text-center py-12 border border-dashed rounded-2xl text-slate-400">
-            Define or choose a project workspace in the sidebar to review tasks and milestone checklists.
-          </div>
-        )}
+              <CardContent className="p-4 md:p-6 space-y-6">
+                {/* Project meta */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-sm">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1"><DollarSign className="w-3 h-3" /> Budget</p>
+                    <p className="font-bold">{formatUGX(activeProject.budget || 0)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Timeline</p>
+                    <p className="font-bold">{activeProject.timeline || 'Not set'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase flex items-center gap-1"><ListTodo className="w-3 h-3" /> Tasks</p>
+                    <p className="font-bold">{currentProjectTasks.filter(t => t.isCompleted).length}/{currentProjectTasks.length} done</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase">Progress</p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-slate-200 dark:bg-slate-800 rounded-full h-2">
+                        <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${computedProgress}%` }} />
+                      </div>
+                      <span className="text-xs font-bold">{computedProgress}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tasks */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold flex items-center gap-2 border-b border-gray-100 dark:border-white/5 pb-2">
+                    <ListTodo className="w-4 h-4 text-emerald-500" /> Deliverables & Tasks
+                  </h4>
+
+                  {currentProjectTasks.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-8">No tasks defined for this project yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {currentProjectTasks.map(task => (
+                        <Card key={task.id} className="flex flex-col justify-between">
+                          <CardHeader className="p-4 pb-2 border-b border-gray-100 dark:border-white/5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className={`font-semibold text-sm ${task.isCompleted ? 'line-through text-slate-400' : ''}`}>{task.title}</p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Due: {task.deadline || 'No deadline'}</p>
+                              </div>
+                              <Badge variant="outline" className={`text-[10px] uppercase flex-shrink-0 ${
+                                task.priority === 'critical' ? 'border-red-500 text-red-500' :
+                                task.priority === 'high' ? 'border-amber-500 text-amber-500' :
+                                task.priority === 'medium' ? 'border-blue-400 text-blue-500' : 'border-slate-300 text-slate-400'
+                              }`}>
+                                {task.priority}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="p-4 space-y-3 flex-1 text-sm">
+                            {task.description && <p className="text-slate-500 dark:text-slate-400 text-xs">{task.description}</p>}
+
+                            {(task.assignedMembers || []).length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {task.assignedMembers.map(uid => (
+                                  <Badge key={uid} variant="secondary" className="text-[10px] py-0 px-1.5">
+                                    {assigneeNames[uid] || 'Member'}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+
+                            {(task.checklist || []).length > 0 && (
+                              <div className="space-y-1.5">
+                                {task.checklist.map(item => (
+                                  <div key={item.id} className="flex items-center gap-2 text-xs">
+                                    <button onClick={() => handleToggleChecklistItem(task, item.id)} aria-label={item.isCompleted ? 'Reopen item' : 'Complete item'}>
+                                      {item.isCompleted
+                                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        : <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
+                                    </button>
+                                    <span className={item.isCompleted ? 'line-through text-slate-400' : ''}>{item.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {task.progress > 0 && task.progress < 100 && (
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-slate-200 dark:bg-slate-800 rounded-full h-1.5">
+                                  <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${task.progress}%` }} />
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-400">{task.progress}%</span>
+                              </div>
+                            )}
+                          </CardContent>
+
+                          {!isGuest && (
+                            <CardFooter className="p-3 border-t border-gray-100 dark:border-white/5 flex flex-col gap-2">
+                              <div className="flex gap-1.5 w-full">
+                                <Input
+                                  placeholder="Add checklist item..."
+                                  className="h-8 text-xs rounded-lg"
+                                  value={checkText}
+                                  onChange={e => setCheckText(e.target.value)}
+                                />
+                                <Button size="sm" onClick={() => handleAddChecklistItem(task)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8" disabled={!checkText.trim()}>
+                                  Add
+                                </Button>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`w-full text-xs font-semibold ${task.isCompleted ? 'text-amber-500' : 'text-emerald-500'}`}
+                                onClick={() => handleToggleTaskCompletion(task)}
+                              >
+                                {task.isCompleted ? 'Reopen Task' : 'Mark as Completed'}
+                              </Button>
+                            </CardFooter>
+                          )}
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
-      {/* Project Setup Dialog Modal */}
+      {/* Create project dialog */}
       <Dialog open={projectModalOpen} onOpenChange={setProjectOpen}>
         <DialogContent className="rounded-2xl max-w-sm">
           <DialogHeader>
-            <DialogTitle>Start Unlimited Project</DialogTitle>
-            <DialogDescription>Input targets, budgets, and outlines.</DialogDescription>
+            <DialogTitle>New Project</DialogTitle>
+            <DialogDescription>Define the goal, budget and timeline.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateProject} className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="projName" className="text-xs">Project Name *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="projName">Project Name *</Label>
               <Input id="projName" value={projName} onChange={e => setProjName(e.target.value)} placeholder="e.g. Science Fair Presentation" required />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="projDesc" className="text-xs">Outline / Summary</Label>
-              <Textarea id="projDesc" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="Describe project deliverables..." />
+            <div className="space-y-2">
+              <Label htmlFor="projDesc">Description</Label>
+              <Textarea id="projDesc" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="What are the deliverables?" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="projBudget" className="text-xs">Budget Limit (UGX)</Label>
-                <Input type="number" id="projBudget" value={projBudget} onChange={e => setProjBudget(Number(e.target.value))} />
+              <div className="space-y-2">
+                <Label htmlFor="projBudget">Budget (UGX)</Label>
+                <Input type="number" min={0} id="projBudget" value={projBudget} onChange={e => setProjBudget(Number(e.target.value))} />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="projTimeline" className="text-xs">Project Target Timeline</Label>
-                <Input id="projTimeline" value={projTimeline} onChange={e => setProjTimeline(e.target.value)} placeholder="e.g. 2 Weeks" />
+              <div className="space-y-2">
+                <Label htmlFor="projTimeline">Timeline</Label>
+                <Input id="projTimeline" value={projTimeline} onChange={e => setProjTimeline(e.target.value)} placeholder="e.g. 2 weeks" />
               </div>
             </div>
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setProjectOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold">Launch Project</Button>
+              <Button type="submit" disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Project'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Task Creation Modal */}
+      {/* Create task dialog */}
       <Dialog open={taskModalOpen} onOpenChange={setTaskOpen}>
-        <DialogContent className="rounded-2xl max-w-sm">
+        <DialogContent className="rounded-2xl max-w-sm max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Deliverable Task Checklist</DialogTitle>
-            <DialogDescription>Assign priority, descriptions, and milestones target.</DialogDescription>
+            <DialogTitle>New Task</DialogTitle>
+            <DialogDescription>Assign a deliverable inside {activeProject?.name}.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateTask} className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="taskTitle" className="text-xs">Task Name *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="taskTitle">Task Title *</Label>
               <Input id="taskTitle" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} required />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="taskDesc" className="text-xs">Outlines</Label>
+            <div className="space-y-2">
+              <Label htmlFor="taskDesc">Description</Label>
               <Textarea id="taskDesc" value={taskDesc} onChange={e => setTaskDesc(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="taskDeadline" className="text-xs">Deadline</Label>
-                <Input id="taskDeadline" value={taskDeadline} onChange={e => setTaskDeadline(e.target.value)} placeholder="e.g. Next Friday" />
+              <div className="space-y-2">
+                <Label htmlFor="taskDeadline">Deadline</Label>
+                <Input id="taskDeadline" type="date" value={taskDeadline} onChange={e => setTaskDeadline(e.target.value)} />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="taskPriority" className="text-xs">Priority</Label>
-                <select
-                  id="taskPriority"
-                  value={taskPriority}
-                  onChange={e => setTaskPriority(e.target.value as any)}
-                  className="w-full border p-2 rounded-lg text-xs dark:bg-slate-900"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
+              <div className="space-y-2">
+                <Label htmlFor="taskPriority">Priority</Label>
+                <Select value={taskPriority} onValueChange={(val) => setTaskPriority(val as TeamTask['priority'])}>
+                  <SelectTrigger id="taskPriority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+            {members.length > 0 && (
+              <div className="space-y-2">
+                <Label>Assign to members</Label>
+                <div className="max-h-36 overflow-y-auto space-y-2 rounded-xl border border-gray-200 dark:border-white/10 p-3">
+                  {members.map(m => (
+                    <label key={m.userId} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={taskAssignees.includes(m.userId)}
+                        onCheckedChange={(checked) => {
+                          setTaskAssignees(prev =>
+                            checked ? [...prev, m.userId] : prev.filter(id => id !== m.userId)
+                          );
+                        }}
+                      />
+                      <span className="truncate">{m.fullName}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setTaskOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold">Assign Task</Button>
+              <Button type="submit" disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Task'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

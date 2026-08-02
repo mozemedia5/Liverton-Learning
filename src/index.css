@@ -290,3 +290,12 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Hide scrollbars on horizontal scroll containers (e.g. tab rows) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

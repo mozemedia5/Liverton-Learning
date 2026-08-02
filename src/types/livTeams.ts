@@ -1,5 +1,3 @@
-import type { UserRole } from './index';
-
 export type TeamVisibility = 'public' | 'private' | 'invite-only';
 
 export type TeamRole =
@@ -57,7 +55,9 @@ export interface Team {
   createdAt: Date | any;
   updatedAt: Date | any;
   members: TeamMember[];
+  memberIds?: string[]; // flat list of member userIds (used by security rules & queries)
   savedByUsers?: string[]; // userIds of users who saved this team
+  savingsBalance?: number; // team wallet balance in UGX
 }
 
 export interface TeamMessageReaction {
@@ -199,6 +199,8 @@ export interface ProjectFundingRequest {
   createdAt: Date | any;
 }
 
+export type TeamEventType = 'meeting' | 'deadline' | 'milestone' | 'revision' | 'event';
+
 export interface TeamMeeting {
   id: string;
   teamId: string;
@@ -206,6 +208,7 @@ export interface TeamMeeting {
   agenda: string;
   scheduledAt: string;
   duration: number; // in minutes
+  type?: TeamEventType;
   joinUrl?: string;
   notes: string;
   attendance: { userId: string; userName: string; attendedAt: Date | any }[];

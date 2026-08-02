@@ -1,173 +1,296 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, AreaChart, Area, LineChart, Line, Legend
+  ResponsiveContainer, AreaChart, Area, LineChart, Line
 } from 'recharts';
-import { TrendingUp, MessageSquare, BookOpen, Users, Trophy } from 'lucide-react';
-import type { TeamRole } from '@/types/livTeams';
+import {
+  TrendingUp, MessageSquare, ListTodo, Wallet, FileText,
+  Users, ClipboardCheck, BarChart3
+} from 'lucide-react';
+import { getTeamMessages, getTeamMeetings } from '@/services/livTeamsChatService';
+import { getTeamTasks, getTeamProjects, getTeamFiles } from '@/services/livTeamsProjectService';
+import { getSavingsTransactions } from '@/services/livTeamsFinanceService';
+import type { TeamMessage, TeamTask, TeamProject, TeamFolderFile, SavingsTransaction, TeamMeeting } from '@/types/livTeams';
+import { LivEmptyState, LivSectionHeader, LivStatCard } from './livTeamsUi';
+import { formatUGX } from './livTeamsUtils';
 
 interface AnalyticsProps {
   teamId: string;
-  teamRole: TeamRole;
 }
 
-// Simulated beautiful educational metrics
-const memberActivityData = [
-  { name: 'Mon', chatVolume: 12, taskProgress: 2, savingsContrib: 5 },
-  { name: 'Tue', chatVolume: 24, taskProgress: 4, savingsContrib: 5 },
-  { name: 'Wed', chatVolume: 18, taskProgress: 3, savingsContrib: 15 },
-  { name: 'Thu', chatVolume: 42, taskProgress: 8, savingsContrib: 10 },
-  { name: 'Fri', chatVolume: 35, taskProgress: 12, savingsContrib: 5 },
-  { name: 'Sat', chatVolume: 15, taskProgress: 6, savingsContrib: 25 },
-  { name: 'Sun', chatVolume: 28, taskProgress: 9, savingsContrib: 30 },
-];
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
 
-const savingsGrowthData = [
-  { month: 'Jan', balance: 50000 },
-  { month: 'Feb', balance: 120000 },
-  { month: 'Mar', balance: 180000 },
-  { month: 'Apr', balance: 290000 },
-  { month: 'May', balance: 410000 },
-  { month: 'Jun', balance: 550000 },
-];
+export default function TeamWorkspaceAnalytics({ teamId }: AnalyticsProps) {
+  const [messages, setMessages] = useState<TeamMessage[]>([]);
+  const [tasks, setTasks] = useState<TeamTask[]>([]);
+  const [projects, setProjects] = useState<TeamProject[]>([]);
+  const [files, setFiles] = useState<TeamFolderFile[]>([]);
+  const [transactions, setTransactions] = useState<SavingsTransaction[]>([]);
+  const [meetings, setMeetings] = useState<TeamMeeting[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const projectMilestonesData = [
-  { name: 'Concept Stage', count: 5 },
-  { name: 'Planning Board', count: 12 },
-  { name: 'Coding/Active', count: 18 },
-  { name: 'Review/Test', count: 9 },
-  { name: 'Finished', count: 15 },
-];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [msgs, tks, projs, fls, txs, mts] = await Promise.all([
+          getTeamMessages(teamId),
+          getTeamTasks(teamId),
+          getTeamProjects(teamId),
+          getTeamFiles(teamId),
+          getSavingsTransactions(teamId),
+          getTeamMeetings(teamId)
+        ]);
+        setMessages(msgs);
+        setTasks(tks);
+        setProjects(projs);
+        setFiles(fls);
+        setTransactions(txs);
+        setMeetings(mts);
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [teamId]);
 
-export default function TeamWorkspaceAnalytics({ teamId, teamRole }: AnalyticsProps) {
+  /* ------------------------------ Computed metrics ------------------------------ */
+
+  const last7Days = useMemo(() => {
+    const days: { name: string; messages: number }[] = [];
+    const counts: Record<string, number> = {};
+    messages.forEach(m => {
+      if (!m.createdAt) return;
+      const d = m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt);
+      if (isNaN(d.getTime())) return;
+      const key = dayKey(d);
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = dayKey(d);
+      days.push({
+        name: d.toLocaleDateString([], { weekday: 'short' }),
+        messages: counts[key] || 0
+      });
+    }
+    return days;
+  }, [messages]);
+
+  const taskStats = useMemo(() => {
+    const completed = tasks.filter(t => t.isCompleted).length;
+    const rate = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+    return { total: tasks.length, completed, rate };
+  }, [tasks]);
+
+  const savingsSeries = useMemo(() => {
+    const approved = transactions
+      .filter(t => t.status === 'approved')
+      .map(t => ({
+        ...t,
+        date: t.createdAt?.toDate ? t.createdAt.toDate() : (t.createdAt ? new Date(t.createdAt) : null)
+      }))
+      .filter(t => t.date && !isNaN(t.date.getTime()))
+      .sort((a, b) => a.date!.getTime() - b.date!.getTime());
+
+    let running = 0;
+    return approved.map(t => {
+      running += t.type === 'contribution' ? t.amount : -t.amount;
+      return {
+        date: t.date!.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        balance: Math.max(0, running)
+      };
+    });
+  }, [transactions]);
+
+  const savingsBalance = savingsSeries.length > 0 ? savingsSeries[savingsSeries.length - 1].balance : 0;
+
+  const projectsByStatus = useMemo(() => {
+    const order = ['Idea', 'Planning', 'Active', 'Testing', 'Review', 'Completed', 'Archived'];
+    const counts: Record<string, number> = {};
+    projects.forEach(p => { counts[p.status] = (counts[p.status] || 0) + 1; });
+    return order
+      .filter(s => counts[s])
+      .map(s => ({ name: s, count: counts[s] }));
+  }, [projects]);
+
+  const topMembers = useMemo(() => {
+    const counts: Record<string, number> = {};
+    messages.forEach(m => {
+      counts[m.senderName] = (counts[m.senderName] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [messages]);
+
+  const attendanceTotal = useMemo(
+    () => meetings.reduce((sum, m) => sum + (m.attendance?.length || 0), 0),
+    [meetings]
+  );
+
+  const hasAnyData = messages.length > 0 || tasks.length > 0 || transactions.length > 0 || files.length > 0 || projects.length > 0;
+
+  /* ------------------------------ Render ------------------------------ */
+
+  if (loading) {
+    return <p className="text-sm text-slate-400 text-center py-12">Computing analytics...</p>;
+  }
+
+  if (!hasAnyData) {
+    return (
+      <div className="space-y-6">
+        <LivSectionHeader title="Team Analytics" subtitle="Live metrics from your workspace activity." />
+        <LivEmptyState
+          icon={<BarChart3 className="w-6 h-6" />}
+          title="Not enough activity yet"
+          description="Charts and insights appear here once your team starts chatting, creating tasks, uploading files and saving together."
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 text-xs">
+    <div className="space-y-6">
+      <LivSectionHeader title="Team Analytics" subtitle="Live metrics computed from real workspace activity." />
 
-      <div className="space-y-1 border-b pb-2">
-        <h3 className="text-lg font-bold flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-emerald-500 animate-pulse" /> Team Workspace Analytics & Charts</h3>
-        <p className="text-slate-500 dark:text-slate-400">Review real-time member chats volumes, task completion curves, and student savings wallet growth trajectories.</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <LivStatCard icon={<MessageSquare className="w-5 h-5" />} label="Messages" value={messages.length} color="emerald" hint={`${last7Days.reduce((s, d) => s + d.messages, 0)} this week`} />
+        <LivStatCard icon={<ListTodo className="w-5 h-5" />} label="Tasks Completed" value={`${taskStats.completed}/${taskStats.total}`} color="blue" hint={`${taskStats.rate}% completion rate`} />
+        <LivStatCard icon={<Wallet className="w-5 h-5" />} label="Approved Savings" value={formatUGX(savingsBalance)} color="orange" />
+        <LivStatCard icon={<FileText className="w-5 h-5" />} label="Files Shared" value={files.length} color="purple" />
       </div>
 
-      {/* Overview Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="rounded-xl border shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-slate-400 text-[10px] font-bold uppercase">Weekly Chats Volume</p>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-200">174 Messages</p>
-              <p className="text-[10px] text-emerald-500 font-bold">+12% vs last week</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center"><MessageSquare className="w-5 h-5" /></div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl border shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-slate-400 text-[10px] font-bold uppercase">Milestones Progress</p>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-200">84% Efficiency</p>
-              <p className="text-[10px] text-emerald-500 font-bold">+4% tasks completed</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-500 flex items-center justify-center"><BookOpen className="w-5 h-5" /></div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl border shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-slate-400 text-[10px] font-bold uppercase">Wallet Growth Rate</p>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-200">UGX 550,000</p>
-              <p className="text-[10px] text-emerald-500 font-bold">Steadily increasing</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center"><TrendingUp className="w-5 h-5" /></div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl border shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-slate-400 text-[10px] font-bold uppercase">Active Participation</p>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-200">92% Members</p>
-              <p className="text-[10px] text-emerald-500 font-bold">Highly Collaborative</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-violet-500/10 text-violet-500 flex items-center justify-center"><Users className="w-5 h-5" /></div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main visual Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Chart A: Weekly collaboration levels */}
-        <Card className="rounded-xl border shadow-sm">
-          <CardHeader className="p-4 border-b">
-            <CardTitle className="text-xs font-bold uppercase text-slate-400">Weekly Interaction Metrics</CardTitle>
-            <CardDescription className="text-xs">Chats volume and milestone task actions.</CardDescription>
+        {/* Messages activity */}
+        <Card>
+          <CardHeader className="p-4 border-b border-gray-100 dark:border-white/5">
+            <CardTitle className="text-sm font-semibold">Chat Activity</CardTitle>
+            <CardDescription className="text-xs">Messages sent over the last 7 days</CardDescription>
           </CardHeader>
           <CardContent className="p-4 h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={memberActivityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={last7Days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorChat" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  <linearGradient id="colorTeamChat" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.2)" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip />
-                <Legend iconSize={10} fontSize={10} />
-                <Area type="monotone" dataKey="chatVolume" name="Messages Volume" stroke="#10b981" fillOpacity={1} fill="url(#colorChat)" />
-                <Area type="monotone" dataKey="taskProgress" name="Tasks Milestones" stroke="#6366f1" fillOpacity={0} />
+                <Area type="monotone" dataKey="messages" name="Messages" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorTeamChat)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Chart B: Savings wallet trend */}
-        <Card className="rounded-xl border shadow-sm">
-          <CardHeader className="p-4 border-b">
-            <CardTitle className="text-xs font-bold uppercase text-slate-400">Savings Account Balance Projection</CardTitle>
-            <CardDescription className="text-xs">Monthly accumulated contributions trend in UGX.</CardDescription>
+        {/* Projects by status */}
+        <Card>
+          <CardHeader className="p-4 border-b border-gray-100 dark:border-white/5">
+            <CardTitle className="text-sm font-semibold">Projects by Status</CardTitle>
+            <CardDescription className="text-xs">Where each project currently stands</CardDescription>
           </CardHeader>
           <CardContent className="p-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={savingsGrowthData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Legend iconSize={10} />
-                <Line type="monotone" dataKey="balance" name="Savings Balance (UGX)" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            {projectsByStatus.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-16">No projects created yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={projectsByStatus} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.2)" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Projects" fill="#10b981" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
-        {/* Chart C: Projects Status spread */}
-        <Card className="rounded-xl border shadow-sm">
-          <CardHeader className="p-4 border-b">
-            <CardTitle className="text-xs font-bold uppercase text-slate-400">Subscribed Projects Milestones Spread</CardTitle>
-            <CardDescription className="text-xs">Count of team projects across workflow boards.</CardDescription>
+        {/* Savings growth */}
+        <Card>
+          <CardHeader className="p-4 border-b border-gray-100 dark:border-white/5">
+            <CardTitle className="text-sm font-semibold">Savings Growth</CardTitle>
+            <CardDescription className="text-xs">Approved wallet balance over time (UGX)</CardDescription>
           </CardHeader>
           <CardContent className="p-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={projectMilestonesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="count" name="Projects Count" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {savingsSeries.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-16">No approved savings transactions yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={savingsSeries} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.2)" />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="balance" name="Balance (UGX)" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
+        {/* Engagement summary */}
+        <Card>
+          <CardHeader className="p-4 border-b border-gray-100 dark:border-white/5">
+            <CardTitle className="text-sm font-semibold">Engagement Summary</CardTitle>
+            <CardDescription className="text-xs">Participation across the workspace</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 space-y-5">
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" /> Most active members
+              </p>
+              {topMembers.length === 0 ? (
+                <p className="text-xs text-slate-400">No chat activity yet.</p>
+              ) : (
+                topMembers.map(member => {
+                  const max = topMembers[0].count || 1;
+                  return (
+                    <div key={member.name} className="space-y-1">
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="truncate">{member.name}</span>
+                        <span className="text-slate-400">{member.count} msgs</span>
+                      </div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5">
+                        <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${Math.round((member.count / max) * 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100 dark:border-white/5">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-center">
+                <p className="text-lg font-bold">{meetings.length}</p>
+                <p className="text-[11px] text-slate-400">Events scheduled</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-center">
+                <p className="text-lg font-bold flex items-center justify-center gap-1">
+                  <ClipboardCheck className="w-4 h-4 text-emerald-500" /> {attendanceTotal}
+                </p>
+                <p className="text-[11px] text-slate-400">Attendance records</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-1">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+              Metrics update automatically as your team works.
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
     </div>
   );
 }

@@ -7,14 +7,12 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  where,
   orderBy,
-  limit,
   onSnapshot,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { TeamMessage, TeamMeeting, TeamRole } from '@/types/livTeams';
+import type { TeamMessage, TeamMeeting, TeamRole, TeamMessageReaction, TeamMessageReply } from '@/types/livTeams';
 import { logTeamActivity } from './livTeamsCoreService';
 
 /**
@@ -59,18 +57,48 @@ export async function sendTeamMessage(
 /**
  * Listen for real-time messages in a team chat room
  */
-export function listenToTeamMessages(teamId: string, callback: (messages: TeamMessage[]) => void) {
+export function listenToTeamMessages(
+  teamId: string,
+  callback: (messages: TeamMessage[]) => void,
+  onError?: (error: Error) => void
+) {
   const messagesRef = collection(db, 'teams', teamId, 'messages');
   const q = query(messagesRef, orderBy('createdAt', 'asc'));
 
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map(doc => ({
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate()
+      })) as TeamMessage[];
+      callback(messages);
+    },
+    (error) => {
+      console.error('Error listening to team messages:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+/**
+ * Fetch team chat messages once (used for analytics)
+ */
+export async function getTeamMessages(teamId: string): Promise<TeamMessage[]> {
+  try {
+    const messagesRef = collection(db, 'teams', teamId, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'asc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate()
     })) as TeamMessage[];
-    callback(messages);
-  });
+  } catch (error) {
+    console.error('Error fetching team messages:', error);
+    return [];
+  }
 }
 
 /**
@@ -112,7 +140,7 @@ export async function toggleTeamMessageReaction(teamId: string, messageId: strin
     if (!snap.exists()) return;
 
     const data = snap.data();
-    let reactions: any[] = data.reactions || [];
+    const reactions: TeamMessageReaction[] = data.reactions || [];
 
     const existingReactionIndex = reactions.findIndex(r => r.emoji === emoji);
 
@@ -148,7 +176,7 @@ export async function toggleTeamMessageReaction(teamId: string, messageId: strin
 /**
  * Reply / Thread Support
  */
-export async function addTeamMessageReply(teamId: string, messageId: string, reply: any): Promise<void> {
+export async function addTeamMessageReply(teamId: string, messageId: string, reply: Omit<TeamMessageReply, 'id' | 'createdAt'>): Promise<void> {
   try {
     const docRef = doc(db, 'teams', teamId, 'messages', messageId);
     const snap = await getDoc(docRef);
@@ -217,9 +245,9 @@ export async function joinTeamMeeting(teamId: string, meetingId: string, userId:
     if (!snap.exists()) return;
 
     const data = snap.data();
-    const attendance = data.attendance || [];
+    const attendance: TeamMeeting['attendance'] = data.attendance || [];
 
-    const alreadyAttended = attendance.some((a: any) => a.userId === userId);
+    const alreadyAttended = attendance.some(a => a.userId === userId);
     if (!alreadyAttended) {
       attendance.push({
         userId,

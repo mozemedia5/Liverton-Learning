@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
-  Send, Smile, Paperclip, MoreVertical, Edit2, Trash,
-  CornerDownRight, Pin, ShieldAlert, FileText, CheckCheck, MessageSquare, Download
+  Send, Smile, Paperclip, Edit2, Trash, CornerDownRight, Pin,
+  FileText, CheckCheck, MessageSquare, Download, Image as ImageIcon,
+  Search, X, Loader2, Film, Music
 } from 'lucide-react';
 import {
   sendTeamMessage,
@@ -18,7 +19,8 @@ import {
   togglePinTeamMessage
 } from '@/services/livTeamsChatService';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
-import type { TeamMessage, TeamRole } from '@/types/livTeams';
+import type { TeamMessage, TeamMessageReply, TeamRole } from '@/types/livTeams';
+import { LivLoader } from './livTeamsUi';
 
 interface ChatProps {
   teamId: string;
@@ -26,14 +28,28 @@ interface ChatProps {
   teamRole: TeamRole;
 }
 
+const QUICK_EMOJIS = ['👍', '❤️', '🔥', '🎓', '👏', '😮'];
+
+function dayLabel(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatProps) {
   const { currentUser, userData } = useAuth();
   const [messages, setMessages] = useState<TeamMessage[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Thread / Reply states
+  // Thread / reply states
   const [activeThreadMessage, setActiveThreadMessage] = useState<TeamMessage | null>(null);
   const [threadInput, setThreadInput] = useState('');
 
@@ -41,27 +57,48 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
 
-  // Emoji picker simulation
+  // Emoji picker
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<string | null>(null);
 
   const isModeratorOrAbove = ['owner', 'admin', 'moderator'].includes(teamRole);
 
   useEffect(() => {
     if (!teamId) return;
-    const unsubscribe = listenToTeamMessages(teamId, (msgs) => {
-      setMessages(msgs);
-    });
+    setInitialLoading(true);
+    const unsubscribe = listenToTeamMessages(
+      teamId,
+      (msgs) => {
+        setMessages(msgs);
+        setInitialLoading(false);
+      },
+      () => setInitialLoading(false)
+    );
     return () => unsubscribe();
   }, [teamId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!searchQuery) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, searchQuery]);
+
+  const visibleMessages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return messages;
+    return messages.filter(m =>
+      (m.content || '').toLowerCase().includes(q) ||
+      (m.fileName || '').toLowerCase().includes(q) ||
+      (m.senderName || '').toLowerCase().includes(q)
+    );
+  }, [messages, searchQuery]);
+
+  const pinnedCount = useMemo(() => messages.filter(m => m.isPinned).length, [messages]);
+
+  /* ------------------------------ Actions ------------------------------ */
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !inputText.trim()) return;
-
     try {
       await sendTeamMessage(
         teamId,
@@ -72,38 +109,46 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
         'text'
       );
       setInputText('');
-    } catch (error) {
+    } catch {
       toast.error('Failed to send message');
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'audio' | 'document') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, kind: 'image' | 'video' | 'audio' | 'document') => {
     if (!e.target.files || e.target.files.length === 0 || !currentUser) return;
+    const file = e.target.files[0];
+    e.target.value = '';
     setUploading(true);
     try {
-      const file = e.target.files[0];
-      const url = await uploadToCloudinary(file, type === 'image' ? 'image' : type === 'document' ? 'document' : 'audio');
+      // Map to the correct Cloudinary preset configured for Liverton Learning
+      const presetType = kind === 'image' ? 'image'
+        : kind === 'video' ? 'course_video'
+        : kind === 'audio' ? 'audio'
+        : 'document';
+      const url = await uploadToCloudinary(file, presetType);
 
-      let uploadType: TeamMessage['type'] = 'document';
-      if (type === 'image') uploadType = 'image';
-      else if (type === 'video') uploadType = 'video';
-      else if (type === 'audio') uploadType = 'audio';
+      const messageType: TeamMessage['type'] =
+        kind === 'image' ? 'image'
+        : kind === 'video' ? 'video'
+        : kind === 'audio' ? 'audio'
+        : file.name.toLowerCase().endsWith('.zip') || file.name.toLowerCase().endsWith('.rar') ? 'zip'
+        : 'document';
 
       await sendTeamMessage(
         teamId,
         currentUser.uid,
         userData?.fullName || 'Anonymous',
         teamRole,
-        `Sent ${file.name}`,
-        uploadType,
+        `Shared ${file.name}`,
+        messageType,
         {
           url,
           name: file.name,
           size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
         }
       );
-      toast.success('File uploaded and shared in chat');
-    } catch (error) {
+      toast.success('File shared in chat');
+    } catch {
       toast.error('Failed to upload and send file');
     } finally {
       setUploading(false);
@@ -117,7 +162,7 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
       setEditingMessageId(null);
       setEditingText('');
       toast.success('Message updated');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update message');
     }
   };
@@ -126,7 +171,7 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
     try {
       await deleteTeamMessage(teamId, messageId);
       toast.success('Message deleted');
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete message');
     }
   };
@@ -136,7 +181,7 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
     try {
       await toggleTeamMessageReaction(teamId, messageId, emoji, currentUser.uid);
       setShowEmojiPickerId(null);
-    } catch (error) {
+    } catch {
       toast.error('Failed to react');
     }
   };
@@ -144,7 +189,6 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !activeThreadMessage || !threadInput.trim()) return;
-
     try {
       await addTeamMessageReply(teamId, activeThreadMessage.id, {
         senderId: currentUser.uid,
@@ -152,181 +196,239 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
         content: threadInput.trim()
       });
       setThreadInput('');
-    } catch (error) {
-      toast.error('Failed to send thread reply');
+    } catch {
+      toast.error('Failed to send reply');
     }
   };
 
   const handleTogglePin = async (message: TeamMessage) => {
     try {
       await togglePinTeamMessage(teamId, message.id, !message.isPinned);
-      toast.success(message.isPinned ? 'Unpinned' : 'Pinned message');
-    } catch (error) {
+      toast.success(message.isPinned ? 'Message unpinned' : 'Message pinned');
+    } catch {
       toast.error('Failed to update pin status');
     }
   };
 
+  /* ------------------------------ Render ------------------------------ */
+
+  let lastDayLabel = '';
+
   return (
     <div className="flex h-full relative">
 
-      {/* Main Chat Conversation Container */}
-      <div className="flex-1 flex flex-col justify-between h-full bg-slate-50/50 dark:bg-slate-900/10">
+      {/* Main conversation */}
+      <div className="flex-1 flex flex-col h-full min-w-0">
 
-        {/* Chat Sticky Header (Pinned Messages) */}
-        <div className="bg-white dark:bg-slate-950 p-3 border-b flex items-center justify-between text-xs gap-2">
-          <span className="font-bold text-slate-500">Workspace Room: {teamName}</span>
-          <div className="flex items-center gap-2">
-            {messages.some(m => m.isPinned) && (
-              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 flex items-center gap-1 py-0 px-2">
-                <Pin className="w-3.5 h-3.5" /> Pinned message exists
-              </Badge>
-            )}
+        {/* Chat header */}
+        <div className="px-4 py-2.5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between gap-2 bg-white/70 dark:bg-slate-950/70 backdrop-blur">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate">{teamName} — Team Chat</p>
+            <p className="text-[11px] text-slate-400">
+              {messages.length} messages{pinnedCount > 0 ? ` • ${pinnedCount} pinned` : ''}
+            </p>
           </div>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Search messages"
+            className={searchOpen ? 'text-emerald-500' : 'text-slate-400'}
+            onClick={() => { setSearchOpen(o => !o); setSearchQuery(''); }}
+          >
+            <Search className="w-4 h-4" />
+          </Button>
         </div>
 
-        {/* Conversation Message List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-12 text-slate-400 gap-2">
-              <MessageSquare className="w-10 h-10 text-emerald-500" />
-              <p className="text-sm">Welcome to {teamName} chat. Ask questions or share notes!</p>
+        {searchOpen && (
+          <div className="px-4 py-2 border-b border-gray-100 dark:border-white/5 bg-white/70 dark:bg-slate-950/70 flex items-center gap-2">
+            <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <Input
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search messages, files, people..."
+              className="h-8 text-sm border-0 bg-transparent focus-visible:ring-0 px-0"
+            />
+            {searchQuery && (
+              <Button size="icon-sm" variant="ghost" onClick={() => setSearchQuery('')} aria-label="Clear search">
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Message list */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {initialLoading ? (
+            <LivLoader message="Loading conversation..." />
+          ) : visibleMessages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-slate-400 gap-3 text-center">
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-500">
+                <MessageSquare className="w-6 h-6" />
+              </div>
+              <p className="text-sm max-w-xs">
+                {searchQuery ? 'No messages match your search.' : `No messages yet. Start the conversation in ${teamName}!`}
+              </p>
             </div>
           ) : (
-            messages.map((msg) => {
+            visibleMessages.map((msg) => {
               const isMe = msg.senderId === currentUser?.uid;
-              const hasReplies = msg.replies && msg.replies.length > 0;
+              const hasReplies = (msg.replies?.length || 0) > 0;
+              const msgDate = msg.createdAt ? new Date(msg.createdAt) : null;
+              const label = msgDate ? dayLabel(msgDate) : '';
+              const showDaySeparator = label && label !== lastDayLabel;
+              if (showDaySeparator) lastDayLabel = label;
 
               return (
-                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] ${isMe ? 'ml-auto' : 'mr-auto'} space-y-1`}>
-
-                  {/* Sender Details */}
-                  {!isMe && (
-                    <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                      {msg.senderName}
-                      <Badge variant="secondary" className="text-[8px] py-0 px-1 capitalize">
-                        {msg.senderTeamRole?.replace('_', ' ')}
-                      </Badge>
-                    </span>
+                <div key={msg.id} className="space-y-3">
+                  {showDaySeparator && (
+                    <div className="flex items-center gap-3 py-1">
+                      <div className="flex-1 border-t border-gray-100 dark:border-white/5" />
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{label}</span>
+                      <div className="flex-1 border-t border-gray-100 dark:border-white/5" />
+                    </div>
                   )}
 
-                  {/* Message Bubble */}
-                  <div className={`p-3 rounded-2xl relative group ${
-                    isMe
-                      ? 'bg-emerald-500 text-white rounded-tr-none'
-                      : 'bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-tl-none text-slate-800 dark:text-slate-200'
-                    }`}
-                  >
-                    {msg.isPinned && (
-                      <Pin className="w-3.5 h-3.5 absolute top-1 right-1 text-amber-500" />
+                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] ${isMe ? 'ml-auto' : 'mr-auto'} space-y-1`}>
+                    {!isMe && (
+                      <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
+                        {msg.senderName}
+                        <Badge variant="secondary" className="text-[9px] py-0 px-1 capitalize">
+                          {msg.senderTeamRole?.replace('_', ' ') || 'member'}
+                        </Badge>
+                      </span>
                     )}
 
-                    {/* Different Message Types Support */}
-                    {editingMessageId === msg.id ? (
-                      <div className="flex gap-2 min-w-[200px]">
-                        <Input value={editingText} onChange={e => setEditingText(e.target.value)} className="h-8 text-xs text-black" />
-                        <Button size="sm" className="h-8" onClick={() => handleEditMessage(msg.id)}>Save</Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        {msg.type === 'text' && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
-
-                        {msg.type === 'image' && (
-                          <div className="space-y-1">
-                            <img src={msg.fileUrl} className="max-w-xs max-h-48 rounded-lg object-cover" alt="attachment" />
-                            <p className="text-xs italic">{msg.content}</p>
-                          </div>
-                        )}
-
-                        {msg.type === 'document' && (
-                          <div className="flex items-center gap-2 p-2 rounded bg-slate-100 dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200">
-                            <FileText className="w-5 h-5 text-emerald-500" />
-                            <div className="min-w-0">
-                              <p className="font-bold truncate max-w-[150px]">{msg.fileName}</p>
-                              <p className="text-[9px] text-slate-400">{msg.fileSize || 'Unknown Size'}</p>
-                            </div>
-                            <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="text-emerald-500 hover:text-emerald-600 ml-auto">
-                              <Download className="w-4 h-4" />
-                            </a>
-                          </div>
-                        )}
-
-                        {msg.type === 'audio' && (
-                          <div className="space-y-1 min-w-[200px]">
-                            <audio src={msg.fileUrl} controls className="w-full h-8" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Quick Reactions Display */}
-                    {msg.reactions && msg.reactions.length > 0 && (
-                      <div className="flex gap-1 flex-wrap mt-1.5 pt-1 border-t border-white/10">
-                        {msg.reactions.map((react, idx) => (
-                          <span
-                            key={idx}
-                            onClick={() => handleReactionToggle(msg.id, react.emoji)}
-                            className="text-xs cursor-pointer bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded-full"
-                          >
-                            {react.emoji} <span className="text-[10px] font-bold">{react.userIds.length}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Action Dropdown Options (pin, edit, delete, threads) */}
-                    <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1 bg-white/90 dark:bg-slate-950/90 rounded-full border px-1 z-10">
-                      <Button size="icon" variant="ghost" className="w-5 h-5 rounded-full text-xs" onClick={() => setShowEmojiPickerId(msg.id)}>
-                        <Smile className="w-3.5 h-3.5 text-slate-500" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="w-5 h-5 rounded-full text-xs" onClick={() => setActiveThreadMessage(msg)}>
-                        <CornerDownRight className="w-3.5 h-3.5 text-slate-500" />
-                      </Button>
-                      {isModeratorOrAbove && (
-                        <Button size="icon" variant="ghost" className="w-5 h-5 rounded-full text-xs" onClick={() => handleTogglePin(msg)}>
-                          <Pin className="w-3.5 h-3.5 text-slate-500" />
-                        </Button>
+                    <div className={`p-3 rounded-2xl relative group ${
+                      isMe
+                        ? 'bg-emerald-500 text-white rounded-tr-md'
+                        : 'bg-white dark:bg-slate-950 border border-gray-100 dark:border-white/5 rounded-tl-md text-slate-800 dark:text-slate-200'
+                    }`}>
+                      {msg.isPinned && (
+                        <Pin className="w-3.5 h-3.5 absolute -top-1.5 -right-1.5 text-amber-500 fill-current bg-white dark:bg-slate-950 rounded-full p-0.5 border border-gray-100 dark:border-white/10" />
                       )}
-                      {(isMe || isModeratorOrAbove) && (
-                        <>
-                          {isMe && (
-                            <Button size="icon" variant="ghost" className="w-5 h-5 rounded-full text-xs" onClick={() => { setEditingMessageId(msg.id); setEditingText(msg.content); }}>
-                              <Edit2 className="w-3 h-3 text-slate-500" />
-                            </Button>
+
+                      {editingMessageId === msg.id ? (
+                        <div className="flex gap-2 min-w-[220px]">
+                          <Input value={editingText} onChange={e => setEditingText(e.target.value)} className="h-8 text-xs text-slate-900" />
+                          <Button size="sm" className="h-8" onClick={() => handleEditMessage(msg.id)}>Save</Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {(msg.type === 'text' || msg.type === 'code') && (
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           )}
-                          <Button size="icon" variant="ghost" className="w-5 h-5 rounded-full text-xs text-red-500" onClick={() => handleDeleteMessage(msg.id)}>
-                            <Trash className="w-3 h-3" />
+
+                          {msg.type === 'image' && (
+                            <div className="space-y-1">
+                              <a href={msg.fileUrl} target="_blank" rel="noreferrer">
+                                <img src={msg.fileUrl} className="max-w-xs max-h-56 rounded-lg object-cover" alt={msg.fileName || 'image'} />
+                              </a>
+                              <p className="text-xs opacity-80">{msg.content}</p>
+                            </div>
+                          )}
+
+                          {msg.type === 'video' && (
+                            <div className="space-y-1">
+                              <video src={msg.fileUrl} controls className="max-w-xs max-h-56 rounded-lg" />
+                              <p className="text-xs opacity-80">{msg.content}</p>
+                            </div>
+                          )}
+
+                          {(msg.type === 'document' || msg.type === 'zip') && (
+                            <div className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
+                              isMe ? 'bg-white/15 text-white' : 'bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+                            }`}>
+                              <FileText className={`w-5 h-5 flex-shrink-0 ${isMe ? 'text-white' : 'text-emerald-500'}`} />
+                              <div className="min-w-0">
+                                <p className="font-semibold truncate max-w-[160px]">{msg.fileName}</p>
+                                <p className="text-[10px] opacity-70">{msg.fileSize || 'File'}</p>
+                              </div>
+                              <a href={msg.fileUrl} target="_blank" rel="noreferrer" className={`ml-auto ${isMe ? 'text-white' : 'text-emerald-500 hover:text-emerald-600'}`}>
+                                <Download className="w-4 h-4" />
+                              </a>
+                            </div>
+                          )}
+
+                          {msg.type === 'audio' && (
+                            <div className="min-w-[220px]">
+                              <audio src={msg.fileUrl} controls className="w-full h-9" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Reactions */}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className={`flex gap-1 flex-wrap mt-1.5 pt-1.5 ${isMe ? 'border-t border-white/20' : 'border-t border-gray-100 dark:border-white/5'}`}>
+                          {msg.reactions.map((react, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleReactionToggle(msg.id, react.emoji)}
+                              className={`text-xs px-1.5 py-0.5 rounded-full transition-colors ${
+                                react.userIds.includes(currentUser?.uid || '')
+                                  ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50'
+                                  : 'bg-black/10 dark:bg-white/10'
+                              }`}
+                            >
+                              {react.emoji} <span className="text-[10px] font-bold">{react.userIds.length}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Hover actions */}
+                      <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-white/95 dark:bg-slate-950/95 rounded-full border border-gray-100 dark:border-white/10 px-1 z-10 shadow">
+                        <Button size="icon" variant="ghost" className="w-6 h-6 rounded-full" onClick={() => setShowEmojiPickerId(showEmojiPickerId === msg.id ? null : msg.id)} aria-label="React">
+                          <Smile className="w-3.5 h-3.5 text-slate-500" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="w-6 h-6 rounded-full" onClick={() => setActiveThreadMessage(msg)} aria-label="Reply in thread">
+                          <CornerDownRight className="w-3.5 h-3.5 text-slate-500" />
+                        </Button>
+                        {isModeratorOrAbove && (
+                          <Button size="icon" variant="ghost" className="w-6 h-6 rounded-full" onClick={() => handleTogglePin(msg)} aria-label={msg.isPinned ? 'Unpin' : 'Pin'}>
+                            <Pin className="w-3.5 h-3.5 text-slate-500" />
                           </Button>
-                        </>
+                        )}
+                        {isMe && msg.type === 'text' && (
+                          <Button size="icon" variant="ghost" className="w-6 h-6 rounded-full" onClick={() => { setEditingMessageId(msg.id); setEditingText(msg.content); }} aria-label="Edit">
+                            <Edit2 className="w-3 h-3 text-slate-500" />
+                          </Button>
+                        )}
+                        {(isMe || isModeratorOrAbove) && (
+                          <Button size="icon" variant="ghost" className="w-6 h-6 rounded-full" onClick={() => handleDeleteMessage(msg.id)} aria-label="Delete">
+                            <Trash className="w-3 h-3 text-red-500" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Emoji tray */}
+                      {showEmojiPickerId === msg.id && (
+                        <div className="absolute -top-11 left-0 bg-white dark:bg-slate-950 rounded-xl shadow-xl border border-gray-100 dark:border-white/10 p-1.5 flex gap-1 z-20">
+                          {QUICK_EMOJIS.map(emoji => (
+                            <button key={emoji} onClick={() => handleReactionToggle(msg.id, emoji)} className="text-base hover:scale-125 transition-transform">
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
 
-                    {/* Simple Emoji Reaction Tray Trigger */}
-                    {showEmojiPickerId === msg.id && (
-                      <div className="absolute -top-10 left-0 bg-white dark:bg-slate-950 rounded-xl shadow-xl border p-1.5 flex gap-1 z-20">
-                        {['👍', '❤️', '🔥', '🎓', '👏', '😮'].map(emoji => (
-                          <span key={emoji} onClick={() => handleReactionToggle(msg.id, emoji)} className="text-base cursor-pointer hover:scale-125 transition-transform">{emoji}</span>
-                        ))}
-                      </div>
+                    {hasReplies && (
+                      <button
+                        onClick={() => setActiveThreadMessage(msg)}
+                        className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center gap-1"
+                      >
+                        <MessageSquare className="w-3 h-3" /> {msg.replies?.length} {msg.replies?.length === 1 ? 'reply' : 'replies'}
+                      </button>
                     )}
 
-                  </div>
-
-                  {/* Thread summary trigger */}
-                  {hasReplies && (
-                    <span
-                      onClick={() => setActiveThreadMessage(msg)}
-                      className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold cursor-pointer hover:underline flex items-center gap-1"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" /> {msg.replies?.length} Thread Replies
+                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                      {msgDate ? msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      {msg.editedAt && <span>(edited)</span>}
+                      {isMe && <CheckCheck className="w-3 h-3 text-emerald-500" />}
                     </span>
-                  )}
-
-                  {/* Timestamp & Read Receipts indicator */}
-                  <span className="text-[9px] text-slate-400">
-                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                    {isMe && <CheckCheck className="w-3 h-3 text-emerald-500 inline ml-1" />}
-                  </span>
-
+                  </div>
                 </div>
               );
             })
@@ -334,21 +436,31 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Message panel */}
-        <form onSubmit={handleSendMessage} className="p-3 border-t bg-white dark:bg-slate-950 flex items-center gap-2">
-
-          {/* File Attachments Quick Menu */}
-          <div className="flex gap-1.5">
-            <label className="cursor-pointer">
-              <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'image')} className="hidden" />
-              <div className="w-9 h-9 border rounded-xl flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                <Smile className="w-4 h-4 text-slate-400" />
+        {/* Input panel */}
+        <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-100 dark:border-white/5 bg-white/70 dark:bg-slate-950/70 backdrop-blur flex items-center gap-2">
+          <div className="flex gap-1">
+            <label className="cursor-pointer" title="Send image">
+              <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'image')} className="hidden" disabled={uploading} />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors text-slate-400 hover:text-emerald-500">
+                <ImageIcon className="w-4 h-4" />
               </div>
             </label>
-            <label className="cursor-pointer">
-              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar" onChange={e => handleFileUpload(e, 'document')} className="hidden" />
-              <div className="w-9 h-9 border rounded-xl flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                <Paperclip className="w-4 h-4 text-slate-400" />
+            <label className="cursor-pointer" title="Send video">
+              <input type="file" accept="video/*" onChange={e => handleFileUpload(e, 'video')} className="hidden" disabled={uploading} />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors text-slate-400 hover:text-emerald-500">
+                <Film className="w-4 h-4" />
+              </div>
+            </label>
+            <label className="cursor-pointer" title="Send audio">
+              <input type="file" accept="audio/*" onChange={e => handleFileUpload(e, 'audio')} className="hidden" disabled={uploading} />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors text-slate-400 hover:text-emerald-500">
+                <Music className="w-4 h-4" />
+              </div>
+            </label>
+            <label className="cursor-pointer" title="Send document">
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv" onChange={e => handleFileUpload(e, 'document')} className="hidden" disabled={uploading} />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors text-slate-400 hover:text-emerald-500">
+                <Paperclip className="w-4 h-4" />
               </div>
             </label>
           </div>
@@ -356,58 +468,58 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
           <Input
             value={inputText}
             onChange={e => setInputText(e.target.value)}
-            placeholder="Send a chat, snippet, or notes..."
-            className="flex-1 rounded-xl h-10 border"
+            placeholder={uploading ? 'Uploading file...' : 'Type a message...'}
+            className="flex-1 rounded-xl h-10"
             disabled={uploading}
           />
 
-          <Button type="submit" size="icon" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl w-10 h-10" disabled={uploading}>
-            <Send className="w-4 h-4" />
+          <Button type="submit" size="icon" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl" disabled={uploading || !inputText.trim()} aria-label="Send message">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </form>
-
       </div>
 
-      {/* Sidebar Thread / Reply Drawer */}
+      {/* Thread drawer */}
       {activeThreadMessage && (
-        <div className="w-80 border-l bg-white dark:bg-slate-950 h-full flex flex-col justify-between absolute right-0 top-0 z-30 shadow-2xl">
-          <div className="p-4 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-900">
-            <span className="font-bold text-xs text-slate-500">Replies Thread</span>
-            <Button size="xs" variant="ghost" className="text-xs h-7 py-0.5" onClick={() => setActiveThreadMessage(null)}>Close</Button>
+        <div className="w-full sm:w-80 border-l border-gray-100 dark:border-white/5 bg-white dark:bg-slate-950 h-full flex flex-col absolute right-0 top-0 z-30 shadow-2xl">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+            <span className="font-semibold text-sm">Thread</span>
+            <Button size="icon-sm" variant="ghost" onClick={() => setActiveThreadMessage(null)} aria-label="Close thread">
+              <X className="w-4 h-4" />
+            </Button>
           </div>
 
-          {/* Root Message inside thread */}
-          <div className="p-4 border-b bg-emerald-500/5 text-xs space-y-2">
-            <p className="font-bold text-emerald-600">{activeThreadMessage.senderName}</p>
+          <div className="p-4 border-b border-gray-100 dark:border-white/5 bg-emerald-500/5 text-sm space-y-1">
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400 text-xs">{activeThreadMessage.senderName}</p>
             <p>{activeThreadMessage.content}</p>
           </div>
 
-          {/* Thread messages list */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {activeThreadMessage.replies?.map((rep: any) => (
-              <div key={rep.id} className="p-2.5 rounded-xl border text-xs space-y-1 bg-slate-50/50 dark:bg-slate-900/10">
-                <div className="flex justify-between font-bold">
-                  <span>{rep.senderName}</span>
+            {(activeThreadMessage.replies || []).length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-6">No replies yet. Start the thread below.</p>
+            ) : (
+              activeThreadMessage.replies?.map((rep: TeamMessageReply) => (
+                <div key={rep.id} className="p-3 rounded-xl border border-gray-100 dark:border-white/5 text-sm space-y-1 bg-slate-50/60 dark:bg-slate-900/40">
+                  <p className="font-semibold text-xs">{rep.senderName}</p>
+                  <p>{rep.content}</p>
                 </div>
-                <p>{rep.content}</p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
-          <form onSubmit={handleSendReply} className="p-3 border-t flex items-center gap-2">
+          <form onSubmit={handleSendReply} className="p-3 border-t border-gray-100 dark:border-white/5 flex items-center gap-2">
             <Input
               value={threadInput}
               onChange={e => setThreadInput(e.target.value)}
-              placeholder="Reply to thread..."
-              className="text-xs h-9 rounded-lg"
+              placeholder="Reply in thread..."
+              className="text-sm h-9 rounded-lg"
             />
-            <Button type="submit" size="icon" className="bg-emerald-500 text-white rounded-lg w-9 h-9">
+            <Button type="submit" size="icon-sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg" disabled={!threadInput.trim()} aria-label="Send reply">
               <Send className="w-3.5 h-3.5" />
             </Button>
           </form>
         </div>
       )}
-
     </div>
   );
 }
