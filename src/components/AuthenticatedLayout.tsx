@@ -31,7 +31,11 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-background">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors duration-300">
+      {/* Background glowing emerald & gold blobs to enhance glassmorphism rendering */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-500/10 dark:bg-amber-500/5 blur-[120px] pointer-events-none" />
+
       {/* Mobile: BottomNav only */}
       {show && (
         <>
@@ -52,10 +56,12 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
       )}
 
       {/* Main Content Area */}
-      <main className={`w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 ${
-        show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
+      <main className={`relative z-10 w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 px-4 sm:px-6 lg:px-8 ${
+        show ? (isSidebarCollapsed ? 'lg:pl-[112px]' : 'lg:pl-[312px]') : ''
       }`}>
-        {props.children ?? <Outlet />}
+        <div className="max-w-7xl mx-auto py-6">
+          {props.children ?? <Outlet />}
+        </div>
       </main>
 
       {show && isDashboardPage && <HannaButton />}
