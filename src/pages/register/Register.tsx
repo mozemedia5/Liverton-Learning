@@ -1,105 +1,119 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mail, Lock, Eye, EyeOff, X, Loader2 } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { sendEmailVerification } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { toast } from 'sonner';
 
-export default function Login() {
+export default function Register() {
   const navigate = useNavigate();
-  const { login, signInWithGoogle, signInWithApple, userRole, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { register, signInWithGoogle, signInWithApple } = useAuth();
+
+  // Get role from query parameter (default to student)
+  const role = searchParams.get('role') || 'student';
 
   // Form states
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [pageReady, setPageReady] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // Wait for auth to finish loading before showing the page
-  useEffect(() => {
-    if (!authLoading) {
-      setPageReady(true);
+  // UI states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Map database role to user friendly label
+  const getRoleLabel = () => {
+    switch (role) {
+      case 'student': return 'Student';
+      case 'teacher': return 'Teacher';
+      case 'school_admin': return 'School Administrator';
+      case 'parent': return 'Parent';
+      default: return 'Student';
     }
-  }, [authLoading]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error('❌ Passwords do not match');
+      return;
+    }
+
+    if (!agreeTerms) {
+      toast.error('❌ Please agree to the Terms and Privacy Policy');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(email, password);
-      toast.success('✅ Login successful! Redirecting...', {
-        duration: 3000,
+      // 1. Register user
+      await register(email, password, {
+        fullName,
+        role: role as any,
+        sex: 'other',
+        age: 18,
+        country: 'Uganda',
       });
-      
-      // Redirect based on role
-      setTimeout(() => {
-        const effectiveRole = (email === 'infoliverton@gmail.com') ? 'platform_admin' : userRole;
-        
-        const dashboardRoutes: Record<string, string> = {
-          student: '/student/dashboard',
-          teacher: '/teacher/dashboard',
-          school_admin: '/school-admin/dashboard',
-          platform_admin: '/admin/dashboard',
-          parent: '/student/dashboard',
-        };
-        
-        if (effectiveRole && dashboardRoutes[effectiveRole]) {
-          navigate(dashboardRoutes[effectiveRole]);
-        } else {
-          navigate('/');
+
+      // 2. Send verification email (Firebase Auth)
+      if (auth.currentUser) {
+        try {
+          await sendEmailVerification(auth.currentUser);
+          toast.success('✉️ Verification email sent! Please check your inbox.');
+        } catch (emailErr: any) {
+          console.error('Error sending verification email:', emailErr);
+          toast.error('Could not send verification email, but account created.');
         }
-      }, 500);
+      }
+
+      // 3. Redirect to email verification page
+      navigate('/verify-email', { state: { email, role } });
     } catch (err: any) {
-      const errorMessage = err.message || 'Invalid email or password';
-      toast.error('❌ ' + errorMessage, {
-        duration: 5000,
-      });
+      console.error(err);
+      toast.error('❌ Registration failed: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     try {
-      await signInWithGoogle();
-      toast.success('✅ Signed in with Google successfully!');
+      await signInWithGoogle(role as any);
+      toast.success('✅ Signed up with Google successfully!');
+      // Redirection is handled by App.tsx or AuthContext, but let's navigate to safety
       navigate('/');
     } catch (err: any) {
-      toast.error('❌ Google sign-in failed: ' + (err.message || 'Unknown error'));
+      toast.error('❌ Google signup failed: ' + (err.message || 'Unknown error'));
     }
   };
 
-  const handleAppleSignIn = async () => {
+  const handleAppleSignUp = async () => {
     try {
-      await signInWithApple();
-      toast.success('✅ Signed in with Apple successfully!');
+      await signInWithApple(role as any);
+      toast.success('✅ Signed up with Apple successfully!');
       navigate('/');
     } catch (err: any) {
-      toast.error('❌ Apple sign-in failed: ' + (err.message || 'Unknown error'));
+      toast.error('❌ Apple signup failed: ' + (err.message || 'Unknown error'));
     }
   };
-
-  if (!pageReady) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00A86B]"></div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white flex items-center justify-center p-4 transition-colors duration-300">
       <Card className="w-full max-w-md border border-gray-100 dark:border-gray-800 bg-white dark:bg-zinc-950 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
         {/* Dismiss Button */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/get-started')}
           className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           aria-label="Close"
         >
@@ -123,15 +137,30 @@ export default function Login() {
 
           {/* Form Heading */}
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            Welcome Back
+            Join Liverton
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
-            Sign in to continue your journey
+            Begin your journey of learning as a <span className="font-semibold text-gray-800 dark:text-gray-200">{getRoleLabel()}</span>
           </p>
 
-          {/* Login Form */}
+          {/* Signup Form */}
           <form onSubmit={handleSubmit} className="w-full space-y-4">
-            {/* Email Field */}
+            {/* Full Name */}
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                <User className="w-5 h-5" />
+              </span>
+              <Input
+                type="text"
+                placeholder="Full Name"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="pl-12 py-6 bg-gray-50/50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 rounded-2xl focus-visible:ring-1 focus-visible:ring-[#00A86B] text-base"
+              />
+            </div>
+
+            {/* Email */}
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                 <Mail className="w-5 h-5" />
@@ -146,7 +175,7 @@ export default function Login() {
               />
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                 <Lock className="w-5 h-5" />
@@ -168,18 +197,45 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Forgot Password Link */}
-            <div className="flex justify-end pr-1">
+            {/* Confirm Password */}
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                <Lock className="w-5 h-5" />
+              </span>
+              <Input
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm Password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="pl-12 pr-12 py-6 bg-gray-50/50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 rounded-2xl focus-visible:ring-1 focus-visible:ring-[#00A86B] text-base"
+              />
               <button
                 type="button"
-                onClick={() => toast.info('Forgot password feature is handled by standard reset email.')}
-                className="text-sm text-[#00A86B] hover:underline font-medium"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
-                Forgot password?
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
 
-            {/* Sign In Button */}
+            {/* Terms and Privacy Checkbox */}
+            <div className="flex items-center space-x-3 pt-2 pl-1">
+              <Checkbox
+                id="terms"
+                checked={agreeTerms}
+                onCheckedChange={(checked) => setAgreeTerms(!!checked)}
+                className="border-gray-300 dark:border-zinc-700 data-[state=checked]:bg-[#00A86B] data-[state=checked]:border-[#00A86B] rounded"
+              />
+              <label
+                htmlFor="terms"
+                className="text-xs font-medium text-gray-500 dark:text-gray-400 leading-none cursor-pointer select-none"
+              >
+                I agree to the <span className="text-[#00A86B] hover:underline">Terms</span> and <span className="text-[#00A86B] hover:underline">Privacy Policy</span>
+              </label>
+            </div>
+
+            {/* Create Account Button */}
             <Button
               type="submit"
               disabled={loading}
@@ -188,15 +244,15 @@ export default function Login() {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Signing In...
+                  Creating Account...
                 </div>
               ) : (
-                'Sign In'
+                'Create Account'
               )}
             </Button>
           </form>
 
-          {/* Social Separator */}
+          {/* Social Sign-up Separator */}
           <div className="w-full flex items-center justify-center my-6">
             <div className="border-t border-gray-100 dark:border-zinc-800 flex-grow"></div>
             <span className="px-3 text-xs text-gray-400 dark:text-zinc-600 font-semibold">or</span>
@@ -206,7 +262,7 @@ export default function Login() {
           {/* Social Buttons */}
           <div className="w-full grid grid-cols-2 gap-3 mb-8">
             <button
-              onClick={handleGoogleSignIn}
+              onClick={handleGoogleSignUp}
               className="flex items-center justify-center gap-2 py-3 px-4 border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-2xl transition-colors font-semibold text-sm bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -230,7 +286,7 @@ export default function Login() {
               Google
             </button>
             <button
-              onClick={handleAppleSignIn}
+              onClick={handleAppleSignUp}
               className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl transition-colors font-semibold text-sm bg-black dark:bg-zinc-800 hover:bg-gray-900 text-white"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -240,15 +296,15 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Register Link */}
+          {/* Already have an account link */}
           <div className="text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <button
-                onClick={() => navigate('/get-started')}
+                onClick={() => navigate('/login')}
                 className="text-[#00A86B] hover:underline font-semibold"
               >
-                Sign Up
+                Sign In
               </button>
             </p>
           </div>
