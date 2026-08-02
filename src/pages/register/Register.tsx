@@ -115,12 +115,12 @@ export default function Register() {
           toast.success('✉️ Verification email sent! Please check your inbox.');
         } catch (emailErr: any) {
           console.error('Error sending verification email:', emailErr);
-          toast.error('Could not send verification email, but account created.');
+          toast.success('Account created successfully!');
         }
       }
 
-      // 3. Redirect to email verification page
-      navigate('/verify-email', { state: { email, role } });
+      // 3. Redirect to main dashboard/home directly
+      navigate('/');
     } catch (err: any) {
       console.error(err);
       toast.error('❌ Registration failed: ' + (err.message || 'Unknown error'));

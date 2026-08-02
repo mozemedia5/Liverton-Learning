@@ -30,12 +30,15 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Trash2
+  Trash2,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { storage } from '@/lib/firebase';
+import { auth, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { sendEmailVerification } from 'firebase/auth';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -60,6 +63,11 @@ export default function Profile() {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // Email Verification States
+  const [isEmailVerified, setIsEmailVerified] = useState(auth.currentUser?.emailVerified || false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+  const [isRefreshingVerification, setIsRefreshingVerification] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: userData?.fullName || '',
@@ -68,6 +76,46 @@ export default function Profile() {
     address: userData?.address || '',
     bio: userData?.bio || '',
   });
+
+  /**
+   * Handle resending email verification
+   */
+  const handleSendVerification = async () => {
+    if (!auth.currentUser) return;
+    setIsSendingVerification(true);
+    try {
+      await sendEmailVerification(auth.currentUser);
+      toast.success('✉️ Verification email sent! Please check your inbox.');
+    } catch (error: any) {
+      console.error('Error sending verification email:', error);
+      toast.error('Failed to send verification email. ' + (error.message || ''));
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
+
+  /**
+   * Handle checking verification status manually by reloading auth user
+   */
+  const handleRefreshVerification = async () => {
+    if (!auth.currentUser) return;
+    setIsRefreshingVerification(true);
+    try {
+      await auth.currentUser.reload();
+      const verified = auth.currentUser.emailVerified;
+      setIsEmailVerified(verified);
+      if (verified) {
+        toast.success('🎉 Your email has been successfully verified!');
+      } else {
+        toast.info('✉️ Email is still unverified. Please check your inbox or spam folder.');
+      }
+    } catch (error: any) {
+      console.error('Error refreshing verification status:', error);
+      toast.error('Failed to refresh status. Please try again.');
+    } finally {
+      setIsRefreshingVerification(false);
+    }
+  };
 
   /**
    * Handle profile image upload to Firebase Storage
@@ -292,6 +340,58 @@ export default function Profile() {
 
       {/* Main Content */}
       <main className="p-4 lg:p-6 space-y-6 max-w-3xl mx-auto">
+        {/* Email Verification Banner */}
+        {!isEmailVerified && auth.currentUser && auth.currentUser.email !== 'mock@liverton.com' && (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm transition-all duration-300">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-xl mt-0.5 md:mt-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-amber-800 dark:text-amber-300 text-base">
+                  Verify Your Email Address
+                </h3>
+                <p className="text-sm text-amber-700/80 dark:text-amber-400/80 mt-1">
+                  Your email <span className="font-semibold text-amber-900 dark:text-amber-200">{auth.currentUser.email}</span> is not verified yet. Please verify to ensure full access and security.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendVerification}
+                disabled={isSendingVerification}
+                className="bg-white hover:bg-amber-100/50 text-amber-800 dark:bg-zinc-900 dark:hover:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 flex-1 md:flex-none text-xs h-9 px-4 rounded-xl font-semibold"
+              >
+                {isSendingVerification ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Resend Link'
+                )}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleRefreshVerification}
+                disabled={isRefreshingVerification}
+                className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-700 dark:hover:bg-amber-600 flex-1 md:flex-none text-xs h-9 px-4 rounded-xl font-semibold shadow-sm"
+              >
+                {isRefreshingVerification ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  'I Verified'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Profile Header */}
         <Card>
           <CardContent className="p-6">
@@ -329,7 +429,22 @@ export default function Profile() {
                   </>
                 )}
               </div>
-              <h2 className="text-2xl font-bold mt-4">{userData?.fullName}</h2>
+              <h2 className="text-2xl font-bold mt-4 flex items-center gap-2 flex-wrap justify-center">
+                {userData?.fullName}
+                {isEmailVerified ? (
+                  <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-emerald-200 dark:border-emerald-900/30">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Verified
+                  </span>
+                ) : (
+                  auth.currentUser?.email !== 'mock@liverton.com' && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-amber-200 dark:border-amber-900/30">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      Unverified
+                    </span>
+                  )
+                )}
+              </h2>
               <p className="text-gray-600 dark:text-gray-400">{getRoleDisplay(userRole)}</p>
             </div>
           </CardContent>
