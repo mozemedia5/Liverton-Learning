@@ -40,6 +40,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mockRole = urlParams.get('mockRole') || localStorage.getItem('mockRole');
+    if (mockRole) {
+      setCurrentUser({
+        uid: 'mock-uid',
+        email: 'mock@liverton.com',
+        displayName: 'Mock ' + mockRole,
+      } as any);
+      setUserData({
+        fullName: 'Mock ' + mockRole.replace('_', ' '),
+        role: mockRole as any,
+        email: 'mock@liverton.com',
+        uid: 'mock-uid',
+      } as any);
+      setUserRole(mockRole as any);
+      setLoading(false);
+      setInitialLoadComplete(true);
+      return;
+    }
+
     // Set up auth state listener only once
     unsubscribeRef.current = onAuthStateChanged(auth, async (user) => {
       try {

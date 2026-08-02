@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import SideNavbar from '@/components/SideNavbar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -10,6 +10,7 @@ import { useAnnouncementListener } from '@/hooks/useAnnouncementListener';
 export default function AuthenticatedLayout(props: { children?: React.ReactNode }) {
   const { isAuthenticated, userRole } = useAuth();
   const location = useLocation();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Listen for real-time announcements
   useAnnouncementListener();
@@ -31,24 +32,29 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
 
   return (
     <div className="min-h-screen bg-white dark:bg-background">
-      {/* Mobile: SideNavbar (hamburger drawer) + BottomNav */}
+      {/* Mobile: BottomNav only */}
       {show && (
         <>
           {/* Mobile: Bottom Nav (visible on small screens) */}
           <div className="lg:hidden">
-            <SideNavbar />
             <MobileBottomNav userRole={userRole} />
           </div>
 
-          {/* Desktop: Top Navbar (visible on large screens) */}
+          {/* Desktop: Collapsible Sidebar (visible on large screens) */}
           <div className="hidden lg:block">
-            <DesktopNavbar userRole={userRole} />
+            <DesktopNavbar
+              userRole={userRole}
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+            />
           </div>
         </>
       )}
 
       {/* Main Content Area */}
-      <main className="w-full min-h-screen pt-0 lg:pt-16 pb-24 lg:pb-4">
+      <main className={`w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 ${
+        show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
+      }`}>
         {props.children ?? <Outlet />}
       </main>
 

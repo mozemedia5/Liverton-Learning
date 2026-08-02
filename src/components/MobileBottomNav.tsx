@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
@@ -24,6 +24,9 @@ import {
   HelpCircle,
   Share2,
   X,
+  Plus,
+  Activity,
+  Image as ImageIcon,
 } from 'lucide-react';
 import type { UserRole } from '@/types';
 import { toast } from 'sonner';
@@ -36,6 +39,7 @@ type TabItem = {
   icon: React.ElementType;
   label: string;
   path: string;
+  isPlusButton?: boolean;
 };
 
 type MoreItem = {
@@ -59,64 +63,136 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const location = useLocation();
   const { userData, logout } = useAuth();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const plusMenuRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const plusButtonRef = useRef<HTMLButtonElement>(null);
 
   const activePath = location.pathname;
 
-  const tabs: TabItem[] = [
-    { icon: Home, label: 'Home', path: getHomePath(userRole) },
-    { icon: BookOpen, label: 'Courses', path: userRole === 'teacher' ? '/teacher/courses' : '/student/courses' },
-    { icon: MessageSquare, label: 'Chat', path: '/chat' },
-    { icon: FileText, label: 'Docs', path: '/features/document-workspace' },
-    { icon: MoreHorizontal, label: 'More', path: '' },
-  ];
+  // Custom Jumia-style bottom tabs dynamically selected per user role
+  const tabs: TabItem[] = useMemo(() => {
+    const homePath = getHomePath(userRole);
+    switch (userRole) {
+      case 'platform_admin':
+        return [
+          { icon: Home, label: 'Home', path: homePath },
+          { icon: Users, label: 'Users', path: '/admin/users' },
+          { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+          { icon: Shield, label: 'Moderation', path: '/admin/moderation' },
+          { icon: MoreHorizontal, label: 'More', path: '' },
+        ];
+      case 'teacher':
+        return [
+          { icon: Home, label: 'Home', path: homePath },
+          { icon: BookOpen, label: 'Courses', path: '/teacher/courses' },
+          { icon: Plus, label: 'Quick Add', path: '', isPlusButton: true },
+          { icon: MessageSquare, label: 'Chat', path: '/chat' },
+          { icon: MoreHorizontal, label: 'More', path: '' },
+        ];
+      case 'parent':
+        return [
+          { icon: Home, label: 'Home', path: homePath },
+          { icon: Users, label: 'Children', path: '/parent/students' },
+          { icon: BarChart3, label: 'Grades', path: '/parent/performance' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat' },
+          { icon: MoreHorizontal, label: 'More', path: '' },
+        ];
+      case 'school_admin':
+        return [
+          { icon: Home, label: 'Home', path: homePath },
+          { icon: Users, label: 'Students', path: '/school-admin/students' },
+          { icon: GraduationCap, label: 'Teachers', path: '/school-admin/teachers' },
+          { icon: Calendar, label: 'Attendance', path: '/school-admin/attendance' },
+          { icon: MoreHorizontal, label: 'More', path: '' },
+        ];
+      case 'student':
+      default:
+        return [
+          { icon: Home, label: 'Home', path: homePath },
+          { icon: BookOpen, label: 'Courses', path: '/student/courses' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat' },
+          { icon: FileText, label: 'Docs', path: '/features/document-workspace' },
+          { icon: MoreHorizontal, label: 'More', path: '' },
+        ];
+    }
+  }, [userRole]);
 
   const getMoreItems = useCallback((): MoreItem[] => {
-    const baseItems: MoreItem[] = [
-      { icon: Calendar, label: 'Calendar', path: '/calendar', shortcut: 'C' },
-      { icon: Video, label: 'Live Lessons', path: userRole === 'teacher' ? '/teacher/zoom-lessons' : '/student/zoom-lessons', shortcut: 'L' },
-      { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai', shortcut: 'H' },
-      { icon: Calculator, label: 'Calculator', path: '/features/calculator', shortcut: 'K' },
-    ];
+    const baseItems: MoreItem[] = [];
 
-    if (userRole === 'parent') {
-      baseItems.push({ icon: Users, label: 'My Children', path: '/parent/students', shortcut: 'M' });
-      baseItems.push({ icon: CreditCard, label: 'School Fees', path: '/parent/fees', shortcut: 'F' });
-      baseItems.push({ icon: BarChart3, label: 'Performance', path: '/parent/performance', shortcut: 'P' });
+    switch (userRole) {
+      case 'platform_admin':
+        baseItems.push(
+          { icon: Activity, label: 'Global Monitoring', path: '/admin/monitoring' },
+          { icon: Bell, label: 'Announcements', path: '/admin/dashboard-announcements' },
+          { icon: ImageIcon, label: 'Dashboard Banners', path: '/admin/dashboard-banners' },
+          { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+      case 'teacher':
+        baseItems.push(
+          { icon: HelpCircle, label: 'My Quiz', path: '/teacher/my-quiz' },
+          { icon: Users, label: 'Students', path: '/teacher/students' },
+          { icon: Video, label: 'Live Lessons', path: '/teacher/zoom-lessons' },
+          { icon: CreditCard, label: 'Earnings', path: '/payments' },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+      case 'parent':
+        baseItems.push(
+          { icon: CreditCard, label: 'School Fees', path: '/parent/fees' },
+          { icon: Video, label: 'Live Lessons', path: '/parent/zoom-lessons' },
+          { icon: BookOpen, label: 'Courses', path: '/parent/courses' },
+          { icon: FileText, label: 'Quizzes', path: '/parent/quizzes' },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+      case 'school_admin':
+        baseItems.push(
+          { icon: CreditCard, label: 'Fees', path: '/school-admin/fees' },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+      case 'student':
+      default:
+        baseItems.push(
+          { icon: FileText, label: 'Quizzes', path: '/student/quizzes' },
+          { icon: Video, label: 'Live Lessons', path: '/student/zoom-lessons' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
+        );
+        break;
     }
 
-    if (userRole === 'teacher') {
-      baseItems.push({ icon: HelpCircle, label: 'My Quiz', path: '/teacher/my-quiz', shortcut: 'Q' });
-      baseItems.push({ icon: Users, label: 'Students', path: '/teacher/students', shortcut: 'S' });
-      baseItems.push({ icon: CreditCard, label: 'Earnings', path: '/payments', shortcut: 'E' });
-    }
-
-    if (userRole === 'school_admin') {
-      baseItems.push({ icon: Users, label: 'Students', path: '/school-admin/students', shortcut: 'S' });
-      baseItems.push({ icon: GraduationCap, label: 'Teachers', path: '/school-admin/teachers', shortcut: 'T' });
-      baseItems.push({ icon: Calendar, label: 'Attendance', path: '/school-admin/attendance', shortcut: 'A' });
-      baseItems.push({ icon: CreditCard, label: 'Fees', path: '/school-admin/fees', shortcut: 'F' });
-    }
-
-    if (userRole === 'platform_admin') {
-      baseItems.push({ icon: Users, label: 'Users', path: '/admin/users', shortcut: 'U' });
-      baseItems.push({ icon: BarChart3, label: 'Analytics', path: '/admin/analytics', shortcut: 'A' });
-      baseItems.push({ icon: Shield, label: 'Moderation', path: '/admin/moderation', shortcut: 'M' });
-      baseItems.push({ icon: CreditCard, label: 'Payments', path: '/admin/payments', shortcut: 'P' });
-    }
-
-    // Shared items for all
-    baseItems.push({ icon: Bell, label: 'Announcements', path: '/announcements', shortcut: 'N' });
-    baseItems.push({ icon: User, label: 'Profile', path: '/profile', shortcut: 'R' });
-    baseItems.push({ icon: Settings, label: 'Settings', path: '/settings', shortcut: 'T' });
+    // Shared settings and profile
+    baseItems.push(
+      { icon: Settings, label: 'Settings', path: '/settings' },
+      { icon: User, label: 'Profile', path: '/profile' }
+    );
 
     return baseItems;
   }, [userRole]);
 
-  // Close more menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -126,6 +202,14 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
         !moreButtonRef.current.contains(event.target as Node)
       ) {
         setShowMoreMenu(false);
+      }
+      if (
+        plusMenuRef.current &&
+        !plusMenuRef.current.contains(event.target as Node) &&
+        plusButtonRef.current &&
+        !plusButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowPlusMenu(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -137,6 +221,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setShowMoreMenu(false);
+        setShowPlusMenu(false);
       }
     }
     document.addEventListener('keydown', handleEscape);
@@ -144,10 +229,15 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   }, []);
 
   const handleTabClick = (item: TabItem) => {
-    if (item.label === 'More') {
+    if (item.isPlusButton) {
+      setShowPlusMenu((prev) => !prev);
+      setShowMoreMenu(false);
+    } else if (item.label === 'More') {
       setShowMoreMenu((prev) => !prev);
+      setShowPlusMenu(false);
     } else {
       setShowMoreMenu(false);
+      setShowPlusMenu(false);
       navigate(item.path);
     }
   };
@@ -175,6 +265,62 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
 
   return (
     <>
+      {/* Teacher Plus Quick Add Popover Menu */}
+      {showPlusMenu && userRole === 'teacher' && (
+        <div
+          ref={plusMenuRef}
+          className="fixed z-50 popover-enter"
+          style={{
+            bottom: '90px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'calc(100% - 48px)',
+            maxWidth: '320px',
+          }}
+        >
+          <div className="rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/60 dark:border-gray-700/60 shadow-2xl p-4">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">Quick Add</span>
+              <button
+                onClick={() => setShowPlusMenu(false)}
+                className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setShowPlusMenu(false);
+                  navigate('/teacher/courses/create');
+                }}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/30 dark:hover:bg-violet-950/50 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-violet-600 dark:text-violet-200">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Add Course</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowPlusMenu(false);
+                  navigate('/teacher/quizzes/create');
+                }}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-200">
+                  <HelpCircle className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Add Quiz</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-white/95 dark:border-t-gray-900/95 -mt-px" />
+          </div>
+        </div>
+      )}
+
       {/* More Popover Menu */}
       {showMoreMenu && (
         <div
@@ -301,23 +447,24 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       )}
 
       {/* Bottom Tab Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-2 pt-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-2 pt-1 lg:hidden">
         <div className="max-w-lg mx-auto tab-enter bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl shadow-black/5 dark:shadow-black/20">
           <div className="flex items-center justify-around h-16 px-1">
             {tabs.map((item) => {
               const Icon = item.icon;
               const isMore = item.label === 'More';
-              const isActiveTab = !isMore && isActive(item.path);
+              const isPlus = item.isPlusButton;
+              const isActiveTab = !isMore && !isPlus && isActive(item.path);
 
               return (
                 <button
                   key={item.label}
-                  ref={isMore ? moreButtonRef : undefined}
+                  ref={isMore ? moreButtonRef : isPlus ? plusButtonRef : undefined}
                   onClick={() => handleTabClick(item)}
                   className={`relative flex flex-col items-center justify-center gap-0.5 flex-1 h-14 rounded-xl transition-all duration-200 ease-out ${
                     isActiveTab
                       ? 'text-violet-600 dark:text-violet-400'
-                      : isMore
+                      : isMore || isPlus
                         ? 'text-gray-600 dark:text-gray-300'
                         : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
@@ -335,15 +482,28 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                     }`}>
                       <Icon className={`w-4 h-4 transition-transform duration-200 ${showMoreMenu ? 'rotate-90' : ''}`} />
                     </div>
+                  ) : isPlus ? (
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 bg-violet-600 dark:bg-violet-500 text-white shadow-md hover:scale-110 ${
+                      showPlusMenu ? 'rotate-45 bg-red-500 dark:bg-red-500' : ''
+                    }`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
                   ) : (
                     <Icon className={`w-5 h-5 transition-transform duration-200 ${isActiveTab ? 'scale-110' : ''}`} />
                   )}
 
-                  <span className={`text-[10px] font-medium leading-none ${
-                    isActiveTab ? 'text-violet-600 dark:text-violet-400' : ''
-                  }`}>
-                    {item.label}
-                  </span>
+                  {!isPlus && (
+                    <span className={`text-[10px] font-medium leading-none ${
+                      isActiveTab ? 'text-violet-600 dark:text-violet-400' : ''
+                    }`}>
+                      {item.label}
+                    </span>
+                  )}
+                  {isPlus && (
+                    <span className="text-[10px] font-semibold leading-none text-violet-600 dark:text-violet-400">
+                      Add
+                    </span>
+                  )}
                 </button>
               );
             })}
