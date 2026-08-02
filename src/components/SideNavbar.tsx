@@ -235,8 +235,12 @@ export default function SideNavbar() {
             <X className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-gray-900 font-black text-sm tracking-tight">LL</span>
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden transition-transform duration-300 hover:scale-110">
+              <img
+                src="/logo.png"
+                alt="Liverton Learning Logo"
+                className="w-[90%] h-[90%] object-contain"
+              />
             </div>
             <div>
               <h1 className="text-lg font-bold text-white leading-tight">Liverton</h1>

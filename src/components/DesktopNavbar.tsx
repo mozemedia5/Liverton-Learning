@@ -24,8 +24,6 @@ import {
   GraduationCap,
   Shield,
   HelpCircle,
-  Share2,
-  Search,
   Activity,
   Image as ImageIcon,
 } from 'lucide-react';
@@ -265,12 +263,13 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         {/* Brand Header */}
         <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-900/50">
           <div className="flex items-center gap-3 overflow-hidden">
-            {/* Clover logo icon made of 4 rounded boxes */}
-            <div className="grid grid-cols-2 gap-[3px] w-8 h-8 flex-shrink-0">
-              <div className="w-3.5 h-3.5 bg-white rounded-tl-lg rounded-tr-sm rounded-bl-sm rounded-br-lg" />
-              <div className="w-3.5 h-3.5 bg-white rounded-tr-lg rounded-tl-sm rounded-br-sm rounded-bl-lg" />
-              <div className="w-3.5 h-3.5 bg-white rounded-bl-lg rounded-br-sm rounded-tl-sm rounded-tr-lg" />
-              <div className="w-3.5 h-3.5 bg-white rounded-br-lg rounded-bl-sm rounded-tr-sm rounded-tl-lg" />
+            {/* Brand Logo - clean container with zero cropping and smooth hover effects */}
+            <div className="w-9 h-9 rounded-xl bg-slate-900/40 border border-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300 hover:scale-110">
+              <img
+                src="/logo.png"
+                alt="Liverton Learning Logo"
+                className="w-[90%] h-[90%] object-contain"
+              />
             </div>
             {!isCollapsed && (
               <span className="text-xl font-bold text-white tracking-tight leading-none animate-in fade-in duration-300">
