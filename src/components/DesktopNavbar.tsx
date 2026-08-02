@@ -110,6 +110,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
 
@@ -128,6 +129,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
 
@@ -147,6 +149,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Announcements', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
 
@@ -164,6 +167,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Announcements', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
 
@@ -182,6 +186,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
     }

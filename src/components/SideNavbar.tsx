@@ -13,7 +13,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Menu,
   X,
   Home,
   BookOpen,
@@ -147,6 +146,7 @@ export default function SideNavbar() {
 
     // Shared routes for all authenticated users
     { label: 'Calendar', path: '/calendar', icon: Calendar },
+    { label: 'Liv Teams', path: '/features/liv-teams', icon: Users },
     { label: 'Announcements', path: '/announcements', icon: Bell },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
