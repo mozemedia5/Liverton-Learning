@@ -23,7 +23,6 @@ import {
   Megaphone,
   Image as ImageIcon
 } from 'lucide-react';
-import AdminLayout from '@/components/AdminLayout';
 import BannerCarousel from '@/components/BannerCarousel';
 import { 
   getDashboardStats, 
@@ -185,8 +184,7 @@ export default function PlatformAdminDashboard() {
   const pendingSchools = pendingUsers.filter(u => u.role === 'school_admin');
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Dashboard Banner */}
         <BannerCarousel />
 
@@ -787,6 +785,5 @@ export default function PlatformAdminDashboard() {
           </Card>
         </div>
       </div>
-    </AdminLayout>
   );
 }

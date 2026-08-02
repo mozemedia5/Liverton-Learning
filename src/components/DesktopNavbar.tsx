@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
@@ -12,6 +12,8 @@ import {
   User,
   Settings,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Sparkles,
   Video,
@@ -24,19 +26,24 @@ import {
   HelpCircle,
   Share2,
   Search,
+  Activity,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 
 interface DesktopNavbarProps {
   userRole: UserRole | null;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
 }
 
 type NavItem = {
   icon: React.ElementType;
   label: string;
   path: string;
-  shortcut?: string;
+  badge?: string | number;
+  dot?: boolean;
 };
 
 function getHomePath(role: UserRole | null) {
@@ -48,84 +55,152 @@ function getHomePath(role: UserRole | null) {
   return '/student/dashboard';
 }
 
-export function DesktopNavbar({ userRole }: DesktopNavbarProps) {
+export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: DesktopNavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { userData, logout } = useAuth();
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
-  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userButtonRef = useRef<HTMLButtonElement>(null);
 
   const activePath = location.pathname;
 
-  const primaryItems: NavItem[] = [
-    { icon: Home, label: 'Home', path: getHomePath(userRole), shortcut: 'H' },
-    { icon: BookOpen, label: 'Courses', path: userRole === 'teacher' ? '/teacher/courses' : '/student/courses', shortcut: 'C' },
-    { icon: MessageSquare, label: 'Chat', path: '/chat', shortcut: 'M' },
-    { icon: FileText, label: 'Documents', path: '/features/document-workspace', shortcut: 'D' },
-  ];
+  const isActive = (path: string) => activePath === path;
 
-  const getMoreItems = (): NavItem[] => {
-    const items: NavItem[] = [
-      { icon: Calendar, label: 'Calendar', path: '/calendar', shortcut: 'C' },
-      { icon: Video, label: 'Live Lessons', path: userRole === 'teacher' ? '/teacher/zoom-lessons' : '/student/zoom-lessons', shortcut: 'L' },
-      { icon: Bell, label: 'Announcements', path: '/announcements', shortcut: 'A' },
-      { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai', shortcut: 'H' },
-      { icon: Calculator, label: 'Calculator', path: '/features/calculator', shortcut: 'K' },
-    ];
+  // Custom Workspace Selector Name & Letter
+  const workspaceInfo = useMemo(() => {
+    switch (userRole) {
+      case 'platform_admin':
+        return { letter: 'A', name: 'Platform Admin' };
+      case 'school_admin':
+        return { letter: 'S', name: 'School Admin' };
+      case 'teacher':
+        return { letter: 'T', name: 'Teacher Workspace' };
+      case 'parent':
+        return { letter: 'P', name: 'Parent Dashboard' };
+      case 'student':
+      default:
+        return { letter: 'C', name: 'Student Workspace' };
+    }
+  }, [userRole]);
 
-    if (userRole === 'parent') {
-      items.push(
-        { icon: Users, label: 'My Children', path: '/parent/students', shortcut: 'M' },
-        { icon: BarChart3, label: 'Performance', path: '/parent/performance', shortcut: 'P' },
-        { icon: CreditCard, label: 'School Fees', path: '/parent/fees', shortcut: 'F' },
-      );
+  // Section Items divided like the reference image
+  const sections = useMemo(() => {
+    const general: NavItem[] = [];
+    const tools: NavItem[] = [];
+
+    const homePath = getHomePath(userRole);
+    const homeItem = { icon: Home, label: 'Dashboard', path: homePath };
+
+    switch (userRole) {
+      case 'platform_admin':
+        general.push(
+          homeItem,
+          { icon: Users, label: 'Users', path: '/admin/users' },
+          { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+          { icon: Shield, label: 'Moderation', path: '/admin/moderation' }
+        );
+        tools.push(
+          { icon: Activity, label: 'Monitoring', path: '/admin/monitoring' },
+          { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
+          { icon: ImageIcon, label: 'Banners', path: '/admin/dashboard-banners' },
+          { icon: Bell, label: 'Announcements', path: '/admin/dashboard-announcements', badge: 2 },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+        );
+        break;
+
+      case 'teacher':
+        general.push(
+          homeItem,
+          { icon: BookOpen, label: 'My Courses', path: '/teacher/courses' },
+          { icon: HelpCircle, label: 'My Quiz', path: '/teacher/my-quiz' },
+          { icon: Users, label: 'Students', path: '/teacher/students' }
+        );
+        tools.push(
+          { icon: Video, label: 'Live Lessons', path: '/teacher/zoom-lessons' },
+          { icon: CreditCard, label: 'Earnings', path: '/payments' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+
+      case 'parent':
+        general.push(
+          homeItem,
+          { icon: Users, label: 'My Children', path: '/parent/students' },
+          { icon: BarChart3, label: 'Performance', path: '/parent/performance' },
+          { icon: CreditCard, label: 'School Fees', path: '/parent/fees' }
+        );
+        tools.push(
+          { icon: Video, label: 'Live Lessons', path: '/parent/zoom-lessons' },
+          { icon: BookOpen, label: 'Courses', path: '/parent/courses' },
+          { icon: FileText, label: 'Quizzes', path: '/parent/quizzes' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+
+      case 'school_admin':
+        general.push(
+          homeItem,
+          { icon: Users, label: 'Students', path: '/school-admin/students' },
+          { icon: GraduationCap, label: 'Teachers', path: '/school-admin/teachers' },
+          { icon: Calendar, label: 'Attendance', path: '/school-admin/attendance' }
+        );
+        tools.push(
+          { icon: CreditCard, label: 'Fees', path: '/school-admin/fees' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+        );
+        break;
+
+      case 'student':
+      default:
+        general.push(
+          homeItem,
+          { icon: BookOpen, label: 'Courses', path: '/student/courses' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
+          { icon: FileText, label: 'Documents', path: '/features/document-workspace' }
+        );
+        tools.push(
+          { icon: FileText, label: 'Quizzes', path: '/student/quizzes' },
+          { icon: Video, label: 'Live Lessons', path: '/student/zoom-lessons' },
+          { icon: Calendar, label: 'Calendar', path: '/calendar' },
+          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
+        );
+        break;
     }
 
-    if (userRole === 'teacher') {
-      items.push(
-        { icon: HelpCircle, label: 'My Quiz', path: '/teacher/my-quiz', shortcut: 'Q' },
-        { icon: Users, label: 'Students', path: '/teacher/students', shortcut: 'S' },
-        { icon: CreditCard, label: 'Earnings', path: '/payments', shortcut: 'E' },
-      );
-    }
-
-    if (userRole === 'school_admin') {
-      items.push(
-        { icon: Users, label: 'Students', path: '/school-admin/students', shortcut: 'S' },
-        { icon: GraduationCap, label: 'Teachers', path: '/school-admin/teachers', shortcut: 'T' },
-        { icon: Calendar, label: 'Attendance', path: '/school-admin/attendance', shortcut: 'A' },
-        { icon: CreditCard, label: 'Fees', path: '/school-admin/fees', shortcut: 'F' },
-      );
-    }
-
-    if (userRole === 'platform_admin') {
-      items.push(
-        { icon: Users, label: 'Users', path: '/admin/users', shortcut: 'U' },
-        { icon: BarChart3, label: 'Analytics', path: '/admin/analytics', shortcut: 'A' },
-        { icon: Shield, label: 'Moderation', path: '/admin/moderation', shortcut: 'M' },
-        { icon: CreditCard, label: 'Payments', path: '/admin/payments', shortcut: 'P' },
-      );
-    }
-
-    items.push(
-      { icon: BarChart3, label: 'Analytics', path: '/features/analytics', shortcut: 'A' },
+    // Shared standard tools
+    tools.push(
+      { icon: Settings, label: 'Settings', path: '/settings' },
+      { icon: User, label: 'Profile', path: '/profile' }
     );
 
-    return items;
-  };
+    return { general, tools };
+  }, [userRole]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       await logout();
       setShowLogoutDialog(false);
-      setShowMoreMenu(false);
       setShowUserMenu(false);
       toast.success('Logged out successfully');
       navigate('/login');
@@ -135,19 +210,9 @@ export function DesktopNavbar({ userRole }: DesktopNavbarProps) {
     }
   };
 
-  const isActive = (path: string) => activePath === path;
-
-  // Close on outside click
+  // Close user dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        moreMenuRef.current &&
-        !moreMenuRef.current.contains(event.target as Node) &&
-        moreButtonRef.current &&
-        !moreButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowMoreMenu(false);
-      }
       if (
         userMenuRef.current &&
         !userMenuRef.current.contains(event.target as Node) &&
@@ -167,24 +232,17 @@ export function DesktopNavbar({ userRole }: DesktopNavbarProps) {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
 
       if (event.key === 'Escape') {
-        setShowMoreMenu(false);
         setShowUserMenu(false);
         return;
       }
 
-      if (showMoreMenu || showUserMenu) return;
+      if (showUserMenu) return;
 
-      // Build shortcut map on demand
       const shortcutMap: Record<string, string> = {
-        // Primary items
         'h': getHomePath(userRole),
         'c': userRole === 'teacher' ? '/teacher/courses' : '/student/courses',
         'm': '/chat',
         'd': '/features/document-workspace',
-        // More items
-        'a': userRole === 'teacher' ? '/school-admin/attendance' : userRole === 'parent' ? '/parent/students' : '/announcements',
-        'l': userRole === 'teacher' ? '/teacher/zoom-lessons' : '/student/zoom-lessons',
-        'k': '/features/calculator',
         's': '/settings',
       };
 
@@ -195,233 +253,270 @@ export function DesktopNavbar({ userRole }: DesktopNavbarProps) {
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showMoreMenu, showUserMenu, userRole]);
+  }, [navigate, showUserMenu, userRole]);
 
   return (
     <>
-      {/* Desktop Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50">
-        <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-          {/* Left: Logo */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(getHomePath(userRole))}
-              className="flex items-center gap-2.5 group"
-            >
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow duration-200">
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight leading-tight">Liverton</h1>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium -mt-0.5">Learning Platform</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Center: Primary Nav Items */}
-          <div className="flex items-center gap-1">
-            {primaryItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.path);
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-                    active
-                      ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden md:inline">{item.label}</span>
-                </button>
-              );
-            })}
-
-            {/* More Menu Trigger */}
-            <div className="relative" ref={moreButtonRef}>
-              <button
-                onClick={() => {
-                  setShowMoreMenu(!showMoreMenu);
-                  setShowUserMenu(false);
-                }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-                  showMoreMenu
-                    ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <span className="hidden md:inline">More</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showMoreMenu ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* More Dropdown Menu */}
-              {showMoreMenu && (
-                <div
-                  ref={moreMenuRef}
-                  className="absolute top-full right-0 mt-2 w-72 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/60 dark:border-gray-700/60 shadow-2xl shadow-black/10 dark:shadow-black/30 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 duration-150"
-                >
-                  {/* Header */}
-                  <div className="px-4 pt-3 pb-2 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Navigation</span>
-                  </div>
-
-                  {/* Items */}
-                  <div className="py-2 px-2 max-h-[320px] overflow-y-auto">
-                    <div className="space-y-0.5">
-                      {getMoreItems().map((item, index) => {
-                        const Icon = item.icon;
-                        const active = isActive(item.path);
-                        return (
-                          <button
-                            key={item.path + index}
-                            onClick={() => {
-                              setShowMoreMenu(false);
-                              navigate(item.path);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-150 group ${
-                              active
-                                ? 'bg-violet-50 dark:bg-violet-950/40'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                active
-                                  ? 'bg-violet-100 dark:bg-violet-900/40'
-                                  : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gray-200 dark:group-hover:bg-gray-700'
-                              }`}>
-                                <Icon className={`w-3.5 h-3.5 ${
-                                  active
-                                    ? 'text-violet-600 dark:text-violet-400'
-                                    : 'text-gray-500 dark:text-gray-400'
-                                }`} />
-                              </div>
-                              <span className={`text-sm font-medium ${
-                                active
-                                  ? 'text-violet-700 dark:text-violet-300'
-                                  : 'text-gray-700 dark:text-gray-200'
-                              }`}>
-                                {item.label}
-                              </span>
-                            </div>
-                            {item.shortcut && (
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                active
-                                  ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
-                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
-                              }`}>
-                                {item.shortcut}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Footer actions */}
-                  <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
-                    <button
-                      onClick={() => { setShowMoreMenu(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-150"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                      <span className="text-sm font-medium">Share App</span>
-                    </button>
-                    <button
-                      onClick={() => { setShowMoreMenu(false); setShowLogoutDialog(true); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span className="text-sm font-medium">Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+      <aside
+        className={`fixed top-0 left-0 bottom-0 z-40 bg-[#020c1b] text-slate-300 border-r border-slate-900/40 shadow-2xl transition-all duration-300 flex flex-col overflow-hidden ${
+          isCollapsed ? 'w-20' : 'w-72'
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-900/50">
+          <div className="flex items-center gap-3 overflow-hidden">
+            {/* Clover logo icon made of 4 rounded boxes */}
+            <div className="grid grid-cols-2 gap-[3px] w-8 h-8 flex-shrink-0">
+              <div className="w-3.5 h-3.5 bg-white rounded-tl-lg rounded-tr-sm rounded-bl-sm rounded-br-lg" />
+              <div className="w-3.5 h-3.5 bg-white rounded-tr-lg rounded-tl-sm rounded-br-sm rounded-bl-lg" />
+              <div className="w-3.5 h-3.5 bg-white rounded-bl-lg rounded-br-sm rounded-tl-sm rounded-tr-lg" />
+              <div className="w-3.5 h-3.5 bg-white rounded-br-lg rounded-bl-sm rounded-tr-sm rounded-tl-lg" />
             </div>
+            {!isCollapsed && (
+              <span className="text-xl font-bold text-white tracking-tight leading-none animate-in fade-in duration-300">
+                Liverton
+              </span>
+            )}
           </div>
 
-          {/* Right: User Menu */}
-          <div className="flex items-center gap-3">
-            {/* Search */}
+          {!isCollapsed && (
             <button
-              onClick={() => navigate('/search')}
-              className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+              onClick={() => setIsCollapsed(true)}
+              className="w-7 h-7 rounded-lg bg-slate-900/50 hover:bg-slate-900 flex items-center justify-center border border-slate-800 text-slate-400 hover:text-white transition-colors"
+              title="Collapse Menu"
             >
-              <Search className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
+          )}
 
-            {/* User Avatar / Menu */}
-            <div className="relative" ref={userButtonRef}>
+          {isCollapsed && (
+            <div className="w-full flex justify-center mt-1">
+              <button
+                onClick={() => setIsCollapsed(false)}
+                className="w-7 h-7 rounded-lg bg-slate-900/50 hover:bg-slate-900 flex items-center justify-center border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                title="Expand Menu"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Workspace Selector (Role Display) */}
+        <div className="p-4 border-b border-slate-900/50">
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/40 hover:bg-slate-900/60 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black shadow-lg flex-shrink-0">
+                  {workspaceInfo.letter}
+                </div>
+                <div className="text-left overflow-hidden">
+                  <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase leading-none">
+                    Workspace
+                  </p>
+                  <p className="text-sm font-bold text-white truncate mt-0.5">
+                    {workspaceInfo.name}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <div
+                className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black shadow-lg cursor-pointer"
+                title={workspaceInfo.name}
+                onClick={() => setIsCollapsed(false)}
+              >
+                {workspaceInfo.letter}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Nav Items Section */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin">
+          {/* General Section */}
+          <div>
+            {!isCollapsed ? (
+              <span className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2 block">
+                General
+              </span>
+            ) : (
+              <div className="border-t border-slate-900/30 my-2" />
+            )}
+            <ul className="space-y-1">
+              {sections.general.map((item, idx) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <li key={item.path + idx} className="relative group">
+                    <button
+                      onClick={() => navigate(item.path)}
+                      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                        active
+                          ? 'bg-blue-600 text-white font-semibold shadow-lg shadow-blue-600/10'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
+                      {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                      {item.badge && !isCollapsed && (
+                        <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                    {/* Collapsed Tooltip */}
+                    {isCollapsed && (
+                      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold whitespace-nowrap shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 pointer-events-none transition-all duration-150 z-50">
+                        {item.label}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Tools Section */}
+          <div>
+            {!isCollapsed ? (
+              <span className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2 block">
+                Tools
+              </span>
+            ) : (
+              <div className="border-t border-slate-900/30 my-2" />
+            )}
+            <ul className="space-y-1">
+              {sections.tools.map((item, idx) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <li key={item.path + idx} className="relative group">
+                    <button
+                      onClick={() => navigate(item.path)}
+                      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                        active
+                          ? 'bg-blue-600 text-white font-semibold shadow-lg shadow-blue-600/10'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
+                      {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                      {item.badge && !isCollapsed && (
+                        <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                    {/* Collapsed Tooltip */}
+                    {isCollapsed && (
+                      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold whitespace-nowrap shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 pointer-events-none transition-all duration-150 z-50">
+                        {item.label}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+
+        {/* User Card / Profile Section at Bottom */}
+        <div className="p-4 border-t border-slate-900/50">
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/20 hover:bg-slate-900/40 transition-colors">
               <button
                 ref={userButtonRef}
-                onClick={() => {
-                  setShowUserMenu(!showUserMenu);
-                  setShowMoreMenu(false);
-                }}
-                className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-3 text-left overflow-hidden group flex-1"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                  <span className="text-white font-semibold text-xs">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md flex-shrink-0">
+                  <span className="text-white font-bold text-sm">
                     {userData?.fullName?.charAt(0).toUpperCase() || 'U'}
                   </span>
                 </div>
-                <div className="hidden lg:block text-left">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight">
+                <div className="overflow-hidden">
+                  <p className="text-sm font-semibold text-white truncate leading-tight">
                     {userData?.fullName || 'User'}
                   </p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 capitalize">
+                  <p className="text-[10px] text-slate-400 capitalize truncate mt-0.5">
                     {userRole?.replace('_', ' ')}
                   </p>
                 </div>
-                <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* User Dropdown */}
-              {showUserMenu && (
-                <div
-                  ref={userMenuRef}
-                  className="absolute top-full right-0 mt-2 w-56 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/60 dark:border-gray-700/60 shadow-2xl shadow-black/10 dark:shadow-black/30 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 duration-150"
-                >
-                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{userData?.fullName || 'User'}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{userRole?.replace('_', ' ')}</p>
-                  </div>
-                  <div className="py-2 px-2 space-y-0.5">
-                    <button
-                      onClick={() => { setShowUserMenu(false); navigate('/profile'); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-150"
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Profile</span>
-                    </button>
-                    <button
-                      onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-150"
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span>Settings</span>
-                    </button>
-                  </div>
-                  <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800">
-                    <button
-                      onClick={() => { setShowUserMenu(false); setShowLogoutDialog(true); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150 text-sm font-medium"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => setShowLogoutDialog(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors ml-2"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 relative group">
+              <button
+                ref={userButtonRef}
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md"
+                title="View Account"
+              >
+                <span className="text-white font-bold text-sm">
+                  {userData?.fullName?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setShowLogoutDialog(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* User Custom Options Menu popover on Desktop sidebar */}
+      {showUserMenu && (
+        <div
+          ref={userMenuRef}
+          className="fixed z-50 rounded-2xl bg-[#030f26] border border-slate-800 shadow-2xl overflow-hidden animate-in fade-in-0 duration-150"
+          style={{
+            bottom: '80px',
+            left: isCollapsed ? '90px' : '20px',
+            width: '240px',
+          }}
+        >
+          <div className="px-4 py-3 border-b border-slate-900/50 bg-slate-950/20">
+            <p className="text-sm font-semibold text-white truncate">{userData?.fullName || 'User'}</p>
+            <p className="text-[10px] text-slate-400 capitalize truncate mt-0.5">{userRole?.replace('_', ' ')}</p>
+          </div>
+          <div className="py-2 px-2 space-y-0.5">
+            <button
+              onClick={() => { setShowUserMenu(false); navigate('/profile'); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors"
+            >
+              <User className="w-4 h-4" />
+              <span>Profile</span>
+            </button>
+            <button
+              onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
+            </button>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* Logout Confirmation */}
+      {/* Logout Confirmation Dialog */}
       <LogoutConfirmDialog
         open={showLogoutDialog}
         onConfirm={handleLogout}
