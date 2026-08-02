@@ -33,6 +33,7 @@ import { ChatMessage } from '@/components/ChatMessage';
 import { ChatSettings } from '@/components/ChatSettings';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import type { ChatSettings as ChatSettingsType, Message as ChatMessageType } from '@/types/chat';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 
 interface Message {
   id: string;
@@ -267,7 +268,11 @@ export default function Chat() {
    */
   const getChatIcon = (type: 'direct' | 'hanna') => {
     return type === 'hanna' ? (
-      <Sparkles className="w-4 h-4 text-purple-500" />
+      <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded bg-black">
+        <span className="scale-[1.6] flex items-center justify-center">
+          <AskHannaIcon size={20} showText={false} />
+        </span>
+      </span>
     ) : (
       <Users className="w-4 h-4 text-blue-500" />
     );
@@ -447,7 +452,9 @@ export default function Chat() {
                   <div className="text-center">
                     {chatSessions.find(c => c.id === currentChatId)?.type === 'hanna' ? (
                       <>
-                        <Sparkles className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+                        <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-2xl bg-black shadow-lg">
+                          <AskHannaIcon size={64} showText={false} />
+                        </div>
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Welcome to Hanna AI</h2>
                         <p className="text-gray-600 dark:text-gray-400 max-w-md">
                           I'm Hanna, your AI assistant. Ask me anything about your courses, learning progress, or any questions you have!
@@ -637,10 +644,14 @@ export default function Chat() {
             <div className="space-y-3">
               <Button
                 onClick={() => handleCreateNewChat('hanna')}
-                className="w-full bg-purple-500 hover:bg-purple-600 text-white justify-start rounded-lg"
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white justify-start rounded-lg gap-2"
                 disabled={isLoading}
               >
-                <Sparkles className="w-4 h-4 mr-2" />
+                <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded bg-black">
+                  <span className="scale-[1.6] flex items-center justify-center">
+                    <AskHannaIcon size={20} showText={false} />
+                  </span>
+                </span>
                 Chat with Hanna AI
               </Button>
               <Button

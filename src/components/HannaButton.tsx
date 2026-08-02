@@ -5,11 +5,11 @@
  * No intermediate dialog — clean, direct, instant.
  */
 
-import { Bot, Sparkles } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 
 /**
  * HannaButton Component
@@ -38,10 +38,10 @@ export function HannaButton() {
   const handleAskHanna = async () => {
     try {
       if (currentUser) {
-        // Create a fresh chat session so user lands on a new conversation
-        const docRef = await addDoc(collection(db, 'hannaChats'), {
+        // Create a fresh chat session so user lands on a new conversation in correct hanna_chats collection
+        const docRef = await addDoc(collection(db, 'hanna_chats'), {
           userId: currentUser.uid,
-          title: 'New Chat',
+          title: `Chat with Hanna - ${new Date().toLocaleDateString()}`,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
           messageCount: 0,
@@ -64,7 +64,7 @@ export function HannaButton() {
       className="
         fixed bottom-28 right-5 z-30 lg:bottom-6
         flex items-center gap-2
-        px-4 py-3 rounded-2xl
+        p-1.5 pr-4 rounded-2xl
         bg-gradient-to-br from-violet-600 via-purple-600 to-blue-600
         hover:from-violet-500 hover:via-purple-500 hover:to-blue-500
         text-white font-semibold text-sm
@@ -76,11 +76,10 @@ export function HannaButton() {
     >
       {/* Animated AI icon */}
       <div className="relative flex-shrink-0">
-        <Bot className="w-5 h-5" />
-        <Sparkles className="w-2.5 h-2.5 absolute -top-1 -right-1 text-yellow-300 animate-pulse" />
+        <AskHannaIcon size={34} showText={false} className="rounded-xl shadow-md" />
       </div>
       {/* Label */}
-      <span className="whitespace-nowrap">Ask Hanna</span>
+      <span className="whitespace-nowrap font-bold text-gray-100">Ask Hanna</span>
     </button>
   );
 }

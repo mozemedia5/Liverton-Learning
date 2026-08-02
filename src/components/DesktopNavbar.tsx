@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 
 interface DesktopNavbarProps {
   userRole: UserRole | null;
@@ -348,6 +349,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
               {sections.general.map((item, idx) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);
+                const isHannaAI = item.label === 'Hanna AI';
                 return (
                   <li key={item.path + idx} className="relative group">
                     <button
@@ -358,7 +360,15 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/50'
                       }`}
                     >
-                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {isHannaAI ? (
+                        <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded-md flex-shrink-0">
+                          <span className="scale-[1.6] flex items-center justify-center">
+                            <AskHannaIcon size={20} showText={false} />
+                          </span>
+                        </span>
+                      ) : (
+                        <Icon className="w-5 h-5 flex-shrink-0" />
+                      )}
                       {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
                       {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                       {item.badge && !isCollapsed && (
@@ -392,6 +402,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
               {sections.tools.map((item, idx) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);
+                const isHannaAI = item.label === 'Hanna AI';
                 return (
                   <li key={item.path + idx} className="relative group">
                     <button
@@ -402,7 +413,15 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/50'
                       }`}
                     >
-                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {isHannaAI ? (
+                        <span className="w-5 h-5 flex items-center justify-center overflow-hidden rounded-md flex-shrink-0">
+                          <span className="scale-[1.6] flex items-center justify-center">
+                            <AskHannaIcon size={20} showText={false} />
+                          </span>
+                        </span>
+                      ) : (
+                        <Icon className="w-5 h-5 flex-shrink-0" />
+                      )}
                       {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
                       {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                       {item.badge && !isCollapsed && (

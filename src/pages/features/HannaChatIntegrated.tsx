@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -49,6 +51,8 @@ interface ChatSession {
 
 export default function HannaChatIntegrated() {
   const { userData, currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
+  const sessionParam = searchParams.get('session');
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -90,7 +94,9 @@ export default function HannaChatIntegrated() {
         });
 
         setChatSessions(sortedSessions);
-        if (sortedSessions.length > 0 && !currentChatId) {
+        if (sessionParam) {
+          setCurrentChatId(sessionParam);
+        } else if (sortedSessions.length > 0 && !currentChatId) {
           setCurrentChatId(sortedSessions[0].id);
         }
       },
@@ -242,7 +248,11 @@ export default function HannaChatIntegrated() {
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-600" />
+            <span className="w-6 h-6 flex items-center justify-center overflow-hidden rounded bg-black">
+              <span className="scale-[1.6] flex items-center justify-center">
+                <AskHannaIcon size={24} showText={false} />
+              </span>
+            </span>
             Hanna AI
           </h1>
           <div className="flex gap-2">
@@ -311,8 +321,8 @@ export default function HannaChatIntegrated() {
                 <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(true)}>
                   <Menu className="w-5 h-5" />
                 </Button>
-                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-purple-600">
-                   <Sparkles className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-lg">
+                   <AskHannaIcon size={40} showText={false} />
                 </div>
                 <div>
                   <h2 className="font-bold leading-tight">Hanna AI Assistant</h2>
@@ -372,8 +382,8 @@ export default function HannaChatIntegrated() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-             <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-6">
-               <Sparkles className="w-10 h-10 text-purple-600" />
+             <div className="w-20 h-20 bg-black rounded-2xl flex items-center justify-center mb-6 shadow-xl">
+               <AskHannaIcon size={80} showText={false} />
              </div>
              <h2 className="text-2xl font-bold mb-2">Welcome to Hanna AI</h2>
              <p className="text-gray-500 max-w-md mb-8">
