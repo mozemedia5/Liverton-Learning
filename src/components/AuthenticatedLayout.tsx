@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import SideNavbar from '@/components/SideNavbar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopNavbar } from '@/components/DesktopNavbar';
 import { HannaButton } from '@/components/HannaButton';

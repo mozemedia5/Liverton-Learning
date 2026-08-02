@@ -137,6 +137,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
       case 'teacher':
@@ -149,6 +150,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
       case 'parent':
@@ -161,6 +163,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
       case 'school_admin':
@@ -171,6 +174,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
       case 'student':
@@ -182,6 +186,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
+          { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
         break;
     }
