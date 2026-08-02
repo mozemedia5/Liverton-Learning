@@ -50,7 +50,7 @@ def create_icon(input_path, output_path, size, maskable=False):
     print(f"Created: {output_path} ({size}x{size}){' [Maskable]' if maskable else ''}")
 
 def main():
-    base_dir = '/home/ubuntu/Liverton-Learning'
+    base_dir = '/app'
     input_logo = os.path.join(base_dir, 'public/icons/original-logo.png')
     output_dir = os.path.join(base_dir, 'public/icons')
     

@@ -80,8 +80,12 @@ export default function Courses() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white dark:text-black" />
+              <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 transition-transform duration-300 hover:scale-110">
+                <img
+                  src="/logo.png"
+                  alt="Liverton Learning Logo"
+                  className="w-[90%] h-[90%] object-contain"
+                />
               </div>
               <span className="font-semibold">Courses</span>
             </div>

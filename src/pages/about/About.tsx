@@ -63,8 +63,12 @@ export default function About() {
           {/* Hero */}
           <div className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-16 h-16 bg-black dark:bg-white rounded-xl flex items-center justify-center">
-                <BookOpen className="w-8 h-8 text-white dark:text-black" />
+              <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-110 shadow-md">
+                <img
+                  src="/logo.png"
+                  alt="Liverton Learning Logo"
+                  className="w-[90%] h-[90%] object-contain"
+                />
               </div>
             </div>
             <h1 className="text-4xl font-bold">About Liverton Learning</h1>
