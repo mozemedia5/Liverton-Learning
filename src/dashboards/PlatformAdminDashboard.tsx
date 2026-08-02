@@ -24,6 +24,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import BannerCarousel from '@/components/BannerCarousel';
+import MotivationCorner from '@/components/MotivationCorner';
 import { 
   getDashboardStats, 
   getPendingVerifications,
@@ -188,6 +189,9 @@ export default function PlatformAdminDashboard() {
         {/* Dashboard Banner */}
         <BannerCarousel />
 
+        {/* Motivation Corner widget */}
+        <MotivationCorner />
+
         {/* Welcome */}
         <div className="flex items-center justify-between">
           <div>
@@ -347,7 +351,7 @@ export default function PlatformAdminDashboard() {
                     <Bell className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <p className="font-semibold">Announcements</p>
+                    <p className="font-semibold">Notifications</p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">Post & view messages</p>
                   </div>
                 </div>
@@ -452,13 +456,13 @@ export default function PlatformAdminDashboard() {
 
         {/* Quick Access: Announcements & Chat */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Announcements Section */}
+          {/* Notifications Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-1">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Bell className="w-5 h-5 text-blue-600" />
-                  Announcements
+                  Notifications
                 </CardTitle>
               </div>
               <Button 
@@ -485,7 +489,7 @@ export default function PlatformAdminDashboard() {
                   className="w-full text-sm justify-between"
                   onClick={() => navigate('/announcements')}
                 >
-                  View all announcements
+                  View all notifications
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>

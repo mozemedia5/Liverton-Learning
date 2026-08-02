@@ -5,17 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   ArrowLeft, 
   Send, 
   Loader2,
   Bell,
-  Users
+  Users,
+  Megaphone,
+  BookOpen,
+  Clock,
+  Sparkles,
+  Award
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { createNotification } from '@/services/announcementService';
 
 export default function CreateAnnouncement() {
   const navigate = useNavigate();
@@ -23,10 +28,11 @@ export default function CreateAnnouncement() {
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
+    type: 'announcement' as 'announcement' | 'quiz' | 'course' | 'reminder' | 'motivation',
     title: '',
-    message: '',
+    body: '',
+    link: '',
     targetAudience: [] as string[],
-    priority: 'normal' as 'normal' | 'urgent' | 'info',
   });
 
   const audienceOptions = [
@@ -37,10 +43,12 @@ export default function CreateAnnouncement() {
     { id: 'all', label: 'Everyone', icon: '🌍' },
   ];
 
-  const priorityOptions = [
-    { id: 'info', label: 'ℹ️ Info', description: 'General information' },
-    { id: 'normal', label: '📢 Normal', description: 'Standard announcement' },
-    { id: 'urgent', label: '🚨 Urgent', description: 'Requires immediate attention' },
+  const typesOptions = [
+    { value: 'announcement', label: 'Announcement', icon: Megaphone },
+    { value: 'quiz', label: 'Quiz Alert', icon: Award },
+    { value: 'course', label: 'Course Notification', icon: BookOpen },
+    { value: 'reminder', label: 'General Reminder', icon: Clock },
+    { value: 'motivation', label: 'Motivation Quote', icon: Sparkles },
   ];
 
   const handleAudienceChange = (id: string) => {
@@ -62,12 +70,12 @@ export default function CreateAnnouncement() {
     e.preventDefault();
     
     if (!formData.title.trim()) {
-      toast.error('Please enter an announcement title');
+      toast.error('Please enter a notification title');
       return;
     }
 
-    if (!formData.message.trim()) {
-      toast.error('Please enter an announcement message');
+    if (!formData.body.trim()) {
+      toast.error('Please enter notification content');
       return;
     }
 
@@ -79,28 +87,22 @@ export default function CreateAnnouncement() {
     try {
       setLoading(true);
 
-      // Calculate expiry date (2 days for announcements)
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 2);
-
-      await addDoc(collection(db, 'textAnnouncements'), {
+      await createNotification({
+        type: formData.type,
         title: formData.title.trim(),
-        message: formData.message.trim(),
-        priority: formData.priority,
+        body: formData.body.trim(),
+        link: formData.link.trim() || undefined,
         targetAudience: formData.targetAudience,
         sender: userData?.fullName || userData?.name || 'Unknown',
         senderId: currentUser?.uid || '',
         senderRole: userRole || 'unknown',
-        createdAt: Timestamp.now(),
-        expiresAt: Timestamp.fromDate(expiresAt),
-        isHidden: false,
       });
 
-      toast.success('Announcement created successfully!');
+      toast.success('Notification created successfully!');
       navigate('/announcements');
     } catch (error) {
-      console.error('Error creating announcement:', error);
-      toast.error('Failed to create announcement');
+      console.error('Error creating notification:', error);
+      toast.error('Failed to broadcast notification');
     } finally {
       setLoading(false);
     }
@@ -111,75 +113,93 @@ export default function CreateAnnouncement() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Bell className="w-6 h-6 text-blue-600" />
-              Create Announcement
+              New Broadcast Alert
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Send a message or notification to your audience
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Create and dispatch real-time system alerts to selected workspaces, like SALAF.
             </p>
           </div>
         </div>
 
-        <Card>
+        <Card className="rounded-2xl border shadow-sm">
           <CardHeader>
-            <CardTitle>Announcement Details</CardTitle>
+            <CardTitle className="text-lg">Notification Specifications</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               
+              {/* Type Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="type">Alert Category Type</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(val: any) => setFormData({ ...formData, type: val })}
+                >
+                  <SelectTrigger className="w-full rounded-xl">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {typesOptions.map(opt => {
+                      const Icon = opt.icon;
+                      return (
+                        <SelectItem key={opt.value} value={opt.value} className="rounded-lg">
+                          <span className="flex items-center gap-2 text-sm font-medium">
+                            <Icon className="w-4 h-4 text-blue-600" />
+                            {opt.label}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title">Broadcast Title *</Label>
                 <Input
                   id="title"
                   type="text"
-                  placeholder="e.g. School Closure Notice, Exam Timetable Released..."
+                  placeholder="e.g. System Maintenance, Exam Timetable, Study Motivation..."
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
                   maxLength={100}
+                  className="rounded-xl"
                 />
-                <p className="text-xs text-gray-500">{formData.title.length}/100 characters</p>
               </div>
 
-              {/* Message */}
+              {/* Body */}
               <div className="space-y-2">
-                <Label htmlFor="message">Message *</Label>
+                <Label htmlFor="body">Notification Details / Content *</Label>
                 <Textarea
-                  id="message"
-                  placeholder="Type your announcement here. Be clear and concise..."
-                  value={formData.message}
-                  onChange={e => setFormData({ ...formData, message: e.target.value })}
+                  id="body"
+                  placeholder="Enter detailed message contents to broadcast..."
+                  value={formData.body}
+                  onChange={e => setFormData({ ...formData, body: e.target.value })}
                   rows={5}
                   maxLength={1000}
+                  className="rounded-xl"
                 />
-                <p className="text-xs text-gray-500">{formData.message.length}/1000 characters</p>
               </div>
 
-              {/* Priority */}
-              <div className="space-y-3">
-                <Label>Priority Level</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {priorityOptions.map(opt => (
-                    <div
-                      key={opt.id}
-                      onClick={() => setFormData({ ...formData, priority: opt.id as any })}
-                      className={`
-                        flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all
-                        ${formData.priority === opt.id 
-                          ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white' 
-                          : 'bg-white text-gray-600 border-gray-200 dark:bg-gray-900 dark:border-gray-800 hover:border-gray-400'}
-                      `}
-                    >
-                      <span className="text-sm font-semibold">{opt.label}</span>
-                      <span className="text-xs mt-1 opacity-70 text-center">{opt.description}</span>
-                    </div>
-                  ))}
-                </div>
+              {/* Destination Link */}
+              <div className="space-y-2">
+                <Label htmlFor="link">Reference Link / Action URL (Optional)</Label>
+                <Input
+                  id="link"
+                  type="text"
+                  placeholder="e.g. /student/courses, /teacher/my-quiz, or https://example.com"
+                  value={formData.link}
+                  onChange={e => setFormData({ ...formData, link: e.target.value })}
+                  className="rounded-xl"
+                />
+                <p className="text-[11px] text-gray-500">Provide an internal route or external website link to attach to the alert card.</p>
               </div>
 
               {/* Target Audience */}
@@ -194,50 +214,40 @@ export default function CreateAnnouncement() {
                       key={opt.id}
                       onClick={() => handleAudienceChange(opt.id)}
                       className={`
-                        flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all hover:scale-105
+                        flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all hover:scale-105
                         ${formData.targetAudience.includes(opt.id) 
-                          ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white' 
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/10'
                           : 'bg-white text-gray-600 border-gray-200 dark:bg-gray-900 dark:border-gray-800 hover:border-gray-400'}
                       `}
                     >
                       <span className="text-2xl mb-2">{opt.icon}</span>
-                      <span className="text-sm font-medium text-center">{opt.label}</span>
+                      <span className="text-xs font-semibold text-center">{opt.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Sender Info Preview */}
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-sm">
-                <p className="font-medium text-gray-700 dark:text-gray-300">Announcement will be sent by:</p>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  {userData?.fullName || userData?.name || 'You'} 
-                  <span className="ml-2 text-xs bg-gray-200 dark:bg-gray-800 px-2 py-0.5 rounded-full capitalize">
-                    {userRole?.replace('_', ' ')}
-                  </span>
-                </p>
-              </div>
-
               {/* Submit Buttons */}
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-800">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => navigate(-1)}
                   disabled={loading}
+                  className="rounded-xl"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6">
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sending...
+                      Dispatching...
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Send Announcement
+                      Broadcast Alert
                     </>
                   )}
                 </Button>
