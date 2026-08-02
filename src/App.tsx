@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/lib/firebase';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -9,10 +10,8 @@ import LogoLoader from '@/components/LogoLoader';
 import LandingPage from '@/pages/LandingPage';
 import RoleSelection from '@/pages/RoleSelection';
 import Login from '@/pages/Login';
-import StudentRegister from '@/pages/register/StudentRegister';
-import TeacherRegister from '@/pages/register/TeacherRegister';
-import SchoolAdminRegister from '@/pages/register/SchoolAdminRegister';
-import ParentRegister from '@/pages/register/ParentRegister';
+import Register from '@/pages/register/Register';
+import VerifyEmail from '@/pages/register/VerifyEmail';
 
 import VerifyStudentEmail from '@/pages/register/VerifyStudentEmail';
 // Dashboards
@@ -107,6 +106,12 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to="/login" replace />;
   }
 
+  // Redirect unverified users (excluding mock users) to /verify-email
+  const isMockUser = auth.currentUser?.email === 'mock@liverton.com';
+  if (!isMockUser && auth.currentUser && !auth.currentUser.emailVerified) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   // Check role-based access control if roles are specified
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
     return <Navigate to="/" replace />;
@@ -181,10 +186,12 @@ function AppRoutes() {
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
       <Route path="/get-started" element={<PublicRoute><RoleSelection /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/register/student" element={<PublicRoute><StudentRegister /></PublicRoute>} />
-      <Route path="/register/teacher" element={<PublicRoute><TeacherRegister /></PublicRoute>} />
-      <Route path="/register/school-admin" element={<PublicRoute><SchoolAdminRegister /></PublicRoute>} />
-      <Route path="/register/parent" element={<PublicRoute><ParentRegister /></PublicRoute>} />
+      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/register/student" element={<Navigate to="/register?role=student" replace />} />
+      <Route path="/register/teacher" element={<Navigate to="/register?role=teacher" replace />} />
+      <Route path="/register/school-admin" element={<Navigate to="/register?role=school_admin" replace />} />
+      <Route path="/register/parent" element={<Navigate to="/register?role=parent" replace />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       
       <Route path="/register/verify-student" element={<PublicRoute><VerifyStudentEmail /></PublicRoute>} />
       {/* About Pages - Accessible to all users (public) */}

@@ -17,28 +17,28 @@ const roles: RoleOption[] = [
     title: 'Student',
     description: 'Enroll in courses, take quizzes, and track your progress',
     icon: <GraduationCap className="w-8 h-8" />,
-    path: '/register/student',
+    path: '/register?role=student',
   },
   {
     id: 'teacher',
     title: 'Teacher',
     description: 'Create courses, upload lessons, and earn from your expertise',
     icon: <Users className="w-8 h-8" />,
-    path: '/register/teacher',
+    path: '/register?role=teacher',
   },
   {
     id: 'school-admin',
     title: 'School Administrator',
     description: 'Manage your school, students, teachers, and operations',
     icon: <School className="w-8 h-8" />,
-    path: '/register/school-admin',
+    path: '/register?role=school_admin',
   },
   {
     id: 'parent',
     title: 'Parent',
     description: 'Monitor your child\'s performance and progress',
     icon: <UserCircle className="w-8 h-8" />,
-    path: '/register/parent',
+    path: '/register?role=parent',
   },
 ];
 
