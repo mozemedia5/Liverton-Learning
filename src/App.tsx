@@ -58,6 +58,8 @@ import DocumentEditor from '@/pages/features/DocumentEditor';
 import PublicDocument from '@/pages/features/PublicDocument';
 
 // New Global Features
+import LivTeams from '@/pages/features/liv-teams/LivTeams';
+import TeamWorkspace from '@/pages/features/liv-teams/TeamWorkspace';
 import CalendarPage from '@/pages/features/CalendarPage';
 import DocumentManagement from '@/pages/features/DocumentManagement';
 import DocumentWorkspaceWrapper from "@/components/DocumentWorkspaceWrapper";
@@ -427,6 +429,16 @@ function AppRoutes() {
       } />
 
       {/* Global Feature Routes - Protected, accessible to all authenticated users */}
+      <Route path="/features/liv-teams" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><LivTeams /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/features/liv-teams/workspace/:teamId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><TeamWorkspace /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
       <Route path="/features/document-management" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><DocumentManagement /></AuthenticatedLayout>
