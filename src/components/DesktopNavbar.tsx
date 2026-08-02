@@ -256,15 +256,15 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   return (
     <>
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-40 bg-[#020c1b] text-slate-300 border-r border-slate-900/40 shadow-2xl transition-all duration-300 flex flex-col overflow-hidden ${
+        className={`fixed top-0 left-0 bottom-0 z-40 bg-white/70 dark:bg-slate-950/75 backdrop-blur-xl text-slate-700 dark:text-slate-300 border-r border-slate-200/50 dark:border-white/10 shadow-glass transition-all duration-300 flex flex-col overflow-hidden ${
           isCollapsed ? 'w-20' : 'w-72'
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-900/50">
+        <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-200/50 dark:border-white/10">
           <div className="flex items-center gap-3 overflow-hidden">
             {/* Brand Logo - clean container with zero cropping and smooth hover effects */}
-            <div className="w-9 h-9 rounded-xl bg-slate-900/40 border border-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300 hover:scale-110">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-300 hover:scale-110">
               <img
                 src="/logo.png"
                 alt="Liverton Learning Logo"
@@ -272,7 +272,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
               />
             </div>
             {!isCollapsed && (
-              <span className="text-xl font-bold text-white tracking-tight leading-none animate-in fade-in duration-300">
+              <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none animate-in fade-in duration-300">
                 Liverton
               </span>
             )}
@@ -281,7 +281,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           {!isCollapsed && (
             <button
               onClick={() => setIsCollapsed(true)}
-              className="w-7 h-7 rounded-lg bg-slate-900/50 hover:bg-slate-900 flex items-center justify-center border border-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-900/50 hover:bg-slate-200 dark:hover:bg-slate-900 flex items-center justify-center border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
               title="Collapse Menu"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -292,7 +292,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
             <div className="w-full flex justify-center mt-1">
               <button
                 onClick={() => setIsCollapsed(false)}
-                className="w-7 h-7 rounded-lg bg-slate-900/50 hover:bg-slate-900 flex items-center justify-center border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-900/50 hover:bg-slate-200 dark:hover:bg-slate-900 flex items-center justify-center border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                 title="Expand Menu"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -302,18 +302,18 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         </div>
 
         {/* Workspace Selector (Role Display) */}
-        <div className="p-4 border-b border-slate-900/50">
+        <div className="p-4 border-b border-slate-200/50 dark:border-white/10">
           {!isCollapsed ? (
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/40 hover:bg-slate-900/60 transition-colors cursor-pointer">
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/40 dark:border-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-colors cursor-pointer">
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black shadow-lg flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-black shadow-lg flex-shrink-0">
                   {workspaceInfo.letter}
                 </div>
                 <div className="text-left overflow-hidden">
                   <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase leading-none">
                     Workspace
                   </p>
-                  <p className="text-sm font-bold text-white truncate mt-0.5">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate mt-0.5">
                     {workspaceInfo.name}
                   </p>
                 </div>
@@ -323,7 +323,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           ) : (
             <div className="flex justify-center">
               <div
-                className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black shadow-lg cursor-pointer"
+                className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-black shadow-lg cursor-pointer animate-pulse-glow"
                 title={workspaceInfo.name}
                 onClick={() => setIsCollapsed(false)}
               >
@@ -338,11 +338,11 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           {/* General Section */}
           <div>
             {!isCollapsed ? (
-              <span className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2 block">
+              <span className="px-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2 block">
                 General
               </span>
             ) : (
-              <div className="border-t border-slate-900/30 my-2" />
+              <div className="border-t border-slate-200/30 dark:border-white/5 my-2" />
             )}
             <ul className="space-y-1">
               {sections.general.map((item, idx) => {
@@ -352,17 +352,17 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
                   <li key={item.path + idx} className="relative group">
                     <button
                       onClick={() => navigate(item.path)}
-                      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-200 ${
                         active
-                          ? 'bg-blue-600 text-white font-semibold shadow-lg shadow-blue-600/10'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                          ? 'bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-500/20'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/50'
                       }`}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
-                      {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                      {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                       {item.badge && !isCollapsed && (
-                        <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                        <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500 text-white">
                           {item.badge}
                         </span>
                       )}
@@ -382,11 +382,11 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           {/* Tools Section */}
           <div>
             {!isCollapsed ? (
-              <span className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2 block">
+              <span className="px-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2 block">
                 Tools
               </span>
             ) : (
-              <div className="border-t border-slate-900/30 my-2" />
+              <div className="border-t border-slate-200/30 dark:border-white/5 my-2" />
             )}
             <ul className="space-y-1">
               {sections.tools.map((item, idx) => {
@@ -396,17 +396,17 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
                   <li key={item.path + idx} className="relative group">
                     <button
                       onClick={() => navigate(item.path)}
-                      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-all duration-200 ${
                         active
-                          ? 'bg-blue-600 text-white font-semibold shadow-lg shadow-blue-600/10'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                          ? 'bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-500/20'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/50'
                       }`}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
-                      {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                      {item.dot && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                       {item.badge && !isCollapsed && (
-                        <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-600 text-white">
+                        <span className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500 text-white">
                           {item.badge}
                         </span>
                       )}
@@ -425,21 +425,21 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         </div>
 
         {/* User Card / Profile Section at Bottom */}
-        <div className="p-4 border-t border-slate-900/50">
+        <div className="p-4 border-t border-slate-200/50 dark:border-white/10">
           {!isCollapsed ? (
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/20 hover:bg-slate-900/40 transition-colors">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-100/40 dark:bg-slate-900/20 hover:bg-slate-100 dark:hover:bg-slate-900/45 transition-colors">
               <button
                 ref={userButtonRef}
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-3 text-left overflow-hidden group flex-1"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-md flex-shrink-0">
                   <span className="text-white font-bold text-sm">
                     {userData?.fullName?.charAt(0).toUpperCase() || 'U'}
                   </span>
                 </div>
                 <div className="overflow-hidden">
-                  <p className="text-sm font-semibold text-white truncate leading-tight">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white truncate leading-tight">
                     {userData?.fullName || 'User'}
                   </p>
                   <p className="text-[10px] text-slate-400 capitalize truncate mt-0.5">
@@ -450,7 +450,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
 
               <button
                 onClick={() => setShowLogoutDialog(true)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors ml-2"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors ml-2"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -461,7 +461,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
               <button
                 ref={userButtonRef}
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md"
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-md"
                 title="View Account"
               >
                 <span className="text-white font-bold text-sm">
@@ -471,7 +471,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
 
               <button
                 onClick={() => setShowLogoutDialog(true)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -485,28 +485,28 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
       {showUserMenu && (
         <div
           ref={userMenuRef}
-          className="fixed z-50 rounded-2xl bg-[#030f26] border border-slate-800 shadow-2xl overflow-hidden animate-in fade-in-0 duration-150"
+          className="fixed z-50 rounded-2xl bg-white/95 dark:bg-[#030f26]/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in-0 duration-150"
           style={{
             bottom: '80px',
             left: isCollapsed ? '90px' : '20px',
             width: '240px',
           }}
         >
-          <div className="px-4 py-3 border-b border-slate-900/50 bg-slate-950/20">
-            <p className="text-sm font-semibold text-white truncate">{userData?.fullName || 'User'}</p>
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-900/50 bg-slate-50 dark:bg-slate-950/20">
+            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{userData?.fullName || 'User'}</p>
             <p className="text-[10px] text-slate-400 capitalize truncate mt-0.5">{userRole?.replace('_', ' ')}</p>
           </div>
           <div className="py-2 px-2 space-y-0.5">
             <button
               onClick={() => { setShowUserMenu(false); navigate('/profile'); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors"
             >
               <User className="w-4 h-4" />
               <span>Profile</span>
             </button>
             <button
               onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors"
             >
               <Settings className="w-4 h-4" />
               <span>Settings</span>

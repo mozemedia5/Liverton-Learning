@@ -296,9 +296,9 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                   setShowPlusMenu(false);
                   navigate('/teacher/courses/create');
                 }}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/30 dark:hover:bg-violet-950/50 transition-colors"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 transition-colors"
               >
-                <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-violet-600 dark:text-violet-200">
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-200">
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Add Course</span>
@@ -308,9 +308,9 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                   setShowPlusMenu(false);
                   navigate('/teacher/quizzes/create');
                 }}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 transition-colors"
+                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 transition-colors"
               >
-                <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-200">
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-200">
                   <HelpCircle className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Add Quiz</span>
@@ -378,25 +378,25 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                       onClick={() => handleMoreItemClick(item)}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group ${
                         active
-                          ? 'bg-violet-50 dark:bg-violet-950/40'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40'
                           : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
                           active
-                            ? 'bg-violet-100 dark:bg-violet-900/40'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/40'
                             : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-gray-200 dark:group-hover:bg-gray-700'
                         }`}>
                           <Icon className={`w-4 h-4 ${
                             active
-                              ? 'text-violet-600 dark:text-violet-400'
+                              ? 'text-emerald-600 dark:text-emerald-400'
                               : 'text-gray-600 dark:text-gray-300'
                           }`} />
                         </div>
                         <span className={`text-sm font-medium ${
                           active
-                            ? 'text-violet-700 dark:text-violet-300'
+                            ? 'text-emerald-700 dark:text-emerald-300'
                             : 'text-gray-700 dark:text-gray-200'
                         }`}>
                           {item.label}
@@ -405,7 +405,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                       {item.shortcut && (
                         <div className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
                           active
-                            ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                         }`}>
                           {item.shortcut}
@@ -465,7 +465,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                   onClick={() => handleTabClick(item)}
                   className={`relative flex flex-col items-center justify-center gap-0.5 flex-1 h-14 rounded-xl transition-all duration-200 ease-out ${
                     isActiveTab
-                      ? 'text-violet-600 dark:text-violet-400'
+                      ? 'text-emerald-500 dark:text-emerald-400'
                       : isMore || isPlus
                         ? 'text-gray-600 dark:text-gray-300'
                         : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
@@ -473,19 +473,19 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                 >
                   {/* Active indicator pill */}
                   {isActiveTab && (
-                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-violet-500 dark:bg-violet-400 rounded-full transition-all duration-200" />
+                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-200" />
                   )}
 
                   {isMore ? (
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
                       showMoreMenu
-                        ? 'bg-violet-500 text-white scale-110'
+                        ? 'bg-emerald-500 text-white scale-110'
                         : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}>
                       <Icon className={`w-4 h-4 transition-transform duration-200 ${showMoreMenu ? 'rotate-90' : ''}`} />
                     </div>
                   ) : isPlus ? (
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 bg-violet-600 dark:bg-violet-500 text-white shadow-md hover:scale-110 ${
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 bg-emerald-500 text-white shadow-md hover:scale-110 ${
                       showPlusMenu ? 'rotate-45 bg-red-500 dark:bg-red-500' : ''
                     }`}>
                       <Icon className="w-5 h-5 text-white" />
@@ -496,13 +496,13 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
 
                   {!isPlus && (
                     <span className={`text-[10px] font-medium leading-none ${
-                      isActiveTab ? 'text-violet-600 dark:text-violet-400' : ''
+                      isActiveTab ? 'text-emerald-500 dark:text-emerald-400' : ''
                     }`}>
                       {item.label}
                     </span>
                   )}
                   {isPlus && (
-                    <span className="text-[10px] font-semibold leading-none text-violet-600 dark:text-violet-400">
+                    <span className="text-[10px] font-semibold leading-none text-emerald-500 dark:text-emerald-400">
                       Add
                     </span>
                   )}
