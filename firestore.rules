@@ -299,17 +299,116 @@ service cloud.firestore {
       }
     }
     
-    // ==================== DEFAULT RULE ====================
+    // ==================== LIV TEAMS ====================
     
-    match /{document=**} {
-      // Platform admins can access everything
+    // Check membership of a team using the flat memberIds list
+    // (.get with a default keeps teams created before memberIds existed working)
+    function isTeamMember(teamId) {
+      return isAuthenticated() && 
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('memberIds', []);
+    }
+    
+    // Check the requester holds a pending invitation for this team
+    // (invitation docs use deterministic IDs: {teamId}_{email})
+    function hasPendingTeamInvite(teamId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/team_invitations/$(teamId + '_' + currentUserData().email));
+    }
+    
+    // True when the only membership change is the requester being added
+    // (nobody else added or removed)
+    function isJoiningSelf() {
+      return request.resource.data.get('memberIds', []).toSet()
+               .difference(resource.data.get('memberIds', []).toSet()) == [currentUserId()].toSet()
+        && resource.data.get('memberIds', []).toSet()
+             .difference(request.resource.data.get('memberIds', []).toSet()).size() == 0;
+    }
+    
+    match /teams/{teamId} {
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
       
-      // Authenticated users can read by default
-      allow read: if isAuthenticated();
+      // Public teams are readable by any signed-in user (Discover)
+      allow read: if isAuthenticated() && resource.data.visibility == 'public';
       
-      // Authenticated users can write by default (for collections not specified above)
-      allow write: if isAuthenticated();
+      // Members can always read their team (covers private & invite-only)
+      allow read: if isTeamMember(teamId);
+      
+      // Any signed-in user can create a team they own
+      allow create: if isAuthenticated() && request.resource.data.ownerId == currentUserId();
+      
+      // The owner has full control of their team (ownership itself
+      // can never be transferred through a rules-allowed write)
+      allow update: if isAuthenticated() && 
+        resource.data.ownerId == currentUserId() && 
+        request.resource.data.ownerId == resource.data.ownerId;
+      
+      // Members can update the team (roles are enforced in the app layer)
+      allow update: if isTeamMember(teamId) && 
+        request.resource.data.ownerId == resource.data.ownerId;
+      
+      // Anyone can bookmark (save) any team they can see
+      allow update: if isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedByUsers']);
+      
+      // Self-join: only the requester is added, and only on public teams
+      // or when holding a pending invitation (private / invite-only)
+      allow update: if isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds']) && 
+        isJoiningSelf() && 
+        (resource.data.visibility == 'public' || hasPendingTeamInvite(teamId));
+      
+      // Only the owner can delete the team
+      allow delete: if isAuthenticated() && resource.data.ownerId == currentUserId();
+      
+      // All team subcollections (messages, projects, tasks, files, meetings,
+      // savings_transactions, funding_requests, polls, announcements, activity_feed)
+      // are members-only
+      match /{document=**} {
+        allow read, write: if isPlatformAdmin() || isTeamMember(teamId);
+      }
+    }
+    
+    // Team invitations: only the invited user (by email) and the sender can see them
+    match /team_invitations/{inviteId} {
+      allow read: if isPlatformAdmin() || 
+        (isAuthenticated() && 
+          (resource.data.invitedEmail == currentUserData().email || 
+           resource.data.senderId == currentUserId()));
+      allow create: if isAuthenticated() && request.resource.data.senderId == currentUserId();
+      // Invited user responds (accept/decline); sender may cancel
+      allow update: if isPlatformAdmin() || 
+        (isAuthenticated() && 
+          (resource.data.invitedEmail == currentUserData().email || 
+           resource.data.senderId == currentUserId()));
+      allow delete: if isPlatformAdmin() || 
+        (isAuthenticated() && resource.data.senderId == currentUserId());
+    }
+    
+    // Marketplace listings are public-read inside the app
+    match /marketplace_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.teamId is string;
+      // Updates are limited to counters & ratings (downloads, purchases, reviews)
+      allow update: if isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['ratings', 'downloadsCount', 'purchasesCount', 'isVerified']);
+      allow delete: if isPlatformAdmin();
+    }
+    
+    // ==================== DEFAULT RULE ====================
+    // Covers every collection NOT matched above. If you add a new
+    // top-level collection, add it to this list (or give it explicit rules).
+    
+    match /{collectionName}/{document=**} {
+      allow read, write: if isPlatformAdmin() || 
+        (isAuthenticated() && collectionName in [
+          'activities', 'activityLogs', 'assignments', 'dashboardAnnouncements',
+          'enrollments', 'hanna_chats', 'hanna_messages', 'lessonHistory',
+          'messages', 'notifications', 'otpCodes', 'parentStudentLinks',
+          'quizAttempts', 'quiz_attempts', 'studentEnrollments', 'zoomLessons',
+          'students', 'teachers', 'parents', 'school_admins'
+        ]);
     }
   }
 }

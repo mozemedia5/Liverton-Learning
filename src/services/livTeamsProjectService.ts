@@ -1,13 +1,11 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   addDoc,
   updateDoc,
   deleteDoc,
   query,
-  where,
   orderBy,
   Timestamp
 } from 'firebase/firestore';
@@ -120,7 +118,7 @@ export async function getTeamTasks(teamId: string): Promise<TeamTask[]> {
   }
 }
 
-export async function updateTeamTask(teamId: string, taskId: string, updates: Partial<TeamTask>, userId: string, userName: string): Promise<void> {
+export async function updateTeamTask(teamId: string, taskId: string, updates: Partial<TeamTask>): Promise<void> {
   try {
     const docRef = doc(db, 'teams', teamId, 'tasks', taskId);
     await updateDoc(docRef, {

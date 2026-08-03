@@ -5,10 +5,10 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   orderBy,
+  increment,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -198,6 +198,36 @@ export async function getMarketplaceItems(): Promise<MarketplaceItem[]> {
   }
 }
 
+/**
+ * Fetch marketplace listings published by a single team
+ */
+export async function getTeamMarketplaceItems(teamId: string): Promise<MarketplaceItem[]> {
+  try {
+    const ref = collection(db, 'marketplace_items');
+    const q = query(ref, where('teamId', '==', teamId), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MarketplaceItem));
+  } catch (error) {
+    console.error('Error fetching team marketplace listings:', error);
+    return [];
+  }
+}
+
+/**
+ * Record a download / purchase of a marketplace item
+ */
+export async function recordMarketplaceDownload(itemId: string, isPurchase: boolean): Promise<void> {
+  try {
+    const docRef = doc(db, 'marketplace_items', itemId);
+    await updateDoc(docRef, {
+      downloadsCount: increment(1),
+      ...(isPurchase ? { purchasesCount: increment(1) } : {})
+    });
+  } catch (error) {
+    console.error('Error recording marketplace download:', error);
+  }
+}
+
 export async function addMarketplaceReview(
   itemId: string,
   userId: string,
@@ -277,7 +307,7 @@ export async function voteInTeamPoll(teamId: string, pollId: string, optionId: s
     const data = snap.data() as TeamPoll;
     const options = data.options.map(opt => {
       // Remove user's vote from any other option first to avoid duplicate votes
-      let votes = opt.votes.filter(uid => uid !== userId);
+      const votes = opt.votes.filter(uid => uid !== userId);
       if (opt.id === optionId) {
         votes.push(userId);
       }
