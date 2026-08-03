@@ -17,7 +17,6 @@ import {
   Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, LogIn
 } from 'lucide-react';
 import {
-  createTeam,
   getAllTeams,
   getInvitationsForUser,
   respondToInvitation,
@@ -32,13 +31,14 @@ import {
   getProjectFundingRequests,
   recordMarketplaceDownload
 } from '@/services/livTeamsFinanceService';
-import { uploadToCloudinary } from '@/services/cloudinaryService';
 import type { Team, TeamInvitation, MarketplaceItem, ProjectFundingRequest, TeamVisibility } from '@/types/livTeams';
 import {
   LivLoader, LivEmptyState, LivSectionHeader, LivStatCard,
   TeamRoleBadge, TeamLogo
 } from './livTeamsUi';
 import { formatUGX } from './livTeamsUtils';
+import TeamCreationWizard from './TeamCreationWizard';
+import { CloudinaryImage } from '@/components/CloudinaryImage';
 
 type FundingWithTeam = ProjectFundingRequest & { teamName: string };
 
@@ -56,26 +56,8 @@ export default function LivTeams() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [joiningTeamId, setJoiningTeamId] = useState<string | null>(null);
 
-  // Creation state
+  // Creation wizard state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [teamName, setTeamName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Science');
-  const [purpose, setPurpose] = useState('');
-  const [country, setCountry] = useState('Uganda');
-  const [school, setSchool] = useState('');
-  const [district, setDistrict] = useState('');
-  const [language, setLanguage] = useState('English');
-  const [visibility, setVisibility] = useState<TeamVisibility>('public');
-  const [maxMembers, setMaxMembers] = useState(50);
-  const [rules, setRules] = useState('');
-  const [welcomeMessage, setWelcomeMessage] = useState('Welcome to the Team!');
-  const [tagsText, setTagsText] = useState('');
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [coverUploading, setCoverUploading] = useState(false);
-  const [logoUrl, setLogoUrl] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
 
   // Edit team state (Settings tab)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -127,93 +109,9 @@ export default function LivTeams() {
 
   /* ------------------------------ Actions ------------------------------ */
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    setLogoUploading(true);
-    try {
-      const url = await uploadToCloudinary(e.target.files[0], 'image');
-      setLogoUrl(url);
-      toast.success('Logo uploaded successfully');
-    } catch {
-      toast.error('Failed to upload logo');
-    } finally {
-      setLogoUploading(false);
-    }
-  };
-
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    setCoverUploading(true);
-    try {
-      const url = await uploadToCloudinary(e.target.files[0], 'image');
-      setCoverUrl(url);
-      toast.success('Cover image uploaded successfully');
-    } catch {
-      toast.error('Failed to upload cover image');
-    } finally {
-      setCoverUploading(false);
-    }
-  };
-
-  const resetCreateForm = () => {
-    setTeamName('');
-    setDescription('');
-    setCategory('Science');
-    setPurpose('');
-    setCountry('Uganda');
-    setSchool('');
-    setDistrict('');
-    setLanguage('English');
-    setVisibility('public');
-    setMaxMembers(50);
-    setRules('');
-    setWelcomeMessage('Welcome to the Team!');
-    setTagsText('');
-    setLogoUrl('');
-    setCoverUrl('');
-  };
-
-  const handleCreateTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser || !userData) return;
-    if (!teamName.trim()) {
-      toast.error('Team Name is required');
-      return;
-    }
-    if (logoUploading || coverUploading) {
-      toast.error('Please wait for uploads to finish');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const teamId = await createTeam({
-        name: teamName.trim(),
-        logoUrl,
-        coverUrl,
-        description: description.trim(),
-        category,
-        purpose: purpose.trim(),
-        country: country.trim() || 'Global',
-        school: school.trim(),
-        district: district.trim(),
-        language: language.trim() || 'English',
-        visibility,
-        maxMembers: Math.max(1, maxMembers || 50),
-        rules: rules.trim(),
-        welcomeMessage: welcomeMessage.trim() || 'Welcome to the Team!',
-        tags: tagsText.split(',').map(t => t.trim()).filter(Boolean)
-      }, currentUser.uid, userData.fullName || 'Anonymous', currentUser.email || '');
-
-      toast.success('Team created successfully! Your workspace is ready.');
-      setCreateDialogOpen(false);
-      resetCreateForm();
-      navigate(`/features/liv-teams/workspace/${teamId}`);
-    } catch {
-      toast.error('Failed to create team');
-    } finally {
-      setCreating(false);
-    }
+  const handleTeamCreated = (teamId: string) => {
+    loadData();
+    navigate(`/features/liv-teams/workspace/${teamId}`);
   };
 
   const handleJoinTeam = async (team: Team) => {
@@ -370,11 +268,16 @@ export default function LivTeams() {
     return (
       <Card key={team.id} className="overflow-hidden flex flex-col justify-between">
         <div>
-          <div className="h-24 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/5 relative">
-            {team.coverUrl && (
-              <img src={team.coverUrl} className="w-full h-full object-cover" alt={`${team.name} cover`} />
-            )}
-            <Badge className="absolute top-3 right-3 bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 capitalize border-0">
+          <div className="relative">
+            <CloudinaryImage
+              src={team.coverUrl}
+              alt={`${team.name} cover`}
+              aspect="3/1"
+              widths={[320, 640, 960]}
+              sizes="(max-width: 768px) 100vw, 33vw"
+              fallback={<div className="w-full h-full bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/5" />}
+            />
+            <Badge className="absolute top-3 right-3 z-10 bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 capitalize border-0">
               {team.category}
             </Badge>
           </div>
@@ -758,9 +661,16 @@ export default function LivTeams() {
                 return (
                   <Card key={item.id} className="overflow-hidden flex flex-col justify-between">
                     <div>
-                      <div className="h-24 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 relative">
-                        {item.coverUrl && <img src={item.coverUrl} className="w-full h-full object-cover" alt={item.title} />}
-                        <Badge className="absolute top-2 right-2 capitalize bg-emerald-500 text-white text-[10px] border-0">
+                      <div className="relative">
+                        <CloudinaryImage
+                          src={item.coverUrl}
+                          alt={item.title}
+                          aspect="3/1"
+                          widths={[320, 640, 960]}
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          fallback={<div className="w-full h-full bg-gradient-to-tr from-emerald-500/10 to-teal-500/10" />}
+                        />
+                        <Badge className="absolute top-2 right-2 z-10 capitalize bg-emerald-500 text-white text-[10px] border-0">
                           {(item.type || 'notes').replace('_', ' ')}
                         </Badge>
                       </div>
@@ -941,125 +851,13 @@ export default function LivTeams() {
         </TabsContent>
       </Tabs>
 
-      {/* ============================ CREATE TEAM DIALOG ============================ */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Create a Liv Team</DialogTitle>
-            <DialogDescription>
-              Your workspace is generated instantly with a dashboard, chat, projects, files, calendar, savings wallet and analytics.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateTeam} className="space-y-4 py-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="teamName">Team Name *</Label>
-                <Input id="teamName" value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="e.g. Science Project Team" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teamCategories.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      {/* ============================ TEAM CREATION WIZARD ============================ */}
+      <TeamCreationWizard
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreated={handleTeamCreated}
+      />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="teamLogo">Team Logo (image)</Label>
-                <Input id="teamLogo" type="file" accept="image/*" onChange={handleLogoUpload} />
-                {logoUploading && <p className="text-xs text-slate-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Uploading logo...</p>}
-                {logoUrl && <img src={logoUrl} className="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-white/10" alt="Logo preview" />}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="teamCover">Cover Image (image)</Label>
-                <Input id="teamCover" type="file" accept="image/*" onChange={handleCoverUpload} />
-                {coverUploading && <p className="text-xs text-slate-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Uploading cover...</p>}
-                {coverUrl && <img src={coverUrl} className="w-32 h-16 rounded-xl object-cover border border-gray-200 dark:border-white/10" alt="Cover preview" />}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this team about?" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="purpose">Team Purpose / Goal</Label>
-              <Input id="purpose" value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="e.g. Preparing for the Physics National Olympiad" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Input id="country" value={country} onChange={e => setCountry(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="school">School (optional)</Label>
-                <Input id="school" value={school} onChange={e => setSchool(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="district">District (optional)</Label>
-                <Input id="district" value={district} onChange={e => setDistrict(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="language">Primary Language</Label>
-                <Input id="language" value={language} onChange={e => setLanguage(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="visibility">Visibility</Label>
-                <Select value={visibility} onValueChange={(val) => setVisibility(val as TeamVisibility)}>
-                  <SelectTrigger id="visibility">
-                    <SelectValue placeholder="Visibility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">Public — anyone can join</SelectItem>
-                    <SelectItem value="private">Private — members only</SelectItem>
-                    <SelectItem value="invite-only">Invite only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxMembers">Max Members</Label>
-                <Input type="number" min={1} id="maxMembers" value={maxMembers} onChange={e => setMaxMembers(Number(e.target.value))} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rules">Team Rules / Code of Conduct</Label>
-              <Textarea id="rules" value={rules} onChange={e => setRules(e.target.value)} placeholder="Be respectful, submit work on time..." />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="welcome">Welcome Message</Label>
-                <Input id="welcome" value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags (comma separated)</Label>
-                <Input id="tags" value={tagsText} onChange={e => setTagsText(e.target.value)} placeholder="science, physics, revision" />
-              </div>
-            </div>
-
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={creating || logoUploading || coverUploading} className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</> : 'Create Team Workspace'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* ============================ EDIT TEAM DIALOG ============================ */}
       <Dialog open={!!editingTeam} onOpenChange={(open) => !open && setEditingTeam(null)}>

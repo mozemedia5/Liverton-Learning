@@ -299,3 +299,25 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Multi-step wizard step transitions */
+@keyframes wizard-step-forward {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes wizard-step-backward {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.wizard-step-forward {
+  animation: wizard-step-forward 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wizard-step-backward {
+  animation: wizard-step-backward 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wizard-step-forward,
+  .wizard-step-backward {
+    animation: none;
+  }
+}
