@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +9,11 @@ import { toast } from 'sonner';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, signInWithGoogle, signInWithApple, userRole, loading: authLoading } = useAuth();
+
+  // Deep-link destination preserved by ProtectedRoute (e.g. shared course/team links)
+  const intendedDestination = (location.state as { from?: string } | null)?.from;
 
   // Form states
   const [email, setEmail] = useState('');
@@ -35,10 +39,14 @@ export default function Login() {
         duration: 3000,
       });
       
-      // Redirect based on role
+      // Redirect to the originally requested page first (deep links), then role dashboard
       setTimeout(() => {
+        if (intendedDestination) {
+          navigate(intendedDestination, { replace: true });
+          return;
+        }
         const effectiveRole = (email === 'infoliverton@gmail.com') ? 'platform_admin' : userRole;
-        
+
         const dashboardRoutes: Record<string, string> = {
           student: '/student/dashboard',
           teacher: '/teacher/dashboard',
@@ -46,15 +54,15 @@ export default function Login() {
           platform_admin: '/admin/dashboard',
           parent: '/student/dashboard',
         };
-        
+
         if (effectiveRole && dashboardRoutes[effectiveRole]) {
           navigate(dashboardRoutes[effectiveRole]);
         } else {
           navigate('/');
         }
       }, 500);
-    } catch (err: any) {
-      const errorMessage = err.message || 'Invalid email or password';
+    } catch (err) {
+      const errorMessage = (err instanceof Error ? err.message : '') || 'Invalid email or password';
       toast.error('❌ ' + errorMessage, {
         duration: 5000,
       });
@@ -67,9 +75,9 @@ export default function Login() {
     try {
       await signInWithGoogle();
       toast.success('✅ Signed in with Google successfully!');
-      navigate('/');
-    } catch (err: any) {
-      toast.error('❌ Google sign-in failed: ' + (err.message || 'Unknown error'));
+      navigate(intendedDestination || '/', { replace: !!intendedDestination });
+    } catch (err) {
+      toast.error('❌ Google sign-in failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -77,9 +85,9 @@ export default function Login() {
     try {
       await signInWithApple();
       toast.success('✅ Signed in with Apple successfully!');
-      navigate('/');
-    } catch (err: any) {
-      toast.error('❌ Apple sign-in failed: ' + (err.message || 'Unknown error'));
+      navigate(intendedDestination || '/', { replace: !!intendedDestination });
+    } catch (err) {
+      toast.error('❌ Apple sign-in failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 

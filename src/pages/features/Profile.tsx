@@ -39,6 +39,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { sendEmailVerification } from 'firebase/auth';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
+import { SEO } from '@/components/SEO';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -301,6 +302,8 @@ export default function Profile() {
   };
 
   return (
+    <>
+      <SEO title="Profile" description="Your Liverton Learning profile." noIndex />
     <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
@@ -742,5 +745,6 @@ export default function Profile() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </>
   );
 }

@@ -13,6 +13,8 @@ import {
   updateDoc,
   where,
   type Unsubscribe,
+  type DocumentData,
+  type QueryDocumentSnapshot
 } from 'firebase/firestore';
 import {
   getDownloadURL,
@@ -107,9 +109,10 @@ export async function createDocument(params: {
   schoolId?: string;
   folderId?: string | null;
   visibility?: DocumentVisibility;
+  content?: DocumentContent;
 }): Promise<string> {
   try {
-    const content = getDefaultContent(params.type);
+    const content = params.content ?? getDefaultContent(params.type);
     const meta = createEmptyDocumentMeta({
       title: params.title,
       type: params.type,
@@ -161,48 +164,81 @@ export function subscribeToDocuments(params: {
 }): Unsubscribe {
   const docsRef = collection(db, DOCUMENTS_COLLECTION);
 
-  // Basic permission scoping:
-  // - Platform admin sees all
-  // - School admin sees school docs
-  // - Others see owned + shared + public/internal
-  // NOTE: Firestore can't OR easily without multiple queries.
-  // We'll subscribe to a broad-ish set per role and filter client-side.
+  // Rules-compatible queries: broad collection scans are rejected by the
+  // security rules for regular users, so we subscribe to constrained queries
+  // (owned + shared-with-me) and merge them client-side.
+  const toMeta = (d: QueryDocumentSnapshot<DocumentData>): DocumentMeta => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      updatedAt: toDate(data.updatedAt),
+    } as DocumentMeta;
+  };
 
-  let q = query(docsRef, orderBy('updatedAt', 'desc'));
-
-  if (params.role === 'school_admin' && params.schoolId) {
-    q = query(docsRef, where('schoolId', '==', params.schoolId), orderBy('updatedAt', 'desc'));
+  // Platform & school admins keep the broader (rules-permitted) queries
+  if (params.role === 'platform_admin' || (params.role === 'school_admin' && params.schoolId)) {
+    const q = params.role === 'platform_admin'
+      ? query(docsRef, orderBy('updatedAt', 'desc'))
+      : query(docsRef, where('schoolId', '==', params.schoolId), orderBy('updatedAt', 'desc'));
+    return onSnapshot(
+      q,
+      (snap) => params.onChange(snap.docs.map(toMeta)),
+      (err) => params.onError?.(err instanceof Error ? err.message : 'Failed to load documents')
+    );
   }
 
-  return onSnapshot(
-    q,
+  const ownedQuery = query(docsRef, where('ownerId', '==', params.userId), orderBy('updatedAt', 'desc'));
+  const sharedQuery = query(docsRef, where('sharedWith', 'array-contains', params.userId), orderBy('updatedAt', 'desc'));
+
+  const ownedDocs = new Map<string, DocumentMeta>();
+  const sharedDocs = new Map<string, DocumentMeta>();
+  let ownedReady = false;
+  let sharedReady = false;
+  let errored = false;
+
+  const emit = () => {
+    if (!ownedReady || !sharedReady || errored) return;
+    const merged = new Map<string, DocumentMeta>([...ownedDocs, ...sharedDocs]);
+    const sorted = [...merged.values()].sort(
+      (a, b) => (b.updatedAt?.getTime?.() || 0) - (a.updatedAt?.getTime?.() || 0)
+    );
+    params.onChange(sorted);
+  };
+
+  const handleError = (err: Error) => {
+    if (errored) return;
+    errored = true;
+    params.onError?.(err.message || 'Failed to load documents');
+  };
+
+  const unsubOwned = onSnapshot(
+    ownedQuery,
     (snap) => {
-      const raw = snap.docs.map((d) => {
-        const data = d.data() as any;
-        return {
-          id: d.id,
-          ...data,
-          createdAt: toDate(data.createdAt),
-          updatedAt: toDate(data.updatedAt),
-        } as DocumentMeta;
-      });
-
-      const filtered = raw.filter((d) => {
-        if (params.role === 'platform_admin') return true;
-        if (params.role === 'school_admin') return true;
-        if (d.ownerId === params.userId) return true;
-        if ((d.sharedWith || []).includes(params.userId)) return true;
-        if (d.visibility === 'public') return true;
-        if (d.visibility === 'internal') return true;
-        return false;
-      });
-
-      params.onChange(filtered);
+      ownedDocs.clear();
+      snap.docs.forEach((d) => ownedDocs.set(d.id, toMeta(d)));
+      ownedReady = true;
+      emit();
     },
-    (err) => {
-      params.onError?.(err instanceof Error ? err.message : 'Failed to load documents');
-    }
+    handleError
   );
+
+  const unsubShared = onSnapshot(
+    sharedQuery,
+    (snap) => {
+      sharedDocs.clear();
+      snap.docs.forEach((d) => sharedDocs.set(d.id, toMeta(d)));
+      sharedReady = true;
+      emit();
+    },
+    handleError
+  );
+
+  return () => {
+    unsubOwned();
+    unsubShared();
+  };
 }
 
 export async function getDocument(docId: string): Promise<DocumentRecord | null> {
@@ -215,7 +251,7 @@ export async function getDocument(docId: string): Promise<DocumentRecord | null>
       return null;
     }
     
-    const data = snap.data() as any;
+    const data = snap.data() as DocumentData;
     const record = {
       id: snap.id,
       ...data,
@@ -251,7 +287,7 @@ export async function updateDocumentContent(params: {
     const nextVersion = params.bumpVersion ? (current.version || 1) + 1 : (current.version || 1);
 
     // Update document with proper error handling
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       content: params.content,
       version: nextVersion,
       updatedAt: serverTimestamp(),

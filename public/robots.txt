@@ -1,0 +1,12 @@
+# Liverton Learning — robots.txt
+# When moving to https://livertonlearning.com, update the host entries below.
+
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /verify-email
+Disallow: /settings
+Disallow: /admin/
+
+Sitemap: https://liverton-learning.vercel.app/sitemap.xml

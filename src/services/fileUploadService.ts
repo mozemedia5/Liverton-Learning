@@ -42,20 +42,23 @@ export const uploadChatFile = async (
     }
 
     onProgress?.({
-      progress: 25,
+      progress: 0,
       status: 'uploading',
     });
 
     // Map file type to the correct Cloudinary preset
     const cloudinaryType = mapFileTypeToCloudinary(file);
-    
-    onProgress?.({
-      progress: 60,
-      status: 'uploading',
-    });
 
-    // Call Cloudinary
-    const downloadURL = await uploadToCloudinary(file, cloudinaryType);
+    // Call Cloudinary with real byte-level progress
+    const downloadURL = await uploadToCloudinary(file, cloudinaryType, {
+      onProgress: (percent) => {
+        onProgress?.({
+          progress: percent,
+          status: percent >= 100 ? 'completed' : 'uploading',
+          ...(percent >= 100 ? { downloadURL: undefined } : {}),
+        });
+      },
+    });
 
     onProgress?.({
       progress: 100,

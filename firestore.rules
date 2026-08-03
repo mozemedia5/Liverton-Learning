@@ -189,25 +189,36 @@ service cloud.firestore {
       // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
       
-      // Users can read documents they own
-      allow read: if isAuthenticated() && 
-        resource.data.ownerId == currentUserId();
+      // Public documents are readable by anyone (shared public links, even logged out)
+      allow get: if resource.data.visibility == 'public';
       
-      // Users can read documents shared with them
-      allow read: if isAuthenticated() && 
-        currentUserId() in resource.data.sharedWith;
+      // Signed-in users can list public & internal documents
+      allow get, list: if isAuthenticated() && 
+        resource.data.visibility in ['public', 'internal'];
+      
+      // Users can read documents they own or that are shared with them
+      allow get, list: if isAuthenticated() && 
+        (resource.data.ownerId == currentUserId() || 
+         currentUserId() in resource.data.sharedWith);
       
       // Users can create their own documents
       allow create: if isAuthenticated() && 
         request.resource.data.ownerId == currentUserId();
       
-      // Users can update their own documents
+      // Owners and shared collaborators can update; only owners can delete
       allow update: if isAuthenticated() && 
-        resource.data.ownerId == currentUserId();
-      
-      // Users can delete their own documents
+        (resource.data.ownerId == currentUserId() || 
+         currentUserId() in resource.data.sharedWith);
       allow delete: if isAuthenticated() && 
         resource.data.ownerId == currentUserId();
+      
+      // Versions & activity subcollections inherit the parent's access
+      match /{sub=**} {
+        allow read, write: if isPlatformAdmin() || 
+          (isAuthenticated() && 
+            (get(/databases/$(database)/documents/documents/$(documentId)).data.ownerId == currentUserId() || 
+             currentUserId() in get(/databases/$(database)/documents/documents/$(documentId)).data.sharedWith));
+      }
     }
     
     // ==================== QUIZZES ====================
@@ -281,14 +292,11 @@ service cloud.firestore {
     
     // ==================== HANNA AI CHATS ====================
     
+    // Legacy subcollection-based schema
     match /hannaChats/{chatId} {
-      // Platform admins can read all
       allow read: if isPlatformAdmin();
-      
-      // Users can read their own chats
       allow read, write: if isAuthenticated() && 
         resource.data.userId == currentUserId();
-      
       allow create: if isAuthenticated() && 
         request.resource.data.userId == currentUserId();
       
@@ -297,6 +305,25 @@ service cloud.firestore {
           get(/databases/$(database)/documents/hannaChats/$(chatId)).data.userId == currentUserId();
         allow create: if isAuthenticated();
       }
+    }
+    
+    // Live flat schema — strictly owner-scoped
+    match /hanna_chats/{chatId} {
+      allow read, write: if isPlatformAdmin() || 
+        (isAuthenticated() && resource.data.userId == currentUserId());
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == currentUserId();
+    }
+    
+    match /hanna_messages/{messageId} {
+      allow read: if isPlatformAdmin() || 
+        (isAuthenticated() && 
+          get(/databases/$(database)/documents/hanna_chats/$(resource.data.chatId)).data.userId == currentUserId());
+      allow create: if isAuthenticated() && 
+        get(/databases/$(database)/documents/hanna_chats/$(request.resource.data.chatId)).data.userId == currentUserId();
+      allow update, delete: if isPlatformAdmin() || 
+        (isAuthenticated() && 
+          get(/databases/$(database)/documents/hanna_chats/$(resource.data.chatId)).data.userId == currentUserId());
     }
     
     // ==================== LIV TEAMS ====================
@@ -404,7 +431,7 @@ service cloud.firestore {
       allow read, write: if isPlatformAdmin() || 
         (isAuthenticated() && collectionName in [
           'activities', 'activityLogs', 'assignments', 'dashboardAnnouncements',
-          'enrollments', 'hanna_chats', 'hanna_messages', 'lessonHistory',
+          'enrollments', 'hanna_queue', 'lessonHistory',
           'messages', 'notifications', 'otpCodes', 'parentStudentLinks',
           'quizAttempts', 'quiz_attempts', 'studentEnrollments', 'zoomLessons',
           'students', 'teachers', 'parents', 'school_admins'

@@ -12,6 +12,7 @@ import {
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
+import { getBannerTheme } from '@/lib/bannerThemes';
 
 interface Banner {
   id: string;
@@ -24,8 +25,11 @@ interface Banner {
   linkType?: 'internal' | 'external' | 'none'; // legacy support
   targetRoles?: string[];
   isActive?: boolean;
-  expiresAt?: any;
+  expiresAt?: { toDate?: () => Date } | Date | null;
   title?: string;
+  subtitle?: string;
+  ctaLabel?: string;
+  theme?: string;
   message?: string;
 }
 
@@ -57,9 +61,12 @@ export default function BannerCarousel() {
 
           // Expiry check
           if (raw.expiresAt) {
-            const expDate = typeof raw.expiresAt.toDate === 'function'
-              ? raw.expiresAt.toDate()
-              : new Date(raw.expiresAt);
+            const expiry = raw.expiresAt;
+            const expDate = expiry instanceof Date
+              ? expiry
+              : typeof expiry?.toDate === 'function'
+                ? expiry.toDate()
+                : new Date(expiry as unknown as string);
             if (expDate <= now) return null;
           }
 
@@ -99,6 +106,7 @@ export default function BannerCarousel() {
   }
 
   const currentBanner = banners[currentIndex];
+  const theme = getBannerTheme(currentBanner.theme);
   const mediaUrl = (currentBanner.mediaUrl || currentBanner.imageUrl || '').trim();
   const redirectUrl = (currentBanner.clickUrl || currentBanner.link || '').trim();
   const rawType = currentBanner.clickUrlType || currentBanner.linkType;
@@ -131,42 +139,42 @@ export default function BannerCarousel() {
         className={`
           relative overflow-hidden rounded-[24px] border-none shadow-xl transition-all duration-300
           ${isClickable ? 'cursor-pointer hover:shadow-2xl hover:scale-[1.01]' : ''}
-          bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white p-6 sm:p-8 min-h-[180px] sm:min-h-[220px] flex flex-col justify-between
+          ${theme.gradient} text-white p-6 sm:p-8 min-h-[180px] sm:min-h-[220px] flex flex-col justify-between
         `}
       >
         {/* Background Decorative Circles */}
-        <div className="absolute right-0 top-0 -mt-12 -mr-12 w-64 h-64 rounded-full bg-blue-500/20 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 -mb-8 w-48 h-48 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
+        <div className="absolute right-0 top-0 -mt-12 -mr-12 w-64 h-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 -mb-8 w-48 h-48 rounded-full bg-black/10 blur-2xl pointer-events-none" />
 
         {/* Banner Content Layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center z-10 w-full">
 
           {/* Text content details */}
           <div className="md:col-span-7 space-y-4 text-left">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold tracking-wider uppercase text-blue-100">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold tracking-wider uppercase text-white/90">
               <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-              {currentBanner.message || 'LIVERTON EXCLUSIVE'}
+              LIVERTON EXCLUSIVE
             </div>
 
             <div className="space-y-1">
               <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight drop-shadow-md leading-tight text-white">
                 {currentBanner.title || 'Welcome to Liverton Learning'}
               </h2>
-              <p className="text-xs sm:text-sm text-blue-100/90 max-w-lg font-medium drop-shadow-sm leading-snug">
-                Expand your boundaries, master new courses, and communicate seamlessly with instructors worldwide.
+              <p className="text-xs sm:text-sm text-white/90 max-w-lg font-medium drop-shadow-sm leading-snug">
+                {currentBanner.subtitle || currentBanner.message || 'Expand your boundaries, master new courses, and communicate seamlessly with instructors worldwide.'}
               </p>
             </div>
 
             {isClickable && (
               <div>
                 <Button
-                  className="bg-white hover:bg-blue-50 text-blue-700 font-bold px-6 py-2.5 rounded-full text-xs sm:text-sm shadow-md transition-all hover:scale-105"
+                  className={`${theme.cta} font-bold px-6 py-2.5 rounded-full text-xs sm:text-sm shadow-md transition-all hover:scale-105 border-0`}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleBannerClick();
                   }}
                 >
-                  Learn More →
+                  {currentBanner.ctaLabel || 'Learn More'} →
                 </Button>
               </div>
             )}

@@ -39,6 +39,7 @@ import {
 import { formatUGX } from './livTeamsUtils';
 import TeamCreationWizard from './TeamCreationWizard';
 import { CloudinaryImage } from '@/components/CloudinaryImage';
+import { SEO } from '@/components/SEO';
 
 type FundingWithTeam = ProjectFundingRequest & { teamName: string };
 
@@ -387,6 +388,7 @@ export default function LivTeams() {
 
   return (
     <div className="space-y-6">
+      <SEO title="Liv Teams" description="Collaborative workspaces for revision groups, clubs, projects, savings and innovation on Liverton Learning." noIndex />
 
       {/* Page header */}
       <Card>

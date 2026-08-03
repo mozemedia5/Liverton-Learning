@@ -224,6 +224,7 @@ export interface Chat {
   title?: string;
   type?: 'hanna' | 'direct';
   lastMessage?: Message;
+  unreadCounts?: Record<string, number>;
   createdAt: Date | any;
   updatedAt: Date | any;
 }

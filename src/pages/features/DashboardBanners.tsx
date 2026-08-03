@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { bannerThemes, getBannerTheme, DEFAULT_BANNER_THEME } from '@/lib/bannerThemes';
 import { db, storage } from '@/lib/firebase';
 import {
   collection,
@@ -75,8 +76,12 @@ interface DashboardBanner {
   updatedAt: Date;
   createdBy: string;
   order: number;
-  // legacy fields (kept for backward compat but not shown in form)
+  // CJ-style promo content
   title?: string;
+  subtitle?: string;
+  ctaLabel?: string;
+  theme?: string;
+  // legacy fields (kept for backward compat)
   message?: string;
 }
 
@@ -89,6 +94,10 @@ interface FormState {
   targetRoles: AudienceRole[];
   isActive: boolean;
   expiresAt: string; // ISO date string for input[type=date]
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  theme: string;
 }
 
 // ─── In-app route options ────────────────────────────────────────────────────
@@ -205,6 +214,10 @@ export default function DashboardBanners() {
     targetRoles: [],
     isActive: true,
     expiresAt: '',
+    title: '',
+    subtitle: '',
+    ctaLabel: 'Learn More',
+    theme: DEFAULT_BANNER_THEME,
   };
 
   const [form, setForm] = useState<FormState>(defaultForm);
@@ -386,9 +399,13 @@ export default function DashboardBanners() {
         isActive: form.isActive,
         expiresAt,
         updatedAt: Timestamp.now(),
+        // CJ-style promo content
+        title: form.title.trim(),
+        subtitle: form.subtitle.trim(),
+        ctaLabel: form.ctaLabel.trim() || 'Learn More',
+        theme: form.theme,
         // legacy compat
-        title: '',
-        message: '',
+        message: form.subtitle.trim(),
         imageUrl: form.mediaType === 'image' ? form.mediaUrl : '',
         link: form.clickUrl,
         linkType: form.clickUrlType,
@@ -465,6 +482,10 @@ export default function DashboardBanners() {
       expiresAt: banner.expiresAt
         ? banner.expiresAt.toISOString().split('T')[0]
         : '',
+      title: banner.title || '',
+      subtitle: banner.subtitle || '',
+      ctaLabel: banner.ctaLabel || 'Learn More',
+      theme: banner.theme || DEFAULT_BANNER_THEME,
     });
     setUrlMeta(null);
     setPreviewError(false);
@@ -1168,50 +1189,139 @@ export default function DashboardBanners() {
               </div>
             </div>
 
-            {/* ── Live Banner Preview ── */}
-            {form.mediaUrl && (
+            {/* ── Promo Content & Theme (CJ-style) ── */}
+            <div className="space-y-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 bg-gray-50/50 dark:bg-gray-900/30">
+              <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" /> Promo Content & Theme
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="bannerTitle" className="text-xs">Headline</Label>
+                  <Input
+                    id="bannerTitle"
+                    value={form.title}
+                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Back-to-School Sale — 30% Off"
+                    maxLength={60}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bannerCta" className="text-xs">Button Label</Label>
+                  <Input
+                    id="bannerCta"
+                    value={form.ctaLabel}
+                    onChange={e => setForm(f => ({ ...f, ctaLabel: e.target.value }))}
+                    placeholder="Learn More"
+                    maxLength={24}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bannerSubtitle" className="text-xs">Sub-headline</Label>
+                <Input
+                  id="bannerSubtitle"
+                  value={form.subtitle}
+                  onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))}
+                  placeholder="e.g. Premium courses from top teachers — this week only"
+                  maxLength={110}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Gradient Theme</Label>
+                <div className="flex flex-wrap gap-2">
+                  {bannerThemes.map(theme => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, theme: theme.id }))}
+                      title={theme.label}
+                      aria-pressed={form.theme === theme.id}
+                      className={`w-10 h-10 rounded-xl border-2 transition-all ${
+                        form.theme === theme.id
+                          ? 'border-emerald-500 scale-110 shadow-lg'
+                          : 'border-transparent hover:scale-105'
+                      }`}
+                      style={{ background: theme.swatch }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Live Banner Preview (CJ-style promo banner) ── */}
+            {(form.mediaUrl || form.title) && (
               <div>
                 <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <Eye className="w-4 h-4" /> Banner Preview
                 </Label>
-                <div className="rounded-2xl overflow-hidden shadow-xl aspect-[16/7] bg-gray-900 relative group cursor-pointer"
-                  onClick={() => form.clickUrl && window.open(form.clickUrl, '_blank')}
-                >
-                  {form.mediaType === 'video' ? (
-                    <video src={form.mediaUrl} className="w-full h-full object-cover" muted loop autoPlay playsInline />
-                  ) : (
-                    <img
-                      src={form.mediaType === 'url' && urlMeta?.image ? urlMeta.image : form.mediaUrl}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={e => { e.currentTarget.src = ''; }}
-                    />
-                  )}
-                  {form.clickUrl && (
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <div className="bg-white/90 rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium text-gray-800">
-                        <ExternalLink className="w-4 h-4" /> Click to open link
+                {(() => {
+                  const theme = getBannerTheme(form.theme);
+                  const hasText = form.title.trim() || form.subtitle.trim();
+                  return (
+                    <div
+                      className={`rounded-2xl overflow-hidden shadow-xl aspect-[16/7] relative group cursor-pointer ${hasText ? theme.gradient : 'bg-gray-900'}`}
+                      onClick={() => form.clickUrl && window.open(form.clickUrl, '_blank')}
+                    >
+                      {hasText ? (
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="flex-1 px-5 sm:px-8 space-y-1.5 sm:space-y-2.5 min-w-0">
+                            <h3 className="text-white font-black text-lg sm:text-2xl lg:text-3xl leading-tight line-clamp-2 drop-shadow-md">
+                              {form.title || 'Your headline here'}
+                            </h3>
+                            {form.subtitle && (
+                              <p className="text-white/90 text-xs sm:text-sm line-clamp-2 max-w-md">{form.subtitle}</p>
+                            )}
+                            {form.clickUrl && (
+                              <span className={`inline-block mt-1.5 px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg ${theme.cta}`}>
+                                {form.ctaLabel || 'Learn More'} →
+                              </span>
+                            )}
+                          </div>
+                          {form.mediaUrl && form.mediaType !== 'video' && (
+                            <div className="hidden sm:block w-2/5 h-full">
+                              <img
+                                src={form.mediaType === 'url' && urlMeta?.image ? urlMeta.image : form.mediaUrl}
+                                alt=""
+                                className="w-full h-full object-cover [mask-image:linear-gradient(to_left,black_60%,transparent)]"
+                                onError={e => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {form.mediaType === 'video' ? (
+                            <video src={form.mediaUrl} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                          ) : (
+                            <img
+                              src={form.mediaType === 'url' && urlMeta?.image ? urlMeta.image : form.mediaUrl}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                              onError={e => { e.currentTarget.src = ''; }}
+                            />
+                          )}
+                        </>
+                      )}
+                      <div className="absolute bottom-3 left-3 flex gap-2">
+                        {form.targetRoles.map(role => {
+                          const opt = audienceOptions.find(o => o.id === role);
+                          return (
+                            <span key={role} className="text-xs bg-black/60 text-white rounded-full px-2 py-0.5 backdrop-blur-sm">
+                              {opt?.icon} {opt?.label}
+                            </span>
+                          );
+                        })}
                       </div>
+                      {form.expiresAt && (
+                        <div className="absolute top-3 right-3">
+                          <span className="text-xs bg-black/60 text-white rounded-full px-2.5 py-1 backdrop-blur-sm flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> Expires {new Date(form.expiresAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="absolute bottom-3 left-3 flex gap-2">
-                    {form.targetRoles.map(role => {
-                      const opt = audienceOptions.find(o => o.id === role);
-                      return (
-                        <span key={role} className="text-xs bg-black/60 text-white rounded-full px-2 py-0.5 backdrop-blur-sm">
-                          {opt?.icon} {opt?.label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {form.expiresAt && (
-                    <div className="absolute top-3 right-3">
-                      <span className="text-xs bg-black/60 text-white rounded-full px-2.5 py-1 backdrop-blur-sm flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Expires {new Date(form.expiresAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                  );
+                })()}
                 <p className="text-xs text-center text-gray-400 mt-2">
                   This is how your banner will appear on user dashboards
                 </p>

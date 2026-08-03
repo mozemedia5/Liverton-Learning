@@ -152,7 +152,7 @@ export default function SideNavbar() {
     { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles },
     { label: 'Profile', path: '/profile', icon: User },
     { label: 'Settings', path: '/settings', icon: Settings },
-    { label: 'Documents', path: '/features/document-workspace', icon: FileText, hasSubmenu: true },
+    { label: 'Documents', path: '/dashboard/documents', icon: FileText, hasSubmenu: true },
     { label: 'Calculator', path: '/features/calculator', icon: Calculator },
     { label: 'Analytics', path: '/features/analytics', icon: BarChart3, roles: ['student', 'teacher', 'school_admin', 'parent'] },
   ];
@@ -317,14 +317,14 @@ export default function SideNavbar() {
                 {isDocuments && showDocumentsSubmenu && (
                   <div className="ml-4 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-1 mt-1">
                     <button
-                      onClick={() => handleNavigate('/features/document-workspace')}
+                      onClick={() => handleNavigate('/dashboard/documents')}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-200"
                     >
                       <FileText className="w-4 h-4" />
                       <span>My Documents</span>
                     </button>
                     <button
-                      onClick={() => handleNavigate('/features/document-workspace')}
+                      onClick={() => handleNavigate('/dashboard/documents')}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200"
                     >
                       <Plus className="w-4 h-4" />

@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Search, 
-  Send, 
+import {
+  Search,
+  Send,
   MoreVertical,
-  Phone,
-  Video,
   Paperclip,
   Smile,
   Menu,
@@ -20,19 +19,21 @@ import {
   MessageSquare,
   Plus,
   FileText,
-  Download
+  Download,
+  CheckCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { 
-  listenToUserChats, 
-  listenToMessages, 
-  sendMessage, 
+import {
+  listenToUserChats,
+  listenToMessages,
+  sendMessage,
   sendMessageWithFile,
-  searchUsers, 
+  searchUsers,
   getOrCreateChat,
   deleteChat,
-  type ChatContact 
+  markChatAsRead,
+  type ChatContact
 } from '@/services/chatService';
 import { uploadChatFile, getFileType } from '@/services/fileUploadService';
 import type { Chat as ChatType, Message } from '@/types';
@@ -49,9 +50,12 @@ import { EmojiPicker } from '@/components/EmojiPicker';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { groupMessagesByDate } from '@/lib/dateUtils';
 import { DateSeparator } from '@/components/DateSeparator';
+import { SEO } from '@/components/SEO';
 
 export default function Chat() {
   const { currentUser, userData } = useAuth();
+  const { chatId: chatIdParam } = useParams<{ chatId: string }>();
+  const navigate = useNavigate();
   const [chats, setChats] = useState<ChatType[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatType | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,6 +63,7 @@ export default function Chat() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [chatFilter, setChatFilter] = useState('');
   const [searchResults, setSearchResults] = useState<ChatContact[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -98,31 +103,53 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  // Listen to user's chats
+  // Listen to user's chats (+ honor /chat/:chatId deep links)
   useEffect(() => {
     if (!currentUser) return;
-    
+
     const unsubscribe = listenToUserChats(currentUser.uid, (updatedChats) => {
       setChats(updatedChats);
       setLoading(false);
-    });
-    
-    return () => unsubscribe();
-  }, [currentUser]);
 
-  // Listen to messages when a chat is selected
+      if (chatIdParam) {
+        const target = updatedChats.find(c => c.id === chatIdParam);
+        if (target && selectedChat?.id !== target.id) {
+          setSelectedChat(target);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, chatIdParam]);
+
+  // Selecting a conversation updates the URL (shareable deep link) and marks it read
+  const openChat = (chat: ChatType) => {
+    setSelectedChat(chat);
+    navigate(`/chat/${chat.id}`, { replace: true });
+    if (currentUser) {
+      markChatAsRead(chat.id, currentUser.uid);
+    }
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+  };
+
+  // Listen to messages when a chat is selected (+ keep read receipts fresh)
   useEffect(() => {
     if (!selectedChat) {
       setMessages([]);
       return;
     }
-    
+
     const unsubscribe = listenToMessages(selectedChat.id, (updatedMessages) => {
       setMessages(updatedMessages);
+      if (currentUser && updatedMessages.some(m => !(m.readBy || []).includes(currentUser.uid))) {
+        markChatAsRead(selectedChat.id, currentUser.uid);
+      }
     });
-    
+
     return () => unsubscribe();
-  }, [selectedChat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?.id, currentUser]);
 
   // Handle user search
   useEffect(() => {
@@ -132,7 +159,7 @@ export default function Chat() {
         try {
           const results = await searchUsers(searchTerm, currentUser.uid);
           setSearchResults(results);
-        } catch (error) {
+        } catch {
           toast.error('Failed to search users');
         } finally {
           setIsSearching(false);
@@ -159,7 +186,7 @@ export default function Chat() {
         userData?.fullName || 'Me', 
         content
       );
-    } catch (error) {
+    } catch {
       toast.error('Failed to send message');
       setMessageInput(content); // Restore input on failure
     }
@@ -192,7 +219,7 @@ export default function Chat() {
       );
 
       toast.success('File sent successfully!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to upload file');
     } finally {
       setUploadingFile(false);
@@ -205,26 +232,25 @@ export default function Chat() {
 
   const handleStartChat = async (contact: ChatContact) => {
     if (!currentUser || !userData) return;
-    
+
     try {
       const chatId = await getOrCreateChat(
-        currentUser.uid, 
-        contact.uid, 
-        userData, 
+        currentUser.uid,
+        contact.uid,
+        userData,
         contact
       );
-      
+
       const chat = chats.find(c => c.id === chatId);
       if (chat) {
-        setSelectedChat(chat);
+        openChat(chat);
       } else {
-        toast.success('Starting new chat...');
+        navigate(`/chat/${chatId}`);
       }
-      
+
       setIsSearchOpen(false);
       setSearchTerm('');
-      if (window.innerWidth < 1024) setIsSidebarOpen(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to start chat');
     }
   };
@@ -237,7 +263,7 @@ export default function Chat() {
       toast.success('Chat deleted successfully');
       setSelectedChat(null);
       setDeleteConfirmation({ isOpen: false });
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete chat');
     }
   };
@@ -270,6 +296,21 @@ export default function Chat() {
     return otherId ? chat.participantRoles[otherId] : 'student';
   };
 
+  const getUnreadCount = (chat: ChatType): number => {
+    if (!currentUser) return 0;
+    return chat.unreadCounts?.[currentUser.uid] || 0;
+  };
+
+  const filteredChats = useMemo(() => {
+    const q = chatFilter.trim().toLowerCase();
+    if (!q) return chats;
+    return chats.filter(chat =>
+      getOtherParticipantName(chat).toLowerCase().includes(q) ||
+      (chat.lastMessage?.content || '').toLowerCase().includes(q)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chats, chatFilter, currentUser]);
+
   // Get wallpaper style
   const getWallpaperStyle = (): React.CSSProperties => {
     if (!chatSettings.wallpaper) return {};
@@ -294,16 +335,18 @@ export default function Chat() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white dark:bg-black">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
+    <div className="flex items-center justify-center h-screen bg-white dark:bg-black">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+    </div>
+  );
+}
 
   // Group messages by date
   const messageGroups = groupMessagesByDate(messages);
 
   return (
+    <>
+      <SEO title="Chats" description="Chat with teachers, students and school teams on Liverton Learning." noIndex />
     <div className="flex h-screen bg-white dark:bg-black overflow-hidden">
       {/* Sidebar - Chat List */}
       <aside 
@@ -341,10 +384,21 @@ export default function Chat() {
         <div className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder="Search chats..." 
+            <Input
+              placeholder="Search chats..."
+              value={chatFilter}
+              onChange={(e) => setChatFilter(e.target.value)}
               className="pl-10 bg-gray-100 dark:bg-gray-900 border-none rounded-full"
             />
+            {chatFilter && (
+              <button
+                onClick={() => setChatFilter('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -362,37 +416,48 @@ export default function Chat() {
                 Start a new chat
               </Button>
             </div>
+          ) : filteredChats.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 text-sm">
+              <p>No chats match "{chatFilter}"</p>
+            </div>
           ) : (
-            chats.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => {
-                  setSelectedChat(chat);
-                  if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                }}
-                className={`
-                  w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors
-                  ${selectedChat?.id === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-600' : ''}
-                `}
-              >
-                <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800">
-                  <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                    {getInitials(getOtherParticipantName(chat))}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 text-left min-w-0">
-                  <div className="flex justify-between items-baseline mb-1">
-                    <h3 className="font-semibold truncate">{getOtherParticipantName(chat)}</h3>
-                    <span className="text-xs text-gray-500">
-                      {chat.updatedAt ? new Date(chat.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                    </span>
+            filteredChats.map((chat) => {
+              const unread = getUnreadCount(chat);
+              return (
+                <button
+                  key={chat.id}
+                  onClick={() => openChat(chat)}
+                  className={`
+                    w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors
+                    ${selectedChat?.id === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-600' : ''}
+                  `}
+                >
+                  <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800">
+                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                      {getInitials(getOtherParticipantName(chat))}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="flex justify-between items-baseline mb-1">
+                      <h3 className="font-semibold truncate">{getOtherParticipantName(chat)}</h3>
+                      <span className={`text-xs ${unread > 0 ? 'text-emerald-500 font-bold' : 'text-gray-500'}`}>
+                        {chat.updatedAt ? new Date(chat.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm truncate ${unread > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500'}`}>
+                        {chat.lastMessage?.content || 'No messages yet'}
+                      </p>
+                      {unread > 0 && (
+                        <span className="flex-shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[11px] font-bold flex items-center justify-center">
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500 truncate">
-                    {chat.lastMessage?.content || 'No messages yet'}
-                  </p>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </aside>
@@ -419,15 +484,10 @@ export default function Chat() {
                 </Avatar>
                 <div>
                   <h2 className="font-bold leading-tight">{getOtherParticipantName(selectedChat)}</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-xs text-gray-500 capitalize">{getOtherParticipantRole(selectedChat).replace('_', ' ')}</span>
-                  </div>
+                  <span className="text-xs text-gray-500 capitalize">{getOtherParticipantRole(selectedChat).replace('_', ' ')}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex"><Phone className="w-5 h-5" /></Button>
-                <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex"><Video className="w-5 h-5" /></Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-5 h-5" /></Button>
@@ -515,8 +575,15 @@ export default function Chat() {
                             </div>
                           )}
                           <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
-                          <span className={`text-[10px] mt-1 block ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                          <span className={`text-[10px] mt-1 flex items-center gap-1 ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            {isMe && (
+                              <CheckCheck className={`w-3.5 h-3.5 ${
+                                selectedChat.participants.some(p => p !== currentUser?.uid && (msg.readBy || []).includes(p))
+                                  ? 'text-emerald-300'
+                                  : 'text-blue-200/60'
+                              }`} />
+                            )}
                           </span>
                         </div>
                       </div>
@@ -711,5 +778,6 @@ export default function Chat() {
         onCancel={() => setDeleteConfirmation({ isOpen: false })}
       />
     </div>
+    </>
   );
 }

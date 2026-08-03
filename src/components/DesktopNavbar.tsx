@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
+import { useUnreadChatsCount } from '@/hooks/useUnreadChats';
 
 interface DesktopNavbarProps {
   userRole: UserRole | null;
@@ -58,6 +59,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   const navigate = useNavigate();
   const location = useLocation();
   const { userData, logout } = useAuth();
+  const unreadChatsCount = useUnreadChatsCount();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -106,9 +108,9 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
           { icon: ImageIcon, label: 'Banners', path: '/admin/dashboard-banners' },
           { icon: Bell, label: 'Notifications', path: '/admin/dashboard-announcements', badge: 2 },
-          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: isCollapsed && unreadChatsCount > 0, badge: unreadChatsCount > 0 ? unreadChatsCount : undefined },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
         );
@@ -124,8 +126,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         tools.push(
           { icon: Video, label: 'Live Lessons', path: '/teacher/zoom-lessons' },
           { icon: CreditCard, label: 'Earnings', path: '/payments' },
-          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: isCollapsed && unreadChatsCount > 0, badge: unreadChatsCount > 0 ? unreadChatsCount : undefined },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
@@ -144,8 +146,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Video, label: 'Live Lessons', path: '/parent/zoom-lessons' },
           { icon: BookOpen, label: 'Courses', path: '/parent/courses' },
           { icon: FileText, label: 'Quizzes', path: '/parent/quizzes' },
-          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: isCollapsed && unreadChatsCount > 0, badge: unreadChatsCount > 0 ? unreadChatsCount : undefined },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Announcements', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
@@ -162,8 +164,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         );
         tools.push(
           { icon: CreditCard, label: 'Fees', path: '/school-admin/fees' },
-          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: isCollapsed && unreadChatsCount > 0, badge: unreadChatsCount > 0 ? unreadChatsCount : undefined },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Announcements', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
@@ -176,8 +178,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         general.push(
           homeItem,
           { icon: BookOpen, label: 'Courses', path: '/student/courses' },
-          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: true },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' }
+          { icon: MessageSquare, label: 'Chat', path: '/chat', dot: isCollapsed && unreadChatsCount > 0, badge: unreadChatsCount > 0 ? unreadChatsCount : undefined },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' }
         );
         tools.push(
           { icon: FileText, label: 'Quizzes', path: '/student/quizzes' },
@@ -198,7 +200,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
     );
 
     return { general, tools };
-  }, [userRole]);
+  }, [userRole, unreadChatsCount, isCollapsed]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -246,7 +248,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         'h': getHomePath(userRole),
         'c': userRole === 'teacher' ? '/teacher/courses' : '/student/courses',
         'm': '/chat',
-        'd': '/features/document-workspace',
+        'd': '/dashboard/documents',
         's': '/settings',
       };
 

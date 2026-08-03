@@ -32,6 +32,7 @@ import {
 import type { UserRole } from '@/types';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
+import { useUnreadChatsCount } from '@/hooks/useUnreadChats';
 
 interface MobileBottomNavProps {
   userRole: UserRole | null;
@@ -42,6 +43,7 @@ type TabItem = {
   label: string;
   path: string;
   isPlusButton?: boolean;
+  badge?: number;
 };
 
 type MoreItem = {
@@ -75,6 +77,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const plusButtonRef = useRef<HTMLButtonElement>(null);
 
   const activePath = location.pathname;
+  const unreadChatsCount = useUnreadChatsCount();
 
   // Custom Jumia-style bottom tabs dynamically selected per user role
   const tabs: TabItem[] = useMemo(() => {
@@ -118,7 +121,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Home, label: 'Home', path: homePath },
           { icon: BookOpen, label: 'Courses', path: '/student/courses' },
           { icon: MessageSquare, label: 'Chat', path: '/chat' },
-          { icon: FileText, label: 'Docs', path: '/features/document-workspace' },
+          { icon: FileText, label: 'Docs', path: '/dashboard/documents' },
           { icon: MoreHorizontal, label: 'More', path: '' },
         ];
     }
@@ -134,7 +137,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Bell, label: 'Notifications', path: '/admin/dashboard-announcements' },
           { icon: ImageIcon, label: 'Dashboard Banners', path: '/admin/dashboard-banners' },
           { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
@@ -146,7 +149,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Users, label: 'Students', path: '/teacher/students' },
           { icon: Video, label: 'Live Lessons', path: '/teacher/zoom-lessons' },
           { icon: CreditCard, label: 'Earnings', path: '/payments' },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
@@ -159,7 +162,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Video, label: 'Live Lessons', path: '/parent/zoom-lessons' },
           { icon: BookOpen, label: 'Courses', path: '/parent/courses' },
           { icon: FileText, label: 'Quizzes', path: '/parent/quizzes' },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
@@ -169,7 +172,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       case 'school_admin':
         baseItems.push(
           { icon: CreditCard, label: 'Fees', path: '/school-admin/fees' },
-          { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
+          { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: MessageSquare, label: 'Chat', path: '/chat' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
@@ -467,7 +470,10 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       <nav className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-2 pt-1 lg:hidden">
         <div className="max-w-lg mx-auto tab-enter bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl shadow-black/5 dark:shadow-black/20">
           <div className="flex items-center justify-around h-16 px-1">
-            {tabs.map((item) => {
+            {tabs.map((rawItem) => {
+              const item = rawItem.label === 'Chat' && unreadChatsCount > 0
+                ? { ...rawItem, badge: unreadChatsCount }
+                : rawItem;
               const Icon = item.icon;
               const isMore = item.label === 'More';
               const isPlus = item.isPlusButton;
@@ -506,7 +512,14 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
                       <Icon className="w-5 h-5 text-white" />
                     </div>
                   ) : (
-                    <Icon className={`w-5 h-5 transition-transform duration-200 ${isActiveTab ? 'scale-110' : ''}`} />
+                    <span className="relative">
+                      <Icon className={`w-5 h-5 transition-transform duration-200 ${isActiveTab ? 'scale-110' : ''}`} />
+                      {!!item.badge && item.badge > 0 && (
+                        <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
+                    </span>
                   )}
 
                   {!isPlus && (

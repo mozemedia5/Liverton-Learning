@@ -1,17 +1,20 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  onSnapshot, 
-  orderBy, 
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  orderBy,
   Timestamp,
   limit,
   getDoc,
-  writeBatch
+  writeBatch,
+  increment,
+  arrayUnion,
+  type FieldValue
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
@@ -80,7 +83,7 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
     
     const term = searchTerm.toLowerCase();
     return snapshot.docs
-      .map(doc => ({ uid: doc.id, ...doc.data() } as any))
+      .map(d => ({ uid: d.id, ...d.data() } as ChatContact & { name?: string; profileImageUrl?: string }))
       .filter(user => 
         user.uid !== currentUserId && 
         (user.fullName?.toLowerCase().includes(term) || user.email?.toLowerCase().includes(term))
@@ -105,8 +108,8 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 export const getOrCreateChat = async (
   currentUserId: string, 
   targetUserId: string, 
-  currentUserData: any, 
-  targetUserData: any,
+  currentUserData: { fullName?: string; role?: string },
+  targetUserData: { fullName?: string; role?: string },
   initialMessage?: string
 ): Promise<string> => {
   try {
@@ -195,27 +198,39 @@ export const updateChatTitleByGist = async (
  * Listen to user's chats
  * Chats are now named according to their content with dates
  */
-export const listenToUserChats = (userId: string, callback: (chats: Chat[]) => void) => {
+export const listenToUserChats = (
+  userId: string,
+  callback: (chats: Chat[]) => void,
+  onError?: (error: Error) => void
+) => {
   const chatsRef = collection(db, 'chats');
   const q = query(
     chatsRef,
     where('participants', 'array-contains', userId),
     orderBy('updatedAt', 'desc')
   );
-  
-  return onSnapshot(q, (snapshot) => {
-    const chats = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-      lastMessage: doc.data().lastMessage ? {
-        ...doc.data().lastMessage,
-        createdAt: doc.data().lastMessage.createdAt?.toDate()
-      } : undefined
-    })) as Chat[];
-    callback(chats);
-  });
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const chats = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate(),
+        lastMessage: doc.data().lastMessage ? {
+          ...doc.data().lastMessage,
+          createdAt: doc.data().lastMessage.createdAt?.toDate()
+        } : undefined
+      })) as Chat[];
+      callback(chats);
+    },
+    (error) => {
+      console.error('Error listening to user chats:', error);
+      callback([]);
+      if (onError) onError(error);
+    }
+  );
 };
 
 /**
@@ -224,15 +239,22 @@ export const listenToUserChats = (userId: string, callback: (chats: Chat[]) => v
 export const listenToMessages = (chatId: string, callback: (messages: Message[]) => void) => {
   const messagesRef = collection(db, 'chats', chatId, 'messages');
   const q = query(messagesRef, orderBy('createdAt', 'asc'));
-  
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate()
-    })) as Message[];
-    callback(messages);
-  });
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate()
+      })) as Message[];
+      callback(messages);
+    },
+    (error) => {
+      console.error('Error listening to messages:', error);
+      callback([]);
+    }
+  );
 };
 
 /**
@@ -240,9 +262,9 @@ export const listenToMessages = (chatId: string, callback: (messages: Message[])
  * Automatically renames the chat based on the first message content (gist)
  */
 export const sendMessage = async (
-  chatId: string, 
-  senderId: string, 
-  senderName: string, 
+  chatId: string,
+  senderId: string,
+  senderName: string,
   content: string,
   isFirstMessage: boolean = false
 ) => {
@@ -257,22 +279,59 @@ export const sendMessage = async (
       createdAt: Timestamp.now(),
       readBy: [senderId]
     };
-    
+
     await addDoc(messagesRef, messageData);
-    
-    // Update chat's last message and updatedAt
+
+    // Update chat's last message and updatedAt + bump unread counters for the other participants
     const chatRef = doc(db, 'chats', chatId);
+    const chatSnap = await getDoc(chatRef);
+    const participants: string[] = chatSnap.exists() ? (chatSnap.data().participants || []) : [];
+    const unreadUpdates: Record<string, FieldValue> = {};
+    participants
+      .filter(p => p !== senderId && p !== 'hanna-ai')
+      .forEach(p => { unreadUpdates[`unreadCounts.${p}`] = increment(1); });
+
     await updateDoc(chatRef, {
       lastMessage: messageData,
-      updatedAt: Timestamp.now()
+      updatedAt: Timestamp.now(),
+      ...unreadUpdates
     });
-    
+
     // Update chat title based on message gist (for first message or generic titles)
     await updateChatTitleByGist(chatId, content, isFirstMessage);
-    
+
   } catch (error) {
     console.error('Error sending message:', error);
     throw error;
+  }
+};
+
+/**
+ * Mark a conversation as read for a user:
+ * resets their unread counter and records their read receipts on recent messages.
+ */
+export const markChatAsRead = async (chatId: string, userId: string): Promise<void> => {
+  try {
+    const chatRef = doc(db, 'chats', chatId);
+    await updateDoc(chatRef, { [`unreadCounts.${userId}`]: 0 });
+
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(30));
+    const snap = await getDocs(q);
+
+    const unread = snap.docs.filter(d => {
+      const readBy: string[] = d.data().readBy || [];
+      return !readBy.includes(userId);
+    });
+    if (unread.length === 0) return;
+
+    const batch = writeBatch(db);
+    unread.forEach(d => {
+      batch.update(d.ref, { readBy: arrayUnion(userId) });
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Error marking chat as read:', error);
   }
 };
 
@@ -379,7 +438,7 @@ export const sendMessageWithFile = async (
 ) => {
   try {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
-    const messageData: any = {
+    const messageData: Record<string, unknown> = {
       chatId,
       senderId,
       senderName,
@@ -399,22 +458,30 @@ export const sendMessageWithFile = async (
     }
     
     await addDoc(messagesRef, messageData);
-    
-    // Update chat's last message and updatedAt
+
+    // Update chat's last message and updatedAt + bump unread counters for the other participants
     const chatRef = doc(db, 'chats', chatId);
+    const chatSnap = await getDoc(chatRef);
+    const participants: string[] = chatSnap.exists() ? (chatSnap.data().participants || []) : [];
+    const unreadUpdates: Record<string, FieldValue> = {};
+    participants
+      .filter(p => p !== senderId && p !== 'hanna-ai')
+      .forEach(p => { unreadUpdates[`unreadCounts.${p}`] = increment(1); });
+
     await updateDoc(chatRef, {
       lastMessage: {
         ...messageData,
         content: fileURL ? `📎 ${fileName || 'File'}` : content
       },
-      updatedAt: Timestamp.now()
+      updatedAt: Timestamp.now(),
+      ...unreadUpdates
     });
-    
+
     // Update chat title based on message gist (for first message or generic titles)
     if (content && !fileURL) {
       await updateChatTitleByGist(chatId, content, isFirstMessage);
     }
-    
+
   } catch (error) {
     console.error('Error sending message:', error);
     throw error;

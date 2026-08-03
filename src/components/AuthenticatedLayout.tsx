@@ -5,6 +5,7 @@ import { DesktopNavbar } from '@/components/DesktopNavbar';
 import { HannaButton } from '@/components/HannaButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnnouncementListener } from '@/hooks/useAnnouncementListener';
+import { useChatMessageNotifications } from '@/hooks/useChatMessageNotifications';
 
 export default function AuthenticatedLayout(props: { children?: React.ReactNode }) {
   const { isAuthenticated, userRole } = useAuth();
@@ -13,6 +14,9 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
 
   // Listen for real-time announcements
   useAnnouncementListener();
+
+  // Listen for new chat messages (cool toast notifications with deep links)
+  useChatMessageNotifications();
 
   const show = isAuthenticated;
 

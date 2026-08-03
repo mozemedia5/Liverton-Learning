@@ -1,6 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/lib/firebase';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -12,6 +11,9 @@ import RoleSelection from '@/pages/RoleSelection';
 import Login from '@/pages/Login';
 import Register from '@/pages/register/Register';
 import VerifyEmail from '@/pages/register/VerifyEmail';
+import NotFound from '@/pages/NotFound';
+import CourseView from '@/pages/CourseView';
+import PublicProfile from '@/pages/PublicProfile';
 
 import VerifyStudentEmail from '@/pages/register/VerifyStudentEmail';
 // Dashboards
@@ -61,9 +63,6 @@ import PublicDocument from '@/pages/features/PublicDocument';
 import LivTeams from '@/pages/features/liv-teams/LivTeams';
 import TeamWorkspace from '@/pages/features/liv-teams/TeamWorkspace';
 import CalendarPage from '@/pages/features/CalendarPage';
-import DocumentManagement from '@/pages/features/DocumentManagement';
-import DocumentWorkspaceWrapper from "@/components/DocumentWorkspaceWrapper";
-import UnifiedDocumentEditor from '@/pages/features/UnifiedDocumentEditor';
 import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
@@ -96,6 +95,7 @@ import './App.css';
  */
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, userRole, initialLoadComplete } = useAuth();
+  const location = useLocation();
 
   // Show loading animation during initial auth check
   // This prevents flash of login page for authenticated users
@@ -103,9 +103,11 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <LogoLoader message="Initializing..." />;
   }
 
-  // Redirect unauthenticated users to login page
+  // Redirect unauthenticated users to login page, preserving the intended
+  // destination so they return to it after signing in (deep links)
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const intended = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/login" state={{ from: intended }} replace />;
   }
 
   // Email verification is now handled elegantly directly in the Profile page
@@ -130,6 +132,7 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
  */
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, userRole, initialLoadComplete } = useAuth();
+  const location = useLocation();
 
   // Show loading animation during initial auth check
   // This prevents flash of landing page for authenticated users
@@ -137,8 +140,13 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <LogoLoader message="Initializing..." />;
   }
 
-  // Redirect authenticated users to their dashboard based on role
+  // Redirect authenticated users: honor a preserved deep-link destination
+  // first, otherwise fall back to their role dashboard
   if (isAuthenticated && userRole) {
+    const from = (location.state as { from?: string } | null)?.from;
+    if (from && from !== '/login') {
+      return <Navigate to={from} replace />;
+    }
     const dashboardRoutes: Record<string, string> = {
       student: '/student/dashboard',
       teacher: '/teacher/dashboard',
@@ -379,6 +387,24 @@ function AppRoutes() {
           <Chat />
         </ProtectedRoute>
       } />
+      {/* Deep link into a specific conversation (shareable) */}
+      <Route path="/chat/:chatId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <Chat />
+        </ProtectedRoute>
+      } />
+      {/* Shareable course detail page (opens the exact course for any signed-in user) */}
+      <Route path="/courses/:courseId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><CourseView /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      {/* Shareable public profile page */}
+      <Route path="/profile/:userId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><PublicProfile /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
       <Route path="/payments" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'platform_admin']}> 
           <AuthenticatedLayout><Payments /></AuthenticatedLayout>
@@ -409,18 +435,6 @@ function AppRoutes() {
       {/* Public document sharing - accessible without authentication */}
       <Route path="/documents/public/:token" element={<PublicDocument />} />
 
-      {/* Document Workspace Routes - Microsoft Office 365 Style */}
-      <Route path="/features/document-workspace" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><DocumentWorkspaceWrapper /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/editor/:type/:docId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <UnifiedDocumentEditor />
-        </ProtectedRoute>
-      } />
-
       {/* Calendar Route - Protected, accessible to all authenticated users */}
       <Route path="/calendar" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
@@ -439,11 +453,7 @@ function AppRoutes() {
           <AuthenticatedLayout><TeamWorkspace /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      <Route path="/features/document-management" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><DocumentManagement /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
+      {/* Legacy document-management route removed — consolidated into /dashboard/documents */}
       <Route path="/features/calculator" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Calculator /></AuthenticatedLayout>
@@ -465,8 +475,8 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Fallback Route - Redirect unknown routes to home */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* 404 - Page not found */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
