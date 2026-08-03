@@ -4,7 +4,7 @@
  */
 
 import { toast } from 'sonner';
-import { uploadToCloudinary, type CloudinaryUploadType } from './cloudinaryService';
+import { uploadToCloudinary, mapFileToCloudinaryType, type CloudinaryUploadType } from './cloudinaryService';
 
 export interface FileUploadProgress {
   progress: number;
@@ -14,29 +14,11 @@ export interface FileUploadProgress {
 }
 
 /**
- * Maps standard browser Mime-Types or File Extensions to Cloudinary upload preset types
+ * Maps standard browser Mime-Types or File Extensions to Cloudinary upload preset types.
+ * Delegates to the shared mapper in cloudinaryService (kept for API compatibility).
  */
 export const mapFileTypeToCloudinary = (file: File): CloudinaryUploadType => {
-  const type = file.type.toLowerCase();
-
-  if (type.startsWith('image/')) {
-    return 'image';
-  }
-  if (type.startsWith('audio/')) {
-    return 'audio';
-  }
-  if (type.startsWith('video/')) {
-    // If it's a very large video file, classify as course_video, else short_video
-    return file.size > 20 * 1024 * 1024 ? 'course_video' : 'short_video';
-  }
-
-  // Documents / PDF / Presentations / Spreadsheet / Word
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(extension || '')) {
-    return 'document';
-  }
-
-  return 'document';
+  return mapFileToCloudinaryType(file);
 };
 
 /**
@@ -48,7 +30,7 @@ export const mapFileTypeToCloudinary = (file: File): CloudinaryUploadType => {
  */
 export const uploadChatFile = async (
   file: File,
-  chatId: string,
+  _chatId: string,
   onProgress?: (progress: FileUploadProgress) => void
 ): Promise<string> => {
   try {
@@ -83,12 +65,12 @@ export const uploadChatFile = async (
 
     toast.success('File uploaded to Cloudinary successfully');
     return downloadURL;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Cloudinary file upload error:', error);
     onProgress?.({
       progress: 0,
       status: 'error',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Upload failed',
     });
     throw error;
   }

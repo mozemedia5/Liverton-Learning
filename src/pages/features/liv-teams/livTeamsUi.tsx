@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import type { TeamRole } from '@/types/livTeams';
 import { teamRoleLabel } from './livTeamsUtils';
+import { optimizeCloudinaryUrl } from '@/services/cloudinaryService';
 
 /* ------------------------------------------------------------------ */
 /* Loading state (matches the rest of Liverton Learning)               */
@@ -159,8 +160,10 @@ export function TeamLogo({ name, logoUrl, size = 'md', className = '' }: TeamLog
   if (logoUrl) {
     return (
       <img
-        src={logoUrl}
+        src={optimizeCloudinaryUrl(logoUrl, { width: 192, crop: 'fill', gravity: 'auto' })}
         alt={`${name} logo`}
+        loading="lazy"
+        decoding="async"
         className={`${sizing} object-cover flex-shrink-0 ${className}`}
       />
     );

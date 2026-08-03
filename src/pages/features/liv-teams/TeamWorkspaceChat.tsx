@@ -18,7 +18,7 @@ import {
   addTeamMessageReply,
   togglePinTeamMessage
 } from '@/services/livTeamsChatService';
-import { uploadToCloudinary } from '@/services/cloudinaryService';
+import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
 import type { TeamMessage, TeamMessageReply, TeamRole } from '@/types/livTeams';
 import { LivLoader } from './livTeamsUi';
 
@@ -122,9 +122,9 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
     try {
       // Map to the correct Cloudinary preset configured for Liverton Learning
       const presetType = kind === 'image' ? 'image'
-        : kind === 'video' ? 'course_video'
         : kind === 'audio' ? 'audio'
-        : 'document';
+        : kind === 'document' ? 'document'
+        : mapFileToCloudinaryType(file, file.name);
       const url = await uploadToCloudinary(file, presetType);
 
       const messageType: TeamMessage['type'] =

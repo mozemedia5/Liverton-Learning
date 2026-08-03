@@ -9,7 +9,7 @@ import {
   FolderOpen, UploadCloud, FileImage, FileVideo, FileAudio, FileArchive, File as FileIcon, Loader2
 } from 'lucide-react';
 import { uploadTeamFile, getTeamFiles, deleteTeamFile } from '@/services/livTeamsProjectService';
-import { uploadToCloudinary } from '@/services/cloudinaryService';
+import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
 import type { TeamFolderFile, TeamRole } from '@/types/livTeams';
 import { LivEmptyState, LivSectionHeader } from './livTeamsUi';
 
@@ -31,13 +31,6 @@ function fileIconFor(name: string, mime: string) {
   if (['zip', 'rar', '7z'].includes(ext)) return <FileArchive className="w-5 h-5" />;
   if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext)) return <FileText className="w-5 h-5" />;
   return <FileIcon className="w-5 h-5" />;
-}
-
-function cloudinaryTypeFor(file: File): 'image' | 'course_video' | 'audio' | 'document' {
-  if (file.type.startsWith('image/')) return 'image';
-  if (file.type.startsWith('video/')) return 'course_video';
-  if (file.type.startsWith('audio/')) return 'audio';
-  return 'document';
 }
 
 export default function TeamWorkspaceResources({ teamId, teamRole }: ResourcesProps) {
@@ -73,7 +66,7 @@ export default function TeamWorkspaceResources({ teamId, teamRole }: ResourcesPr
     setUploading(true);
     try {
       // Upload through the correct existing Cloudinary preset for the file type
-      const secureUrl = await uploadToCloudinary(file, cloudinaryTypeFor(file));
+      const secureUrl = await uploadToCloudinary(file, mapFileToCloudinaryType(file, file.name));
 
       await uploadTeamFile(teamId, {
         name: file.name,

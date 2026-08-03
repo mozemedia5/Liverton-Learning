@@ -34,6 +34,7 @@ import { getTeamMeetings } from '@/services/livTeamsChatService';
 import type { Team, TeamMember, TeamRole, TeamActivityFeedItem, TeamVisibility } from '@/types/livTeams';
 import { LivLoader, LivSectionHeader, LivStatCard, TeamRoleBadge, TeamLogo } from './livTeamsUi';
 import { formatUGX } from './livTeamsUtils';
+import { CloudinaryImage } from '@/components/CloudinaryImage';
 
 // Workspace tab views
 import TeamWorkspaceChat from './TeamWorkspaceChat';
@@ -311,17 +312,25 @@ export default function TeamWorkspace() {
 
       {/* Workspace header */}
       <Card className="overflow-hidden py-0 gap-0">
-        <div className="h-36 md:h-44 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 relative">
-          {team.coverUrl && <img src={team.coverUrl} className="w-full h-full object-cover" alt={`${team.name} cover`} />}
+        <div className="relative">
+          <CloudinaryImage
+            src={team.coverUrl}
+            alt={`${team.name} cover`}
+            aspect="21/9"
+            widths={[640, 960, 1280, 1600]}
+            sizes="(max-width: 1280px) 100vw, 1280px"
+            eager
+            fallback={<div className="w-full h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />}
+          />
           <Button
             variant="secondary"
             size="sm"
-            className="absolute top-4 left-4 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow"
+            className="absolute top-4 left-4 z-10 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow"
             onClick={() => navigate('/features/liv-teams')}
           >
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Liv Teams
           </Button>
-          <Badge className="absolute top-4 right-4 bg-black/40 text-white border-0 backdrop-blur capitalize">
+          <Badge className="absolute top-4 right-4 z-10 bg-black/40 text-white border-0 backdrop-blur capitalize">
             {team.visibility}
           </Badge>
         </div>
