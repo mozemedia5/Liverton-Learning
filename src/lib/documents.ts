@@ -93,7 +93,9 @@ export function createEmptyDocumentMeta(params: {
     type: params.type,
     ownerId: params.ownerId,
     role: params.role,
-    schoolId: params.schoolId,
+    // Firestore rejects `undefined` field values in addDoc, so always
+    // coerce optional fields to null instead.
+    schoolId: params.schoolId ?? null,
     folderId: params.folderId ?? null,
     sharedWith: [],
     visibility: params.visibility ?? 'private',

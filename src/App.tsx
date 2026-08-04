@@ -63,6 +63,8 @@ import PublicDocument from '@/pages/features/PublicDocument';
 import LivTeams from '@/pages/features/liv-teams/LivTeams';
 import TeamWorkspace from '@/pages/features/liv-teams/TeamWorkspace';
 import CalendarPage from '@/pages/features/CalendarPage';
+import Events from '@/pages/features/Events';
+import CreateEvent from '@/pages/features/CreateEvent';
 import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
@@ -439,6 +441,18 @@ function AppRoutes() {
       <Route path="/calendar" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <CalendarPage />
+        </ProtectedRoute>
+      } />
+
+      {/* Events Routes - Protected, accessible to all authenticated users */}
+      <Route path="/events" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <Events />
+        </ProtectedRoute>
+      } />
+      <Route path="/events/create" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <CreateEvent />
         </ProtectedRoute>
       } />
 

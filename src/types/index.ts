@@ -290,7 +290,7 @@ export interface DocumentMeta {
   type: DocumentType;
   ownerId: string;
   role: UserRole;
-  schoolId?: string;
+  schoolId?: string | null;
   folderId?: string | null;
   sharedWith: string[];
   sharedWithPermissions?: Record<string, DocumentSharePermission>;

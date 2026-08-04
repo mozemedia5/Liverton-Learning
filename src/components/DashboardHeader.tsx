@@ -1,0 +1,119 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Search } from 'lucide-react';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface DashboardHeaderProps {
+  /** Optional small caption under the greeting, defaults to today's date */
+  subtitle?: string;
+}
+
+/**
+ * DashboardHeader - mobile-app style top bar for every dashboard.
+ * Greeting on the left ("Hello, <name>"), notification bell with an
+ * unread badge in the upper right corner and the user avatar.
+ */
+export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
+  const navigate = useNavigate();
+  const { userData, userRole, currentUser } = useAuth();
+  const [unread, setUnread] = useState(0);
+
+  const firstName = useMemo(() => {
+    const full = userData?.fullName?.trim();
+    if (!full) return 'there';
+    return full.split(/\s+/)[0];
+  }, [userData?.fullName]);
+
+  const today = useMemo(
+    () =>
+      new Date().toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+    []
+  );
+
+  // Live unread notification count for the bell badge
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const now = new Date();
+        const audienceKey = userRole ? `${userRole}s` : '';
+        let count = 0;
+        snapshot.docs.forEach((d) => {
+          const data = d.data();
+          if (data.isHidden) return;
+          const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
+          if (expiresAt && expiresAt <= now) return;
+          const targets: string[] = Array.isArray(data.targetAudience) ? data.targetAudience : [];
+          const targeted =
+            targets.includes('all') || (audienceKey && targets.includes(audienceKey)) || data.senderId === currentUser.uid;
+          if (!targeted) return;
+          if (data.isRead === false || data.isRead === undefined) count += 1;
+        });
+        setUnread(count);
+      },
+      (error) => {
+        console.error('Notification badge error:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.uid, userRole]);
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      {/* Greeting */}
+      <div className="min-w-0">
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium truncate">
+          {subtitle || today}
+        </p>
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
+          Hello, {firstName}
+        </h1>
+      </div>
+
+      {/* Upper-right actions: search (desktop), notifications bell, avatar */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <button
+          onClick={() => navigate('/courses')}
+          className="hidden md:flex w-10 h-10 items-center justify-center rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-sm transition-colors"
+          title="Search courses"
+        >
+          <Search className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => navigate('/announcements')}
+          className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-sm transition-colors"
+          title="Notifications"
+        >
+          <Bell className="w-5 h-5" />
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+              {unread > 99 ? '99+' : unread}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => navigate('/profile')}
+          className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-md text-white font-bold"
+          title="Profile"
+        >
+          {userData?.fullName?.charAt(0).toUpperCase() || 'U'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default DashboardHeader;

@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
+import DashboardHeader from '@/components/DashboardHeader';
 import MotivationCorner from '@/components/MotivationCorner';
 import { 
   subscribeToSchoolAnalytics,
@@ -39,7 +40,7 @@ import {
  */
 export default function SchoolAdminDashboard() {
   const navigate = useNavigate();
-  const { userData, currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const [analytics, setAnalytics] = useState<SchoolAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -98,6 +99,9 @@ export default function SchoolAdminDashboard() {
   return (
     <AuthenticatedLayout>
       <div className="p-4 lg:p-6 space-y-6">
+        {/* Header: greeting + notifications in the upper right corner */}
+        <DashboardHeader />
+
         {/* Dashboard Banner */}
         <BannerCarousel />
 

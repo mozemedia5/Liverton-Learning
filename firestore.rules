@@ -290,6 +290,34 @@ service cloud.firestore {
       allow write: if isPlatformAdmin();
     }
     
+    // ==================== EVENTS ====================
+    
+    match /events/{eventId} {
+      // Platform admins can do everything
+      allow read, write: if isPlatformAdmin();
+      
+      // Public events are readable by any signed-in user
+      allow get, list: if isAuthenticated() && 
+        resource.data.visibility == 'public';
+      
+      // School events are readable by members of that school
+      allow get, list: if isAuthenticated() && 
+        resource.data.visibility == 'school' && 
+        resource.data.schoolId == currentUserSchoolId();
+      
+      // Creators can always read their own events (including private ones)
+      allow get, list: if isAuthenticated() && 
+        resource.data.createdBy == currentUserId();
+      
+      // Signed-in users can create their own events
+      allow create: if isAuthenticated() && 
+        request.resource.data.createdBy == currentUserId();
+      
+      // Creators can update or delete their own events
+      allow update, delete: if isAuthenticated() && 
+        resource.data.createdBy == currentUserId();
+    }
+    
     // ==================== HANNA AI CHATS ====================
     
     // Legacy subcollection-based schema

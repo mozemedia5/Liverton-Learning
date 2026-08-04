@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap, Trophy } from 'lucide-react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
+import DashboardHeader from '@/components/DashboardHeader';
 import MotivationCorner from '@/components/MotivationCorner';
 import { getLinkedStudents } from '@/lib/parentService';
 import { 
@@ -113,7 +114,10 @@ export default function ParentDashboard() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-4 md:p-8 lg:ml-0">
+      <div className="p-4 md:p-8 lg:ml-0 space-y-6">
+        {/* Header: greeting + notifications in the upper right corner */}
+        <DashboardHeader />
+
         {/* Dashboard Banner */}
         <BannerCarousel />
 
