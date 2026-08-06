@@ -52,7 +52,7 @@ export function ChatMessage({
   const [showMenu, setShowMenu] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editContent, setEditContent] = React.useState(message.content);
-  const [longPressTimer, setLongPressTimer] = React.useState<NodeJS.Timeout | null>(null);
+  const [longPressTimer, setLongPressTimer] = React.useState<any | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
   // Close menu when clicking outside
   React.useEffect(() => {

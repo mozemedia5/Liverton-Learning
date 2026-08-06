@@ -20,33 +20,24 @@ import {
   Users,
   Video,
   Sparkles,
-  HelpCircle,
   TrendingUp,
   Plus,
   Trash2,
   Edit2,
   FileText,
-  Share2,
-  Award,
   Wallet,
-  ArrowUpRight,
-  MessageSquare,
   Bookmark,
   CheckCircle,
   Eye,
-  Settings,
   Star,
   Users2,
-  Tv,
-  Image as ImageIcon,
-  ArrowRight
+  Tv
 } from 'lucide-react';
 import {
   createBook,
   subscribeToTeacherBooks,
   createShort,
   subscribeToTeacherShorts,
-  getReviewsForTarget,
   getEducatorWallet,
   requestWithdrawal,
   getTeacherBadges,
@@ -58,17 +49,15 @@ import {
 } from '@/services/tearnService';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
 import { getTeacherLessons, type ZoomLesson } from '@/lib/zoomService';
-import { getAllTeams, type Team } from '@/services/livTeamsCoreService';
+import { getAllTeams } from '@/services/livTeamsCoreService';
+import { type Team } from '@/types/livTeams';
 
 export default function TearnDashboard() {
   const navigate = useNavigate();
-  const { currentUser, userRole, userData } = useAuth();
+  const { currentUser, userData } = useAuth();
 
   // Selected tab state
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Loading states
-  const [loading, setLoading] = useState(true);
 
   // Data states
   const [courses, setCourses] = useState<Course[]>([]);
@@ -106,7 +95,6 @@ export default function TearnDashboard() {
   // Subscriptions & Fetching
   useEffect(() => {
     if (!currentUser?.uid) return;
-    setLoading(true);
 
     const unsubscribeCourses = subscribeToTeacherCourses(currentUser.uid, (data) => {
       setCourses(data);
@@ -160,8 +148,6 @@ export default function TearnDashboard() {
         ]);
       } catch (err) {
         console.error('Error fetching TEARN data:', err);
-      } finally {
-        setLoading(false);
       }
     };
 

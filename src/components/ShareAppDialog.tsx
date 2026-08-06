@@ -35,7 +35,6 @@ import {
   ExternalLink,
   MessageSquare,
   CheckCircle2,
-  Send,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

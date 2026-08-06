@@ -20,7 +20,6 @@ import {
   Sparkles,
   BookOpen,
   FileText,
-  Megaphone,
   Image as ImageIcon
 } from 'lucide-react';
 import BannerCarousel from '@/components/BannerCarousel';
