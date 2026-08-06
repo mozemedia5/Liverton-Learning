@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   BookOpen,
+  Award,
   Bell,
   CreditCard,
   TrendingUp,
@@ -49,6 +50,8 @@ const QUICK_CHANNELS = [
   { label: 'Live Lessons', path: '/teacher/zoom-lessons', icon: Video, color: 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400' },
   { label: 'Documents', path: '/dashboard/documents', icon: FileText, color: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400' },
   { label: 'Students', path: '/teacher/students', icon: Users, color: 'bg-cyan-100 text-cyan-600 dark:bg-cyan-950 dark:text-cyan-400' },
+  { label: 'TEARN', path: '/features/tearn', icon: Award, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400' },
+  { label: 'Liv Teams', path: '/features/liv-teams', icon: Users, color: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400' },
 ];
 
 /**

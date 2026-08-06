@@ -73,6 +73,12 @@ import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
 import StudentZoomLessons from '@/components/ZoomLessons/StudentZoomLessons';
 import ParentZoomLessons from '@/components/ZoomLessons/ParentZoomLessons';
 
+// TEARN Features
+import TearnDashboard from '@/pages/features/tearn/TearnDashboard';
+import ShortsArena from '@/pages/features/tearn/ShortsArena';
+import BookReader from '@/pages/features/tearn/BookReader';
+import ZoomLessonArena from '@/pages/zoom-lessons/ZoomLessonArena';
+
 // About Pages
 import About from '@/pages/about/About';
 import AboutSchools from '@/pages/about/AboutSchools';
@@ -457,6 +463,27 @@ function AppRoutes() {
       } />
 
       {/* Global Feature Routes - Protected, accessible to all authenticated users */}
+      <Route path="/features/tearn" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><TearnDashboard /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/features/tearn/shorts" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><ShortsArena /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/features/books/:bookId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><BookReader /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/zoom-lessons/:lessonId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><ZoomLessonArena /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+
       <Route path="/features/liv-teams" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><LivTeams /></AuthenticatedLayout>

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import {
   Home,
+  Award,
   BookOpen,
   MessageSquare,
   FileText,
@@ -115,6 +116,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: CalendarDays, label: 'Events', path: '/events' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
+          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
 
@@ -135,6 +137,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
+          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
 
@@ -156,6 +159,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Bell, label: 'Announcements', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
+          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
 
@@ -175,6 +179,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Bell, label: 'Announcements', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
+          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
 
@@ -195,6 +200,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
+          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
     }
