@@ -8,29 +8,20 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   Video,
   Mic,
   MicOff,
   VideoOff,
-  MessageSquare,
-  Users,
-  Pin,
-  Plus,
   Send,
   Loader2,
   ArrowLeft,
-  Settings,
   Circle,
-  BarChart2,
-  FileText,
-  Bookmark,
-  Share2
+  FileText
 } from 'lucide-react';
 import { getLesson, type ZoomLesson } from '@/lib/zoomService';
 import { db } from '@/lib/firebase';
@@ -66,7 +57,7 @@ export default function ZoomLessonArena() {
   const [newResourceUrl, setNewResourceUrl] = useState('');
 
   // Participant attendance roster
-  const [roster, setRoster] = useState<Array<{ name: string; status: 'present' | 'offline'; role: string }>>([
+  const [roster] = useState<Array<{ name: string; status: 'present' | 'offline'; role: string }>>([
     { name: 'Prof. Liverton', status: 'present', role: 'Teacher' },
     { name: 'Alex Mercer', status: 'present', role: 'Student' },
     { name: 'Clara Oswald', status: 'present', role: 'Student' },

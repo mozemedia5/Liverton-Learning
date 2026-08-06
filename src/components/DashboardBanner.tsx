@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, 
   ChevronRight,
-  ExternalLink,
   Play,
   Pause,
   Sparkles

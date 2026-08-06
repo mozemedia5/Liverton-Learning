@@ -64,6 +64,12 @@ export default function ViewCourse() {
         setLoading(true);
         const courseData = await getCourse(courseId);
         
+        if (!courseData) {
+          toast.error('Course not found');
+          navigate('/teacher/courses');
+          return;
+        }
+
         // Check if user is the owner
         if (courseData.teacherId !== currentUser.uid) {
           toast.error('You do not have permission to view this course');

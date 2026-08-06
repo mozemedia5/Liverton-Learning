@@ -65,7 +65,7 @@ vi.mock('firebase/firestore', () => {
     increment: vi.fn((val) => val),
     arrayUnion: vi.fn((val) => [val]),
     arrayRemove: vi.fn((val) => [val]),
-    onSnapshot: vi.fn((q, callback) => {
+    onSnapshot: vi.fn((_q, callback) => {
       callback({
         docs: [
           {

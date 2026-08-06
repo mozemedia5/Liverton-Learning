@@ -5,10 +5,8 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -20,7 +18,6 @@ import {
   Loader2,
   Share2,
   Download,
-  Check,
   Star
 } from 'lucide-react';
 import { getBook, type EducationalBook } from '@/services/tearnService';
@@ -56,7 +53,6 @@ const fallbackBook: EducationalBook = {
 export default function BookReader() {
   const { bookId } = useParams<{ bookId: string }>();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
 
   const [book, setBook] = useState<EducationalBook | null>(null);
   const [loading, setLoading] = useState(true);

@@ -32,7 +32,6 @@ import {
   collection,
   addDoc,
   query,
-  where,
   onSnapshot,
   updateDoc,
   deleteDoc,
@@ -48,7 +47,7 @@ export default function DashboardAnnouncementManagement() {
   const { userData, currentUser } = useAuth();
   
   // Check if user is admin
-  const isAdmin = userData?.role === 'admin' || userData?.isAdmin;
+  const isAdmin = userData?.role === 'platform_admin' || userData?.role === 'school_admin';
   
   // State
   const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([]);

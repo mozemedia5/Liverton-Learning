@@ -9,13 +9,10 @@ import {
   Plus,
   Loader2,
   Trash2,
-  Shield,
   User,
   Calendar,
   Clock,
   Megaphone,
-  AlertTriangle,
-  Info,
   Eye,
   EyeOff,
   BookOpen,
@@ -201,7 +198,7 @@ export default function Announcements() {
   const getTypeConfig = (type: string) => {
     switch (type) {
       case 'quiz':
-        return { icon: Award, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/20', badge: 'warning' as const, label: '📝 Quiz Alert' };
+        return { icon: Award, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/20', badge: 'secondary' as const, label: '📝 Quiz Alert' };
       case 'course':
         return { icon: BookOpen, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/20', badge: 'default' as const, label: '📚 New Course' };
       case 'reminder':

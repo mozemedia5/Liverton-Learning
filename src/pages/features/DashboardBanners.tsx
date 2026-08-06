@@ -176,12 +176,6 @@ const isImageUrl = (url: string) =>
   url.includes('fbcdn.net') ||
   url.includes('googleusercontent.com');
 
-const isVideoUrl = (url: string) =>
-  /\.(mp4|webm|ogg|mov|avi|mkv)(\?.*)?$/i.test(url) ||
-  url.includes('youtube.com') ||
-  url.includes('youtu.be') ||
-  url.includes('vimeo.com');
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function DashboardBanners() {

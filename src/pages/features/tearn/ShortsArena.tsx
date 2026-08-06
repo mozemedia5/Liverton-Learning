@@ -5,20 +5,17 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Tv,
   Heart,
-  MessageSquare,
   Share2,
   ArrowLeft,
   ChevronUp,
   ChevronDown,
-  Sparkles,
   ExternalLink,
   BookOpen
 } from 'lucide-react';
@@ -54,7 +51,6 @@ const defaultShorts: EducationalShort[] = [
 
 export default function ShortsArena() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
 
   const [shorts, setShorts] = useState<EducationalShort[]>(defaultShorts);
   const [currentIndex, setCurrentIndex] = useState(0);

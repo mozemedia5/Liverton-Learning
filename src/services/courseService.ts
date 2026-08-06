@@ -20,8 +20,6 @@ import {
 } from 'firebase/firestore';
 import { 
   ref, 
-  uploadBytes, 
-  getDownloadURL, 
   deleteObject 
 } from 'firebase/storage';
 import type { Unsubscribe } from 'firebase/firestore';
@@ -250,7 +248,7 @@ export async function deleteCourse(courseId: string): Promise<void> {
   // Delete all materials from storage
   for (const material of course.materials || []) {
     try {
-      await deleteCourseMaterial(courseId, material);
+      await deleteCourseMaterial(courseId, material.id);
     } catch (error) {
       console.error('Error deleting material:', error);
     }

@@ -83,7 +83,7 @@ interface UploadedFile {
 export default function EditCourse() {
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId: string }>();
-  const { currentUser, userData } = useAuth();
+  const { currentUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Course state
@@ -128,6 +128,12 @@ export default function EditCourse() {
         setLoading(true);
         const courseData = await getCourse(courseId);
         
+        if (!courseData) {
+          toast.error('Course not found');
+          navigate('/teacher/courses');
+          return;
+        }
+
         // Check if user is the owner
         if (courseData.teacherId !== currentUser.uid) {
           toast.error('You do not have permission to edit this course');
