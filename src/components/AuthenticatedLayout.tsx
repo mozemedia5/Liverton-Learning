@@ -20,15 +20,6 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
 
   const show = isAuthenticated;
 
-  // Only show HannaButton on dashboard pages
-  const isDashboardPage = [
-    '/student/dashboard',
-    '/teacher/dashboard',
-    '/school-admin/dashboard',
-    '/parent/dashboard',
-    '/admin/dashboard'
-  ].includes(location.pathname);
-
   useEffect(() => {
     // Close any open hanna modal on route change (optional future enhancement)
   }, [location.pathname]);
@@ -67,7 +58,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
         </div>
       </main>
 
-      {show && isDashboardPage && <HannaButton />}
+      {show && <HannaButton />}
     </div>
   );
 }

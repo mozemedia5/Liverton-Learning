@@ -7,8 +7,8 @@
 
 import { GoogleGenerativeAI, type Content, type Part } from '@google/generative-ai';
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const MODEL_NAME = (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || 'gemini-2.0-flash';
+const API_KEY = (import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY) as string | undefined;
+const MODEL_NAME = (import.meta.env.GEMINI_MODEL || import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash') as string;
 
 export const HANNA_SYSTEM_PROMPT = `You are Hanna, the friendly AI study assistant built into Liverton Learning, an education platform used by students, teachers, parents and school administrators (mostly in Uganda and East Africa).
 

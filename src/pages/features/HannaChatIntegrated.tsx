@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft
+  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
