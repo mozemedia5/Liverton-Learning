@@ -32,13 +32,7 @@ import {
   Star,
   Users2,
   Tv,
-  Clock,
-  Award,
-  Zap,
-  Activity,
-  BarChart3,
-  ThumbsUp,
-  ArrowRight
+  Award
 } from 'lucide-react';
 import {
   createBook,
@@ -77,7 +71,7 @@ export default function TearnDashboard() {
   const [recentReviews, setRecentReviews] = useState<Review[]>([]);
 
   // Detailed Premium Metrics state (Simulated real-time tracking)
-  const [analyticsMetrics, setAnalyticsMetrics] = useState({
+  const [analyticsMetrics] = useState({
     watchTimeMinutes: 24500,
     completionRate: 84.5,
     engagementScore: 92.1,
