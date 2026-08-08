@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList
+  BookOpen, Lightbulb, ClipboardList, ChevronLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -51,7 +51,6 @@ interface PendingAttachment extends HannaAttachment {
   progress?: number;
 }
 
-
 type TimestampLike = { toMillis?: () => number; toDate?: () => Date } | Date | null | undefined;
 
 function tsToMillis(ts: TimestampLike): number {
@@ -70,8 +69,9 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function HannaChatIntegrated() {
-  const { userData, currentUser } = useAuth();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { userData, currentUser, userRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const sessionParam = searchParams.get('session');
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -80,7 +80,7 @@ export default function HannaChatIntegrated() {
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default false for centered Focus view
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -151,9 +151,10 @@ export default function HannaChatIntegrated() {
         messageCount: 0,
       });
       setCurrentChatId(chatRef.id);
+      setSearchParams({ session: chatRef.id });
       setMessages([]);
       setInputValue('');
-      if (window.innerWidth < 1024) setIsSidebarOpen(false);
+      setIsSidebarOpen(false);
     } catch (error) {
       console.error('Error creating chat:', error);
       toast.error('Failed to create new chat');
@@ -166,6 +167,7 @@ export default function HannaChatIntegrated() {
       await deleteDoc(doc(db, 'hanna_chats', chatId));
       if (currentChatId === chatId) {
         setCurrentChatId(null);
+        setSearchParams({});
         setMessages([]);
       }
       toast.success('Conversation deleted');
@@ -308,124 +310,232 @@ export default function HannaChatIntegrated() {
 
   const activeSession = chatSessions.find(s => s.id === currentChatId);
 
-  /* ------------------------------ Render ------------------------------ */
+  const getDashboardRedirect = () => {
+    if (!userRole) return '/';
+    if (userRole === 'platform_admin') return '/admin/dashboard';
+    if (userRole === 'school_admin') return '/school-admin/dashboard';
+    if (userRole === 'teacher') return '/teacher/dashboard';
+    if (userRole === 'parent') return '/parent/dashboard';
+    return '/student/dashboard';
+  };
 
   return (
     <>
-      <SEO title="Hanna AI" description="Your AI study assistant on Liverton Learning. Ask questions, revise topics and get instant help." noIndex />
-      <div className="flex h-screen bg-white dark:bg-[#0d0d0f] overflow-hidden">
-        {/* Sidebar */}
-        <aside
+      <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
+      <div className="flex h-screen bg-[#fafafc] dark:bg-[#07070a] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+
+        {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
+
+        {/* Dynamic Slide-out Sidebar for Conversation History */}
+        <div
           className={`
+            fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
+            transition-transform duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            fixed inset-y-0 left-0 z-30 w-full sm:w-80 lg:relative lg:translate-x-0
-            bg-slate-50 dark:bg-[#141416] border-r border-gray-200 dark:border-white/5
-            transition-transform duration-300 ease-in-out flex flex-col
+            lg:relative lg:translate-x-0 lg:bg-white/40 lg:dark:bg-[#0a0a0f]/40
           `}
         >
-          <div className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
-            <h1 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-7 h-7 flex items-center justify-center overflow-hidden rounded-lg bg-black">
-                <span className="scale-[1.6] flex items-center justify-center">
-                  <AskHannaIcon size={24} showText={false} />
-                </span>
-              </span>
-              Hanna AI
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
+            <h1 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              Conversations
             </h1>
-            <div className="flex gap-1.5">
-              <Button variant="ghost" size="icon" onClick={handleNewChat} className="rounded-full" aria-label="New chat">
-                <Plus className="w-5 h-5" />
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleNewChat}
+                className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
+                title="New chat"
+              >
+                <Plus className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="lg:hidden rounded-full" onClick={() => setIsSidebarOpen(false)} aria-label="Close sidebar">
-                <X className="w-5 h-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
+                onClick={() => setIsSidebarOpen(false)}
+                title="Close sidebar"
+              >
+                <X className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {/* Sessions List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {chatSessions.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">
-                <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-20" />
+              <div className="p-8 text-center text-slate-400 dark:text-slate-600 text-xs">
+                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>No conversations yet</p>
               </div>
             ) : (
-              chatSessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => {
-                    setCurrentChatId(session.id);
-                    if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                  }}
-                  className={`
-                    w-full p-2.5 flex items-center gap-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group
-                    ${currentChatId === session.id ? 'bg-emerald-500/10 dark:bg-emerald-500/15' : ''}
-                  `}
-                >
-                  <MessageSquare className={`w-4 h-4 flex-shrink-0 ${currentChatId === session.id ? 'text-emerald-500' : 'text-gray-400'}`} />
-                  <span className="flex-1 text-left text-sm font-medium truncate">{session.title}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteChat(session.id);
+              chatSessions.map((session) => {
+                const isActive = currentChatId === session.id;
+                return (
+                  <div
+                    key={session.id}
+                    className={`
+                      w-full p-3 flex items-center gap-3 rounded-xl transition-all cursor-pointer group relative border
+                      ${isActive
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
+                        : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
+                    `}
+                    onClick={() => {
+                      setCurrentChatId(session.id);
+                      setSearchParams({ session: session.id });
+                      if (window.innerWidth < 1024) setIsSidebarOpen(false);
                     }}
-                    aria-label="Delete conversation"
                   >
-                    <Trash2 className="w-3 h-3 text-red-500" />
-                  </Button>
-                </button>
-              ))
+                    <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
+                    <span className="flex-1 text-xs truncate pr-4">{session.title}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-5 h-5 absolute right-2 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all rounded-md"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteChat(session.id);
+                      }}
+                      title="Delete conversation"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                );
+              })
             )}
           </div>
-        </aside>
+        </div>
 
-        {/* Main chat area */}
-        <main className="flex-1 flex flex-col min-w-0 relative">
-          <header className="px-4 py-3 border-b border-gray-200 dark:border-white/5 flex items-center gap-3 bg-white/80 dark:bg-[#0d0d0f]/80 backdrop-blur-md sticky top-0 z-20">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(true)} aria-label="Open sidebar">
-              <Menu className="w-5 h-5" />
-            </Button>
-            <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
-              <AskHannaIcon size={32} showText={false} />
+        {/* Sidebar Overlay for Mobile */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main Take.app-style Focus Area */}
+        <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
+
+          {/* Custom Overlapping Avatars Header with Active Dot & Back Button */}
+          <header className="px-4 py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-white/70 dark:bg-[#07070a]/70 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              {/* Elegant Back Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(getDashboardRedirect())}
+                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
+                title="Go back to Dashboard"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+
+              {/* Sidebar toggle for conversation history */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSidebarOpen(prev => !prev)}
+                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
+                title="Toggle sessions list"
+              >
+                <Menu className="w-4 h-4" />
+              </Button>
+
+              {/* High-fidelity overlapping brand & chatbot avatars with active indicator */}
+              <div className="relative flex items-center ml-1">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105 z-10">
+                  <img src="/logo.png" alt="Liverton" className="w-[85%] h-[85%] object-contain" />
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-black border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden -ml-4 z-20 shadow-md">
+                  <div className="scale-[1.6]">
+                    <AskHannaIcon size={24} showText={false} />
+                  </div>
+                </div>
+                {/* Active Indicator Status Green Dot */}
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#07070a] rounded-full z-30 animate-pulse" />
+              </div>
+
+              {/* Chat Session Info */}
+              <div className="min-w-0 ml-1.5">
+                <h2 className="font-bold text-sm text-slate-800 dark:text-white truncate">
+                  {activeSession?.title || 'Hanna AI'}
+                </h2>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                  <span>Online & Ready</span>
+                  <span>•</span>
+                  <span>{geminiReady ? 'Gemini AI' : 'Offline'}</span>
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h2 className="font-semibold text-sm truncate">{activeSession?.title || 'Hanna AI'}</h2>
-              <p className="text-[11px] text-gray-400">
-                {geminiReady ? 'Powered by Gemini' : 'Configuration needed'}
-              </p>
+
+            {/* Quick Actions Header Area */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNewChat}
+                className="hidden sm:flex items-center gap-1 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 font-semibold text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New Chat
+              </Button>
             </div>
-            <Button variant="ghost" size="icon" className="ml-auto lg:hidden" onClick={handleNewChat} aria-label="New chat">
-              <Plus className="w-5 h-5" />
-            </Button>
           </header>
 
           {currentChatId ? (
             <>
-              {/* Conversation */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+              {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
+              <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
+                <div className="max-w-2xl mx-auto space-y-6">
+
+                  {/* Empty state: Suggested prompts for streamlined user guidance */}
                   {messages.length === 0 && !streamingText && (
-                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-6">
-                      <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center shadow-xl">
-                        <AskHannaIcon size={64} showText={false} />
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <div className="w-20 h-20 bg-slate-950 dark:bg-black rounded-[28px] flex items-center justify-center shadow-xl border border-white/5 relative">
+                        <div className="scale-[2.4]">
+                          <AskHannaIcon size={32} showText={false} />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-slate-950 p-1.5 rounded-xl shadow-lg border border-white/10">
+                          <Sparkles className="w-4 h-4 fill-slate-950" />
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-2xl font-bold">How can I help you today?</h2>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Ask about any subject, share notes, or plan your revision.</p>
+
+                      <div className="space-y-2">
+                        <h2 className="text-2xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                          Meet Hanna AI
+                        </h2>
+                        <p className="text-slate-400 dark:text-slate-500 text-xs max-w-md mx-auto">
+                          Ask questions, revise syllabus modules, co-draft summaries, and get helper breakdowns on homework instantly.
+                        </p>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-xl">
-                        {SUGGESTED_PROMPTS.map((s) => (
+
+                      {/* Suggested prompts in a high-fidelity minimalist Jumia grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
+                        {SUGGESTED_PROMPTS.map((item, i) => (
                           <button
-                            key={s.title}
-                            onClick={() => { setInputValue(s.prompt); textareaRef.current?.focus(); }}
-                            className="flex items-start gap-3 p-3.5 rounded-2xl border border-gray-200 dark:border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors text-left"
+                            key={i}
+                            onClick={() => {
+                              setInputValue(item.prompt);
+                              textareaRef.current?.focus();
+                            }}
+                            className="group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left"
                           >
-                            <s.icon className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                            <span className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                              <item.icon className="w-4 h-4" />
+                            </span>
                             <div>
-                              <p className="text-sm font-semibold">{s.title}</p>
-                              <p className="text-xs text-gray-400 line-clamp-2">{s.prompt}</p>
+                              <p className="text-xs font-bold text-slate-800 dark:text-white group-hover:text-emerald-500 transition-colors">
+                                {item.title}
+                              </p>
+                              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-2">
+                                {item.prompt}
+                              </p>
                             </div>
                           </button>
                         ))}
@@ -433,71 +543,110 @@ export default function HannaChatIntegrated() {
                     </div>
                   )}
 
-                  {messages.map((message) => (
-                    <div key={message.id} className={`flex ${message.senderRole === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      {message.senderRole === 'user' ? (
-                        <div className="max-w-[85%] space-y-1.5">
-                          {message.attachments && message.attachments.length > 0 && (
-                            <div className="flex flex-wrap gap-2 justify-end">
-                              {message.attachments.map((att, i) => (
-                                att.mimeType.startsWith('image/') ? (
-                                  <img key={i} src={att.url} alt={att.name} className="max-w-[220px] max-h-40 rounded-xl object-cover border border-white/10" />
-                                ) : (
-                                  <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 text-xs">
-                                    <FileText className="w-3.5 h-3.5 text-emerald-500" /> {att.name}
-                                  </span>
-                                )
-                              ))}
+                  {/* Message Bubbles - Asymmetric 3D Glassmorphic Experience */}
+                  {messages.map((message) => {
+                    const isUser = message.senderRole === 'user';
+                    return (
+                      <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
+                        <div className={`flex gap-3 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+
+                          {/* Avatar */}
+                          <div className="flex-shrink-0 mt-1">
+                            {isUser ? (
+                              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white font-extrabold text-[10px] shadow-sm">
+                                {userData?.fullName?.charAt(0).toUpperCase() || 'U'}
+                              </div>
+                            ) : (
+                              <div className="w-7 h-7 rounded-xl bg-slate-950 dark:bg-black flex items-center justify-center overflow-hidden border border-white/5 shadow-md">
+                                <div className="scale-[1.6]">
+                                  <AskHannaIcon size={24} showText={false} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Content Bubble with Asymmetric take.app corners */}
+                          <div className="space-y-1">
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className={`flex flex-wrap gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                {message.attachments.map((att, i) => (
+                                  att.mimeType.startsWith('image/') ? (
+                                    <img key={i} src={att.url} alt={att.name} className="max-w-[200px] max-h-32 rounded-2xl object-cover border border-slate-200/50 dark:border-white/10 shadow-sm" />
+                                  ) : (
+                                    <span key={i} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-[11px]">
+                                      <FileText className="w-3.5 h-3.5 text-emerald-500" /> {att.name}
+                                    </span>
+                                  )
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Asymmetric Corners */}
+                            <div
+                              className={`
+                                px-4 py-3 text-sm leading-relaxed shadow-sm
+                                ${isUser
+                                  ? 'bg-emerald-600 dark:bg-emerald-600 text-white rounded-[24px] rounded-tr-[4px] font-medium'
+                                  : 'bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px]'}
+                              `}
+                            >
+                              <HannaMarkdown text={message.content} />
+                            </div>
+
+                            {/* Actions and Timestamp */}
+                            <div className={`flex items-center gap-2.5 text-[10px] text-slate-400 dark:text-slate-500 mt-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                              <span>{formatTime(message.createdAt)}</span>
+                              {!isUser && (
+                                <button
+                                  onClick={() => handleCopyMessage(message)}
+                                  className="hover:text-emerald-500 flex items-center gap-0.5 transition-colors"
+                                >
+                                  {copiedId === message.id ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-emerald-500" />
+                                      <span className="text-emerald-500">Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3" />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Streaming Response Bubble */}
+                  {isGenerating && (
+                    <div className="flex gap-3 max-w-[85%] justify-start animate-in fade-in duration-150">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-7 h-7 rounded-xl bg-slate-950 dark:bg-black flex items-center justify-center overflow-hidden border border-white/5 shadow-md">
+                          <div className="scale-[1.6]">
+                            <AskHannaIcon size={24} showText={false} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px] px-4 py-3 text-sm leading-relaxed shadow-sm min-w-[100px]">
+                          {streamingText ? (
+                            <div>
+                              <HannaMarkdown text={streamingText} />
+                              <span className="inline-block w-2.5 h-4 bg-emerald-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 py-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                           )}
-                          <div className="bg-emerald-600 text-white rounded-2xl rounded-tr-md px-4 py-2.5 text-[15px] whitespace-pre-wrap">
-                            {message.content}
-                          </div>
-                          <p className="text-[10px] text-gray-400 text-right">{formatTime(message.createdAt)}</p>
                         </div>
-                      ) : (
-                        <div className="flex gap-3 max-w-[92%] group">
-                          <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center flex-shrink-0 mt-1">
-                            <AskHannaIcon size={28} showText={false} />
-                          </div>
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <HannaMarkdown text={message.content} />
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleCopyMessage(message)}
-                                className="text-[11px] text-gray-400 hover:text-emerald-500 flex items-center gap-1 transition-colors"
-                              >
-                                {copiedId === message.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                                {copiedId === message.id ? 'Copied' : 'Copy'}
-                              </button>
-                              <span className="text-[10px] text-gray-400">{formatTime(message.createdAt)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Live streaming reply */}
-                  {isGenerating && (
-                    <div className="flex gap-3 max-w-[92%]">
-                      <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center flex-shrink-0 mt-1">
-                        <AskHannaIcon size={28} showText={false} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        {streamingText ? (
-                          <div>
-                            <HannaMarkdown text={streamingText} />
-                            <span className="inline-block w-2 h-4 bg-emerald-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 py-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                            <span className="text-xs text-gray-400 ml-1">Hanna is thinking...</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
@@ -506,33 +655,40 @@ export default function HannaChatIntegrated() {
                 </div>
               </div>
 
-              {/* Composer */}
-              <footer className="p-3 sm:p-4 bg-white dark:bg-[#0d0d0f]">
-                <div className="max-w-3xl mx-auto space-y-2">
+              {/* Composer Box (Clean modern layout position at bottom centered) */}
+              <footer className="p-4 bg-transparent border-t border-slate-200/50 dark:border-white/5 relative z-20">
+                <div className="max-w-2xl mx-auto space-y-3">
+
+                  {/* Attachments preview list */}
                   {(attachments.length > 0 || uploadingFiles) && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
                       {attachments.map(att => (
-                        <span key={att.url} className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 text-xs">
+                        <span key={att.url} className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1.5 rounded-2xl bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-xs shadow-sm">
                           {att.mimeType.startsWith('image/') ? (
                             <img src={att.url} alt="" className="w-7 h-7 rounded-lg object-cover" />
                           ) : (
                             <FileText className="w-4 h-4 text-emerald-500" />
                           )}
-                          <span className="max-w-[140px] truncate">{att.name}</span>
-                          <button onClick={() => removeAttachment(att.url)} className="text-gray-400 hover:text-red-500" aria-label={`Remove ${att.name}`}>
+                          <span className="max-w-[140px] truncate text-slate-700 dark:text-slate-300">{att.name}</span>
+                          <button onClick={() => removeAttachment(att.url)} className="text-slate-400 hover:text-red-500 ml-1" aria-label={`Remove ${att.name}`}>
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </span>
                       ))}
                       {uploadingFiles && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 text-xs text-gray-400">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-xs text-slate-400 shadow-sm">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Uploading...</span>
                         </span>
                       )}
                     </div>
                   )}
 
-                  <form onSubmit={handleSend} className="flex items-end gap-2 rounded-2xl border border-gray-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-2 focus-within:border-emerald-500/60 transition-colors">
+                  {/* Input Form with modern floating focus borders */}
+                  <form
+                    onSubmit={handleSend}
+                    className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-2.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200"
+                  >
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -541,17 +697,21 @@ export default function HannaChatIntegrated() {
                       className="hidden"
                       onChange={handleFilePick}
                     />
+
+                    {/* Attach Trigger */}
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="rounded-xl flex-shrink-0 text-gray-400 hover:text-emerald-500"
+                      className="rounded-full w-10 h-10 flex-shrink-0 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingFiles || isGenerating}
-                      aria-label="Attach files"
+                      title="Attach file"
                     >
                       <Paperclip className="w-5 h-5" />
                     </Button>
+
+                    {/* Text Composer */}
                     <textarea
                       ref={textareaRef}
                       value={inputValue}
@@ -564,45 +724,61 @@ export default function HannaChatIntegrated() {
                       }}
                       placeholder="Message Hanna..."
                       rows={1}
-                      className="flex-1 bg-transparent border-0 outline-none resize-none text-[15px] py-2 px-1 max-h-40 placeholder:text-gray-400"
+                      className="flex-1 bg-transparent border-0 outline-none resize-none text-[14px] leading-relaxed py-2 px-1 max-h-40 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-100"
                       disabled={isGenerating}
                     />
+
+                    {/* Action button */}
                     {isGenerating ? (
                       <Button
                         type="button"
                         size="icon"
-                        className="rounded-xl bg-slate-700 hover:bg-slate-600 text-white flex-shrink-0"
+                        className="rounded-full w-10 h-10 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 flex-shrink-0 transition-transform"
                         onClick={handleStop}
-                        aria-label="Stop generating"
+                        title="Stop generating"
                       >
-                        <StopCircle className="w-5 h-5" />
+                        <StopCircle className="w-5 h-5 animate-pulse" />
                       </Button>
                     ) : (
                       <Button
                         type="submit"
                         size="icon"
-                        className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0"
+                        className="rounded-full w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-md shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-transform"
                         disabled={(!inputValue.trim() && attachments.length === 0) || uploadingFiles}
-                        aria-label="Send message"
+                        title="Send message"
                       >
-                        <Send className="w-5 h-5" />
+                        <Send className="w-4.5 h-4.5" />
                       </Button>
                     )}
                   </form>
-                  <p className="text-[10px] text-center text-gray-400">Hanna can make mistakes. Verify important information.</p>
+
+                  <p className="text-[10px] text-center text-slate-400 dark:text-slate-600 leading-normal">
+                    Hanna AI is built on safe learning models. Check key facts before quoting.
+                  </p>
                 </div>
               </footer>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <div className="w-20 h-20 bg-black rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-                <AskHannaIcon size={80} showText={false} />
+            // No selected chat view: welcome dashboard
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+              <div className="w-24 h-24 bg-slate-950 dark:bg-black rounded-[36px] flex items-center justify-center mb-8 shadow-2xl relative border border-white/5">
+                <div className="scale-[2.6]">
+                  <AskHannaIcon size={32} showText={false} />
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-gradient-to-tr from-yellow-500 to-amber-400 text-slate-950 p-2 rounded-2xl shadow-lg border border-white/10">
+                  <Sparkles className="w-4.5 h-4.5 fill-slate-950" />
+                </div>
               </div>
-              <h2 className="text-2xl font-bold mb-2">Welcome to Hanna AI</h2>
-              <p className="text-gray-500 max-w-md mb-8">
-                Your intelligent study assistant — ask questions, share your notes, and learn faster.
+              <h2 className="text-3xl font-black mb-2.5 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
+                Hanna AI Companion
+              </h2>
+              <p className="text-slate-400 dark:text-slate-500 max-w-sm mb-8 text-xs leading-relaxed">
+                Unlock rapid concept summaries, practice test builders, notes translation, and study routines personalized for you.
               </p>
-              <Button onClick={handleNewChat} className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 rounded-full">
+              <Button
+                onClick={handleNewChat}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 h-12 rounded-3xl shadow-xl shadow-emerald-500/10 hover:scale-105 active:scale-95 transition-all font-bold"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Start a New Conversation
               </Button>

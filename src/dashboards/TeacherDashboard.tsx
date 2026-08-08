@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   BookOpen,
@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Clock,
   MapPin,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -209,6 +210,26 @@ export default function TeacherDashboard() {
 
         {/* Dynamic Dashboard Banner rail */}
         <BannerCarousel />
+
+        {/* Unified TEARN Hub Fast Banners for High-fidelity SaaS entry */}
+        <Card className="bg-gradient-to-r from-emerald-950/30 via-slate-900 to-indigo-950/20 border-emerald-500/20 shadow-lg overflow-hidden relative">
+          <div className="p-6 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h4 className="font-extrabold text-lg text-emerald-400 flex items-center gap-1.5">
+                <Award className="w-5 h-5 text-emerald-400" /> Enter TEARN Workspace
+              </h4>
+              <p className="text-sm text-slate-300 mt-1 max-w-xl">
+                Access your teacher wallet, view monthly business revenues, co-author books with teams, upload bite-sized micro Shorts, and audit live classes.
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate('/features/tearn')}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl shrink-0"
+            >
+              Open TEARN Workspace <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </Card>
 
         {/* Quick channel chips - reach every part of the app */}
         <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
