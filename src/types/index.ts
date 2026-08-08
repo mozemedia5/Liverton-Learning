@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'teacher' | 'school_admin' | 'parent' | 'platform_admin';
 
-export type DocumentType = 'doc' | 'sheet' | 'presentation';
+export type DocumentType = 'doc' | 'sheet' | 'presentation' | 'pdf' | 'folder';
 export type DocumentVisibility = 'private' | 'internal' | 'public';
 export type DocumentSharePermission = 'view' | 'edit';
 
