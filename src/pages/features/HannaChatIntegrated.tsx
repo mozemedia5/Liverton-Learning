@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, MoreVertical, Settings, Info, RefreshCw
+  BookOpen, Lightbulb, ClipboardList, Sparkles,
+  Settings, Info, RefreshCw, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -93,13 +94,11 @@ export default function HannaChatIntegrated() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const geminiReady = isGeminiConfigured();
 
@@ -110,17 +109,6 @@ export default function HannaChatIntegrated() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingText, scrollToBottom]);
-
-  // Click outside listener for the action bar menu
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsActionMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Auto-grow textarea
   useEffect(() => {
@@ -209,8 +197,8 @@ export default function HannaChatIntegrated() {
 
   const handleClearCurrentMessages = async () => {
     if (!currentChatId || !currentUser) return;
+    if (!window.confirm('Clear all messages in this conversation?')) return;
     try {
-      setIsActionMenuOpen(false);
       const q = query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId));
       const snapshot = await getDocs(q);
       const batch = writeBatch(db);
@@ -385,13 +373,13 @@ export default function HannaChatIntegrated() {
   return (
     <>
       <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
-      <div className="flex h-screen bg-[#fafafc] dark:bg-[#07070a] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+      <div className="flex h-[100dvh] bg-[#fafafc] dark:bg-[#07070a] text-slate-900 dark:text-slate-100 overflow-hidden relative">
 
         {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-        {/* Dynamic Slide-out Sidebar for Conversation History */}
+        {/* Left-hand Navigation Sidebar (Conversations list + Global Navigation + Action Area) */}
         <div
           className={`
             fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
@@ -400,38 +388,60 @@ export default function HannaChatIntegrated() {
             lg:relative lg:translate-x-0 lg:bg-white/40 lg:dark:bg-[#0a0a0f]/40
           `}
         >
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
-            <h1 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-              Conversations
-            </h1>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNewChat}
-                className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                title="New chat"
+          {/* Sidebar Top Area: Navigation to App Dashboard & Brand Logo */}
+          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex flex-col gap-3 bg-slate-50/50 dark:bg-white/5">
+            <div className="flex items-center justify-between">
+              {/* Back to App Dashboard Link */}
+              <button
+                onClick={() => navigate(getDashboardRedirect())}
+                className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-emerald-500 transition-colors"
+                title="Back to Dashboard"
               >
-                <Plus className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
+                <ArrowLeft className="w-4 h-4" />
+                <span>Dashboard</span>
+              </button>
+
+              <button
+                className="lg:hidden rounded-full p-1 hover:bg-slate-200 dark:hover:bg-white/10"
                 onClick={() => setIsSidebarOpen(false)}
                 title="Close sidebar"
               >
                 <X className="w-4 h-4" />
-              </Button>
+              </button>
+            </div>
+
+            {/* Platform Branding inside sidebar */}
+            <div className="flex items-center gap-2.5 px-1 py-0.5">
+              <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img src="/logo.png" alt="Liverton" className="w-[85%] h-[85%] object-contain" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-extrabold text-[13px] leading-tight text-slate-800 dark:text-white truncate">Liverton Hub</p>
+                <p className="text-[10px] text-emerald-500 font-bold tracking-wide">Hanna AI Assistant</p>
+              </div>
             </div>
           </div>
 
-          {/* Sessions List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          {/* New Chat & History Section Header */}
+          <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200/30 dark:border-white/5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">History</span>
+            <Button
+              onClick={handleNewChat}
+              variant="outline"
+              size="sm"
+              className="border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl h-7 px-2.5 text-[10px]"
+              title="Start a new chat"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              New Chat
+            </Button>
+          </div>
+
+          {/* Sessions List (Scrollable Area) */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin">
             {chatSessions.length === 0 ? (
               <div className="p-8 text-center text-slate-400 dark:text-slate-600 text-xs">
-                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30 animate-pulse" />
                 <p>No conversations yet</p>
               </div>
             ) : (
@@ -443,7 +453,7 @@ export default function HannaChatIntegrated() {
                     className={`
                       w-full p-3 flex items-center gap-3 rounded-xl transition-all cursor-pointer group relative border
                       ${isActive
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold'
                         : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
                     `}
                     onClick={() => {
@@ -453,7 +463,7 @@ export default function HannaChatIntegrated() {
                     }}
                   >
                     <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
-                    <span className="flex-1 text-xs truncate pr-4">{session.title}</span>
+                    <span className="flex-1 text-xs truncate pr-4 leading-normal">{session.title}</span>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -471,6 +481,43 @@ export default function HannaChatIntegrated() {
               })
             )}
           </div>
+
+          {/* Sidebar Action Footer Panel (Custom instructions, About, Delete, and Clear options permanently on desktop!) */}
+          <div className="p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 space-y-1.5">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 font-semibold text-slate-600 dark:text-slate-300 transition-colors"
+            >
+              <Settings className="w-4 h-4 text-emerald-500" />
+              <span>Hanna Instructions</span>
+            </button>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 font-semibold text-slate-600 dark:text-slate-300 transition-colors"
+            >
+              <Info className="w-4 h-4 text-amber-500" />
+              <span>About Hanna AI</span>
+            </button>
+            {currentChatId && (
+              <>
+                <button
+                  onClick={handleClearCurrentMessages}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 font-semibold text-slate-600 dark:text-slate-300 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 text-blue-500" />
+                  <span>Clear Conversation</span>
+                </button>
+                <hr className="my-1 border-slate-200/40 dark:border-white/5" />
+                <button
+                  onClick={() => triggerDeleteChat(currentChatId)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-xl hover:bg-red-500/10 text-red-500 font-semibold transition-colors text-left"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Chat History</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Sidebar Overlay for Mobile */}
@@ -484,26 +531,15 @@ export default function HannaChatIntegrated() {
         {/* Main Take.app-style Focus Area */}
         <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
 
-          {/* Custom Overlapping Avatars Header with Active Dot & Back Button */}
+          {/* Top Header with Active Dot & Sidebar Toggle on mobile */}
           <header className="px-4 py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-white/70 dark:bg-[#07070a]/70 backdrop-blur-xl">
             <div className="flex items-center gap-3">
-              {/* Elegant Back Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
-                title="Go back to Dashboard"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-
-              {/* Sidebar toggle for conversation history */}
+              {/* Sidebar toggle menu for conversation history on mobile */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsSidebarOpen(prev => !prev)}
-                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
+                className="lg:hidden rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
                 title="Toggle sessions list"
               >
                 <Menu className="w-4 h-4" />
@@ -537,77 +573,17 @@ export default function HannaChatIntegrated() {
               </div>
             </div>
 
-            {/* Premium Header Action Bar with (...) options */}
+            {/* Quick Actions Header Area */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleNewChat}
-                className="hidden sm:flex items-center gap-1 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 font-semibold text-xs"
+                className="hidden sm:flex items-center gap-1 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 font-semibold text-xs animate-in fade-in"
               >
                 <Plus className="w-3.5 h-3.5" />
                 New Chat
               </Button>
-
-              {/* Premium action dropdown trigger */}
-              <div className="relative" ref={menuRef}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                  onClick={() => setIsActionMenuOpen(prev => !prev)}
-                  title="More options"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-
-                {isActionMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-xs">
-                    <button
-                      onClick={() => {
-                        setIsActionMenuOpen(false);
-                        setIsSettingsOpen(true);
-                      }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
-                    >
-                      <Settings className="w-4 h-4 text-emerald-500" />
-                      Hanna Instructions
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsActionMenuOpen(false);
-                        setIsSettingsOpen(true);
-                      }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
-                    >
-                      <Info className="w-4 h-4 text-amber-500" />
-                      About Hanna AI
-                    </button>
-                    {currentChatId && (
-                      <>
-                        <button
-                          onClick={handleClearCurrentMessages}
-                          className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
-                        >
-                          <RefreshCw className="w-4 h-4 text-blue-500" />
-                          Clear Messages
-                        </button>
-                        <hr className="my-1 border-slate-200/50 dark:border-white/5" />
-                        <button
-                          onClick={() => {
-                            setIsActionMenuOpen(false);
-                            triggerDeleteChat(currentChatId);
-                          }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-red-500/10 text-red-500 flex items-center gap-2.5 font-medium"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete Conversation
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </header>
 
