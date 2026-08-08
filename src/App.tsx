@@ -392,13 +392,13 @@ function AppRoutes() {
       } />
       <Route path="/chat" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Chat />
+          <AuthenticatedLayout><Chat /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       {/* Deep link into a specific conversation (shareable) */}
       <Route path="/chat/:chatId" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Chat />
+          <AuthenticatedLayout><Chat /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       {/* Shareable course detail page (opens the exact course for any signed-in user) */}
@@ -507,7 +507,7 @@ function AppRoutes() {
       } />
       <Route path="/features/hanna-ai" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <HannaChatIntegrated />
+          <AuthenticatedLayout><HannaChatIntegrated /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/features/analytics" element={
