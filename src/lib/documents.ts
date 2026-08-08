@@ -419,3 +419,79 @@ export async function enqueueForHanna(params: {
     createdAt: serverTimestamp(),
   });
 }
+
+export interface UserReadingProgress {
+  lastOpenedAt: any;
+  lastPageRead: number;
+  percentage: number;
+  bookmarkedPages: number[];
+  userId: string;
+  documentId: string;
+}
+
+export async function createFolder(params: {
+  title: string;
+  ownerId: string;
+  role: UserRole;
+  schoolId?: string | null;
+  parentId?: string | null;
+}): Promise<string> {
+  const docRef = await addDoc(collection(db, DOCUMENTS_COLLECTION), {
+    title: params.title,
+    type: 'folder',
+    ownerId: params.ownerId,
+    role: params.role,
+    schoolId: params.schoolId ?? null,
+    folderId: params.parentId ?? null,
+    sharedWith: [],
+    visibility: 'private',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function moveDocument(docId: string, targetFolderId: string | null): Promise<void> {
+  await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
+    folderId: targetFolderId,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function toggleDocumentFavorite(docId: string, isFavorite: boolean): Promise<void> {
+  await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
+    isFavorite,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateReadingProgress(params: {
+  docId: string;
+  userId: string;
+  lastPageRead: number;
+  totalPages: number;
+  bookmarkedPages?: number[];
+}): Promise<void> {
+  const progressRef = doc(db, DOCUMENTS_COLLECTION, params.docId, 'userProgress', params.userId);
+  const percentage = params.totalPages > 0 ? Math.round((params.lastPageRead / params.totalPages) * 100) : 0;
+
+  const data: Record<string, any> = {
+    lastOpenedAt: serverTimestamp(),
+    lastPageRead: params.lastPageRead,
+    percentage,
+    userId: params.userId,
+    documentId: params.docId,
+  };
+
+  if (params.bookmarkedPages !== undefined) {
+    data.bookmarkedPages = params.bookmarkedPages;
+  }
+
+  await setDoc(progressRef, data, { merge: true });
+}
+
+export async function getReadingProgress(docId: string, userId: string): Promise<UserReadingProgress | null> {
+  const snap = await getDoc(doc(db, DOCUMENTS_COLLECTION, docId, 'userProgress', userId));
+  if (!snap.exists()) return null;
+  return snap.data() as UserReadingProgress;
+}
