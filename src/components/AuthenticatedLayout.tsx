@@ -24,6 +24,16 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
     // Close any open hanna modal on route change (optional future enhancement)
   }, [location.pathname]);
 
+  const isFullScreenPage = location.pathname.startsWith('/chat') || location.pathname === '/features/hanna-ai';
+
+  const mainClasses = isFullScreenPage
+    ? `relative z-10 w-full h-screen lg:h-screen pb-[76px] lg:pb-0 overflow-hidden transition-all duration-300 ${
+        show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
+      }`
+    : `relative z-10 w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 px-4 sm:px-6 lg:px-8 ${
+        show ? (isSidebarCollapsed ? 'lg:pl-[112px]' : 'lg:pl-[312px]') : ''
+      }`;
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors duration-300">
       {/* Background glowing emerald & gold blobs to enhance glassmorphism rendering */}
@@ -50,15 +60,20 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
       )}
 
       {/* Main Content Area */}
-      <main className={`relative z-10 w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 px-4 sm:px-6 lg:px-8 ${
-        show ? (isSidebarCollapsed ? 'lg:pl-[112px]' : 'lg:pl-[312px]') : ''
-      }`}>
-        <div className="max-w-7xl mx-auto py-6">
-          {props.children ?? <Outlet />}
-        </div>
+      <main className={mainClasses}>
+        {isFullScreenPage ? (
+          <div className="w-full h-full">
+            {props.children ?? <Outlet />}
+          </div>
+        ) : (
+          <div className="max-w-7xl mx-auto py-6">
+            {props.children ?? <Outlet />}
+          </div>
+        )}
       </main>
 
-      {show && <HannaButton />}
+      {/* Show the floating hanna button only when NOT on the hanna ai dedicated full screen chat page */}
+      {show && !isFullScreenPage && <HannaButton />}
     </div>
   );
 }

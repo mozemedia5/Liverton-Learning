@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, MoreVertical, Settings, Info, RefreshCw
+  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -84,7 +84,7 @@ export default function HannaChatIntegrated() {
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default false for centered Focus view
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024); // Default true on desktop for premium left sidebar
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -93,13 +93,11 @@ export default function HannaChatIntegrated() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const geminiReady = isGeminiConfigured();
 
@@ -111,16 +109,6 @@ export default function HannaChatIntegrated() {
     scrollToBottom();
   }, [messages, streamingText, scrollToBottom]);
 
-  // Click outside listener for the action bar menu
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsActionMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Auto-grow textarea
   useEffect(() => {
@@ -210,7 +198,6 @@ export default function HannaChatIntegrated() {
   const handleClearCurrentMessages = async () => {
     if (!currentChatId || !currentUser) return;
     try {
-      setIsActionMenuOpen(false);
       const q = query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId));
       const snapshot = await getDocs(q);
       const batch = writeBatch(db);
@@ -385,7 +372,7 @@ export default function HannaChatIntegrated() {
   return (
     <>
       <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
-      <div className="flex h-screen bg-[#fafafc] dark:bg-[#07070a] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+      <div className="flex h-full bg-[#fafafc] dark:bg-[#07070a] text-slate-900 dark:text-slate-100 overflow-hidden relative">
 
         {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
@@ -395,7 +382,7 @@ export default function HannaChatIntegrated() {
         <div
           className={`
             fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
-            transition-transform duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
+            transition-all duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             lg:relative lg:translate-x-0 lg:bg-white/40 lg:dark:bg-[#0a0a0f]/40
           `}
@@ -469,6 +456,43 @@ export default function HannaChatIntegrated() {
                   </div>
                 );
               })
+            )}
+          </div>
+
+          {/* Unified Action Bar inside the Sidebar */}
+          <div className="p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
+            >
+              <Settings className="w-4 h-4 text-emerald-500" />
+              Hanna Instructions
+            </button>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
+            >
+              <Info className="w-4 h-4 text-amber-500" />
+              About Hanna AI
+            </button>
+            {currentChatId && (
+              <>
+                <button
+                  onClick={handleClearCurrentMessages}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 text-blue-500" />
+                  Clear Messages
+                </button>
+                <hr className="my-1 border-slate-200/50 dark:border-white/5" />
+                <button
+                  onClick={() => triggerDeleteChat(currentChatId)}
+                  className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 rounded-xl flex items-center gap-2 font-medium transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Conversation
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -548,66 +572,6 @@ export default function HannaChatIntegrated() {
                 <Plus className="w-3.5 h-3.5" />
                 New Chat
               </Button>
-
-              {/* Premium action dropdown trigger */}
-              <div className="relative" ref={menuRef}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                  onClick={() => setIsActionMenuOpen(prev => !prev)}
-                  title="More options"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-
-                {isActionMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-xs">
-                    <button
-                      onClick={() => {
-                        setIsActionMenuOpen(false);
-                        setIsSettingsOpen(true);
-                      }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
-                    >
-                      <Settings className="w-4 h-4 text-emerald-500" />
-                      Hanna Instructions
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsActionMenuOpen(false);
-                        setIsSettingsOpen(true);
-                      }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
-                    >
-                      <Info className="w-4 h-4 text-amber-500" />
-                      About Hanna AI
-                    </button>
-                    {currentChatId && (
-                      <>
-                        <button
-                          onClick={handleClearCurrentMessages}
-                          className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
-                        >
-                          <RefreshCw className="w-4 h-4 text-blue-500" />
-                          Clear Messages
-                        </button>
-                        <hr className="my-1 border-slate-200/50 dark:border-white/5" />
-                        <button
-                          onClick={() => {
-                            setIsActionMenuOpen(false);
-                            triggerDeleteChat(currentChatId);
-                          }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-red-500/10 text-red-500 flex items-center gap-2.5 font-medium"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete Conversation
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </header>
 

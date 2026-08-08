@@ -61,7 +61,7 @@ export default function Chat() {
   const [selectedChat, setSelectedChat] = useState<ChatType | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [chatFilter, setChatFilter] = useState('');
@@ -395,7 +395,7 @@ export default function Chat() {
   return (
     <>
       <SEO title="Chats" description="Chat with teachers, students and school teams on Liverton Learning." noIndex />
-    <div className="flex h-screen bg-white dark:bg-[#07070a] overflow-hidden relative">
+    <div className="flex h-full bg-white dark:bg-[#07070a] overflow-hidden relative">
       {/* Background decoration */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
@@ -404,9 +404,9 @@ export default function Chat() {
       <aside 
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          fixed inset-y-0 left-0 z-30 w-full sm:w-80 lg:relative lg:translate-x-0
+          fixed inset-y-0 left-0 z-30 w-80 lg:relative lg:translate-x-0
           bg-white/95 dark:bg-[#0d0d12]/95 border-r border-gray-200 dark:border-white/5 backdrop-blur-md
-          transition-transform duration-300 ease-in-out flex flex-col z-20
+          transition-all duration-300 ease-in-out flex flex-col z-20
         `}
       >
         {/* Sidebar Header */}
@@ -512,7 +512,39 @@ export default function Chat() {
             })
           )}
         </div>
+
+        {/* Elegant Bottom Actions within Chat Sidebar */}
+        <div className="p-4 border-t border-gray-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
+          >
+            <Settings className="w-4 h-4 text-emerald-500" />
+            Chat Settings
+          </button>
+          {selectedChat && (
+            <button
+              onClick={() => setDeleteConfirmation({
+                isOpen: true,
+                chatId: selectedChat.id,
+                chatTitle: getOtherParticipantName(selectedChat)
+              })}
+              className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 rounded-xl flex items-center gap-2 font-medium transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Conversation
+            </button>
+          )}
+        </div>
       </aside>
+
+      {/* Sidebar Overlay for Mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-15 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col min-w-0 relative z-10">
@@ -524,8 +556,8 @@ export default function Chat() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="lg:hidden text-slate-600 dark:text-slate-300"
-                  onClick={() => setIsSidebarOpen(true)}
+                  className="text-slate-600 dark:text-slate-300"
+                  onClick={() => setIsSidebarOpen(prev => !prev)}
                 >
                   <Menu className="w-5 h-5" />
                 </Button>
@@ -547,19 +579,6 @@ export default function Chat() {
                   <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-[#111115] border border-slate-200 dark:border-white/10">
                     <DropdownMenuItem className="gap-2 text-slate-700 dark:text-slate-200" onClick={handleViewProfile}>
                       <Info className="w-4 h-4" /> View Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 text-slate-700 dark:text-slate-200" onClick={() => setIsSettingsOpen(true)}>
-                      <Settings className="w-4 h-4" /> Chat Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="gap-2 text-red-600 font-bold"
-                      onClick={() => setDeleteConfirmation({
-                        isOpen: true,
-                        chatId: selectedChat.id,
-                        chatTitle: getOtherParticipantName(selectedChat)
-                      })}
-                    >
-                      <Trash2 className="w-4 h-4" /> Delete Chat
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
