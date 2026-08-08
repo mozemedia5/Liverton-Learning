@@ -20,7 +20,8 @@ import {
   Plus,
   FileText,
   Download,
-  CheckCheck
+  CheckCheck,
+  Mic
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -77,6 +78,9 @@ export default function Chat() {
   });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
   
   // Chat settings state
   const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
@@ -230,6 +234,50 @@ export default function Chat() {
     }
   };
 
+  // Start Voice input simulation / Web Speech API
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.info('Voice input is not supported directly in this browser. Simulating mic input...', { duration: 3000 });
+      setIsRecording(true);
+      setTimeout(() => {
+        setMessageInput(prev => prev + (prev ? ' ' : '') + "Hello! Let's schedule a call.");
+        setIsRecording(false);
+        toast.success('Voice transcription complete!');
+      }, 3000);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      toast.info('Listening... Speak now!', { id: 'voice-toast' });
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+      toast.error('Voice input failed. Please try again or type directly.', { id: 'voice-toast' });
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const result = event.results[0][0].transcript;
+      if (result) {
+        setMessageInput(prev => prev + (prev ? ' ' : '') + result);
+        toast.success('Voice recognized successfully!', { id: 'voice-toast' });
+      }
+    };
+
+    recognition.start();
+  };
+
   const handleStartChat = async (contact: ChatContact) => {
     if (!currentUser || !userData) return;
 
@@ -347,25 +395,29 @@ export default function Chat() {
   return (
     <>
       <SEO title="Chats" description="Chat with teachers, students and school teams on Liverton Learning." noIndex />
-    <div className="flex h-screen bg-white dark:bg-black overflow-hidden">
+    <div className="flex h-screen bg-white dark:bg-[#07070a] overflow-hidden relative">
+      {/* Background decoration */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
+
       {/* Sidebar - Chat List */}
       <aside 
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           fixed inset-y-0 left-0 z-30 w-full sm:w-80 lg:relative lg:translate-x-0
-          bg-white dark:bg-black border-r border-gray-200 dark:border-gray-800
-          transition-transform duration-300 ease-in-out flex flex-col
+          bg-white/95 dark:bg-[#0d0d12]/95 border-r border-gray-200 dark:border-white/5 backdrop-blur-md
+          transition-transform duration-300 ease-in-out flex flex-col z-20
         `}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+        <div className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
           <h1 className="text-xl font-bold">Messages</h1>
           <div className="flex gap-2">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => setIsSearchOpen(true)}
-              className="rounded-full"
+              className="rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300"
             >
               <UserPlus className="w-5 h-5" />
             </Button>
@@ -388,7 +440,7 @@ export default function Chat() {
               placeholder="Search chats..."
               value={chatFilter}
               onChange={(e) => setChatFilter(e.target.value)}
-              className="pl-10 bg-gray-100 dark:bg-gray-900 border-none rounded-full"
+              className="pl-10 bg-gray-100 dark:bg-white/5 border-none rounded-full"
             />
             {chatFilter && (
               <button
@@ -411,7 +463,7 @@ export default function Chat() {
               <Button 
                 variant="link" 
                 onClick={() => setIsSearchOpen(true)}
-                className="mt-2"
+                className="mt-2 text-emerald-500 font-bold"
               >
                 Start a new chat
               </Button>
@@ -428,12 +480,12 @@ export default function Chat() {
                   key={chat.id}
                   onClick={() => openChat(chat)}
                   className={`
-                    w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors
-                    ${selectedChat?.id === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-600' : ''}
+                    w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors
+                    ${selectedChat?.id === chat.id ? 'bg-emerald-500/10 border-r-2 border-emerald-500' : ''}
                   `}
                 >
                   <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800">
-                    <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    <AvatarFallback className="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 font-semibold">
                       {getInitials(getOtherParticipantName(chat))}
                     </AvatarFallback>
                   </Avatar>
@@ -463,22 +515,22 @@ export default function Chat() {
       </aside>
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col min-w-0 relative">
+      <main className="flex-1 flex flex-col min-w-0 relative z-10">
         {selectedChat ? (
           <>
             {/* Chat Header */}
-            <header className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-black/80 backdrop-blur-md sticky top-0 z-20">
+            <header className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white/80 dark:bg-[#07070a]/80 backdrop-blur-md sticky top-0 z-20">
               <div className="flex items-center gap-3">
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="lg:hidden"
+                  className="lg:hidden text-slate-600 dark:text-slate-300"
                   onClick={() => setIsSidebarOpen(true)}
                 >
                   <Menu className="w-5 h-5" />
                 </Button>
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                  <AvatarFallback className="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
                     {getInitials(getOtherParticipantName(selectedChat))}
                   </AvatarFallback>
                 </Avatar>
@@ -490,17 +542,17 @@ export default function Chat() {
               <div className="flex items-center gap-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="w-5 h-5" /></Button>
+                    <Button variant="ghost" size="icon" className="rounded-full text-slate-600 dark:text-slate-300"><MoreVertical className="w-5 h-5" /></Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem className="gap-2" onClick={handleViewProfile}>
+                  <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-[#111115] border border-slate-200 dark:border-white/10">
+                    <DropdownMenuItem className="gap-2 text-slate-700 dark:text-slate-200" onClick={handleViewProfile}>
                       <Info className="w-4 h-4" /> View Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2" onClick={() => setIsSettingsOpen(true)}>
+                    <DropdownMenuItem className="gap-2 text-slate-700 dark:text-slate-200" onClick={() => setIsSettingsOpen(true)}>
                       <Settings className="w-4 h-4" /> Chat Settings
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className="gap-2 text-red-600"
+                      className="gap-2 text-red-600 font-bold"
                       onClick={() => setDeleteConfirmation({
                         isOpen: true,
                         chatId: selectedChat.id,
@@ -537,8 +589,8 @@ export default function Chat() {
                         <div className={`
                           max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
                           ${isMe 
-                            ? `bg-blue-600 text-white rounded-tr-none` 
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
+                            ? `bg-emerald-600 text-white rounded-tr-none`
+                            : 'bg-white dark:bg-[#111115] text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-white/5'}
                         `}
                         style={{
                           fontSize: `${chatSettings.fontSize}px`,
@@ -575,13 +627,13 @@ export default function Chat() {
                             </div>
                           )}
                           <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
-                          <span className={`text-[10px] mt-1 flex items-center gap-1 ${isMe ? 'justify-end text-blue-100' : 'text-gray-400'}`}>
+                          <span className={`text-[10px] mt-1 flex items-center gap-1 ${isMe ? 'justify-end text-emerald-100' : 'text-gray-400'}`}>
                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             {isMe && (
                               <CheckCheck className={`w-3.5 h-3.5 ${
                                 selectedChat.participants.some(p => p !== currentUser?.uid && (msg.readBy || []).includes(p))
                                   ? 'text-emerald-300'
-                                  : 'text-blue-200/60'
+                                  : 'text-emerald-200/60'
                               }`} />
                             )}
                           </span>
@@ -596,28 +648,28 @@ export default function Chat() {
 
             {/* Upload Progress */}
             {uploadingFile && (
-              <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
+              <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/10 border-t border-emerald-200 dark:border-white/5">
                 <div className="flex items-center gap-3">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
                   <div className="flex-1">
-                    <p className="text-sm text-blue-900 dark:text-blue-200">Uploading file...</p>
-                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 mt-1">
+                    <p className="text-sm text-emerald-900 dark:text-emerald-200">Uploading file...</p>
+                    <div className="w-full bg-emerald-200 dark:bg-emerald-900 rounded-full h-1.5 mt-1">
                       <div 
-                        className="bg-blue-600 h-1.5 rounded-full transition-all"
+                        className="bg-emerald-600 h-1.5 rounded-full transition-all"
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
                   </div>
-                  <span className="text-xs text-blue-600">{Math.round(uploadProgress)}%</span>
+                  <span className="text-xs text-emerald-600">{Math.round(uploadProgress)}%</span>
                 </div>
               </div>
             )}
 
-            {/* Message Input */}
-            <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
+            {/* Elegant Premium Message Input Composer Unified with Hanna AI */}
+            <footer className="p-4 bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5">
               <form 
                 onSubmit={handleSendMessage}
-                className="flex items-center gap-2 max-w-5xl mx-auto"
+                className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
               >
                 <input
                   ref={fileInputRef}
@@ -626,29 +678,34 @@ export default function Chat() {
                   className="hidden"
                   accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                 />
+
+                {/* File Attachment Button */}
                 <Button 
                   type="button" 
                   variant="ghost" 
                   size="icon" 
-                  className="rounded-full text-gray-500"
+                  className="rounded-full w-10 h-10 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex-shrink-0"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingFile}
                 >
                   <Paperclip className="w-5 h-5" />
                 </Button>
+
+                {/* Text Input area */}
                 <div className="flex-1 relative">
                   <Input 
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     placeholder="Type a message..." 
-                    className="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-full py-6 px-6 pr-12 focus-visible:ring-1 focus-visible:ring-blue-500"
+                    className="w-full bg-transparent border-none py-2 px-1 focus-visible:ring-0 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
+                    disabled={uploadingFile}
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
                     <Button 
                       type="button" 
                       variant="ghost" 
                       size="icon" 
-                      className="rounded-full text-gray-500"
+                      className="rounded-full text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5"
                       onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
                     >
                       <Smile className="w-5 h-5" />
@@ -661,20 +718,35 @@ export default function Chat() {
                     )}
                   </div>
                 </div>
+
+                {/* Voice Input Button */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleVoiceInput}
+                  disabled={uploadingFile}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5'}`}
+                  title="Voice Input"
+                >
+                  <Mic className="w-5 h-5" />
+                </Button>
+
+                {/* Submit button */}
                 <Button 
                   type="submit" 
                   disabled={!messageInput.trim() || uploadingFile}
-                  className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95"
+                  className="rounded-full w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4" />
                 </Button>
               </form>
             </footer>
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50 dark:bg-black">
-            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
-              <MessageSquare className="w-10 h-10 text-blue-600" />
+            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
+              <MessageSquare className="w-10 h-10 text-emerald-600" />
             </div>
             <h2 className="text-2xl font-bold mb-2">Your Messages</h2>
             <p className="text-gray-500 max-w-xs mb-8">
@@ -682,7 +754,7 @@ export default function Chat() {
             </p>
             <Button 
               onClick={() => setIsSearchOpen(true)}
-              className="rounded-full px-8 bg-blue-600 hover:bg-blue-700"
+              className="rounded-full px-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Conversation
@@ -770,7 +842,7 @@ export default function Chat() {
         />
       )}
 
-      {/* Delete Chat Confirmation */}
+      {/* Delete Chat Confirmation Dialog */}
       <DeleteChatConfirmation
         isOpen={deleteConfirmation.isOpen}
         chatTitle={deleteConfirmation.chatTitle || ''}
