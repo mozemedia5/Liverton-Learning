@@ -40,14 +40,48 @@ export function isGeminiConfigured(): boolean {
   return !!API_KEY && API_KEY.length > 10 && !API_KEY.includes('your_');
 }
 
-function getModel() {
+function getModel(userInfo?: { userName?: string; userRole?: string; customInstructions?: string }) {
   if (!isGeminiConfigured()) {
     throw new Error('Hanna is not configured yet. Please add the Gemini API key to the environment.');
   }
   const genAI = new GoogleGenerativeAI(API_KEY!);
+
+  // Build a personalized system prompt!
+  let personalizedPrompt = HANNA_SYSTEM_PROMPT;
+  if (userInfo) {
+    const { userName, userRole, customInstructions } = userInfo;
+    personalizedPrompt += `\n\n[Active User Context]`;
+    if (userName) {
+      personalizedPrompt += `\n- The user's name is "${userName}". Always address them by their name warmly whenever appropriate (e.g. in greetings or encouraging remarks).`;
+    }
+    if (userRole) {
+      personalizedPrompt += `\n- The user's role on the platform is "${userRole}".`;
+      if (userRole === 'student') {
+        personalizedPrompt += `\n- Greet them warmly and encourage them as an engaging tutor/study companion. Help with revision, practice questions, and explaining concepts.`;
+      } else if (userRole === 'teacher') {
+        personalizedPrompt += `\n- Greet them as a respected professional/co-educator. Support them with lesson plans, quiz creation ideas, and content curation.`;
+      } else if (userRole === 'parent') {
+        personalizedPrompt += `\n- Greet them as a supportive partner/guardian. Offer guidance on tracking progress, motivating children, and understanding education methods.`;
+      } else if (userRole === 'school_admin' || userRole === 'platform_admin') {
+        personalizedPrompt += `\n- Greet them in a professional, clear, and highly efficient manner. Assist with administrative workflows, reports, and platform guidance.`;
+      }
+    }
+    if (customInstructions && customInstructions.trim()) {
+      personalizedPrompt += `\n\n[User's Custom System Instructions (MUST OBEY)]:\n${customInstructions}`;
+    }
+  }
+
+  // Inject instructions to make images!
+  personalizedPrompt += `\n\n[IMAGE GENERATION RULES]:
+- Whenever the user asks you to "make", "generate", "show", "draw", "bring" or "create" an image, diagram, chart, or visual related to their question, you MUST generate a high-quality educational image.
+- To generate the image, insert a Markdown image link inline: \`![descriptive alt text](https://image.pollinations.ai/p/descriptive_prompts_url_encoded_separated_by_underscores?width=1024&height=768&nologo=true)\`
+- Use highly descriptive prompts for the image path (e.g. \`detailed_science_diagram_of_photosynthesis_labeled_light_and_dark_reactions\`).
+- Ensure the alt text is extremely helpful.
+- Keep the markdown image exactly inline. Do not use HTML tags for images.`;
+
   return genAI.getGenerativeModel({
     model: MODEL_NAME,
-    systemInstruction: HANNA_SYSTEM_PROMPT,
+    systemInstruction: personalizedPrompt,
   });
 }
 
@@ -93,6 +127,7 @@ async function attachmentToPart(att: HannaAttachment): Promise<Part | null> {
  * @param attachments  Uploaded files to include (images/PDFs are analyzed inline)
  * @param onChunk   Called with each streamed text chunk
  * @param signal    AbortSignal to stop generation
+ * @param userInfo  Optional details about the user's name, role, and custom instructions
  * @returns The full reply text
  */
 export async function streamHannaReply(
@@ -100,9 +135,10 @@ export async function streamHannaReply(
   message: string,
   attachments: HannaAttachment[],
   onChunk: (text: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  userInfo?: { userName?: string; userRole?: string; customInstructions?: string }
 ): Promise<string> {
-  const model = getModel();
+  const model = getModel(userInfo);
 
   const chat = model.startChat({
     history: buildHistory(history),
@@ -147,4 +183,34 @@ export function deriveChatTitle(firstMessage: string): string {
   const clean = firstMessage.replace(/\s+/g, ' ').trim();
   if (clean.length <= 42) return clean || 'Chat with Hanna';
   return `${clean.slice(0, 42)}…`;
+}
+
+/**
+ * Generates a short, descriptive 3-5 word title for a conversation based on the first user message.
+ */
+export async function generateSmartTitle(
+  firstMessage: string,
+  _userInfo?: { userName?: string; userRole?: string }
+): Promise<string> {
+  try {
+    if (!isGeminiConfigured()) {
+      return deriveChatTitle(firstMessage);
+    }
+    const genAI = new GoogleGenerativeAI(API_KEY!);
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: 'You are a chat title generator. Generate a descriptive, high-fidelity, extremely concise 3 to 5 words title for a chat based on the first user message. Do NOT use markdown, quotes, punctuation, or explanations. Respond with ONLY the clean title text.'
+    });
+
+    const prompt = `Generate a title for this first message: "${firstMessage}"`;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    if (text && text.length < 50) {
+      return text;
+    }
+    return deriveChatTitle(firstMessage);
+  } catch (error) {
+    console.warn('Smart title generation failed, falling back to deriveChatTitle:', error);
+    return deriveChatTitle(firstMessage);
+  }
 }

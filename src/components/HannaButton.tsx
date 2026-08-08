@@ -17,8 +17,9 @@ import { db } from '@/lib/firebase';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
 import { HannaMarkdown } from '@/components/HannaMarkdown';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
-import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { streamHannaReply, generateSmartTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
+import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
 import {
   collection,
   addDoc,
@@ -30,6 +31,8 @@ import {
   doc,
   deleteDoc,
   increment,
+  getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   Minimize2,
@@ -46,7 +49,11 @@ import {
   Check,
   Copy,
   History,
-  Trash2
+  Trash2,
+  MoreVertical,
+  Settings,
+  Info,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -208,7 +215,7 @@ function getFeedbackChips(lastMessageText: string): string[] {
 }
 
 export function HannaButton() {
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, userRole } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
@@ -230,6 +237,10 @@ export function HannaButton() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [deleteConfirmSession, setDeleteConfirmSession] = useState<ChatSession | null>(null);
 
+  // Custom Settings Dialogue State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+
   // Active Workspace Mode: 'Conversation' | 'Explanation' | 'Visuals' | 'Practice'
   const [workspaceMode, setWorkspaceMode] = useState<'Conversation' | 'Explanation' | 'Visuals' | 'Practice'>('Conversation');
 
@@ -241,6 +252,7 @@ export function HannaButton() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
 
   const geminiReady = isGeminiConfigured();
   const context = getActivePageContext(location.pathname);
@@ -255,6 +267,17 @@ export function HannaButton() {
       scrollToBottom();
     }
   }, [messages, streamingText, widgetState, scrollToBottom]);
+
+  // Click outside listener for the action dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setIsActionMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Handle route session query sync
   const sessionParam = searchParams.get('session');
@@ -280,13 +303,31 @@ export function HannaButton() {
         return tB - tA;
       });
       setChatSessions(sorted);
-      // Select the most recent session if none selected yet
-      if (!currentChatId && sorted.length > 0) {
-        setCurrentChatId(sorted[0].id);
-      }
     }, (error) => console.error('Error loading chats:', error));
     return () => unsubscribe();
-  }, [currentUser, currentChatId]);
+  }, [currentUser]);
+
+  // Handle opening the widget for the first time in a session or clicking floating icon
+  const handleOpenWidget = async (targetState: 'compact' | 'expanded') => {
+    setWidgetState(targetState);
+    if (!currentUser) return;
+
+    // Check if we already started a new conversation for this specific app session
+    const freshSessionStarted = sessionStorage.getItem(`hanna_fresh_started_${currentUser.uid}`);
+
+    if (!freshSessionStarted) {
+      try {
+        const freshId = await createNewSession();
+        setCurrentChatId(freshId);
+        sessionStorage.setItem(`hanna_fresh_started_${currentUser.uid}`, 'true');
+      } catch (error) {
+        console.warn('Could not auto-start fresh session:', error);
+      }
+    } else if (chatSessions.length > 0 && !currentChatId) {
+      // Fallback to most recent session if none currently selected
+      setCurrentChatId(chatSessions[0].id);
+    }
+  };
 
   // Subscribe to messages when a chat ID is active
   useEffect(() => {
@@ -326,7 +367,7 @@ export function HannaButton() {
     if (!currentUser) throw new Error('User not authenticated');
     const docRef = await addDoc(collection(db, 'hanna_chats'), {
       userId: currentUser.uid,
-      title: `Hanna Session — ${new Date().toLocaleDateString()}`,
+      title: 'New conversation',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       messageCount: 0,
@@ -423,6 +464,10 @@ export function HannaButton() {
     setStreamingText('');
 
     let chatId = currentChatId;
+    const isFirstExchange = messages.length === 0;
+
+    // Load custom instructions from localStorage
+    const savedInstructions = currentUser ? (localStorage.getItem(`hanna_instructions_${currentUser.uid}`) || '') : '';
 
     try {
       // 1. Ensure chat session exists in Firestore. If not, create it on-demand (No Lag on click!)
@@ -448,17 +493,7 @@ export function HannaButton() {
         createdAt: serverTimestamp(),
       });
 
-      // 4. Update session metadata (+ auto-title on first message)
-      const sessionUpdates: Record<string, any> = {
-        updatedAt: serverTimestamp(),
-        messageCount: increment(1),
-      };
-      if (messages.length === 0) {
-        sessionUpdates.title = deriveChatTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
-      }
-      await updateDoc(doc(db, 'hanna_chats', chatId), sessionUpdates);
-
-      // 5. Build conversation history
+      // 4. Build conversation history
       const history = messages.slice(-12).map(m => ({
         role: (m.senderRole === 'user' ? 'user' : 'hanna') as 'user' | 'hanna',
         content: m.content,
@@ -467,14 +502,27 @@ export function HannaButton() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // 6. Stream reply
-      const reply = await streamHannaReply(
+      // 5. Stream reply (passing name, role & custom instructions)
+      const replyPromise = streamHannaReply(
         history,
         fullyContextualPrompt,
         currentAttachments,
         (partial) => setStreamingText(partial),
-        controller.signal
+        controller.signal,
+        {
+          userName: userData?.fullName || 'User',
+          userRole: userRole || 'student',
+          customInstructions: savedInstructions
+        }
       );
+
+      // 6. Smart title generation in background if first message
+      let smartTitle = '';
+      if (isFirstExchange) {
+        smartTitle = await generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
+      }
+
+      const reply = await replyPromise;
 
       // 7. Persist reply
       const finalText = reply.trim() || 'I was interrupted — please ask me again.';
@@ -487,10 +535,14 @@ export function HannaButton() {
         createdAt: serverTimestamp(),
       });
 
-      await updateDoc(doc(db, 'hanna_chats', chatId), {
+      const sessionUpdates: Record<string, any> = {
         updatedAt: serverTimestamp(),
-        messageCount: increment(1),
-      });
+        messageCount: increment(2),
+      };
+      if (isFirstExchange && smartTitle) {
+        sessionUpdates.title = smartTitle;
+      }
+      await updateDoc(doc(db, 'hanna_chats', chatId), sessionUpdates);
 
     } catch (error) {
       console.error('Hanna reply failed:', error);
@@ -512,6 +564,27 @@ export function HannaButton() {
       setTimeout(() => setCopiedId(null), 1500);
       toast.success('Message copied!');
     } catch { /* Clipboard fallback */ }
+  };
+
+  const handleClearCurrentMessages = async () => {
+    if (!currentChatId || !currentUser) return;
+    try {
+      setIsActionMenuOpen(false);
+      const q = query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId));
+      const snapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+
+      await updateDoc(doc(db, 'hanna_chats', currentChatId), {
+        messageCount: 0,
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Conversation messages cleared');
+    } catch (error) {
+      console.error('Error clearing messages:', error);
+      toast.error('Could not clear messages');
+    }
   };
 
   const handleClearSession = async () => {
@@ -552,7 +625,7 @@ export function HannaButton() {
   if (widgetState === 'button') {
     return (
       <button
-        onClick={() => setWidgetState('compact')}
+        onClick={() => handleOpenWidget('compact')}
         title="Ask Hanna AI"
         className="
           fixed bottom-24 right-5 z-40 lg:bottom-6
@@ -877,16 +950,63 @@ export function HannaButton() {
             New Chat +
           </button>
 
-          {/* Reset/Delete current session button */}
-          {messages.length > 0 && (
+          {/* Premium dropdown menu with (...) more settings */}
+          <div className="relative" ref={actionMenuRef}>
             <button
-              onClick={handleClearSession}
-              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-red-500 transition-colors"
-              title="Delete Current Session"
+              onClick={() => setIsActionMenuOpen(prev => !prev)}
+              className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              title="More options"
             >
-              <Trash2 className="w-4 h-4" />
+              <MoreVertical className="w-4 h-4" />
             </button>
-          )}
+
+            {isActionMenuOpen && (
+              <div className="absolute right-0 mt-1.5 w-48 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border border-slate-200/60 dark:border-white/10 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-[11px]">
+                <button
+                  onClick={() => {
+                    setIsActionMenuOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200"
+                >
+                  <Settings className="w-3.5 h-3.5 text-emerald-500" />
+                  Hanna Instructions
+                </button>
+                <button
+                  onClick={() => {
+                    setIsActionMenuOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200"
+                >
+                  <Info className="w-3.5 h-3.5 text-amber-500" />
+                  About Hanna AI
+                </button>
+                {currentChatId && (
+                  <>
+                    <button
+                      onClick={handleClearCurrentMessages}
+                      className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                      Clear Messages
+                    </button>
+                    <hr className="my-1 border-slate-200/50 dark:border-white/5" />
+                    <button
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        handleClearSession();
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 flex items-center gap-2 font-semibold"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Conversation
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Minimize button to return to floating button with stylish design */}
           <button
@@ -1262,6 +1382,13 @@ export function HannaButton() {
           }
         }}
         onCancel={() => setDeleteConfirmSession(null)}
+      />
+
+      {/* Hanna Settings & Instructions Dialogue */}
+      <HannaSettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        userId={currentUser?.uid || ''}
       />
     </div>
   );

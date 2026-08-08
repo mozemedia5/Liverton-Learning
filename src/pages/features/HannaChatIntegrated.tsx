@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles
+  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, MoreVertical, Settings, Info, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -13,7 +13,9 @@ import { HannaMarkdown } from '@/components/HannaMarkdown';
 import { db } from '@/lib/firebase';
 import { SEO } from '@/components/SEO';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
-import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { streamHannaReply, generateSmartTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
+import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
 import {
   collection,
   addDoc,
@@ -25,6 +27,8 @@ import {
   doc,
   deleteDoc,
   increment,
+  writeBatch,
+  getDocs,
 } from 'firebase/firestore';
 
 interface Message {
@@ -85,10 +89,17 @@ export default function HannaChatIntegrated() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Modals / Dialogs state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const geminiReady = isGeminiConfigured();
 
@@ -99,6 +110,17 @@ export default function HannaChatIntegrated() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingText, scrollToBottom]);
+
+  // Click outside listener for the action bar menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsActionMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Auto-grow textarea
   useEffect(() => {
@@ -161,11 +183,16 @@ export default function HannaChatIntegrated() {
     }
   };
 
-  const handleDeleteChat = async (chatId: string) => {
-    if (!window.confirm('Delete this conversation?')) return;
+  const triggerDeleteChat = (chatId: string) => {
+    setTargetDeleteChatId(chatId);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDeleteChatConfirm = async () => {
+    if (!targetDeleteChatId) return;
     try {
-      await deleteDoc(doc(db, 'hanna_chats', chatId));
-      if (currentChatId === chatId) {
+      await deleteDoc(doc(db, 'hanna_chats', targetDeleteChatId));
+      if (currentChatId === targetDeleteChatId) {
         setCurrentChatId(null);
         setSearchParams({});
         setMessages([]);
@@ -174,6 +201,30 @@ export default function HannaChatIntegrated() {
     } catch (error) {
       console.error('Error deleting chat:', error);
       toast.error('Failed to delete conversation');
+    } finally {
+      setIsDeleteOpen(false);
+      setTargetDeleteChatId(null);
+    }
+  };
+
+  const handleClearCurrentMessages = async () => {
+    if (!currentChatId || !currentUser) return;
+    try {
+      setIsActionMenuOpen(false);
+      const q = query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId));
+      const snapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+
+      await updateDoc(doc(db, 'hanna_chats', currentChatId), {
+        messageCount: 0,
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Conversation messages cleared');
+    } catch (error) {
+      console.error('Error clearing messages:', error);
+      toast.error('Could not clear messages');
     }
   };
 
@@ -221,6 +272,9 @@ export default function HannaChatIntegrated() {
 
     const isFirstExchange = messages.length === 0;
 
+    // Load custom instructions from localStorage
+    const savedInstructions = localStorage.getItem(`hanna_instructions_${currentUser.uid}`) || '';
+
     try {
       // 1. Persist the user message
       await addDoc(collection(db, 'hanna_messages'), {
@@ -233,17 +287,7 @@ export default function HannaChatIntegrated() {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Update session metadata (+ auto-title from the first message)
-      const sessionUpdates: Record<string, unknown> = {
-        updatedAt: serverTimestamp(),
-        messageCount: increment(1),
-      };
-      if (isFirstExchange) {
-        sessionUpdates.title = deriveChatTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
-      }
-      await updateDoc(doc(db, 'hanna_chats', currentChatId), sessionUpdates);
-
-      // 3. Stream Hanna's reply from Gemini
+      // 2. Stream Hanna's reply from Gemini (passing name, role & custom instructions)
       const history = messages.slice(-12).map(m => ({
         role: (m.senderRole === 'user' ? 'user' : 'hanna') as 'user' | 'hanna',
         content: m.content,
@@ -252,13 +296,26 @@ export default function HannaChatIntegrated() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const reply = await streamHannaReply(
+      const replyPromise = streamHannaReply(
         history,
         text || 'Please describe the attached file(s).',
         currentAttachments,
         (partial) => setStreamingText(partial),
-        controller.signal
+        controller.signal,
+        {
+          userName: userData?.fullName || 'User',
+          userRole: userRole || 'student',
+          customInstructions: savedInstructions
+        }
       );
+
+      // 3. Smart title generation in background if first message
+      let smartTitle = '';
+      if (isFirstExchange) {
+        smartTitle = await generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
+      }
+
+      const reply = await replyPromise;
 
       // 4. Persist the reply
       const finalText = reply.trim() || 'I was interrupted — please ask me again.';
@@ -270,10 +327,16 @@ export default function HannaChatIntegrated() {
         content: finalText,
         createdAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'hanna_chats', currentChatId), {
+
+      const sessionUpdates: Record<string, unknown> = {
         updatedAt: serverTimestamp(),
-        messageCount: increment(1),
-      });
+        messageCount: increment(2),
+      };
+      if (isFirstExchange && smartTitle) {
+        sessionUpdates.title = smartTitle;
+      }
+      await updateDoc(doc(db, 'hanna_chats', currentChatId), sessionUpdates);
+
     } catch (error) {
       console.error('Hanna reply failed:', error);
       const errName = error instanceof Error ? error.name : '';
@@ -397,7 +460,7 @@ export default function HannaChatIntegrated() {
                       className="w-5 h-5 absolute right-2 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all rounded-md"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteChat(session.id);
+                        triggerDeleteChat(session.id);
                       }}
                       title="Delete conversation"
                     >
@@ -474,7 +537,7 @@ export default function HannaChatIntegrated() {
               </div>
             </div>
 
-            {/* Quick Actions Header Area */}
+            {/* Premium Header Action Bar with (...) options */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -485,6 +548,66 @@ export default function HannaChatIntegrated() {
                 <Plus className="w-3.5 h-3.5" />
                 New Chat
               </Button>
+
+              {/* Premium action dropdown trigger */}
+              <div className="relative" ref={menuRef}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
+                  onClick={() => setIsActionMenuOpen(prev => !prev)}
+                  title="More options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+
+                {isActionMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border border-slate-200/60 dark:border-white/10 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-xs">
+                    <button
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setIsSettingsOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
+                    >
+                      <Settings className="w-4 h-4 text-emerald-500" />
+                      Hanna Instructions
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setIsSettingsOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
+                    >
+                      <Info className="w-4 h-4 text-amber-500" />
+                      About Hanna AI
+                    </button>
+                    {currentChatId && (
+                      <>
+                        <button
+                          onClick={handleClearCurrentMessages}
+                          className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200"
+                        >
+                          <RefreshCw className="w-4 h-4 text-blue-500" />
+                          Clear Messages
+                        </button>
+                        <hr className="my-1 border-slate-200/50 dark:border-white/5" />
+                        <button
+                          onClick={() => {
+                            setIsActionMenuOpen(false);
+                            triggerDeleteChat(currentChatId);
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-red-500/10 text-red-500 flex items-center gap-2.5 font-medium"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete Conversation
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </header>
 
@@ -786,6 +909,24 @@ export default function HannaChatIntegrated() {
           )}
         </main>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteChatConfirmation
+        isOpen={isDeleteOpen}
+        chatTitle={chatSessions.find(s => s.id === targetDeleteChatId)?.title || ''}
+        onConfirm={handleDeleteChatConfirm}
+        onCancel={() => {
+          setIsDeleteOpen(false);
+          setTargetDeleteChatId(null);
+        }}
+      />
+
+      {/* Hanna Settings & Instructions Dialogue */}
+      <HannaSettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        userId={currentUser?.uid || ''}
+      />
     </>
   );
 }
