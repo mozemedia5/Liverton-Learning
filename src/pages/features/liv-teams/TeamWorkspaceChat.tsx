@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Send, Smile, Paperclip, Edit2, Trash, CornerDownRight, Pin,
-  FileText, CheckCheck, MessageSquare, Download, Image as ImageIcon,
-  Search, X, Loader2, Film, Music, Mic
+  FileText, CheckCheck, MessageSquare, Download,
+  Search, X, Loader2, Mic
 } from 'lucide-react';
 import {
   sendTeamMessage,
