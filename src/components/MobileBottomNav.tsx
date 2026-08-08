@@ -174,7 +174,6 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
-          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
       case 'school_admin':
@@ -201,7 +200,6 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
-          { icon: Award, label: 'TEARN', path: '/features/tearn' },
         );
         break;
     }
