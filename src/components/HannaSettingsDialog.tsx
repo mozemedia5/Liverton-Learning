@@ -17,11 +17,19 @@ interface HannaSettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
+  defaultTab?: 'about' | 'instructions';
 }
 
-export function HannaSettingsDialog({ isOpen, onClose, userId }: HannaSettingsDialogProps) {
+export function HannaSettingsDialog({ isOpen, onClose, userId, defaultTab }: HannaSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<'about' | 'instructions'>('about');
   const [instructions, setInstructions] = useState('');
+
+  // Sync activeTab when defaultTab or isOpen changes
+  useEffect(() => {
+    if (isOpen && defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [isOpen, defaultTab]);
 
   // Load custom instructions from localStorage
   useEffect(() => {
