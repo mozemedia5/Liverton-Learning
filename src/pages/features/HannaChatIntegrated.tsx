@@ -561,7 +561,7 @@ export default function HannaChatIntegrated() {
               </div>
             </div>
 
-            {/* Premium Header Action Bar with (...) options */}
+            {/* Premium Header Action Bar with (...) options and elegant close/dismiss */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -571,6 +571,15 @@ export default function HannaChatIntegrated() {
               >
                 <Plus className="w-3.5 h-3.5" />
                 New Chat
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(getDashboardRedirect())}
+                className="rounded-full w-8 h-8 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                title="Exit Chat Workspace"
+              >
+                <X className="w-5 h-5" />
               </Button>
             </div>
           </header>

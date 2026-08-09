@@ -401,11 +401,9 @@ function AppRoutes() {
           <AuthenticatedLayout><Chat /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
-      {/* Shareable course detail page (opens the exact course for any signed-in user) */}
+      {/* Shareable course detail page (opens the exact course for any user, including guests/visitors) */}
       <Route path="/courses/:courseId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><CourseView /></AuthenticatedLayout>
-        </ProtectedRoute>
+        <AuthenticatedLayout><CourseView /></AuthenticatedLayout>
       } />
       {/* Shareable public profile page */}
       <Route path="/profile/:userId" element={

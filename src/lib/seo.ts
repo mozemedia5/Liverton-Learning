@@ -9,6 +9,11 @@
 
 export const SITE_URL = (import.meta.env.VITE_SITE_URL || 'https://liverton-learning.vercel.app').replace(/\/$/, '');
 
+// Dynamic fallback check to support both liverton-learning.vercel.app and livertonlearning.com seamlessly
+export const SITE_DOMAIN = typeof window !== 'undefined'
+  ? (window.location.hostname === 'livertonlearning.com' ? 'https://livertonlearning.com' : 'https://liverton-learning.vercel.app')
+  : 'https://liverton-learning.vercel.app';
+
 export const SITE_NAME = 'Liverton Learning';
 export const SITE_HANDLE = '@livertonlearn';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/logo.png`;
@@ -19,9 +24,12 @@ export const DEFAULT_DESCRIPTION =
 
 /** Build an absolute URL for the site from an app path. */
 export function absoluteUrl(path: string): string {
-  if (!path) return SITE_URL;
+  const base = typeof window !== 'undefined' && window.location.hostname === 'livertonlearning.com'
+    ? 'https://livertonlearning.com'
+    : SITE_URL;
+  if (!path) return base;
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  return `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
 export interface SeoMeta {

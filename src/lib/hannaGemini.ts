@@ -73,11 +73,12 @@ function getModel(userInfo?: { userName?: string; userRole?: string; customInstr
 
   // Inject instructions to make images!
   personalizedPrompt += `\n\n[IMAGE GENERATION RULES]:
-- Whenever the user asks you to "make", "generate", "show", "draw", "bring" or "create" an image, diagram, chart, or visual related to their question, you MUST generate a high-quality educational image.
-- To generate the image, insert a Markdown image link inline: \`![descriptive alt text](https://image.pollinations.ai/p/descriptive_prompts_url_encoded_separated_by_underscores?width=1024&height=768&nologo=true)\`
-- Use highly descriptive prompts for the image path (e.g. \`detailed_science_diagram_of_photosynthesis_labeled_light_and_dark_reactions\`).
-- Ensure the alt text is extremely helpful.
-- Keep the markdown image exactly inline. Do not use HTML tags for images.`;
+- Whenever the user asks you to "make", "generate", "show", "draw", "bring", "create" or "paint" an image, diagram, chart, or visual related to their question, you MUST generate and render a high-quality, high-fidelity educational image.
+- To generate the image, you MUST insert a standard Markdown image link inline inside your response: \`![descriptive alt text](https://image.pollinations.ai/p/descriptive_prompts_url_encoded_separated_by_underscores?width=1024&height=768&nologo=true)\`
+- The prompt URL part after '/p/' MUST be fully URL-encoded and have spaces replaced with underscores (e.g. \`https://image.pollinations.ai/p/diagram_of_nephron_labeled_filtering_unit_high_detail?width=1024&height=768&nologo=true\`).
+- Use highly descriptive and clear educational prompts so Pollinations AI renders accurate scientific diagrams, historical maps, charts, or learning illustrations.
+- Ensure the alt text is extremely descriptive and helpful.
+- Keep the markdown image exactly inline. Do NOT use HTML \`<img>\` or \`<div>\` tags for rendering images.`;
 
   return genAI.getGenerativeModel({
     model: MODEL_NAME,
