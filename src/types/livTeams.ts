@@ -58,6 +58,12 @@ export interface Team {
   memberIds?: string[]; // flat list of member userIds (used by security rules & queries)
   savedByUsers?: string[]; // userIds of users who saved this team
   savingsBalance?: number; // team wallet balance in UGX
+  status?: 'active' | 'suspended';
+  suspensionReason?: string;
+  appealText?: string;
+  appealStatus?: 'none' | 'pending' | 'resolved';
+  dismissedMembers?: string[]; // userIds of dismissed/banned members
+  appeals?: { userId: string; fullName: string; email: string; appealText: string; status: 'pending' | 'approved' | 'rejected'; createdAt: any }[];
 }
 
 export interface TeamMessageReaction {

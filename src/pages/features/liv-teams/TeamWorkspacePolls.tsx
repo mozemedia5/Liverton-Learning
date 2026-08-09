@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Bell, Vote, CheckSquare, Loader2, Megaphone } from 'lucide-react';
+import { Bell, Vote, CheckSquare, Loader2, Megaphone, Sparkles } from 'lucide-react';
 import {
   createTeamPoll,
   getTeamPolls,
@@ -15,6 +15,7 @@ import {
   createTeamAnnouncement,
   getTeamAnnouncements
 } from '@/services/livTeamsFinanceService';
+import { generateHannaPoll } from '@/lib/hannaGemini';
 import type { TeamPoll, TeamAnnouncement, TeamRole } from '@/types/livTeams';
 import { LivEmptyState, LivSectionHeader } from './livTeamsUi';
 
@@ -38,6 +39,25 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
   // Poll form
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [generatingPoll, setGeneratingPoll] = useState(false);
+
+  const handleHannaGeneratePoll = async () => {
+    if (!pollQuestion.trim()) {
+      toast.info('Please draft a quick topic or keyword first!');
+      return;
+    }
+    setGeneratingPoll(true);
+    try {
+      const result = await generateHannaPoll(pollQuestion.trim());
+      setPollQuestion(result.question);
+      setPollOptions(result.options);
+      toast.success('✨ Poll enhanced successfully with Hanna AI!');
+    } catch {
+      toast.error('Could not enhance poll right now.');
+    } finally {
+      setGeneratingPoll(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -158,8 +178,25 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
               <CardContent className="p-4">
                 <form onSubmit={handleCreatePoll} className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="pollQ">Question *</Label>
-                    <Input id="pollQ" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="e.g. Which chapter should we revise next?" required />
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="pollQ">Question *</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={generatingPoll || !pollQuestion.trim()}
+                        onClick={handleHannaGeneratePoll}
+                        className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                      >
+                        {generatingPoll ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                        )}
+                        Generate with Hanna
+                      </Button>
+                    </div>
+                    <Input id="pollQ" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="e.g. Which chapter should we revise next? (Or type raw text and tap generate)" required />
                   </div>
                   <div className="space-y-2">
                     <Label>Options (2–6)</Label>
@@ -172,7 +209,7 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
                       </Button>
                     )}
                   </div>
-                  <Button type="submit" disabled={saving} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl">
+                  <Button type="submit" disabled={saving || generatingPoll} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl">
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Launch Poll'}
                   </Button>
                 </form>

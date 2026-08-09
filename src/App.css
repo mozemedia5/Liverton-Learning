@@ -114,6 +114,22 @@ select:focus {
   animation: float 3s ease-in-out infinite;
 }
 
+/* Breath/Pulse highlight for suggestions */
+@keyframes suggestion-pulse {
+  0%, 100% {
+    border-color: rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+  }
+  50% {
+    border-color: rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.08);
+  }
+}
+
+.suggestion-card-animate {
+  animation: suggestion-pulse 4s ease-in-out infinite;
+}
+
 /* Responsive typography */
 @media (max-width: 640px) {
   html {

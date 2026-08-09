@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
   Users,
@@ -33,7 +34,10 @@ import {
 } from '@/services/userService';
 import { subscribeToAllCoursesAdmin, type Course } from '@/services/courseService';
 import { subscribeToAllQuizzesAdmin, type Quiz } from '@/services/quizService';
+import { getAllTeams, suspendTeam, unsuspendTeam } from '@/services/livTeamsCoreService';
+import type { Team } from '@/types/livTeams';
 import { toast } from 'sonner';
+import { AlertTriangle, Activity as ActivityIcon, ShieldAlert, Award } from 'lucide-react';
 
 interface PlatformStats {
   totalUsers: number;
@@ -49,6 +53,9 @@ interface PlatformStats {
 
 export default function PlatformAdminDashboard() {
   const navigate = useNavigate();
+  const [platformTeams, setPlatformTeams] = useState<Team[]>([]);
+  const [suspendingTeamId, setSuspendingTeamId] = useState<string | null>(null);
+  const [suspensionReason, setSuspensionReason] = useState('');
   const [stats, setStats] = useState<PlatformStats>({
     totalUsers: 0,
     totalStudents: 0,
@@ -90,10 +97,13 @@ export default function PlatformAdminDashboard() {
       setLoading(true);
       
       // Fetch dashboard stats and pending verifications in parallel
-      const [dashboardStats, pending] = await Promise.all([
+      const [dashboardStats, pending, teamsData] = await Promise.all([
         getDashboardStats(),
-        getPendingVerifications()
+        getPendingVerifications(),
+        getAllTeams()
       ]);
+
+      setPlatformTeams(teamsData);
 
       setStats({
         totalUsers: dashboardStats.totalUsers,
@@ -177,6 +187,46 @@ export default function PlatformAdminDashboard() {
 
   const getRoleDisplayName = (role: string) => {
     return role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Flagged/threatening words check
+  const FLAGGED_WORDS = ['murder', 'violence', 'kill', 'threat', 'weapon', 'poison', 'suicide', 'assault'];
+  const isThreateningTeam = (team: Team) => {
+    const text = `${team.name} ${team.description} ${team.purpose}`.toLowerCase();
+    return FLAGGED_WORDS.some(word => text.includes(word));
+  };
+
+  const threateningTeams = platformTeams.filter(team => (team.status || 'active') === 'active' && isThreateningTeam(team));
+  const suspendedTeams = platformTeams.filter(team => team.status === 'suspended');
+
+  const handleSuspendTeam = async (teamId: string) => {
+    if (!suspensionReason.trim()) {
+      toast.error('Please provide a reason for suspension');
+      return;
+    }
+    setSuspendingTeamId(teamId);
+    try {
+      await suspendTeam(teamId, suspensionReason.trim());
+      toast.success('Team suspended and owner notified via Inbox message!');
+      setSuspensionReason('');
+      const updatedTeams = await getAllTeams();
+      setPlatformTeams(updatedTeams);
+    } catch (err) {
+      toast.error('Failed to suspend team');
+    } finally {
+      setSuspendingTeamId(null);
+    }
+  };
+
+  const handleUnsuspendTeam = async (teamId: string) => {
+    try {
+      await unsuspendTeam(teamId);
+      toast.success('Team unsuspended successfully!');
+      const updatedTeams = await getAllTeams();
+      setPlatformTeams(updatedTeams);
+    } catch (err) {
+      toast.error('Failed to unsuspend team');
+    }
   };
 
   // Filter pending users by type
@@ -778,6 +828,240 @@ export default function PlatformAdminDashboard() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3 text-gray-500">{formatDate(user.createdAt)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Dedicated Premium Section: Liv Teams Statistics, Unhealthy Content Monitor, Banned/Appeal Controls */}
+        <div className="space-y-6 pt-4">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <ActivityIcon className="w-5 h-5 text-emerald-500" /> Liv Teams Workspace statistics & Governance Monitor
+          </h2>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center">
+                    <ActivityIcon className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Total Teams</p>
+                    <p className="text-lg font-bold">{platformTeams.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-lg flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Flagged Unhealthy</p>
+                    <p className="text-lg font-bold text-amber-600">{threateningTeams.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
+                    <ShieldAlert className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Suspended Teams</p>
+                    <p className="text-lg font-bold text-red-600">{suspendedTeams.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                    <Award className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Total Team Members</p>
+                    <p className="text-lg font-bold">
+                      {platformTeams.reduce((sum, t) => sum + (t.members?.length || 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Unhealthy Content / Threat Monitor */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3 border-b border-gray-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-sm font-semibold text-red-600 flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-red-500 animate-bounce" /> Threat Tracker / Unhealthy Team Monitor
+                  </CardTitle>
+                  <Badge variant="destructive" className="text-[10px] rounded-md px-2">REAL-TIME</Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  Teams automatically flagged based on key words matching violence or unsafe student behaviors.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                {threateningTeams.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-xs flex flex-col items-center justify-center">
+                    <ActivityIcon className="w-8 h-8 text-emerald-500 mb-2 opacity-50" />
+                    <p className="font-bold">All Platform Teams are Clean & Healthy</p>
+                    <p className="text-slate-400">Zero threat keywords or unhealthy topics detected.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {threateningTeams.map(team => (
+                      <div key={team.id} className="p-4 rounded-xl border border-red-500/20 bg-red-500/5 flex items-start justify-between gap-4 flex-wrap">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="font-bold text-sm text-red-500 truncate">{team.name}</h4>
+                            <Badge variant="outline" className="text-[9px] capitalize text-slate-500 border-slate-300">
+                              {team.category}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Goal: "{team.purpose}"</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 italic">"{team.description}"</p>
+                        </div>
+                        <div className="space-y-2 flex-shrink-0">
+                          <Input
+                            placeholder="Enter suspension reason..."
+                            className="h-8 text-xs rounded-lg w-44"
+                            value={suspendingTeamId === team.id ? suspensionReason : ''}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setSuspendingTeamId(team.id);
+                              setSuspensionReason(e.target.value);
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleSuspendTeam(team.id)}
+                            disabled={suspendingTeamId === team.id && !suspensionReason.trim()}
+                            className="bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs w-full h-8 font-bold"
+                          >
+                            {suspendingTeamId === team.id ? 'Suspending...' : 'Suspend Team'}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Suspended Teams & Appeals Review Section */}
+            <Card>
+              <CardHeader className="pb-3 border-b border-gray-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+                <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                  <ShieldAlert className="w-4 h-4 text-slate-400" /> Suspension Appeals Hub
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Review and reinstate teams after owner submitted suspension appeals.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                {suspendedTeams.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-xs">
+                    <p className="font-semibold text-slate-400">No suspended teams on platform</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {suspendedTeams.map(team => {
+                      const isPending = team.appealStatus === 'pending';
+                      return (
+                        <div key={team.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-white/5 space-y-2.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-xs truncate max-w-[140px]">{team.name}</span>
+                            <Badge variant={isPending ? "secondary" : "outline"} className="text-[9px] text-amber-500 bg-amber-500/10 border-0 uppercase">
+                              {isPending ? 'Pending Appeal' : 'Suspended'}
+                            </Badge>
+                          </div>
+                          <p className="text-[10px] text-slate-400">Reason: "{team.suspensionReason || 'Rules violation'}"</p>
+                          {isPending && (
+                            <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/10 space-y-1">
+                              <span className="text-[9px] font-bold text-amber-500 uppercase">Owner's Appeal:</span>
+                              <p className="text-[11px] italic text-slate-700 dark:text-slate-300">"{team.appealText}"</p>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUnsuspendTeam(team.id)}
+                              className="text-xs text-emerald-500 hover:text-emerald-600 rounded-lg h-7 px-2 font-bold w-full"
+                            >
+                              Unsuspend / Re-activate
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Simple Tabular list to keep track on stats of all teams (Platform Admin NEVER creates) */}
+          <Card>
+            <CardHeader className="pb-3 border-b border-gray-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+              <CardTitle className="text-sm font-semibold">Track Platform Teams Stat ({platformTeams.length})</CardTitle>
+              <CardDescription className="text-xs">
+                Platform governance and statistical monitoring sheet. Banned teams are filtered out from user searches.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="text-[11px] text-gray-700 uppercase bg-gray-50 dark:bg-gray-800 dark:text-gray-400">
+                    <tr>
+                      <th className="px-4 py-3">Team Profile</th>
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3">Owner</th>
+                      <th className="px-4 py-3">Members</th>
+                      <th className="px-4 py-3 font-semibold text-right">Savings Balance</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {platformTeams.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-xs">No team workspaces created yet.</td>
+                      </tr>
+                    ) : (
+                      platformTeams.map(team => (
+                        <tr key={team.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-800 dark:text-slate-100">{team.name}</div>
+                            <div className="text-[10px] text-slate-400 max-w-[180px] truncate">{team.purpose}</div>
+                          </td>
+                          <td className="px-4 py-3 capitalize">{team.category}</td>
+                          <td className="px-4 py-3">{team.ownerName}</td>
+                          <td className="px-4 py-3">{team.members?.length || 0} / {team.maxMembers}</td>
+                          <td className="px-4 py-3 font-semibold text-right text-emerald-500">
+                            UGX {(team.savingsBalance || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={team.status === 'suspended' ? 'destructive' : 'default'} className="uppercase text-[9px] rounded-md px-1.5 py-0">
+                              {team.status || 'active'}
+                            </Badge>
+                          </td>
                         </tr>
                       ))
                     )}

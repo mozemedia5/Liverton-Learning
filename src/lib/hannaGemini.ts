@@ -215,3 +215,51 @@ export async function generateSmartTitle(
     return deriveChatTitle(firstMessage);
   }
 }
+
+/**
+ * Generate/Modify a poll question and its options using Hanna AI (Gemini).
+ */
+export async function generateHannaPoll(draftQuestion: string): Promise<{ question: string; options: string[] }> {
+  try {
+    if (!isGeminiConfigured()) {
+      throw new Error('Hanna is not configured yet.');
+    }
+    const genAI = new GoogleGenerativeAI(API_KEY!);
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: `You are Hanna, a study companion and poll optimizer.
+Given a rough draft, a keyword, or a topic for a poll, you must:
+1. Rephrase it into a beautifully worded, engaging, and clear poll question.
+2. Formulate 2 to 4 highly relevant, clear, and distinct option choices for the poll.
+
+Your output must be in JSON format matching this exact TypeScript interface:
+{
+  "question": "The refined, polished question text here?",
+  "options": ["Option A", "Option B", "Option C"]
+}
+Do NOT wrap the output in markdown blocks or include any extra text. Respond with ONLY the raw JSON string.`
+    });
+
+    const prompt = `Refine this poll topic/draft: "${draftQuestion}"`;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+
+    // Clean JSON if the model returns markdown code block
+    const cleaned = text.replace(/^```json/, '').replace(/```$/, '').trim();
+    const data = JSON.parse(cleaned);
+    if (data && typeof data.question === 'string' && Array.isArray(data.options)) {
+      return {
+        question: data.question,
+        options: data.options.map((o: any) => String(o).trim()).filter(Boolean)
+      };
+    }
+    throw new Error('Invalid response structure');
+  } catch (error) {
+    console.error('Hanna Poll Generation failed:', error);
+    // Fallback
+    return {
+      question: draftQuestion,
+      options: ['Option 1', 'Option 2']
+    };
+  }
+}

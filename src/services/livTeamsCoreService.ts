@@ -21,7 +21,7 @@ import type { Team, TeamMember, TeamRole, TeamInvitation, TeamActivityFeedItem }
 export const teamCategories = [
   'Science', 'ICT', 'Mathematics', 'Physics', 'Biology', 'Chemistry',
   'Geography', 'History', 'Literature', 'Reading', 'Research',
-  'Innovation', 'Robotics', 'AI', 'Coding', 'Startup', 'Agriculture',
+  'Innovation', 'Robotics', 'AI', 'Coding', 'Study', 'Under 20', 'Startup', 'Agriculture',
   'Debate', 'Entrepreneurship', 'School Club', 'Savings', 'Other'
 ];
 
@@ -136,6 +136,276 @@ export async function getAllTeams(): Promise<Team[]> {
   } catch (error) {
     console.error('Error fetching all teams:', error);
     return [];
+  }
+}
+
+/**
+ * Suspend a team for unhealthy/threatening content (Admin only)
+ */
+export async function suspendTeam(teamId: string, reason: string): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Team not found');
+    const teamData = teamSnap.data();
+
+    await updateDoc(teamRef, {
+      status: 'suspended',
+      suspensionReason: reason,
+      appealStatus: 'none',
+      appealText: ''
+    });
+
+    // Send a system notification in inbox to the owner
+    await addDoc(collection(db, 'notifications'), {
+      title: '🔴 Team Suspended due to Rules Violation',
+      content: `Your team "${teamData.name}" has been suspended due to: "${reason}". You can appeal this suspension from your team workspace page.`,
+      type: 'announcement',
+      audience: 'all',
+      targetUsers: [teamData.ownerId],
+      createdAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error suspending team:', error);
+    throw error;
+  }
+}
+
+/**
+ * Unsuspend a team (Admin only)
+ */
+export async function unsuspendTeam(teamId: string): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    await updateDoc(teamRef, {
+      status: 'active',
+      appealStatus: 'none',
+      appealText: ''
+    });
+  } catch (error) {
+    console.error('Error unsuspending team:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit team suspension appeal (Owner only)
+ */
+export async function submitTeamAppeal(teamId: string, appealText: string): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    await updateDoc(teamRef, {
+      appealStatus: 'pending',
+      appealText
+    });
+  } catch (error) {
+    console.error('Error submitting team appeal:', error);
+    throw error;
+  }
+}
+
+/**
+ * Dismiss a member from a team due to rule breaking (Owner only)
+ */
+export async function dismissMemberFromTeam(
+  teamId: string,
+  memberUserId: string,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Team not found');
+    const teamData = teamSnap.data() as Team;
+
+    const memberToDismiss = teamData.members.find(m => m.userId === memberUserId);
+    if (!memberToDismiss) throw new Error('Member not found in team');
+
+    await updateDoc(teamRef, {
+      members: arrayRemove(memberToDismiss),
+      memberIds: arrayRemove(memberUserId),
+      dismissedMembers: arrayUnion(memberUserId)
+    });
+
+    await logTeamActivity(teamId, actorId, actorName, `dismissed ${memberToDismiss.fullName} from the team`);
+  } catch (error) {
+    console.error('Error dismissing member:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit workspace re-join appeal (Dismissed member only)
+ */
+export async function submitRejoinAppeal(
+  teamId: string,
+  userId: string,
+  fullName: string,
+  email: string,
+  appealText: string
+): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Team not found');
+    const teamData = teamSnap.data();
+
+    const existingAppeals = teamData.appeals || [];
+    // Remove any older appeal from this user
+    const filtered = existingAppeals.filter((a: any) => a.userId !== userId);
+
+    const newAppeal = {
+      userId,
+      fullName,
+      email,
+      appealText,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    await updateDoc(teamRef, {
+      appeals: [...filtered, newAppeal]
+    });
+  } catch (error) {
+    console.error('Error submitting rejoin appeal:', error);
+    throw error;
+  }
+}
+
+/**
+ * Respond to workspace rejoin appeal (Owner only)
+ */
+export async function respondToRejoinAppeal(
+  teamId: string,
+  userId: string,
+  approve: boolean,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Team not found');
+    const teamData = teamSnap.data() as Team;
+
+    const existingAppeals = teamData.appeals || [];
+    const targetAppeal = existingAppeals.find((a: any) => a.userId === userId);
+    if (!targetAppeal) throw new Error('Appeal not found');
+
+    if (approve) {
+      // Re-add to members, remove from dismissed and appeals
+      const updatedAppeals = existingAppeals.filter((a: any) => a.userId !== userId);
+      await updateDoc(teamRef, {
+        appeals: updatedAppeals,
+        dismissedMembers: arrayRemove(userId)
+      });
+
+      await addMemberToTeam(teamId, {
+        userId,
+        fullName: targetAppeal.fullName,
+        email: targetAppeal.email,
+        role: 'student_member',
+        joinedAt: new Date()
+      });
+
+      await logTeamActivity(teamId, actorId, actorName, `approved the re-join appeal of ${targetAppeal.fullName}`);
+    } else {
+      // Update appeal status to rejected
+      const updatedAppeals = existingAppeals.map((a: any) => {
+        if (a.userId === userId) {
+          return { ...a, status: 'rejected' };
+        }
+        return a;
+      });
+      await updateDoc(teamRef, {
+        appeals: updatedAppeals
+      });
+      await logTeamActivity(teamId, actorId, actorName, `rejected the re-join appeal of ${targetAppeal.fullName}`);
+    }
+  } catch (error) {
+    console.error('Error responding to rejoin appeal:', error);
+    throw error;
+  }
+}
+
+export interface TeamJoinRequest {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: any;
+}
+
+/**
+ * Request to join a public or private team
+ */
+export async function requestToJoinTeam(teamId: string, userId: string, fullName: string, email: string): Promise<void> {
+  try {
+    const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
+    await setDoc(requestRef, {
+      userId,
+      fullName,
+      email,
+      status: 'pending',
+      createdAt: Timestamp.now()
+    });
+    // Log initial join request in activity
+    await logTeamActivity(teamId, userId, fullName, 'requested to join the team');
+  } catch (error) {
+    console.error('Error requesting to join team:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch all pending join requests for a team
+ */
+export async function getTeamJoinRequests(teamId: string): Promise<TeamJoinRequest[]> {
+  try {
+    const requestsRef = collection(db, 'teams', teamId, 'join_requests');
+    const q = query(requestsRef, where('status', '==', 'pending'));
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamJoinRequest));
+  } catch (error) {
+    console.error('Error fetching team join requests:', error);
+    return [];
+  }
+}
+
+/**
+ * Approve or decline a join request
+ */
+export async function respondToJoinRequest(
+  teamId: string,
+  userId: string,
+  fullName: string,
+  email: string,
+  approve: boolean,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  try {
+    const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
+    if (approve) {
+      await updateDoc(requestRef, { status: 'accepted' });
+      // Add member to the team
+      await addMemberToTeam(teamId, {
+        userId,
+        fullName,
+        email,
+        role: 'student_member',
+        joinedAt: new Date()
+      });
+      await logTeamActivity(teamId, actorId, actorName, `approved ${fullName}'s join request`);
+    } else {
+      await updateDoc(requestRef, { status: 'declined' });
+      await logTeamActivity(teamId, actorId, actorName, `declined ${fullName}'s join request`);
+    }
+  } catch (error) {
+    console.error('Error responding to join request:', error);
+    throw error;
   }
 }
 

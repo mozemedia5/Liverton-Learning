@@ -252,6 +252,15 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
   const isGuest = teamRole === 'guest';
   const isPMOrAbove = ['owner', 'admin', 'project_manager'].includes(teamRole);
 
+  const canModifyTask = (task: TeamTask) => {
+    if (isGuest) return false;
+    if (isPMOrAbove) return true;
+    if (task.assignedMembers && task.assignedMembers.length > 0) {
+      return task.assignedMembers.includes(currentUser?.uid || '');
+    }
+    return true;
+  };
+
   return (
     <div className="space-y-6">
       <LivSectionHeader title="Projects & Tasks" subtitle="Plan work, assign deliverables and track completion.">
@@ -419,16 +428,27 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
 
                             {(task.checklist || []).length > 0 && (
                               <div className="space-y-1.5">
-                                {task.checklist.map(item => (
-                                  <div key={item.id} className="flex items-center gap-2 text-xs">
-                                    <button onClick={() => handleToggleChecklistItem(task, item.id)} aria-label={item.isCompleted ? 'Reopen item' : 'Complete item'}>
-                                      {item.isCompleted
-                                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        : <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
-                                    </button>
-                                    <span className={item.isCompleted ? 'line-through text-slate-400' : ''}>{item.text}</span>
-                                  </div>
-                                ))}
+                                {task.checklist.map(item => {
+                                  const canEdit = canModifyTask(task);
+                                  return (
+                                    <div key={item.id} className="flex items-center gap-2 text-xs">
+                                      {canEdit ? (
+                                        <button onClick={() => handleToggleChecklistItem(task, item.id)} aria-label={item.isCompleted ? 'Reopen item' : 'Complete item'}>
+                                          {item.isCompleted
+                                            ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                            : <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
+                                        </button>
+                                      ) : (
+                                        <span className="cursor-default">
+                                          {item.isCompleted
+                                            ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                            : <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
+                                        </span>
+                                      )}
+                                      <span className={item.isCompleted ? 'line-through text-slate-400' : ''}>{item.text}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
 
@@ -444,25 +464,33 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
 
                           {!isGuest && (
                             <CardFooter className="p-3 border-t border-gray-100 dark:border-white/5 flex flex-col gap-2">
-                              <div className="flex gap-1.5 w-full">
-                                <Input
-                                  placeholder="Add checklist item..."
-                                  className="h-8 text-xs rounded-lg"
-                                  value={checkText}
-                                  onChange={e => setCheckText(e.target.value)}
-                                />
-                                <Button size="sm" onClick={() => handleAddChecklistItem(task)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8" disabled={!checkText.trim()}>
-                                  Add
-                                </Button>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className={`w-full text-xs font-semibold ${task.isCompleted ? 'text-amber-500' : 'text-emerald-500'}`}
-                                onClick={() => handleToggleTaskCompletion(task)}
-                              >
-                                {task.isCompleted ? 'Reopen Task' : 'Mark as Completed'}
-                              </Button>
+                              {canModifyTask(task) ? (
+                                <>
+                                  <div className="flex gap-1.5 w-full">
+                                    <Input
+                                      placeholder="Add checklist item..."
+                                      className="h-8 text-xs rounded-lg"
+                                      value={checkText}
+                                      onChange={e => setCheckText(e.target.value)}
+                                    />
+                                    <Button size="sm" onClick={() => handleAddChecklistItem(task)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8" disabled={!checkText.trim()}>
+                                      Add
+                                    </Button>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`w-full text-xs font-semibold ${task.isCompleted ? 'text-amber-500' : 'text-emerald-500'}`}
+                                    onClick={() => handleToggleTaskCompletion(task)}
+                                  >
+                                    {task.isCompleted ? 'Reopen Task' : 'Mark as Completed'}
+                                  </Button>
+                                </>
+                              ) : (
+                                <div className="text-center py-1 text-slate-400 text-xs w-full">
+                                  🔒 Read-only. Assigned members or PMs can fulfill this task.
+                                </div>
+                              )}
                             </CardFooter>
                           )}
                         </Card>
