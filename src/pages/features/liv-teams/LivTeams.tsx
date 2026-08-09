@@ -21,10 +21,10 @@ import {
   getInvitationsForUser,
   respondToInvitation,
   toggleSaveTeam,
-  joinPublicTeam,
   updateTeam,
   deleteTeam,
-  teamCategories
+  teamCategories,
+  requestToJoinTeam
 } from '@/services/livTeamsCoreService';
 import {
   getMarketplaceItems,
@@ -119,11 +119,11 @@ export default function LivTeams() {
     if (!currentUser || !userData) return;
     setJoiningTeamId(team.id);
     try {
-      await joinPublicTeam(team, currentUser.uid, userData.fullName || 'Anonymous', currentUser.email || '');
-      toast.success(`Welcome to ${team.name}!`);
-      navigate(`/features/liv-teams/workspace/${team.id}`);
+      await requestToJoinTeam(team.id, currentUser.uid, userData.fullName || 'Anonymous', currentUser.email || '');
+      toast.success(`Your request to join "${team.name}" has been sent! An owner or admin will review and approve it.`);
+      loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to join team');
+      toast.error(error instanceof Error ? error.message : 'Failed to send join request');
       loadData();
     } finally {
       setJoiningTeamId(null);
@@ -226,7 +226,7 @@ export default function LivTeams() {
 
   const discoverTeams = useMemo(() => {
     if (!currentUser) return [];
-    return teams.filter(t => t.visibility === 'public' && !t.members.some(m => m.userId === currentUser.uid));
+    return teams.filter(t => t.visibility === 'public' && (t.status || 'active') === 'active' && !t.members.some(m => m.userId === currentUser.uid));
   }, [teams, currentUser]);
 
   const savedTeams = useMemo(() => {
@@ -265,6 +265,63 @@ export default function LivTeams() {
     const myMembership = team.members.find(m => m.userId === currentUser?.uid);
     const isSaved = team.savedByUsers?.includes(currentUser?.uid || '');
     const isFull = team.members.length >= (team.maxMembers || 50);
+
+    if (mode === 'discover') {
+      return (
+        <Card key={team.id} className="overflow-hidden flex flex-col justify-between border border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0a0a0f]/40 backdrop-blur-md hover:shadow-md transition-all duration-200">
+          <div className="p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize border-0 text-[10px] py-0 px-2 rounded-md">
+                {team.category}
+              </Badge>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={isSaved ? 'Unsave team' : 'Save team'}
+                onClick={() => handleToggleSave(team.id)}
+                className={`w-7 h-7 rounded-full ${isSaved ? 'text-amber-500' : 'text-slate-400'}`}
+              >
+                <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="rounded-xl border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden flex-shrink-0">
+                <TeamLogo name={team.name} logoUrl={team.logoUrl} size="md" />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-xs font-extrabold truncate text-slate-800 dark:text-slate-100">{team.name}</CardTitle>
+                <p className="text-[10px] text-slate-400 truncate">{team.purpose || team.category}</p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+              {team.description || 'A collaborative learning workspace on Liverton Learning.'}
+            </p>
+
+            <div className="flex items-center gap-3 text-[10px] text-slate-400">
+              <span className="flex items-center gap-0.5"><Globe className="w-3 h-3 text-slate-400" /> {team.country || 'Global'}</span>
+              <span className="flex items-center gap-0.5"><Users className="w-3 h-3 text-emerald-500" /> {team.members.length} member{team.members.length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+
+          <CardFooter className="flex items-center justify-end border-t border-slate-100 dark:border-white/5 p-2 bg-slate-50/50 dark:bg-white/5">
+            <Button
+              size="sm"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs h-7 px-3 py-1 font-bold"
+              disabled={isFull || joiningTeamId === team.id}
+              onClick={() => handleJoinTeam(team)}
+            >
+              {joiningTeamId === team.id ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <><LogIn className="w-3 h-3 mr-1" /> {isFull ? 'Full' : 'Join'}</>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      );
+    }
 
     return (
       <Card key={team.id} className="overflow-hidden flex flex-col justify-between">
@@ -326,31 +383,6 @@ export default function LivTeams() {
                   onClick={() => navigate(`/features/liv-teams/workspace/${team.id}`)}
                 >
                   Open <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </>
-            )}
-            {mode === 'discover' && (
-              <>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={isSaved ? 'Unsave team' : 'Save team'}
-                  onClick={() => handleToggleSave(team.id)}
-                  className={isSaved ? 'text-amber-500' : 'text-slate-400'}
-                >
-                  <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg"
-                  disabled={isFull || joiningTeamId === team.id}
-                  onClick={() => handleJoinTeam(team)}
-                >
-                  {joiningTeamId === team.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <><LogIn className="w-3.5 h-3.5 mr-1" /> {isFull ? 'Team Full' : 'Join Team'}</>
-                  )}
                 </Button>
               </>
             )}
@@ -553,7 +585,7 @@ export default function LivTeams() {
                 : 'No public teams are available to join right now. Create one!'}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredDiscover.map(team => renderTeamCard(team, 'discover'))}
             </div>
           )}

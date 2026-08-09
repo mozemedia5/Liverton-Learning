@@ -21,7 +21,8 @@ import {
   FileText,
   Download,
   CheckCheck,
-  Mic
+  Mic,
+  Pin
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ import {
   getOrCreateChat,
   deleteChat,
   markChatAsRead,
+  togglePinChat,
   type ChatContact
 } from '@/services/chatService';
 import { uploadChatFile, getFileType } from '@/services/fileUploadService';
@@ -354,10 +356,34 @@ export default function Chat() {
     if (!q) return chats;
     return chats.filter(chat =>
       getOtherParticipantName(chat).toLowerCase().includes(q) ||
+      (chat.title || '').toLowerCase().includes(q) ||
       (chat.lastMessage?.content || '').toLowerCase().includes(q)
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chats, chatFilter, currentUser]);
+
+  const sortedChats = useMemo(() => {
+    return [...filteredChats].sort((a, b) => {
+      const aPinned = a.pinnedBy?.includes(currentUser?.uid || '') ? 1 : 0;
+      const bPinned = b.pinnedBy?.includes(currentUser?.uid || '') ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned; // pinned first
+
+      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [filteredChats, currentUser]);
+
+  const handleTogglePin = async (chat: ChatType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+    try {
+      const isPinnedNow = await togglePinChat(chat.id, currentUser.uid);
+      toast.success(isPinnedNow ? '📌 Conversation pinned to the top!' : 'Conversation unpinned');
+    } catch {
+      toast.error('Could not update pin status');
+    }
+  };
 
   // Get wallpaper style
   const getWallpaperStyle = (): React.CSSProperties => {
@@ -468,19 +494,20 @@ export default function Chat() {
                 Start a new chat
               </Button>
             </div>
-          ) : filteredChats.length === 0 ? (
+          ) : sortedChats.length === 0 ? (
             <div className="p-8 text-center text-gray-500 text-sm">
               <p>No chats match "{chatFilter}"</p>
             </div>
           ) : (
-            filteredChats.map((chat) => {
+            sortedChats.map((chat) => {
               const unread = getUnreadCount(chat);
+              const isPinned = chat.pinnedBy?.includes(currentUser?.uid || '');
               return (
                 <button
                   key={chat.id}
                   onClick={() => openChat(chat)}
                   className={`
-                    w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors
+                    w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors relative group
                     ${selectedChat?.id === chat.id ? 'bg-emerald-500/10 border-r-2 border-emerald-500' : ''}
                   `}
                 >
@@ -491,7 +518,7 @@ export default function Chat() {
                   </Avatar>
                   <div className="flex-1 text-left min-w-0">
                     <div className="flex justify-between items-baseline mb-1">
-                      <h3 className="font-semibold truncate">{getOtherParticipantName(chat)}</h3>
+                      <h3 className="font-semibold truncate pr-6">{getOtherParticipantName(chat)}</h3>
                       <span className={`text-xs ${unread > 0 ? 'text-emerald-500 font-bold' : 'text-gray-500'}`}>
                         {chat.updatedAt ? new Date(chat.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
@@ -500,13 +527,29 @@ export default function Chat() {
                       <p className={`text-sm truncate ${unread > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500'}`}>
                         {chat.lastMessage?.content || 'No messages yet'}
                       </p>
-                      {unread > 0 && (
-                        <span className="flex-shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[11px] font-bold flex items-center justify-center">
-                          {unread > 99 ? '99+' : unread}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {isPinned && (
+                          <Pin className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                        )}
+                        {unread > 0 && (
+                          <span className="min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[11px] font-bold flex items-center justify-center">
+                            {unread > 99 ? '99+' : unread}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Absolute pin action button visible on hover/focus */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => handleTogglePin(chat, e)}
+                    className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full"
+                    title={isPinned ? "Unpin conversation" : "Pin conversation"}
+                  >
+                    <Pin className={`w-3.5 h-3.5 ${isPinned ? 'text-amber-500 fill-current' : 'text-slate-400'}`} />
+                  </Button>
                 </button>
               );
             })

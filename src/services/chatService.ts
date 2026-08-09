@@ -102,6 +102,32 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 };
 
 /**
+ * Pin or unpin a chat for a specific user
+ */
+export const togglePinChat = async (chatId: string, userId: string): Promise<boolean> => {
+  try {
+    const chatRef = doc(db, 'chats', chatId);
+    const chatSnap = await getDoc(chatRef);
+    if (!chatSnap.exists()) throw new Error('Chat not found');
+
+    const pinnedBy: string[] = chatSnap.data().pinnedBy || [];
+    const isPinned = pinnedBy.includes(userId);
+
+    if (isPinned) {
+      const updated = pinnedBy.filter(uid => uid !== userId);
+      await updateDoc(chatRef, { pinnedBy: updated });
+      return false;
+    } else {
+      await updateDoc(chatRef, { pinnedBy: arrayUnion(userId) });
+      return true;
+    }
+  } catch (error) {
+    console.error('Error toggling pin chat:', error);
+    throw error;
+  }
+};
+
+/**
  * Find or create a chat between two users
  * Chat title will be updated based on the first message content
  */

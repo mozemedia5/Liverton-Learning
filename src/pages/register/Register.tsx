@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,8 +12,12 @@ import { toast } from 'sonner';
 
 export default function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { register, signInWithGoogle, signInWithApple } = useAuth();
+
+  // Deep-link destination preserved across auth transitions
+  const intendedDestination = (location.state as { from?: string } | null)?.from;
 
   // Get role from query parameter (default to student)
   const role = searchParams.get('role') || 'student';
@@ -121,7 +125,12 @@ export default function Register() {
 
       // 3. Redirect to dashboard directly as email verification is handled in Profile
       toast.success('🎉 Registration successful! Redirecting to dashboard...');
-      navigate('/');
+      localStorage.setItem('show_setup_prompt', 'true');
+      if (intendedDestination) {
+        navigate(intendedDestination, { replace: true });
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       console.error(err);
       toast.error('❌ Registration failed: ' + (err.message || 'Unknown error'));
@@ -134,8 +143,8 @@ export default function Register() {
     try {
       await signInWithGoogle(role as any);
       toast.success('✅ Signed up with Google successfully!');
-      // Redirection is handled by App.tsx or AuthContext, but let's navigate to safety
-      navigate('/');
+      localStorage.setItem('show_setup_prompt', 'true');
+      navigate(intendedDestination || '/', { replace: !!intendedDestination });
     } catch (err: any) {
       toast.error('❌ Google signup failed: ' + (err.message || 'Unknown error'));
     }
@@ -145,7 +154,8 @@ export default function Register() {
     try {
       await signInWithApple(role as any);
       toast.success('✅ Signed up with Apple successfully!');
-      navigate('/');
+      localStorage.setItem('show_setup_prompt', 'true');
+      navigate(intendedDestination || '/', { replace: !!intendedDestination });
     } catch (err: any) {
       toast.error('❌ Apple signup failed: ' + (err.message || 'Unknown error'));
     }

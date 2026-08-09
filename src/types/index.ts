@@ -225,6 +225,7 @@ export interface Chat {
   type?: 'hanna' | 'direct';
   lastMessage?: Message;
   unreadCounts?: Record<string, number>;
+  pinnedBy?: string[];
   createdAt: Date | any;
   updatedAt: Date | any;
 }

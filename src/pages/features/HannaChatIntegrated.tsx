@@ -584,6 +584,42 @@ export default function HannaChatIntegrated() {
             </div>
           </header>
 
+          {/* Mobile-only Glassmorphic Action Bar */}
+          <div className="flex lg:hidden items-center justify-around px-4 py-2.5 bg-white/80 dark:bg-[#0d0d12]/85 backdrop-blur-md border-b border-slate-200/50 dark:border-white/5 text-xs text-slate-600 dark:text-slate-300 gap-2 overflow-x-auto scrollbar-none z-20 relative">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200/50 dark:border-white/5 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
+            >
+              <Settings className="w-3.5 h-3.5 text-emerald-500" />
+              Instructions
+            </button>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200/50 dark:border-white/5 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
+            >
+              <Info className="w-3.5 h-3.5 text-amber-500" />
+              About
+            </button>
+            {currentChatId && (
+              <>
+                <button
+                  onClick={handleClearCurrentMessages}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200/50 dark:border-white/5 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                  Clear
+                </button>
+                <button
+                  onClick={() => triggerDeleteChat(currentChatId)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+
           {currentChatId ? (
             <>
               {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
@@ -611,7 +647,7 @@ export default function HannaChatIntegrated() {
                         </p>
                       </div>
 
-                      {/* Suggested prompts in a high-fidelity minimalist Jumia grid */}
+                      {/* Suggested prompts in a high-fidelity minimalist Jumia grid with smooth wavy staggered animations */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
                         {SUGGESTED_PROMPTS.map((item, i) => (
                           <button
@@ -620,7 +656,11 @@ export default function HannaChatIntegrated() {
                               setInputValue(item.prompt);
                               textareaRef.current?.focus();
                             }}
-                            className="group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left"
+                            className="group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left animate-in fade-in slide-in-from-bottom-4 duration-500 suggestion-card-animate shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                            style={{
+                              animationDelay: `${i * 200}ms`,
+                              animationFillMode: 'both'
+                            }}
                           >
                             <span className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
                               <item.icon className="w-4 h-4" />

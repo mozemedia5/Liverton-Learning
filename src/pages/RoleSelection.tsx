@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { GraduationCap, Users, School, UserCircle, ArrowLeft } from 'lucide-react';
@@ -44,6 +44,8 @@ const roles: RoleOption[] = [
 
 export default function RoleSelection() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const intendedDestination = (location.state as { from?: string } | null)?.from;
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
@@ -81,7 +83,7 @@ export default function RoleSelection() {
               <Card
                 key={role.id}
                 className="cursor-pointer border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all duration-200 hover:shadow-lg bg-white dark:bg-black"
-                onClick={() => navigate(role.path)}
+                onClick={() => navigate(role.path, { state: { from: intendedDestination } })}
               >
                 <CardContent className="p-6 flex items-start gap-4">
                   <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center flex-shrink-0">
@@ -104,7 +106,7 @@ export default function RoleSelection() {
               Already have an account?{' '}
               <Button 
                 variant="link" 
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login', { state: { from: intendedDestination } })}
                 className="p-0 h-auto font-semibold"
               >
                 Login here

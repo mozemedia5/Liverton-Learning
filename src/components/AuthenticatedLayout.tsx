@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopNavbar } from '@/components/DesktopNavbar';
 import { HannaButton } from '@/components/HannaButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnnouncementListener } from '@/hooks/useAnnouncementListener';
 import { useChatMessageNotifications } from '@/hooks/useChatMessageNotifications';
+import { toast } from 'sonner';
 
 export default function AuthenticatedLayout(props: { children?: React.ReactNode }) {
   const { isAuthenticated, userRole } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Listen for real-time announcements
@@ -23,6 +25,22 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   useEffect(() => {
     // Close any open hanna modal on route change (optional future enhancement)
   }, [location.pathname]);
+
+  // Show prominent setup profile reminder toast if we just signed up
+  useEffect(() => {
+    if (localStorage.getItem('show_setup_prompt') === 'true') {
+      setTimeout(() => {
+        toast.success('🎉 Welcome to Liverton Learning! Finish setting up your liverton dashboard.', {
+          duration: 12000,
+          action: {
+            label: 'Go to Profile',
+            onClick: () => navigate('/profile')
+          }
+        });
+        localStorage.removeItem('show_setup_prompt');
+      }, 800);
+    }
+  }, [navigate]);
 
   const isFullScreenPage = location.pathname.startsWith('/chat') || location.pathname === '/features/hanna-ai';
 

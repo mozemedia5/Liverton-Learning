@@ -253,7 +253,7 @@ export default function Login() {
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Don't have an account?{' '}
               <button
-                onClick={() => navigate('/get-started')}
+                onClick={() => navigate('/get-started', { state: { from: intendedDestination } })}
                 className="text-[#00A86B] hover:underline font-semibold"
               >
                 Sign Up
