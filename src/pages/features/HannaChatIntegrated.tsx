@@ -91,6 +91,7 @@ export default function HannaChatIntegrated() {
 
   // Modals / Dialogs state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'about' | 'instructions'>('about');
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
 
@@ -99,15 +100,36 @@ export default function HannaChatIntegrated() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const prevChatIdRef = useRef<string | null>(null);
+  const userJustSentRef = useRef<boolean>(false);
+
   const geminiReady = isGeminiConfigured();
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
+  // Handle scrolling dynamically based on context to ensure zero jitter and no slow glides on switch
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingText, scrollToBottom]);
+    if (!currentChatId) return;
+
+    if (currentChatId !== prevChatIdRef.current) {
+      // Switched chat session: instantly scroll to bottom so there's no gliding animation
+      scrollToBottom('auto');
+      prevChatIdRef.current = currentChatId;
+      userJustSentRef.current = false;
+      return;
+    }
+
+    if (userJustSentRef.current) {
+      // User sent a message: do a smooth scroll to bottom once
+      scrollToBottom('smooth');
+      userJustSentRef.current = false; // Reset immediately so subsequent stream ticks are instant
+    } else {
+      // AI streaming or normal update: use instant scroll to eliminate stutter/jitter
+      scrollToBottom('auto');
+    }
+  }, [messages, streamingText, currentChatId, scrollToBottom]);
 
 
   // Auto-grow textarea
@@ -256,6 +278,7 @@ export default function HannaChatIntegrated() {
     setAttachments([]);
     setIsGenerating(true);
     setStreamingText('');
+    userJustSentRef.current = true; // Mark that user just sent a message for smooth scrolling
 
     const isFirstExchange = messages.length === 0;
 
@@ -378,40 +401,42 @@ export default function HannaChatIntegrated() {
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-        {/* Dynamic Slide-out Sidebar for Conversation History */}
+        {/* Dynamic Slide-out Sidebar for Conversation History resembling ChatGPT app */}
         <div
           className={`
-            fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0d0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
+            fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0a0a0f]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
             transition-all duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             lg:relative lg:translate-x-0 lg:bg-white/40 lg:dark:bg-[#0a0a0f]/40
           `}
         >
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
-            <h1 className="text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-              Conversations
-            </h1>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNewChat}
-                className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                title="New chat"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                onClick={() => setIsSidebarOpen(false)}
-                title="Close sidebar"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+          {/* ChatGPT-style Sidebar Header with Prominent "+ New Chat" button at the top */}
+          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex flex-col gap-3 bg-slate-50/50 dark:bg-white/5">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                Hanna History
+              </h1>
+              {isSidebarOpen && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
+                  onClick={() => setIsSidebarOpen(false)}
+                  title="Close sidebar"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
             </div>
+
+            {/* ChatGPT-style Big Prominent "+ New Chat" Button */}
+            <Button
+              onClick={handleNewChat}
+              className="w-full flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl py-5 font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <Plus className="w-4 h-4" />
+              New Conversation
+            </Button>
           </div>
 
           {/* Sessions List */}
@@ -462,14 +487,20 @@ export default function HannaChatIntegrated() {
           {/* Unified Action Bar inside the Sidebar */}
           <div className="p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
             <button
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setSettingsTab('instructions');
+                setIsSettingsOpen(true);
+              }}
               className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
             >
               <Settings className="w-4 h-4 text-emerald-500" />
-              Hanna Instructions
+              Custom Instructions
             </button>
             <button
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setSettingsTab('about');
+                setIsSettingsOpen(true);
+              }}
               className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
             >
               <Info className="w-4 h-4 text-amber-500" />
@@ -584,41 +615,6 @@ export default function HannaChatIntegrated() {
             </div>
           </header>
 
-          {/* Mobile-only Glassmorphic Action Bar */}
-          <div className="flex lg:hidden items-center justify-around px-4 py-2.5 bg-white/80 dark:bg-[#0d0d12]/85 backdrop-blur-md border-b border-slate-200/50 dark:border-white/5 text-xs text-slate-600 dark:text-slate-300 gap-2 overflow-x-auto scrollbar-none z-20 relative">
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200/50 dark:border-white/5 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
-            >
-              <Settings className="w-3.5 h-3.5 text-emerald-500" />
-              Instructions
-            </button>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200/50 dark:border-white/5 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
-            >
-              <Info className="w-3.5 h-3.5 text-amber-500" />
-              About
-            </button>
-            {currentChatId && (
-              <>
-                <button
-                  onClick={handleClearCurrentMessages}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-slate-200/50 dark:border-white/5 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
-                  Clear
-                </button>
-                <button
-                  onClick={() => triggerDeleteChat(currentChatId)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 shadow-sm font-semibold active:scale-95 transition-all text-[11px]"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
 
           {currentChatId ? (
             <>
@@ -939,6 +935,7 @@ export default function HannaChatIntegrated() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         userId={currentUser?.uid || ''}
+        defaultTab={settingsTab}
       />
     </>
   );
