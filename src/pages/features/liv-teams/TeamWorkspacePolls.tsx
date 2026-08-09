@@ -40,18 +40,20 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [generatingPoll, setGeneratingPoll] = useState(false);
+  const [hannaSuggested, setHannaSuggested] = useState(false);
 
   const handleHannaGeneratePoll = async () => {
     if (!pollQuestion.trim()) {
-      toast.info('Please draft a quick topic or keyword first!');
+      toast.info('Please draft a quick topic or keyword first — Hanna will refine it!');
       return;
     }
     setGeneratingPoll(true);
     try {
       const result = await generateHannaPoll(pollQuestion.trim());
       setPollQuestion(result.question);
-      setPollOptions(result.options);
-      toast.success('✨ Poll enhanced successfully with Hanna AI!');
+      setPollOptions(result.options.length >= 2 ? result.options : [...result.options, '']);
+      setHannaSuggested(true);
+      toast.success('✨ Hanna refined your poll! Review and edit before launching.');
     } catch {
       toast.error('Could not enhance poll right now.');
     } finally {
@@ -96,6 +98,7 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
 
   const setPollOption = (index: number, value: string) => {
     setPollOptions(prev => prev.map((opt, i) => (i === index ? value : opt)));
+    setHannaSuggested(false);
   };
 
   const addPollOption = () => {
@@ -115,6 +118,7 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
       toast.success('Poll launched');
       setPollQuestion('');
       setPollOptions(['', '']);
+      setHannaSuggested(false);
       loadData();
     } catch {
       toast.error('Failed to create poll');
@@ -191,13 +195,20 @@ export default function TeamWorkspacePolls({ teamId, teamRole }: PollsProps) {
                         {generatingPoll ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
-                          <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                          <Sparkles className="w-3 h-3 text-emerald-500" />
                         )}
-                        Generate with Hanna
+                        Refine with Hanna
                       </Button>
                     </div>
-                    <Input id="pollQ" value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="e.g. Which chapter should we revise next? (Or type raw text and tap generate)" required />
+                    <Input id="pollQ" value={pollQuestion} onChange={e => { setPollQuestion(e.target.value); setHannaSuggested(false); }} placeholder="e.g. Which chapter should we revise next? (Or type a topic and tap Refine with Hanna)" required />
                   </div>
+
+                  {hannaSuggested && (
+                    <div className="px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 flex-shrink-0" />
+                      Hanna suggestion applied — review and edit before launching.
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label>Options (2–6)</Label>
                     {pollOptions.map((opt, i) => (

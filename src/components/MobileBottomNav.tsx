@@ -136,6 +136,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       case 'platform_admin':
         baseItems.push(
           { icon: Activity, label: 'Global Monitoring', path: '/admin/monitoring' },
+          { icon: Shield, label: 'Team Governance', path: '/admin/team-governance' },
           { icon: Bell, label: 'Notifications', path: '/admin/dashboard-announcements' },
           { icon: ImageIcon, label: 'Dashboard Banners', path: '/admin/dashboard-banners' },
           { icon: CreditCard, label: 'Payments', path: '/admin/payments' },

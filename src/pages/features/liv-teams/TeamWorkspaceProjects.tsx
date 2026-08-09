@@ -191,11 +191,12 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
     try {
       const isCompleted = !task.isCompleted;
       const progress = isCompleted ? 100 : 0;
-      await updateTeamTask(teamId, task.id, { isCompleted, progress });
+      await updateTeamTask(teamId, task.id, { isCompleted, progress }, currentUser.uid, teamRole);
       toast.success(isCompleted ? 'Task completed. Great work!' : 'Task reopened');
       loadProjectsAndTasks();
-    } catch {
-      toast.error('Failed to update task');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to update task';
+      toast.error(msg);
     }
   };
 
@@ -207,7 +208,7 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
         text: checkText.trim(),
         isCompleted: false
       }];
-      await updateTeamTask(teamId, task.id, { checklist: items });
+      await updateTeamTask(teamId, task.id, { checklist: items }, currentUser.uid, teamRole);
       setCheckText('');
       loadProjectsAndTasks();
     } catch {
@@ -224,10 +225,11 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
       const completedCount = items.filter(i => i.isCompleted).length;
       const progress = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
       const isCompleted = items.length > 0 && progress === 100;
-      await updateTeamTask(teamId, task.id, { checklist: items, progress, isCompleted });
+      await updateTeamTask(teamId, task.id, { checklist: items, progress, isCompleted }, currentUser.uid, teamRole);
       loadProjectsAndTasks();
-    } catch {
-      toast.error('Error updating checklist');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Error updating checklist';
+      toast.error(msg);
     }
   };
 

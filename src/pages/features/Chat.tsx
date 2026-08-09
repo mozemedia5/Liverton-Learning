@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,17 +97,32 @@ export default function Chat() {
     dataProtectionEnabled: false,
   });
   
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isNearBottomRef = useRef(true);
 
-  // Scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Scroll the chat container to the bottom — only affects the chat scroll area.
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  // Track whether user is near the bottom to enable "follow" mode
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const threshold = 120;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Only auto-scroll if the user is near the bottom (follow mode).
+    // If the user scrolled up to read older messages, don't yank them back down.
+    if (isNearBottomRef.current) {
+      scrollToBottom('smooth');
+    }
+  }, [messages, scrollToBottom]);
 
   // Listen to user's chats (+ honor /chat/:chatId deep links)
   useEffect(() => {
@@ -145,6 +160,9 @@ export default function Chat() {
       setMessages([]);
       return;
     }
+
+    // Reset follow state when switching to a new conversation
+    isNearBottomRef.current = true;
 
     const unsubscribe = listenToMessages(selectedChat.id, (updatedMessages) => {
       setMessages(updatedMessages);
@@ -629,8 +647,10 @@ export default function Chat() {
             </header>
 
             {/* Messages Area with Wallpaper */}
-            <div 
-              className="flex-1 overflow-y-auto p-4 space-y-1" 
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-4 space-y-1 overscroll-contain"
               style={getWallpaperStyle()}
             >
               {messageGroups.map((group, groupIdx) => (
@@ -705,7 +725,7 @@ export default function Chat() {
                   })}
                 </div>
               ))}
-              <div ref={messagesEndRef} />
+              <div />
             </div>
 
             {/* Upload Progress */}
@@ -728,7 +748,7 @@ export default function Chat() {
             )}
 
             {/* Elegant Premium Message Input Composer Unified with Hanna AI */}
-            <footer className="p-4 bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5">
+            <footer className="px-4 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5 flex-shrink-0">
               <form 
                 onSubmit={handleSendMessage}
                 className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"

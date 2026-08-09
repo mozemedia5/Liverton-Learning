@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 import {
   Users, Plus, Search, Compass, Bookmark, Store, Landmark,
   Settings as SettingsIcon, Globe, Languages, Mail, ArrowRight,
-  Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, LogIn
+  Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, LogIn, Clock,
+  GraduationCap
 } from 'lucide-react';
 import {
   getAllTeams,
@@ -26,6 +27,8 @@ import {
   teamCategories,
   requestToJoinTeam
 } from '@/services/livTeamsCoreService';
+import { db } from '@/lib/firebase';
+import { getDoc, doc } from 'firebase/firestore';
 import {
   getMarketplaceItems,
   getProjectFundingRequests,
@@ -56,6 +59,7 @@ export default function LivTeams() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [joiningTeamId, setJoiningTeamId] = useState<string | null>(null);
+  const [pendingJoinTeamIds, setPendingJoinTeamIds] = useState<Set<string>>(new Set());
 
   // Creation wizard state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -96,6 +100,18 @@ export default function LivTeams() {
         })
       );
       setFundingItems(fundingLists.flat());
+
+      // Fetch pending join request status for discover teams
+      const discoverTeamsList = allTeams.filter(t => t.visibility === 'public' && (t.status || 'active') === 'active' && !t.members.some(m => m.userId === currentUser.uid));
+      const pendingChecks = await Promise.all(
+        discoverTeamsList.map(async t => {
+          try {
+            const reqSnap = await getDoc(doc(db, 'teams', t.id, 'join_requests', currentUser.uid));
+            return reqSnap.exists() && reqSnap.data().status === 'pending' ? t.id : null;
+          } catch { return null; }
+        })
+      );
+      setPendingJoinTeamIds(new Set(pendingChecks.filter(Boolean) as string[]));
     } catch (error) {
       console.error('Error loading Liv Teams data:', error);
       toast.error('Failed to load Liv Teams data');
@@ -121,6 +137,7 @@ export default function LivTeams() {
     try {
       await requestToJoinTeam(team.id, currentUser.uid, userData.fullName || 'Anonymous', currentUser.email || '');
       toast.success(`Your request to join "${team.name}" has been sent! An owner or admin will review and approve it.`);
+      setPendingJoinTeamIds(prev => new Set(prev).add(team.id));
       loadData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send join request');
@@ -271,9 +288,16 @@ export default function LivTeams() {
         <Card key={team.id} className="overflow-hidden flex flex-col justify-between border border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0a0a0f]/40 backdrop-blur-md hover:shadow-md transition-all duration-200">
           <div className="p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize border-0 text-[10px] py-0 px-2 rounded-md">
-                {team.category}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize border-0 text-[10px] py-0 px-2 rounded-md">
+                  {team.category}
+                </Badge>
+                {team.createdByRole === 'teacher' && (
+                  <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0 text-[10px] py-0 px-2 rounded-md flex items-center gap-0.5">
+                    <GraduationCap className="w-2.5 h-2.5" /> Teacher
+                  </Badge>
+                )}
+              </div>
               <Button
                 size="icon"
                 variant="ghost"
@@ -309,13 +333,17 @@ export default function LivTeams() {
             <Button
               size="sm"
               className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs h-7 px-3 py-1 font-bold"
-              disabled={isFull || joiningTeamId === team.id}
+              disabled={isFull || joiningTeamId === team.id || pendingJoinTeamIds.has(team.id)}
               onClick={() => handleJoinTeam(team)}
             >
               {joiningTeamId === team.id ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
+              ) : pendingJoinTeamIds.has(team.id) ? (
+                <><Clock className="w-3 h-3 mr-1" /> Pending</>
+              ) : isFull ? (
+                'Full'
               ) : (
-                <><LogIn className="w-3 h-3 mr-1" /> {isFull ? 'Full' : 'Join'}</>
+                <><LogIn className="w-3 h-3 mr-1" /> Join</>
               )}
             </Button>
           </CardFooter>

@@ -76,7 +76,7 @@ const visibilityOptions: { value: TeamVisibility; label: string; hint: string }[
 ];
 
 export default function TeamCreationWizard({ open, onOpenChange, onCreated }: TeamCreationWizardProps) {
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, userRole } = useAuth();
 
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
@@ -203,7 +203,7 @@ export default function TeamCreationWizard({ open, onOpenChange, onCreated }: Te
         rules: form.rules.trim(),
         welcomeMessage: form.welcomeMessage.trim() || 'Welcome to the Team!',
         tags: parsedTags
-      }, currentUser.uid, userData.fullName || 'Anonymous', currentUser.email || '');
+      }, currentUser.uid, userData.fullName || 'Anonymous', currentUser.email || '', userRole || undefined);
 
       toast.success('Team created successfully! Your workspace is ready.');
       onOpenChange(false);

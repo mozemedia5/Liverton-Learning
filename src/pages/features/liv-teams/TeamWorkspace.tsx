@@ -410,7 +410,10 @@ export default function TeamWorkspace() {
 
   if (team.status === 'suspended' && userRole !== 'platform_admin') {
     const isTeamOwner = team.ownerId === currentUser?.uid;
-    const isPendingAppeal = team.appealStatus === 'pending';
+    const appealStatus = team.appealStatus || 'none';
+    const showAppealForm = appealStatus === 'none';
+    const showAppealPending = appealStatus === 'pending' || appealStatus === 'under_review';
+    const showAppealResult = appealStatus === 'accepted' || appealStatus === 'rejected';
 
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 max-w-2xl mx-auto space-y-6 text-center">
@@ -445,11 +448,7 @@ export default function TeamWorkspace() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
-              {isPendingAppeal ? (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-xl text-xs font-semibold leading-relaxed text-center">
-                  ⏳ APPEAL PENDING: Your suspension appeal is currently under review by our governance team. We will notify you in your Inbox of our final decision.
-                </div>
-              ) : (
+              {showAppealForm && (
                 <form onSubmit={handleAppealSuspension} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="appealT" className="text-xs font-bold text-slate-400">Your Appeal Case *</Label>
@@ -475,6 +474,28 @@ export default function TeamWorkspace() {
                     )}
                   </Button>
                 </form>
+              )}
+              {showAppealPending && (
+                <div className={`p-3 rounded-xl text-xs font-semibold leading-relaxed text-center ${
+                  appealStatus === 'under_review'
+                    ? 'bg-blue-500/10 border border-blue-500/20 text-blue-600'
+                    : 'bg-amber-500/10 border border-amber-500/20 text-amber-600'
+                }`}>
+                  {appealStatus === 'under_review'
+                    ? '🔍 UNDER REVIEW: Your appeal is being reviewed by the Liverton governance team. You will be notified in your Inbox when a decision is made.'
+                    : '⏳ APPEAL PENDING: Your suspension appeal has been submitted and is awaiting review by our governance team. We will notify you in your Inbox of our final decision.'}
+                </div>
+              )}
+              {showAppealResult && (
+                <div className={`p-3 rounded-xl text-xs font-semibold leading-relaxed text-center ${
+                  appealStatus === 'accepted'
+                    ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600'
+                    : 'bg-red-500/10 border border-red-500/20 text-red-600'
+                }`}>
+                  {appealStatus === 'accepted'
+                    ? '✅ APPEAL ACCEPTED: Your team has been reinstated. Please refresh the page to access your workspace.'
+                    : '❌ APPEAL REJECTED: Your suspension appeal was not accepted. If you have additional information, please contact Liverton support.'}
+                </div>
               )}
             </CardContent>
           </Card>

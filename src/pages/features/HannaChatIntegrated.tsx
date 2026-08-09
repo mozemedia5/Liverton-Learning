@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw
+  Lightbulb, ClipboardList, Sparkles, Settings, Info, RefreshCw,
+  Pin, Search, BookMarked, PenLine, ListChecks
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -49,6 +50,7 @@ interface ChatSession {
   createdAt: TimestampLike;
   updatedAt: TimestampLike;
   messageCount: number;
+  pinned?: boolean;
 }
 
 interface PendingAttachment extends HannaAttachment {
@@ -67,10 +69,61 @@ function tsToMillis(ts: TimestampLike): number {
 
 const SUGGESTED_PROMPTS = [
   { icon: GraduationCap, title: 'Explain a topic', prompt: 'Explain photosynthesis in simple terms with an example.' },
-  { icon: BookOpen, title: 'Make a revision plan', prompt: 'Create a 2-week revision plan for my biology exam.' },
-  { icon: ClipboardList, title: 'Practice questions', prompt: 'Give me 5 practice questions on quadratic equations with answers.' },
-  { icon: Lightbulb, title: 'Project ideas', prompt: 'Suggest 3 science fair project ideas I can build with local materials.' },
+  { icon: ClipboardList, title: 'Summarize notes', prompt: 'Summarize the key points of the water cycle for my exam revision.' },
+  { icon: ListChecks, title: 'Create a quiz', prompt: 'Create a 5-question quiz on quadratic equations with answers.' },
+  { icon: BookMarked, title: 'Help me study', prompt: 'Make a 2-week revision plan for my biology exam.' },
+  { icon: Lightbulb, title: 'Generate ideas', prompt: 'Suggest 3 science fair project ideas I can build with local materials.' },
+  { icon: PenLine, title: 'Continue a task', prompt: 'Help me write an introduction for my essay on climate change in Africa.' },
 ];
+
+function SessionRow({
+  session,
+  isActive,
+  onSelect,
+  onDelete,
+  onTogglePin,
+}: {
+  session: ChatSession;
+  isActive: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onTogglePin: () => void;
+}) {
+  return (
+    <div
+      className={`
+        w-full px-3 py-2.5 flex items-center gap-2.5 rounded-xl transition-all cursor-pointer group relative border
+        ${isActive
+          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
+          : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
+      `}
+      onClick={onSelect}
+    >
+      <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
+      <span className="flex-1 text-xs truncate">{session.title}</span>
+      {session.pinned && (
+        <Pin className="w-3 h-3 text-amber-500 fill-current flex-shrink-0" />
+      )}
+      {/* Action buttons — appear on hover, stop propagation */}
+      <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-inherit">
+        <button
+          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-slate-200/60 dark:hover:bg-white/10 text-slate-400 hover:text-amber-500 transition-colors"
+          title={session.pinned ? 'Unpin' : 'Pin'}
+        >
+          <Pin className={`w-3.5 h-3.5 ${session.pinned ? 'text-amber-500 fill-current' : ''}`} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-slate-200/60 dark:hover:bg-white/10 text-slate-400 hover:text-red-500 transition-colors"
+          title="Delete"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function HannaChatIntegrated() {
   const navigate = useNavigate();
@@ -84,10 +137,11 @@ export default function HannaChatIntegrated() {
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024); // Default true on desktop for premium left sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on all viewports; opens as overlay drawer
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [chatSearch, setChatSearch] = useState('');
 
   // Modals / Dialogs state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -95,38 +149,60 @@ export default function HannaChatIntegrated() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const prevChatIdRef = useRef<string | null>(null);
   const userJustSentRef = useRef<boolean>(false);
+  const isNearBottomRef = useRef<boolean>(true);
 
   const geminiReady = isGeminiConfigured();
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+  // Scroll the chat container to the bottom — only affects the chat scroll area,
+  // never parent/ancestor containers (unlike scrollIntoView which cascades up).
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
 
-  // Handle scrolling dynamically based on context to ensure zero jitter and no slow glides on switch
+  // Track whether the user is near the bottom of the chat (within threshold).
+  // When the user scrolls up to read older messages we stop auto-scrolling.
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const threshold = 120;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }, []);
+
+  // Smart scroll: only auto-scroll when the user is near the bottom (follow mode).
+  // On chat switch we always jump to bottom instantly. When the user sends a message
+  // we force-scroll to bottom once. During streaming we only follow if already near bottom.
   useEffect(() => {
     if (!currentChatId) return;
 
     if (currentChatId !== prevChatIdRef.current) {
-      // Switched chat session: instantly scroll to bottom so there's no gliding animation
-      scrollToBottom('auto');
+      // Switched chat session: instantly jump to bottom, reset follow state
+      isNearBottomRef.current = true;
+      // Use requestAnimationFrame so the new messages have rendered
+      requestAnimationFrame(() => scrollToBottom('auto'));
       prevChatIdRef.current = currentChatId;
       userJustSentRef.current = false;
       return;
     }
 
     if (userJustSentRef.current) {
-      // User sent a message: do a smooth scroll to bottom once
+      // User sent a message: scroll to bottom once, then follow naturally
+      isNearBottomRef.current = true;
       scrollToBottom('smooth');
-      userJustSentRef.current = false; // Reset immediately so subsequent stream ticks are instant
-    } else {
-      // AI streaming or normal update: use instant scroll to eliminate stutter/jitter
+      userJustSentRef.current = false;
+      return;
+    }
+
+    // AI streaming or normal message update: only follow if user is near bottom
+    if (isNearBottomRef.current) {
       scrollToBottom('auto');
     }
   }, [messages, streamingText, currentChatId, scrollToBottom]);
@@ -234,6 +310,18 @@ export default function HannaChatIntegrated() {
     } catch (error) {
       console.error('Error clearing messages:', error);
       toast.error('Could not clear messages');
+    }
+  };
+
+  const handleTogglePin = async (chatId: string) => {
+    try {
+      const session = chatSessions.find(s => s.id === chatId);
+      const newPinned = !session?.pinned;
+      await updateDoc(doc(db, 'hanna_chats', chatId), { pinned: newPinned });
+      toast.success(newPinned ? 'Conversation pinned' : 'Conversation unpinned');
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      toast.error('Could not update pin status');
     }
   };
 
@@ -383,6 +471,24 @@ export default function HannaChatIntegrated() {
 
   const activeSession = chatSessions.find(s => s.id === currentChatId);
 
+  // Filter and sort chat sessions: pinned first, then by updatedAt.
+  // Search matches title (and falls back to message content search when available).
+  const filteredSortedSessions = useMemo(() => {
+    const q = chatSearch.trim().toLowerCase();
+    const filtered = q
+      ? chatSessions.filter(s => (s.title || '').toLowerCase().includes(q))
+      : chatSessions;
+    return [...filtered].sort((a, b) => {
+      const aPinned = a.pinned ? 1 : 0;
+      const bPinned = b.pinned ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return tsToMillis(b.updatedAt) - tsToMillis(a.updatedAt);
+    });
+  }, [chatSessions, chatSearch]);
+
+  const pinnedSessions = useMemo(() => filteredSortedSessions.filter(s => s.pinned), [filteredSortedSessions]);
+  const unpinnedSessions = useMemo(() => filteredSortedSessions.filter(s => !s.pinned), [filteredSortedSessions]);
+
   const getDashboardRedirect = () => {
     if (!userRole) return '/';
     if (userRole === 'platform_admin') return '/admin/dashboard';
@@ -401,106 +507,155 @@ export default function HannaChatIntegrated() {
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
 
-        {/* Dynamic Slide-out Sidebar for Conversation History resembling ChatGPT app */}
-        <div
+        {/* Collapsible Side Navigation — overlay drawer on all viewports (ChatGPT-style) */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+        <aside
           className={`
-            fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0a0a0f]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
-            transition-all duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
+            fixed inset-y-0 left-0 z-50 w-[280px] sm:w-80 bg-white/95 dark:bg-[#0a0a0f]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
+            transition-transform duration-300 ease-in-out flex flex-col shadow-2xl
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            lg:relative lg:translate-x-0 lg:bg-white/40 lg:dark:bg-[#0a0a0f]/40
           `}
         >
-          {/* ChatGPT-style Sidebar Header with Prominent "+ New Chat" button at the top */}
-          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex flex-col gap-3 bg-slate-50/50 dark:bg-white/5">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                Hanna History
-              </h1>
-              {isSidebarOpen && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                  onClick={() => setIsSidebarOpen(false)}
-                  title="Close sidebar"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
+          {/* Sidebar Header — compact, with close button */}
+          <div className="p-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center overflow-hidden">
+                <div className="scale-[1.4]">
+                  <AskHannaIcon size={20} showText={false} />
+                </div>
+              </div>
+              <span className="text-sm font-bold text-slate-800 dark:text-white">Hanna</span>
             </div>
-
-            {/* ChatGPT-style Big Prominent "+ New Chat" Button */}
             <Button
-              onClick={handleNewChat}
-              className="w-full flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl py-5 font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
+              variant="ghost"
+              size="icon"
+              className="rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
+              onClick={() => setIsSidebarOpen(false)}
+              title="Close sidebar"
             >
-              <Plus className="w-4 h-4" />
-              New Conversation
+              <X className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Sessions List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          {/* New Chat button — compact */}
+          <div className="p-3">
+            <Button
+              onClick={() => { handleNewChat(); }}
+              className="w-full flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl py-2.5 font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <Plus className="w-4 h-4" />
+              New Chat
+            </Button>
+          </div>
+
+          {/* Search field */}
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={chatSearch}
+                onChange={e => setChatSearch(e.target.value)}
+                placeholder="Search conversations..."
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:border-emerald-500/40 transition-colors"
+              />
+              {chatSearch && (
+                <button
+                  onClick={() => setChatSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Sessions List — pinned section + history */}
+          <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
             {chatSessions.length === 0 ? (
               <div className="p-8 text-center text-slate-400 dark:text-slate-600 text-xs">
                 <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p>No conversations yet</p>
               </div>
+            ) : filteredSortedSessions.length === 0 ? (
+              <div className="p-6 text-center text-slate-400 dark:text-slate-600 text-xs">
+                <p>No matches for "{chatSearch}"</p>
+              </div>
             ) : (
-              chatSessions.map((session) => {
-                const isActive = currentChatId === session.id;
-                return (
-                  <div
-                    key={session.id}
-                    className={`
-                      w-full p-3 flex items-center gap-3 rounded-xl transition-all cursor-pointer group relative border
-                      ${isActive
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
-                        : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
-                    `}
-                    onClick={() => {
-                      setCurrentChatId(session.id);
-                      setSearchParams({ session: session.id });
-                      if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                    }}
-                  >
-                    <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
-                    <span className="flex-1 text-xs truncate pr-4">{session.title}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-5 h-5 absolute right-2 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all rounded-md"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerDeleteChat(session.id);
-                      }}
-                      title="Delete conversation"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+              <>
+                {/* Pinned conversations */}
+                {pinnedSessions.length > 0 && (
+                  <div className="pt-2">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <Pin className="w-3 h-3" /> Pinned
+                    </p>
+                    {pinnedSessions.map((session) => {
+                      const isActive = currentChatId === session.id;
+                      return (
+                        <SessionRow
+                          key={session.id}
+                          session={session}
+                          isActive={isActive}
+                          onSelect={() => {
+                            setCurrentChatId(session.id);
+                            setSearchParams({ session: session.id });
+                            setIsSidebarOpen(false);
+                          }}
+                          onDelete={() => triggerDeleteChat(session.id)}
+                          onTogglePin={() => handleTogglePin(session.id)}
+                        />
+                      );
+                    })}
                   </div>
-                );
-              })
+                )}
+
+                {/* History */}
+                {unpinnedSessions.length > 0 && (
+                  <div className="pt-2">
+                    {pinnedSessions.length > 0 && (
+                      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        History
+                      </p>
+                    )}
+                    {unpinnedSessions.map((session) => {
+                      const isActive = currentChatId === session.id;
+                      return (
+                        <SessionRow
+                          key={session.id}
+                          session={session}
+                          isActive={isActive}
+                          onSelect={() => {
+                            setCurrentChatId(session.id);
+                            setSearchParams({ session: session.id });
+                            setIsSidebarOpen(false);
+                          }}
+                          onDelete={() => triggerDeleteChat(session.id)}
+                          onTogglePin={() => handleTogglePin(session.id)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* Unified Action Bar inside the Sidebar */}
-          <div className="p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
+          {/* Bottom Action Bar — settings, clear, delete */}
+          <div className="p-3 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-0.5 text-xs">
             <button
-              onClick={() => {
-                setSettingsTab('instructions');
-                setIsSettingsOpen(true);
-              }}
+              onClick={() => { setSettingsTab('instructions'); setIsSettingsOpen(true); }}
               className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
             >
               <Settings className="w-4 h-4 text-emerald-500" />
               Custom Instructions
             </button>
             <button
-              onClick={() => {
-                setSettingsTab('about');
-                setIsSettingsOpen(true);
-              }}
+              onClick={() => { setSettingsTab('about'); setIsSettingsOpen(true); }}
               className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
             >
               <Info className="w-4 h-4 text-amber-500" />
@@ -526,89 +681,61 @@ export default function HannaChatIntegrated() {
               </>
             )}
           </div>
-        </div>
-
-        {/* Sidebar Overlay for Mobile */}
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
+        </aside>
 
         {/* Main Take.app-style Focus Area */}
         <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
 
-          {/* Custom Overlapping Avatars Header with Active Dot & Back Button */}
-          <header className="px-4 py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-white/70 dark:bg-[#07070a]/70 backdrop-blur-xl">
-            <div className="flex items-center gap-3">
-              {/* Elegant Back Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
-                title="Go back to Dashboard"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-
-              {/* Sidebar toggle for conversation history */}
+          {/* Compact ChatGPT-style Header */}
+          <header className="px-3 py-2.5 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-white/70 dark:bg-[#07070a]/70 backdrop-blur-xl flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              {/* Sidebar toggle — compact menu button */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsSidebarOpen(prev => !prev)}
-                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
-                title="Toggle sessions list"
+                className="rounded-full w-9 h-9 hover:bg-slate-100 dark:hover:bg-white/5 flex-shrink-0"
+                title="Open menu"
               >
-                <Menu className="w-4 h-4" />
+                <Menu className="w-5 h-5" />
               </Button>
 
-              {/* High-fidelity overlapping brand & chatbot avatars with active indicator */}
-              <div className="relative flex items-center ml-1">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105 z-10">
-                  <img src="/logo.png" alt="Liverton" className="w-[85%] h-[85%] object-contain" />
+              {/* Hanna brand avatar */}
+              <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="scale-[1.5]">
+                  <AskHannaIcon size={22} showText={false} />
                 </div>
-                <div className="w-9 h-9 rounded-xl bg-black border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden -ml-4 z-20 shadow-md">
-                  <div className="scale-[1.6]">
-                    <AskHannaIcon size={24} showText={false} />
-                  </div>
-                </div>
-                {/* Active Indicator Status Green Dot */}
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#07070a] rounded-full z-30 animate-pulse" />
               </div>
 
-              {/* Chat Session Info */}
-              <div className="min-w-0 ml-1.5">
+              {/* Chat title */}
+              <div className="min-w-0">
                 <h2 className="font-bold text-sm text-slate-800 dark:text-white truncate">
                   {activeSession?.title || 'Hanna AI'}
                 </h2>
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  <span>Online & Ready</span>
-                  <span>•</span>
-                  <span>{geminiReady ? 'Gemini AI' : 'Offline'}</span>
+                  <span>{geminiReady ? 'Online' : 'Offline'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Premium Header Action Bar with (...) options and elegant close/dismiss */}
-            <div className="flex items-center gap-2">
+            {/* Compact actions */}
+            <div className="flex items-center gap-1 flex-shrink-0">
               <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="icon"
                 onClick={handleNewChat}
-                className="hidden sm:flex items-center gap-1 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 font-semibold text-xs"
+                className="rounded-full w-9 h-9 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300"
+                title="New chat"
               >
-                <Plus className="w-3.5 h-3.5" />
-                New Chat
+                <Plus className="w-5 h-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-8 h-8 text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                title="Exit Chat Workspace"
+                className="rounded-full w-9 h-9 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                title="Exit to Dashboard"
               >
                 <X className="w-5 h-5" />
               </Button>
@@ -619,7 +746,11 @@ export default function HannaChatIntegrated() {
           {currentChatId ? (
             <>
               {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
-              <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin overscroll-contain"
+              >
                 <div className="max-w-2xl mx-auto space-y-6">
 
                   {/* Empty state: Suggested prompts for streamlined user guidance */}
@@ -643,8 +774,8 @@ export default function HannaChatIntegrated() {
                         </p>
                       </div>
 
-                      {/* Suggested prompts in a high-fidelity minimalist Jumia grid with smooth wavy staggered animations */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
+                      {/* Suggested prompts — subtle staggered animation, easy to tap on mobile */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full max-w-2xl">
                         {SUGGESTED_PROMPTS.map((item, i) => (
                           <button
                             key={i}
@@ -652,16 +783,16 @@ export default function HannaChatIntegrated() {
                               setInputValue(item.prompt);
                               textareaRef.current?.focus();
                             }}
-                            className="group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left animate-in fade-in slide-in-from-bottom-4 duration-500 suggestion-card-animate shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                            className="group flex items-start gap-3 p-3.5 rounded-2xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left animate-in fade-in slide-in-from-bottom-3 duration-400 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
                             style={{
-                              animationDelay: `${i * 200}ms`,
+                              animationDelay: `${i * 80}ms`,
                               animationFillMode: 'both'
                             }}
                           >
-                            <span className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                            <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
                               <item.icon className="w-4 h-4" />
                             </span>
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-xs font-bold text-slate-800 dark:text-white group-hover:text-emerald-500 transition-colors">
                                 {item.title}
                               </p>
@@ -783,12 +914,14 @@ export default function HannaChatIntegrated() {
                     </div>
                   )}
 
-                  <div ref={messagesEndRef} />
+                  <div />
                 </div>
               </div>
 
-              {/* Composer Box (Clean modern layout position at bottom centered) */}
-              <footer className="p-4 bg-transparent border-t border-slate-200/50 dark:border-white/5 relative z-20">
+              {/* Composer — bottom-anchored with safe-area insets, stable during keyboard/viewport changes */}
+              <footer
+                className="px-4 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] bg-white/80 dark:bg-[#07070a]/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-white/5 relative z-20 flex-shrink-0"
+              >
                 <div className="max-w-2xl mx-auto space-y-3">
 
                   {/* Attachments preview list */}

@@ -107,6 +107,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
         );
         tools.push(
           { icon: Activity, label: 'Monitoring', path: '/admin/monitoring' },
+          { icon: Shield, label: 'Team Governance', path: '/admin/team-governance' },
           { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
           { icon: ImageIcon, label: 'Banners', path: '/admin/dashboard-banners' },
           { icon: Bell, label: 'Notifications', path: '/admin/dashboard-announcements', badge: 2 },

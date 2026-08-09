@@ -137,6 +137,18 @@ export default function Login() {
             Sign in to continue your journey
           </p>
 
+          {/* Guest redirect notice — shown when a guest was redirected from a protected page */}
+          {intendedDestination && (
+            <div className="w-full mb-6 px-4 py-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 text-center">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                You need to log in or create an account to access that page.
+              </p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                We'll take you back there after you sign in.
+              </p>
+            </div>
+          )}
+
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="w-full space-y-4">
             {/* Email Field */}

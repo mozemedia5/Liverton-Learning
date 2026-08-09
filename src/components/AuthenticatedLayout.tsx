@@ -43,8 +43,14 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   }, [navigate]);
 
   const isFullScreenPage = location.pathname.startsWith('/chat') || location.pathname === '/features/hanna-ai';
+  // Hanna AI gets its own full-screen ChatGPT-style experience with no bottom nav
+  const isHannaPage = location.pathname === '/features/hanna-ai';
 
-  const mainClasses = isFullScreenPage
+  const mainClasses = isHannaPage
+    ? `relative z-10 w-full h-[100dvh] overflow-hidden transition-all duration-300 ${
+        show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
+      }`
+    : isFullScreenPage
     ? `relative z-10 w-full h-screen lg:h-screen pb-[76px] lg:pb-0 overflow-hidden transition-all duration-300 ${
         show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
       }`
@@ -58,8 +64,8 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-500/10 dark:bg-amber-500/5 blur-[120px] pointer-events-none" />
 
-      {/* Mobile: BottomNav only */}
-      {show && (
+      {/* Mobile: BottomNav only (hidden on Hanna full-screen page) */}
+      {show && !isHannaPage && (
         <>
           {/* Mobile: Bottom Nav (visible on small screens) */}
           <div className="lg:hidden">
@@ -75,6 +81,17 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
             />
           </div>
         </>
+      )}
+
+      {/* Desktop sidebar for Hanna page (so admin/teacher can still navigate away) */}
+      {show && isHannaPage && (
+        <div className="hidden lg:block">
+          <DesktopNavbar
+            userRole={userRole}
+            isCollapsed={isSidebarCollapsed}
+            setIsCollapsed={setIsSidebarCollapsed}
+          />
+        </div>
       )}
 
       {/* Main Content Area */}

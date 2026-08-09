@@ -27,6 +27,7 @@ import UserManagement from '@/pages/admin/UserManagement';
 import SystemAnalytics from '@/pages/admin/SystemAnalytics';
 import ContentModeration from '@/pages/admin/ContentModeration';
 import GlobalMonitoring from '@/pages/admin/GlobalMonitoring';
+import TeamGovernance from '@/pages/admin/TeamGovernance';
 import DashboardAnnouncementManagement from '@/pages/admin/DashboardAnnouncementManagement';
 
 // Parent Pages
@@ -366,6 +367,11 @@ function AppRoutes() {
       <Route path="/admin/monitoring" element={
         <ProtectedRoute allowedRoles={['platform_admin']}>
           <AdminLayout><GlobalMonitoring /></AdminLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/team-governance" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><TeamGovernance /></AdminLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin/dashboard-announcements" element={

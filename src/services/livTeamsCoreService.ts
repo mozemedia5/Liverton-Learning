@@ -26,6 +26,43 @@ export const teamCategories = [
 ];
 
 /**
+ * Send an inbox notification to specific users (Liverton Inbox).
+ * These persist in Firestore so users can review them later, not just toasts.
+ */
+export async function sendInboxNotification(
+  targetUserIds: string[],
+  title: string,
+  content: string,
+  type: string = 'team_event',
+  link?: string
+): Promise<void> {
+  try {
+    await addDoc(collection(db, 'notifications'), {
+      title,
+      content,
+      type,
+      audience: 'all',
+      targetUsers: targetUserIds,
+      link: link || '',
+      createdAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error sending inbox notification:', error);
+  }
+}
+
+/**
+ * Get the user IDs of team owner and admins (for notifications).
+ */
+function getTeamAdminIds(team: { ownerId: string; members: { userId: string; role: TeamRole }[] }): string[] {
+  const adminIds = team.members
+    .filter(m => m.role === 'owner' || m.role === 'admin')
+    .map(m => m.userId);
+  if (!adminIds.includes(team.ownerId)) adminIds.push(team.ownerId);
+  return adminIds;
+}
+
+/**
  * Log a team activity feed item
  */
 export async function logTeamActivity(
@@ -54,7 +91,7 @@ export async function logTeamActivity(
  * Create a new team
  * Automatically generates workspace subcollections placeholders and creates savings wallet
  */
-export async function createTeam(teamData: Partial<Team>, ownerId: string, ownerName: string, ownerEmail: string): Promise<string> {
+export async function createTeam(teamData: Partial<Team>, ownerId: string, ownerName: string, ownerEmail: string, ownerRole?: string): Promise<string> {
   try {
     const teamsRef = collection(db, 'teams');
 
@@ -84,6 +121,7 @@ export async function createTeam(teamData: Partial<Team>, ownerId: string, owner
       tags: teamData.tags || [],
       ownerId,
       ownerName,
+      createdByRole: ownerRole || '',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       members: [ownerMember],
@@ -140,7 +178,9 @@ export async function getAllTeams(): Promise<Team[]> {
 }
 
 /**
- * Suspend a team for unhealthy/threatening content (Admin only)
+ * Suspend a team for unhealthy/threatening content (Admin only).
+ * Sends a detailed inbox notification to the team owner explaining the suspension
+ * and the appeal process.
  */
 export async function suspendTeam(teamId: string, reason: string): Promise<void> {
   try {
@@ -157,14 +197,13 @@ export async function suspendTeam(teamId: string, reason: string): Promise<void>
     });
 
     // Send a system notification in inbox to the owner
-    await addDoc(collection(db, 'notifications'), {
-      title: '🔴 Team Suspended due to Rules Violation',
-      content: `Your team "${teamData.name}" has been suspended due to: "${reason}". You can appeal this suspension from your team workspace page.`,
-      type: 'announcement',
-      audience: 'all',
-      targetUsers: [teamData.ownerId],
-      createdAt: Timestamp.now()
-    });
+    await sendInboxNotification(
+      [teamData.ownerId],
+      '🔴 Team Suspended due to Rules Violation',
+      `Your team "${teamData.name}" has been suspended due to: "${reason}". The team is no longer visible in discovery and members cannot use the workspace. You can appeal this suspension from your team workspace page by providing an explanation of why you believe the suspension was incorrect.`,
+      'team_suspended',
+      `/features/liv-teams/workspace/${teamId}`
+    );
   } catch (error) {
     console.error('Error suspending team:', error);
     throw error;
@@ -189,15 +228,29 @@ export async function unsuspendTeam(teamId: string): Promise<void> {
 }
 
 /**
- * Submit team suspension appeal (Owner only)
+ * Submit team suspension appeal (Owner only).
+ * Sets the appeal status to 'pending' and notifies platform admins.
  */
 export async function submitTeamAppeal(teamId: string, appealText: string): Promise<void> {
   try {
     const teamRef = doc(db, 'teams', teamId);
+    const team = await getTeamById(teamId);
     await updateDoc(teamRef, {
       appealStatus: 'pending',
       appealText
     });
+
+    // Notify platform admins — we send to a 'platform_admins' channel
+    // by targeting all admin users. The admin dashboard will show pending appeals.
+    if (team) {
+      await sendInboxNotification(
+        [team.ownerId], // confirm to owner that appeal was submitted
+        '📋 Suspension Appeal Submitted',
+        `Your appeal for "${team.name}" has been submitted and is now pending review. The Liverton team will review your explanation and respond. You can check the status from your team workspace.`,
+        'team_appeal_submitted',
+        `/features/liv-teams/workspace/${teamId}`
+      );
+    }
   } catch (error) {
     console.error('Error submitting team appeal:', error);
     throw error;
@@ -205,13 +258,62 @@ export async function submitTeamAppeal(teamId: string, appealText: string): Prom
 }
 
 /**
- * Dismiss a member from a team due to rule breaking (Owner only)
+ * Respond to a team suspension appeal (Platform Admin only).
+ * Sets the appeal status to 'under_review', 'accepted', or 'rejected'.
+ * If accepted, the team is reinstated (unsuspended).
+ */
+export async function respondToTeamAppeal(
+  teamId: string,
+  decision: 'under_review' | 'accepted' | 'rejected',
+  _adminId: string
+): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    const team = await getTeamById(teamId);
+    if (!team) throw new Error('Team not found');
+
+    if (decision === 'accepted') {
+      // Reinstate the team
+      await updateDoc(teamRef, {
+        status: 'active',
+        suspensionReason: '',
+        appealStatus: 'accepted',
+        appealText: ''
+      });
+    } else {
+      await updateDoc(teamRef, { appealStatus: decision });
+    }
+
+    // Notify the owner of the decision
+    const decisionLabel = decision === 'under_review' ? 'is under review' :
+      decision === 'accepted' ? 'has been accepted — your team is reinstated' :
+      'has been rejected';
+    await sendInboxNotification(
+      [team.ownerId],
+      decision === 'accepted' ? '✅ Suspension Appeal Accepted' :
+      decision === 'rejected' ? '❌ Suspension Appeal Rejected' :
+      '🔍 Suspension Appeal Under Review',
+      `Your appeal for "${team.name}" ${decisionLabel}.`,
+      'team_appeal_decision',
+      `/features/liv-teams/workspace/${teamId}`
+    );
+  } catch (error) {
+    console.error('Error responding to team appeal:', error);
+    throw error;
+  }
+}
+
+/**
+ * Dismiss a member from a team due to rule breaking (Owner or Admin only).
+ * The dismissed member loses access and is notified via the Liverton Inbox.
+ * They can appeal the decision from the team workspace page.
  */
 export async function dismissMemberFromTeam(
   teamId: string,
   memberUserId: string,
   actorId: string,
-  actorName: string
+  actorName: string,
+  reason?: string
 ): Promise<void> {
   try {
     const teamRef = doc(db, 'teams', teamId);
@@ -229,6 +331,15 @@ export async function dismissMemberFromTeam(
     });
 
     await logTeamActivity(teamId, actorId, actorName, `dismissed ${memberToDismiss.fullName} from the team`);
+
+    // Notify the dismissed member
+    await sendInboxNotification(
+      [memberUserId],
+      '🚫 You have been dismissed from a team',
+      `You have been dismissed from "${teamData.name}"${reason ? ` due to: ${reason}` : ''}. You can appeal this decision from the team workspace page.`,
+      'team_member_dismissed',
+      `/features/liv-teams/workspace/${teamId}`
+    );
   } catch (error) {
     console.error('Error dismissing member:', error);
     throw error;
@@ -310,6 +421,15 @@ export async function respondToRejoinAppeal(
       });
 
       await logTeamActivity(teamId, actorId, actorName, `approved the re-join appeal of ${targetAppeal.fullName}`);
+
+      // Notify the member
+      await sendInboxNotification(
+        [userId],
+        '✅ Re-join Appeal Approved',
+        `Your appeal to re-join "${teamData.name}" has been approved. Welcome back!`,
+        'team_appeal_approved',
+        `/features/liv-teams/workspace/${teamId}`
+      );
     } else {
       // Update appeal status to rejected
       const updatedAppeals = existingAppeals.map((a: any) => {
@@ -322,6 +442,14 @@ export async function respondToRejoinAppeal(
         appeals: updatedAppeals
       });
       await logTeamActivity(teamId, actorId, actorName, `rejected the re-join appeal of ${targetAppeal.fullName}`);
+
+      // Notify the member
+      await sendInboxNotification(
+        [userId],
+        '❌ Re-join Appeal Rejected',
+        `Your appeal to re-join "${teamData.name}" has been rejected. You can contact the team owner for more information.`,
+        'team_appeal_rejected'
+      );
     }
   } catch (error) {
     console.error('Error responding to rejoin appeal:', error);
@@ -339,19 +467,44 @@ export interface TeamJoinRequest {
 }
 
 /**
- * Request to join a public or private team
+ * Request to join a public or private team.
+ * Prevents duplicate pending requests by using a deterministic document ID.
+ * Notifies the team owner and admins via the Liverton Inbox.
  */
 export async function requestToJoinTeam(teamId: string, userId: string, fullName: string, email: string): Promise<void> {
   try {
-    const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
-    await setDoc(requestRef, {
+    // Check for existing pending request to prevent duplicates
+    const existingRef = doc(db, 'teams', teamId, 'join_requests', userId);
+    const existingSnap = await getDoc(existingRef);
+    if (existingSnap.exists()) {
+      const existingData = existingSnap.data();
+      if (existingData.status === 'pending') {
+        throw new Error('You already have a pending join request for this team.');
+      }
+      // If previous request was declined, allow re-request by overwriting
+    }
+
+    await setDoc(existingRef, {
       userId,
       fullName,
       email,
       status: 'pending',
       createdAt: Timestamp.now()
     });
-    // Log initial join request in activity
+
+    // Notify team owner and admins
+    const team = await getTeamById(teamId);
+    if (team) {
+      const adminIds = getTeamAdminIds(team);
+      await sendInboxNotification(
+        adminIds,
+        '🔔 New Team Join Request',
+        `${fullName} has requested to join "${team.name}". Review and approve or decline from your team workspace.`,
+        'team_join_request',
+        `/features/liv-teams/workspace/${teamId}`
+      );
+    }
+
     await logTeamActivity(teamId, userId, fullName, 'requested to join the team');
   } catch (error) {
     console.error('Error requesting to join team:', error);
@@ -375,7 +528,8 @@ export async function getTeamJoinRequests(teamId: string): Promise<TeamJoinReque
 }
 
 /**
- * Approve or decline a join request
+ * Approve or decline a join request.
+ * Notifies the requesting user of the decision via the Liverton Inbox.
  */
 export async function respondToJoinRequest(
   teamId: string,
@@ -388,6 +542,8 @@ export async function respondToJoinRequest(
 ): Promise<void> {
   try {
     const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
+    const team = await getTeamById(teamId);
+    const teamName = team?.name || 'the team';
     if (approve) {
       await updateDoc(requestRef, { status: 'accepted' });
       // Add member to the team
@@ -399,9 +555,24 @@ export async function respondToJoinRequest(
         joinedAt: new Date()
       });
       await logTeamActivity(teamId, actorId, actorName, `approved ${fullName}'s join request`);
+      // Notify the user
+      await sendInboxNotification(
+        [userId],
+        '✅ Team Join Request Approved',
+        `Your request to join "${teamName}" has been approved. Welcome to the team!`,
+        'team_join_approved',
+        `/features/liv-teams/workspace/${teamId}`
+      );
     } else {
       await updateDoc(requestRef, { status: 'declined' });
       await logTeamActivity(teamId, actorId, actorName, `declined ${fullName}'s join request`);
+      // Notify the user
+      await sendInboxNotification(
+        [userId],
+        '❌ Team Join Request Declined',
+        `Your request to join "${teamName}" was declined. You can contact the team owner for more information.`,
+        'team_join_declined'
+      );
     }
   } catch (error) {
     console.error('Error responding to join request:', error);
@@ -673,6 +844,135 @@ export async function getTeamActivityFeed(teamId: string): Promise<TeamActivityF
     })) as TeamActivityFeedItem[];
   } catch (error) {
     console.error('Error fetching activity feed:', error);
+    return [];
+  }
+}
+
+/* ==================== Platform Admin: Team Governance ==================== */
+
+/** Keywords that may indicate serious danger — surfaced for review, NOT auto-suspend. */
+export const SUSPICIOUS_KEYWORDS = [
+  'kill', 'murder', 'threat', 'bomb', 'attack', 'assault', 'weapon',
+  'shoot', 'stab', 'poison', 'harm', 'violence', 'danger', 'suicide',
+  'self-harm', 'abuse', 'kidnap', 'terror', 'extort', 'blackmail'
+];
+
+export interface SuspiciousMessage {
+  teamId: string;
+  teamName: string;
+  messageId: string;
+  senderName: string;
+  content: string;
+  matchedKeywords: string[];
+  createdAt: any;
+}
+
+export interface TeamGovernanceStats {
+  totalTeams: number;
+  activeTeams: number;
+  suspendedTeams: number;
+  totalMembers: number;
+  pendingAppeals: number;
+  pendingJoinRequests: number;
+  suspiciousTeams: number;
+}
+
+/**
+ * Get governance statistics for the Platform Admin dashboard.
+ */
+export async function getTeamGovernanceStats(): Promise<TeamGovernanceStats> {
+  try {
+    const teams = await getAllTeams();
+    const active = teams.filter(t => (t.status || 'active') === 'active');
+    const suspended = teams.filter(t => t.status === 'suspended');
+    const totalMembers = teams.reduce((sum, t) => sum + (t.members?.length || 0), 0);
+    const pendingAppeals = teams.filter(t => t.appealStatus === 'pending' || t.appealStatus === 'under_review').length;
+
+    // Count pending join requests across all teams
+    let pendingJoinRequests = 0;
+    for (const team of teams) {
+      try {
+        const requestsRef = collection(db, 'teams', team.id, 'join_requests');
+        const q = query(requestsRef, where('status', '==', 'pending'));
+        const snap = await getDocs(q);
+        pendingJoinRequests += snap.size;
+      } catch { /* skip */ }
+    }
+
+    // Scan for suspicious content
+    const suspicious = await scanSuspiciousTeamContent(teams);
+
+    return {
+      totalTeams: teams.length,
+      activeTeams: active.length,
+      suspendedTeams: suspended.length,
+      totalMembers,
+      pendingAppeals,
+      pendingJoinRequests,
+      suspiciousTeams: suspicious.length,
+    };
+  } catch (error) {
+    console.error('Error fetching governance stats:', error);
+    return {
+      totalTeams: 0, activeTeams: 0, suspendedTeams: 0,
+      totalMembers: 0, pendingAppeals: 0, pendingJoinRequests: 0, suspiciousTeams: 0,
+    };
+  }
+}
+
+/**
+ * Scan team chat messages for suspicious content.
+ * Surfaces messages containing dangerous keywords for admin review.
+ * Does NOT suspend teams — the admin must investigate and decide.
+ */
+export async function scanSuspiciousTeamContent(teams?: Team[]): Promise<SuspiciousMessage[]> {
+  try {
+    const allTeams = teams || await getAllTeams();
+    const suspicious: SuspiciousMessage[] = [];
+
+    for (const team of allTeams) {
+      if (team.status === 'suspended') continue; // Already suspended
+      try {
+        const messagesRef = collection(db, 'teams', team.id, 'messages');
+        const q = query(messagesRef, orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        // Only check the most recent 50 messages per team for performance
+        const recentMessages = snap.docs.slice(0, 50);
+        for (const docSnap of recentMessages) {
+          const msgData = docSnap.data();
+          const content = String(msgData.content || '').toLowerCase();
+          const matched = SUSPICIOUS_KEYWORDS.filter(kw => content.includes(kw));
+          if (matched.length > 0) {
+            suspicious.push({
+              teamId: team.id,
+              teamName: team.name,
+              messageId: docSnap.id,
+              senderName: msgData.senderName || 'Unknown',
+              content: msgData.content || '',
+              matchedKeywords: matched,
+              createdAt: msgData.createdAt,
+            });
+          }
+        }
+      } catch { /* skip teams with no messages collection */ }
+    }
+
+    return suspicious;
+  } catch (error) {
+    console.error('Error scanning suspicious content:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all teams with their suspension appeal status for admin review.
+ */
+export async function getTeamsWithAppeals(): Promise<Team[]> {
+  try {
+    const teams = await getAllTeams();
+    return teams.filter(t => t.appealStatus && t.appealStatus !== 'none');
+  } catch (error) {
+    console.error('Error fetching teams with appeals:', error);
     return [];
   }
 }
