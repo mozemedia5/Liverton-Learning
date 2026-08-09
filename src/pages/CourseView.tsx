@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,9 +8,16 @@ import { SEO } from '@/components/SEO';
 import { CloudinaryImage } from '@/components/CloudinaryImage';
 import { toast } from 'sonner';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
   ArrowLeft, BookOpen, Loader2, Video, FileText, Music,
   FileSpreadsheet, Presentation, Image as ImageIcon, File as FileIcon,
-  Users, DollarSign, Pencil, Share2
+  Users, DollarSign, Pencil, Share2, LogIn, UserPlus, Lock
 } from 'lucide-react';
 import { getCourse, type Course, type CourseMaterial } from '@/services/courseService';
 import { absoluteUrl } from '@/lib/seo';
@@ -96,6 +103,52 @@ export default function CourseView() {
   const isEnrolled = !!currentUser && course.enrolledStudents?.includes(currentUser.uid);
   const isStudentLike = userRole === 'student' || userRole === 'parent';
 
+  // Guest trigger state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState('');
+  const location = useLocation();
+
+  const handleGuestAction = (reason: string) => {
+    setAuthModalReason(reason);
+    setShowAuthModal(true);
+  };
+
+  const handleAuthRedirect = (mode: 'login' | 'register') => {
+    const intended = `${location.pathname}${location.search}${location.hash}`;
+    navigate(`/${mode}`, { state: { from: intended } });
+  };
+
+  // Structured Data (JSON-LD) for SEO / AI Search Engines
+  useEffect(() => {
+    if (!course) return;
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "Course",
+      "name": course.title,
+      "description": course.description || `Learn ${course.subject} on Liverton Learning.`,
+      "provider": {
+        "@type": "Organization",
+        "name": "Liverton Learning",
+        "sameAs": "https://liverton-learning.vercel.app"
+      },
+      "instructor": {
+        "@type": "Person",
+        "name": course.teacherName
+      },
+      "educationalCredentialAwarded": "Certificate of Completion",
+      "about": course.subject
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(schema);
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, [course]);
+
   return (
     <div className="space-y-6">
       <SEO
@@ -105,6 +158,47 @@ export default function CourseView() {
         image={course.thumbnail}
         type="article"
       />
+
+      {/* Guest Authentication Modal */}
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="max-w-md rounded-[2.5rem] border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-8 shadow-2xl relative overflow-hidden">
+          {/* Decorative design elements */}
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[60px] rounded-full pointer-events-none" />
+
+          <DialogHeader className="flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner relative z-10">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <DialogTitle className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
+              Unlock Full Access
+            </DialogTitle>
+
+            <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+              You need a Liverton Learning account {authModalReason}. Sign in or create a free profile now to proceed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 mt-6 relative z-10">
+            <Button
+              className="py-6 bg-[#00A86B] hover:bg-[#00905B] text-white rounded-2xl font-bold text-base shadow-lg shadow-emerald-500/10 transition-all duration-200 hover:scale-103"
+              onClick={() => handleAuthRedirect('login')}
+            >
+              <LogIn className="w-5 h-5 mr-2" />
+              Sign In
+            </Button>
+
+            <Button
+              variant="outline"
+              className="py-6 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-2xl font-bold text-base transition-all duration-200 hover:scale-103"
+              onClick={() => handleAuthRedirect('register')}
+            >
+              <UserPlus className="w-5 h-5 mr-2" />
+              Create Free Account
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className="overflow-hidden py-0 gap-0">
         <div className="relative">
@@ -164,7 +258,15 @@ export default function CourseView() {
               ) : (
                 <Badge className="bg-emerald-500 text-white border-0">FREE</Badge>
               )}
-              {isOwner ? (
+              {!currentUser ? (
+                <Button
+                  size="sm"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
+                  onClick={() => handleGuestAction('to enroll in this course and begin learning')}
+                >
+                  Enroll in Course
+                </Button>
+              ) : isOwner ? (
                 <Button
                   size="sm"
                   className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
@@ -201,23 +303,46 @@ export default function CourseView() {
         ) : (
           <Card>
             <CardContent className="p-0 divide-y divide-gray-100 dark:divide-white/5">
-              {course.materials.map((material, idx) => (
-                <a
-                  key={material.id || idx}
-                  href={material.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-4 hover:bg-slate-50/60 dark:hover:bg-slate-900/30 transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                    {materialIcon(material.type)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{material.name}</p>
-                    <p className="text-[11px] text-slate-400 capitalize">{material.type}</p>
-                  </div>
-                </a>
-              ))}
+              {course.materials.map((material, idx) => {
+                const itemContent = (
+                  <>
+                    <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                      {materialIcon(material.type)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm truncate">{material.name}</p>
+                      <p className="text-[11px] text-slate-400 capitalize flex items-center gap-1">
+                        <span>{material.type}</span>
+                        {!currentUser && <span className="text-amber-500 flex items-center gap-0.5 ml-1"><Lock className="w-3 h-3" /> Locked</span>}
+                      </p>
+                    </div>
+                  </>
+                );
+
+                if (!currentUser) {
+                  return (
+                    <button
+                      key={material.id || idx}
+                      onClick={() => handleGuestAction('to unlock premium course materials and assignments')}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-slate-50/60 dark:hover:bg-slate-900/30 transition-colors text-left"
+                    >
+                      {itemContent}
+                    </button>
+                  );
+                }
+
+                return (
+                  <a
+                    key={material.id || idx}
+                    href={material.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-4 hover:bg-slate-50/60 dark:hover:bg-slate-900/30 transition-colors"
+                  >
+                    {itemContent}
+                  </a>
+                );
+              })}
             </CardContent>
           </Card>
         )}

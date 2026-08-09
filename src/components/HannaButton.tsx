@@ -713,6 +713,14 @@ export function HannaButton() {
             >
               <Minimize2 className="w-4 h-4" />
             </button>
+            {/* Complete Dismiss / Close widget */}
+            <button
+              onClick={() => setWidgetState('button')}
+              className="p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-950/20 text-slate-400 hover:text-red-500 transition-colors"
+              title="Close Hanna Panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
@@ -1020,6 +1028,15 @@ export function HannaButton() {
             title="Minimize to Widget"
           >
             <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+
+          {/* Dismiss button */}
+          <button
+            onClick={() => setWidgetState('button')}
+            className="p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-950/20 text-slate-400 hover:text-red-500 transition-colors"
+            title="Close Hanna Panel"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       </header>
