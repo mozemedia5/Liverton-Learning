@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw
+  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw, Pin, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -29,6 +29,8 @@ import {
   increment,
   writeBatch,
   getDocs,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 
 interface Message {
@@ -49,6 +51,7 @@ interface ChatSession {
   createdAt: TimestampLike;
   updatedAt: TimestampLike;
   messageCount: number;
+  pinnedBy?: string[];
 }
 
 interface PendingAttachment extends HannaAttachment {
@@ -72,6 +75,15 @@ const SUGGESTED_PROMPTS = [
   { icon: Lightbulb, title: 'Project ideas', prompt: 'Suggest 3 science fair project ideas I can build with local materials.' },
 ];
 
+const SUGGESTIONS = [
+  { id: 'explain', label: 'Explain Concept', icon: GraduationCap, prompt: 'Explain a difficult concept: ' },
+  { id: 'summarize', label: 'Summarize Notes', icon: BookOpen, prompt: 'Summarize this educational text: ' },
+  { id: 'quiz', label: 'Build Quiz', icon: ClipboardList, prompt: 'Build a practice quiz on: ' },
+  { id: 'study', label: 'Study Plan', icon: RefreshCw, prompt: 'Create a highly effective study routine for: ' },
+  { id: 'ideas', label: 'Brainstorm Ideas', icon: Lightbulb, prompt: 'Give me creative ideas for my project: ' },
+  { id: 'continue', label: 'Continue Task', icon: Plus, prompt: 'Help me continue with this learning task: ' },
+];
+
 export default function HannaChatIntegrated() {
   const navigate = useNavigate();
   const { userData, currentUser, userRole } = useAuth();
@@ -88,6 +100,7 @@ export default function HannaChatIntegrated() {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Modals / Dialogs state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -96,6 +109,7 @@ export default function HannaChatIntegrated() {
   const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -105,6 +119,23 @@ export default function HannaChatIntegrated() {
 
   const geminiReady = isGeminiConfigured();
 
+  const handleTogglePinChat = async (chatId: string, isCurrentlyPinned: boolean) => {
+    if (!currentUser) return;
+    try {
+      const chatRef = doc(db, 'hanna_chats', chatId);
+      if (isCurrentlyPinned) {
+        await updateDoc(chatRef, { pinnedBy: arrayRemove(currentUser.uid) });
+        toast.success('Chat unpinned');
+      } else {
+        await updateDoc(chatRef, { pinnedBy: arrayUnion(currentUser.uid) });
+        toast.success('Chat pinned to top');
+      }
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      toast.error('Failed to pin/unpin chat');
+    }
+  };
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
@@ -112,6 +143,8 @@ export default function HannaChatIntegrated() {
   // Handle scrolling dynamically based on context to ensure zero jitter and no slow glides on switch
   useEffect(() => {
     if (!currentChatId) return;
+
+    const container = scrollContainerRef.current;
 
     if (currentChatId !== prevChatIdRef.current) {
       // Switched chat session: instantly scroll to bottom so there's no gliding animation
@@ -124,9 +157,17 @@ export default function HannaChatIntegrated() {
     if (userJustSentRef.current) {
       // User sent a message: do a smooth scroll to bottom once
       scrollToBottom('smooth');
-      userJustSentRef.current = false; // Reset immediately so subsequent stream ticks are instant
+      userJustSentRef.current = false; // Reset
+      return;
+    }
+
+    // AI streaming or normal update: scroll ONLY if user is already near the bottom
+    if (container) {
+      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (isAtBottom) {
+        scrollToBottom('auto');
+      }
     } else {
-      // AI streaming or normal update: use instant scroll to eliminate stutter/jitter
       scrollToBottom('auto');
     }
   }, [messages, streamingText, currentChatId, scrollToBottom]);
@@ -147,7 +188,12 @@ export default function HannaChatIntegrated() {
     const q = query(collection(db, 'hanna_chats'), where('userId', '==', currentUser.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as ChatSession[];
-      const sorted = sessions.sort((a, b) => tsToMillis(b.updatedAt) - tsToMillis(a.updatedAt));
+      const sorted = sessions.sort((a, b) => {
+        const aPinned = a.pinnedBy?.includes(currentUser.uid) ? 1 : 0;
+        const bPinned = b.pinnedBy?.includes(currentUser.uid) ? 1 : 0;
+        if (aPinned !== bPinned) return bPinned - aPinned;
+        return tsToMillis(b.updatedAt) - tsToMillis(a.updatedAt);
+      });
       setChatSessions(sorted);
       if (sessionParam) {
         setCurrentChatId(sessionParam);
@@ -383,6 +429,10 @@ export default function HannaChatIntegrated() {
 
   const activeSession = chatSessions.find(s => s.id === currentChatId);
 
+  const filteredSessions = chatSessions.filter(session => {
+    return session.title.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   const getDashboardRedirect = () => {
     if (!userRole) return '/';
     if (userRole === 'platform_admin') return '/admin/dashboard';
@@ -390,6 +440,58 @@ export default function HannaChatIntegrated() {
     if (userRole === 'teacher') return '/teacher/dashboard';
     if (userRole === 'parent') return '/parent/dashboard';
     return '/student/dashboard';
+  };
+
+  const renderSessionCard = (session: ChatSession) => {
+    const isActive = currentChatId === session.id;
+    const isPinned = session.pinnedBy?.includes(currentUser?.uid || '') || false;
+    return (
+      <div
+        key={session.id}
+        className={`
+          w-full p-2.5 flex items-center gap-2.5 rounded-xl transition-all cursor-pointer group relative border text-left
+          ${isActive
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
+            : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
+        `}
+        onClick={() => {
+          setCurrentChatId(session.id);
+          setSearchParams({ session: session.id });
+          if (window.innerWidth < 1024) setIsSidebarOpen(false);
+        }}
+      >
+        <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
+        <span className="flex-1 text-xs truncate pr-12">{session.title}</span>
+
+        {/* Hover/Action Buttons (Pin & Delete) */}
+        <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`w-5 h-5 rounded-md ${isPinned ? 'text-emerald-500' : 'text-slate-400 hover:text-emerald-500'}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTogglePinChat(session.id, isPinned);
+            }}
+            title={isPinned ? "Unpin chat" : "Pin chat to top"}
+          >
+            <Pin className={`w-3 h-3 ${isPinned ? 'fill-current rotate-45' : ''}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-5 h-5 text-slate-400 hover:text-red-500 rounded-md"
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerDeleteChat(session.id);
+            }}
+            title="Delete conversation"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -437,50 +539,53 @@ export default function HannaChatIntegrated() {
               <Plus className="w-4 h-4" />
               New Conversation
             </Button>
+
+            {/* Search conversations */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search chats..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-white/5 border border-transparent focus:border-emerald-500/30 outline-none text-slate-800 dark:text-slate-100"
+              />
+            </div>
           </div>
 
           {/* Sessions List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
-            {chatSessions.length === 0 ? (
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {filteredSessions.length === 0 ? (
               <div className="p-8 text-center text-slate-400 dark:text-slate-600 text-xs">
                 <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p>No conversations yet</p>
+                <p>No conversations found</p>
               </div>
             ) : (
-              chatSessions.map((session) => {
-                const isActive = currentChatId === session.id;
-                return (
-                  <div
-                    key={session.id}
-                    className={`
-                      w-full p-3 flex items-center gap-3 rounded-xl transition-all cursor-pointer group relative border
-                      ${isActive
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
-                        : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
-                    `}
-                    onClick={() => {
-                      setCurrentChatId(session.id);
-                      setSearchParams({ session: session.id });
-                      if (window.innerWidth < 1024) setIsSidebarOpen(false);
-                    }}
-                  >
-                    <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
-                    <span className="flex-1 text-xs truncate pr-4">{session.title}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-5 h-5 absolute right-2 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all rounded-md"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerDeleteChat(session.id);
-                      }}
-                      title="Delete conversation"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+              <div className="space-y-3">
+                {/* Pinned Group */}
+                {filteredSessions.some(s => s.pinnedBy?.includes(currentUser?.uid || '')) && (
+                  <div className="space-y-1">
+                    <p className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                      <Pin className="w-3 h-3 fill-current text-emerald-500 rotate-45" /> Pinned
+                    </p>
+                    {filteredSessions
+                      .filter(s => s.pinnedBy?.includes(currentUser?.uid || ''))
+                      .map(session => renderSessionCard(session))}
                   </div>
-                );
-              })
+                )}
+
+                {/* Recent Group */}
+                <div className="space-y-1">
+                  {filteredSessions.some(s => s.pinnedBy?.includes(currentUser?.uid || '')) && (
+                    <p className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Recent
+                    </p>
+                  )}
+                  {filteredSessions
+                    .filter(s => !s.pinnedBy?.includes(currentUser?.uid || ''))
+                    .map(session => renderSessionCard(session))}
+                </div>
+              </div>
             )}
           </div>
 
@@ -619,7 +724,7 @@ export default function HannaChatIntegrated() {
           {currentChatId ? (
             <>
               {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
-              <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
+              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
                 <div className="max-w-2xl mx-auto space-y-6">
 
                   {/* Empty state: Suggested prompts for streamlined user guidance */}
@@ -788,8 +893,28 @@ export default function HannaChatIntegrated() {
               </div>
 
               {/* Composer Box (Clean modern layout position at bottom centered) */}
-              <footer className="p-4 bg-transparent border-t border-slate-200/50 dark:border-white/5 relative z-20">
+              <footer className="p-4 bg-transparent border-t border-slate-200/50 dark:border-white/5 relative z-20 pb-safe md:pb-4">
                 <div className="max-w-2xl mx-auto space-y-3">
+
+                  {/* Subtle Animated Suggestion Action Pills */}
+                  {messages.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none py-1 select-none animate-in fade-in duration-300">
+                      {SUGGESTIONS.map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setInputValue(s.prompt);
+                            textareaRef.current?.focus();
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 hover:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 active:scale-95 transition-all whitespace-nowrap shadow-sm hover:shadow-glow"
+                        >
+                          <s.icon className="w-3.5 h-3.5" />
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Attachments preview list */}
                   {(attachments.length > 0 || uploadingFiles) && (

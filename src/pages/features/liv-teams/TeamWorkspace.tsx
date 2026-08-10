@@ -132,10 +132,10 @@ export default function TeamWorkspace() {
 
   const handleDismissMember = async (member: TeamMember) => {
     if (!team || !currentUser) return;
-    const ok = window.confirm(`Are you sure you want to dismiss & ban ${member.fullName} from the workspace? They will need to appeal to you to re-join.`);
-    if (!ok) return;
+    const explanation = window.prompt(`Why are you dismissing ${member.fullName}? Provide an explanation for their re-access appeal console:`, 'Violation of team guidelines');
+    if (explanation === null) return; // cancelled
     try {
-      await dismissMemberFromTeam(team.id, member.userId, currentUser.uid, userData?.fullName || 'Owner');
+      await dismissMemberFromTeam(team.id, member.userId, currentUser.uid, userData?.fullName || 'Owner', explanation);
       toast.success(`${member.fullName} has been dismissed from the team.`);
     } catch {
       toast.error('Failed to dismiss member');
@@ -506,6 +506,13 @@ export default function TeamWorkspace() {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm">
             You have been dismissed from this workspace by the team owner. You can write and submit a detailed re-access appeal to request re-entry.
+          </p>
+        </div>
+
+        <div className="w-full p-5 rounded-2xl border border-amber-500/10 bg-amber-500/5 text-left text-sm space-y-2">
+          <span className="font-extrabold text-amber-500 uppercase tracking-wider text-xs">Dismissal Explanation:</span>
+          <p className="text-slate-700 dark:text-slate-300 italic">
+            "{team.dismissedExplanations?.[currentUser?.uid || ''] || 'Violation of team guidelines'}"
           </p>
         </div>
 

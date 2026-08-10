@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 
 interface Question {
   id: string;
@@ -31,6 +32,24 @@ export default function CreateQuiz() {
     { id: '1', text: '', options: ['', '', '', ''], correctOptionIndex: 0 }
   ]);
   const [loading, setLoading] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
+
+  const handleEnhanceDescriptionWithHanna = async () => {
+    if (!description.trim()) {
+      toast.info('Please draft a quick description first!');
+      return;
+    }
+    setEnhancingDescription(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(description, 'quiz');
+      setDescription(enhanced);
+      toast.success('✨ Description enhanced with Hanna AI!');
+    } catch {
+      toast.error('Failed to enhance description.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
 
   const subjects = ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Physics', 'Chemistry', 'Biology', 'Computer Science'];
 
@@ -140,7 +159,24 @@ export default function CreateQuiz() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="description">Description</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={enhancingDescription || !description.trim()}
+                    onClick={handleEnhanceDescriptionWithHanna}
+                    className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                  >
+                    {enhancingDescription ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                    )}
+                    Generate with Hanna
+                  </Button>
+                </div>
                 <Textarea
                   id="description"
                   value={description}

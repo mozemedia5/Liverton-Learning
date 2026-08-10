@@ -9,9 +9,10 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '../../components/ui/alert-dialog';
-import { User, Mail, Phone, MapPin, Briefcase, Award, Settings, Upload, Save, X, ArrowLeft, BookOpen } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, Award, Settings, Upload, Save, X, ArrowLeft, BookOpen, Sparkles, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { enhanceTextWithHanna } from '../../lib/hannaGemini';
 
 interface UserProfile {
   uid: string;
@@ -65,6 +66,25 @@ export default function ProfileSystem() {
     linkedin: '',
     github: '',
   });
+
+  const [enhancingBio, setEnhancingBio] = useState(false);
+
+  const handleEnhanceBioWithHanna = async () => {
+    if (!formData.bio.trim()) {
+      toast.info('Please draft a quick bio first!');
+      return;
+    }
+    setEnhancingBio(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(formData.bio, 'bio');
+      setFormData(prev => ({ ...prev, bio: enhanced }));
+      toast.success('✨ Bio enhanced with Hanna AI! Please review and save.');
+    } catch {
+      toast.error('Failed to enhance bio.');
+    } finally {
+      setEnhancingBio(false);
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -393,7 +413,24 @@ export default function ProfileSystem() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Bio</label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium">Bio</label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={enhancingBio || !formData.bio.trim()}
+                          onClick={handleEnhanceBioWithHanna}
+                          className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                        >
+                          {enhancingBio ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                          )}
+                          Generate with Hanna
+                        </Button>
+                      </div>
                       <Textarea
                         value={formData.bio}
                         onChange={(e) => setFormData({ ...formData, bio: e.target.value })}

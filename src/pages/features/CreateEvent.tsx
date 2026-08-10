@@ -24,7 +24,9 @@ import {
   MapPin,
   Tag,
   Users,
+  Sparkles,
 } from 'lucide-react';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
@@ -62,7 +64,25 @@ export default function CreateEvent() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleEnhanceDescriptionWithHanna = async () => {
+    if (!description.trim()) {
+      toast.info('Please draft a quick description first!');
+      return;
+    }
+    setEnhancingDescription(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(description, 'event');
+      setDescription(enhanced);
+      toast.success('✨ Description enhanced with Hanna AI!');
+    } catch {
+      toast.error('Failed to enhance description.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
 
   const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -204,9 +224,26 @@ export default function CreateEvent() {
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="event-description" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Description
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="event-description" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Description
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={enhancingDescription || !description.trim()}
+                onClick={handleEnhanceDescriptionWithHanna}
+                className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+              >
+                {enhancingDescription ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                )}
+                Generate with Hanna
+              </Button>
+            </div>
             <Textarea
               id="event-description"
               value={description}

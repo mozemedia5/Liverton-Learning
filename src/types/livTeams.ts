@@ -61,8 +61,9 @@ export interface Team {
   status?: 'active' | 'suspended';
   suspensionReason?: string;
   appealText?: string;
-  appealStatus?: 'none' | 'pending' | 'resolved';
+  appealStatus?: 'none' | 'pending' | 'under_review' | 'resolved' | 'rejected';
   dismissedMembers?: string[]; // userIds of dismissed/banned members
+  dismissedExplanations?: Record<string, string>; // userId -> reason map
   appeals?: { userId: string; fullName: string; email: string; appealText: string; status: 'pending' | 'approved' | 'rejected'; createdAt: any }[];
 }
 

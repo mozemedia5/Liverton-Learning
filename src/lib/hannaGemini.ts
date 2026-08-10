@@ -263,3 +263,42 @@ Do NOT wrap the output in markdown blocks or include any extra text. Respond wit
     };
   }
 }
+
+/**
+ * Enhance/optimize any user-drafted text (e.g., bio, description, title) using Hanna AI (Gemini).
+ */
+export async function enhanceTextWithHanna(draft: string, type: 'bio' | 'team_description' | 'quiz' | 'event' | 'project'): Promise<string> {
+  try {
+    if (!isGeminiConfigured()) {
+      return draft;
+    }
+    const genAI = new GoogleGenerativeAI(API_KEY!);
+
+    let instruction = '';
+    if (type === 'bio') {
+      instruction = 'You are Hanna, a supportive assistant. Refine the given draft user bio into a professional, engaging, and polished personal bio for an education platform. Keep it concise (2-3 sentences), warm, and inspiring. Respond with ONLY the refined bio text without any introduction or quotes.';
+    } else if (type === 'team_description') {
+      instruction = 'You are Hanna. Refine the given learning team/group description to be highly engaging, professional, and clear about its learning goals. Keep it under 250 characters. Respond with ONLY the refined text.';
+    } else if (type === 'quiz') {
+      instruction = 'You are Hanna. Refine the given quiz description to be clear, educational, and engaging for students. Respond with ONLY the refined description text.';
+    } else if (type === 'event') {
+      instruction = 'You are Hanna. Refine the given educational event description to be highly inviting, informative, and professional. Respond with ONLY the refined text.';
+    } else if (type === 'project') {
+      instruction = 'You are Hanna. Refine the given educational project description to define clear deliverables and look professional to team members. Respond with ONLY the refined text.';
+    } else {
+      instruction = 'You are Hanna. Refine the given draft text to be more grammatically correct, professional, and clear. Respond with ONLY the refined text.';
+    }
+
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: instruction
+    });
+
+    const prompt = `Refine this text: "${draft}"`;
+    const result = await model.generateContent(prompt);
+    return result.response.text().trim() || draft;
+  } catch (error) {
+    console.error('Hanna Text Enhancement failed:', error);
+    return draft;
+  }
+}
