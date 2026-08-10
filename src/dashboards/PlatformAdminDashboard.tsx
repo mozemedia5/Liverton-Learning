@@ -34,7 +34,7 @@ import {
 } from '@/services/userService';
 import { subscribeToAllCoursesAdmin, type Course } from '@/services/courseService';
 import { subscribeToAllQuizzesAdmin, type Quiz } from '@/services/quizService';
-import { getAllTeams, suspendTeam, unsuspendTeam } from '@/services/livTeamsCoreService';
+import { getAllTeams, suspendTeam, unsuspendTeam, updateTeamAppealStatus } from '@/services/livTeamsCoreService';
 import type { Team } from '@/types/livTeams';
 import { toast } from 'sonner';
 import { AlertTriangle, Activity as ActivityIcon, ShieldAlert, Award } from 'lucide-react';
@@ -226,6 +226,17 @@ export default function PlatformAdminDashboard() {
       setPlatformTeams(updatedTeams);
     } catch (err) {
       toast.error('Failed to unsuspend team');
+    }
+  };
+
+  const handleUpdateAppealStatus = async (teamId: string, nextStatus: 'pending' | 'under_review' | 'resolved' | 'rejected', notes: string = '') => {
+    try {
+      await updateTeamAppealStatus(teamId, nextStatus, notes);
+      toast.success(`Appeal status updated to ${nextStatus.replace('_', ' ')}`);
+      const updatedTeams = await getAllTeams();
+      setPlatformTeams(updatedTeams);
+    } catch (err) {
+      toast.error('Failed to update appeal status');
     }
   };
 
@@ -983,30 +994,83 @@ export default function PlatformAdminDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {suspendedTeams.map(team => {
-                      const isPending = team.appealStatus === 'pending';
+                      const appealStatus = team.appealStatus || 'none';
+                      const hasAppeal = appealStatus !== 'none';
+
+                      let badgeColor = 'text-red-500 bg-red-500/10';
+                      let badgeText = 'Suspended';
+                      if (appealStatus === 'pending') {
+                        badgeColor = 'text-amber-500 bg-amber-500/10';
+                        badgeText = 'Pending Appeal';
+                      } else if (appealStatus === 'under_review') {
+                        badgeColor = 'text-blue-500 bg-blue-500/10';
+                        badgeText = 'Under Review';
+                      } else if (appealStatus === 'rejected') {
+                        badgeColor = 'text-red-500 bg-red-500/10';
+                        badgeText = 'Appeal Rejected';
+                      }
+
                       return (
                         <div key={team.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-white/5 space-y-2.5">
                           <div className="flex items-center justify-between gap-1">
                             <span className="font-bold text-xs truncate max-w-[140px]">{team.name}</span>
-                            <Badge variant={isPending ? "secondary" : "outline"} className="text-[9px] text-amber-500 bg-amber-500/10 border-0 uppercase">
-                              {isPending ? 'Pending Appeal' : 'Suspended'}
+                            <Badge variant="outline" className={`text-[9px] border-0 uppercase font-bold ${badgeColor}`}>
+                              {badgeText}
                             </Badge>
                           </div>
                           <p className="text-[10px] text-slate-400">Reason: "{team.suspensionReason || 'Rules violation'}"</p>
-                          {isPending && (
-                            <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/10 space-y-1">
-                              <span className="text-[9px] font-bold text-amber-500 uppercase">Owner's Appeal:</span>
+
+                          {hasAppeal && team.appealText && (
+                            <div className="p-2 bg-slate-100 dark:bg-white/5 rounded-lg border border-slate-200/50 dark:border-white/5 space-y-1">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Owner's Appeal:</span>
                               <p className="text-[11px] italic text-slate-700 dark:text-slate-300">"{team.appealText}"</p>
                             </div>
                           )}
-                          <div className="flex gap-2">
+
+                          <div className="flex flex-col gap-1.5 pt-1">
+                            <div className="flex gap-1.5">
+                              {appealStatus === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUpdateAppealStatus(team.id, 'under_review')}
+                                  className="text-[10px] h-7 px-2 font-bold w-1/2 border-blue-500/30 text-blue-500 hover:bg-blue-500/10 rounded-lg"
+                                >
+                                  Set Under Review
+                                </Button>
+                              )}
+                              {hasAppeal && appealStatus !== 'resolved' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateAppealStatus(team.id, 'resolved')}
+                                    className="text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white h-7 px-2 font-bold flex-1 rounded-lg"
+                                  >
+                                    Accept & Re-activate
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const feedback = window.prompt('Enter rejection feedback for the team owner:', 'Appeal declined. Team remains suspended due to guidlines violation.');
+                                      if (feedback !== null) {
+                                        handleUpdateAppealStatus(team.id, 'rejected', feedback);
+                                      }
+                                    }}
+                                    className="text-[10px] border-red-500/30 text-red-500 hover:bg-red-500/10 h-7 px-2 font-bold flex-1 rounded-lg"
+                                  >
+                                    Reject Appeal
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
                               onClick={() => handleUnsuspendTeam(team.id)}
-                              className="text-xs text-emerald-500 hover:text-emerald-600 rounded-lg h-7 px-2 font-bold w-full"
+                              className="text-[10px] text-slate-500 hover:text-slate-800 dark:hover:text-white h-6 font-bold w-full rounded-md"
                             >
-                              Unsuspend / Re-activate
+                              Direct Unsuspend / Re-activate
                             </Button>
                           </div>
                         </div>

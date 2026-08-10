@@ -194,12 +194,79 @@ export async function unsuspendTeam(teamId: string): Promise<void> {
 export async function submitTeamAppeal(teamId: string, appealText: string): Promise<void> {
   try {
     const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    const teamData = teamSnap.data();
+    const teamName = teamData?.name || 'Suspended Team';
+
     await updateDoc(teamRef, {
       appealStatus: 'pending',
       appealText
     });
+
+    await addDoc(collection(db, 'notifications'), {
+      title: `⚖️ New Suspension Appeal for "${teamName}"`,
+      content: `The owner of "${teamName}" has submitted a suspension appeal: "${appealText}". Please review and resolve.`,
+      type: 'announcement',
+      targetAudience: ['platform_admin'],
+      createdAt: Timestamp.now()
+    });
   } catch (error) {
     console.error('Error submitting team appeal:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update team suspension appeal status (Admin only)
+ */
+export async function updateTeamAppealStatus(
+  teamId: string,
+  nextStatus: 'pending' | 'under_review' | 'resolved' | 'rejected',
+  notes: string = ''
+): Promise<void> {
+  try {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Team not found');
+    const teamData = teamSnap.data();
+
+    const updates: any = {
+      appealStatus: nextStatus
+    };
+
+    if (nextStatus === 'resolved') {
+      updates.status = 'active';
+      updates.appealStatus = 'resolved'; // Accepted
+    } else if (nextStatus === 'rejected') {
+      updates.appealStatus = 'rejected';
+    }
+
+    await updateDoc(teamRef, updates);
+
+    // Send inbox notification to the team owner
+    let title = '⚖️ Suspension Appeal Update';
+    let content = `Your appeal for team "${teamData.name}" has been updated.`;
+    if (nextStatus === 'under_review') {
+      title = `⏳ Appeal Under Review: "${teamData.name}"`;
+      content = `Our team is currently reviewing your suspension appeal for "${teamData.name}". Status: Under Review.`;
+    } else if (nextStatus === 'resolved') {
+      title = `✅ Appeal Accepted: "${teamData.name}" Re-activated!`;
+      content = `Great news! Your suspension appeal for "${teamData.name}" has been accepted. The workspace is now fully re-activated.`;
+    } else if (nextStatus === 'rejected') {
+      title = `❌ Appeal Declined: "${teamData.name}" remains suspended`;
+      content = `Your suspension appeal for "${teamData.name}" has been declined by our governance team. Reason/Feedback: "${notes || 'Violation of community guidelines'}".`;
+    }
+
+    await addDoc(collection(db, 'notifications'), {
+      title,
+      content,
+      type: 'announcement',
+      targetAudience: [],
+      targetUsers: [teamData.ownerId],
+      createdAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error updating team appeal status:', error);
     throw error;
   }
 }
@@ -211,7 +278,8 @@ export async function dismissMemberFromTeam(
   teamId: string,
   memberUserId: string,
   actorId: string,
-  actorName: string
+  actorName: string,
+  explanation: string = 'Violation of team rules'
 ): Promise<void> {
   try {
     const teamRef = doc(db, 'teams', teamId);
@@ -222,13 +290,29 @@ export async function dismissMemberFromTeam(
     const memberToDismiss = teamData.members.find(m => m.userId === memberUserId);
     if (!memberToDismiss) throw new Error('Member not found in team');
 
+    const dismissedExplanations = teamData.dismissedExplanations || {};
+    dismissedExplanations[memberUserId] = explanation;
+
     await updateDoc(teamRef, {
       members: arrayRemove(memberToDismiss),
       memberIds: arrayRemove(memberUserId),
-      dismissedMembers: arrayUnion(memberUserId)
+      dismissedMembers: arrayUnion(memberUserId),
+      dismissedExplanations
     });
 
     await logTeamActivity(teamId, actorId, actorName, `dismissed ${memberToDismiss.fullName} from the team`);
+
+    // Put dismissal in Liverton Inbox (notifications)
+    await addDoc(collection(db, 'notifications'), {
+      title: '⚠️ Revoked access from ' + teamData.name,
+      content: `You have been dismissed. Reason: "${explanation}". You can appeal this from the team workspace page.`,
+      type: 'announcement',
+      targetAudience: [],
+      targetUsers: [memberUserId],
+      sender: actorName,
+      senderId: actorId,
+      createdAt: Timestamp.now()
+    });
   } catch (error) {
     console.error('Error dismissing member:', error);
     throw error;
@@ -266,6 +350,18 @@ export async function submitRejoinAppeal(
 
     await updateDoc(teamRef, {
       appeals: [...filtered, newAppeal]
+    });
+
+    // Notify the team owner of this appeal in their inbox
+    await addDoc(collection(db, 'notifications'), {
+      title: `⚖️ New Member Re-access Appeal for "${teamData.name}"`,
+      content: `Dismissed member "${fullName}" has submitted a re-access appeal: "${appealText}". Please review and resolve.`,
+      type: 'announcement',
+      targetAudience: [],
+      targetUsers: [teamData.ownerId],
+      sender: fullName,
+      senderId: userId,
+      createdAt: Timestamp.now()
     });
   } catch (error) {
     console.error('Error submitting rejoin appeal:', error);
@@ -310,6 +406,18 @@ export async function respondToRejoinAppeal(
       });
 
       await logTeamActivity(teamId, actorId, actorName, `approved the re-join appeal of ${targetAppeal.fullName}`);
+
+      // Notify user of approved appeal in inbox
+      await addDoc(collection(db, 'notifications'), {
+        title: `✅ Re-access Appeal Approved for "${teamData.name}"`,
+        content: `Your re-access appeal has been approved by the team owner ${actorName}. Your membership is fully re-instated.`,
+        type: 'announcement',
+        targetAudience: [],
+        targetUsers: [userId],
+        sender: actorName,
+        senderId: actorId,
+        createdAt: Timestamp.now()
+      });
     } else {
       // Update appeal status to rejected
       const updatedAppeals = existingAppeals.map((a: any) => {
@@ -322,6 +430,18 @@ export async function respondToRejoinAppeal(
         appeals: updatedAppeals
       });
       await logTeamActivity(teamId, actorId, actorName, `rejected the re-join appeal of ${targetAppeal.fullName}`);
+
+      // Notify user of rejected appeal in inbox
+      await addDoc(collection(db, 'notifications'), {
+        title: `❌ Re-access Appeal Rejected for "${teamData.name}"`,
+        content: `Your re-access appeal has been declined by the team owner ${actorName}.`,
+        type: 'announcement',
+        targetAudience: [],
+        targetUsers: [userId],
+        sender: actorName,
+        senderId: actorId,
+        createdAt: Timestamp.now()
+      });
     }
   } catch (error) {
     console.error('Error responding to rejoin appeal:', error);
@@ -344,6 +464,11 @@ export interface TeamJoinRequest {
 export async function requestToJoinTeam(teamId: string, userId: string, fullName: string, email: string): Promise<void> {
   try {
     const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
+    const snap = await getDoc(requestRef);
+    if (snap.exists() && snap.data().status === 'pending') {
+      throw new Error('You have already submitted a join request that is currently pending approval.');
+    }
+
     await setDoc(requestRef, {
       userId,
       fullName,

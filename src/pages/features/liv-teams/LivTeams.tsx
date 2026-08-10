@@ -14,8 +14,9 @@ import { toast } from 'sonner';
 import {
   Users, Plus, Search, Compass, Bookmark, Store, Landmark,
   Settings as SettingsIcon, Globe, Languages, Mail, ArrowRight,
-  Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, LogIn
+  Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, LogIn, Sparkles
 } from 'lucide-react';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import {
   getAllTeams,
   getInvitationsForUser,
@@ -69,6 +70,24 @@ export default function LivTeams() {
   const [editWelcome, setEditWelcome] = useState('');
   const [editRules, setEditRules] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
+
+  const handleEnhanceDescriptionWithHanna = async () => {
+    if (!editDescription.trim()) {
+      toast.info('Please draft a quick description first!');
+      return;
+    }
+    setEnhancingDescription(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(editDescription, 'team_description');
+      setEditDescription(enhanced);
+      toast.success('✨ Description enhanced with Hanna AI!');
+    } catch {
+      toast.error('Failed to enhance description.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!currentUser) return;
@@ -906,7 +925,24 @@ export default function LivTeams() {
               <Input id="editName" value={editName} onChange={e => setEditName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="editDesc">Description</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="editDesc">Description</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={enhancingDescription || !editDescription.trim()}
+                  onClick={handleEnhanceDescriptionWithHanna}
+                  className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                >
+                  {enhancingDescription ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                  )}
+                  Generate with Hanna
+                </Button>
+              </div>
               <Textarea id="editDesc" value={editDescription} onChange={e => setEditDescription(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">

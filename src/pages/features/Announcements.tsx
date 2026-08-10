@@ -48,6 +48,7 @@ interface NotificationItem {
   body: string;
   link?: string;
   targetAudience: string[];
+  targetUsers?: string[];
   sender: string;
   senderId: string;
   senderRole: string;
@@ -107,6 +108,7 @@ export default function Announcements() {
           body: d.body || d.message || '',
           link: d.link || d.redirectUrl || '',
           targetAudience: d.targetAudience || [],
+          targetUsers: d.targetUsers || [],
           sender: d.sender || 'Unknown',
           senderId: d.senderId || '',
           senderRole: d.senderRole || '',
@@ -128,6 +130,11 @@ export default function Announcements() {
           if (currentUser?.uid && a.senderId === currentUser.uid) return true;
           const notHidden = !a.isHidden;
           const notExpired = !a.expiresAt || (a.expiresAt instanceof Date ? a.expiresAt > now : true);
+
+          if (a.targetUsers && a.targetUsers.length > 0) {
+            return notHidden && notExpired && currentUser?.uid && a.targetUsers.includes(currentUser.uid);
+          }
+
           const targeted = a.targetAudience?.includes('all') || 
                            (myAudienceKey !== null && a.targetAudience?.includes(myAudienceKey));
           return notHidden && notExpired && targeted;

@@ -12,8 +12,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import {
   Plus, CalendarDays, DollarSign, Trash2,
-  CheckCircle2, Circle, ListTodo, FolderKanban, Loader2
+  CheckCircle2, Circle, ListTodo, FolderKanban, Loader2, Sparkles
 } from 'lucide-react';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import {
   createTeamProject,
   getTeamProjects,
@@ -62,6 +63,24 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
   const [projDesc, setProjDesc] = useState('');
   const [projBudget, setProjBudget] = useState(0);
   const [projTimeline, setProjTimeline] = useState('');
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
+
+  const handleEnhanceDescriptionWithHanna = async () => {
+    if (!projDesc.trim()) {
+      toast.info('Please draft a quick description first!');
+      return;
+    }
+    setEnhancingDescription(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(projDesc, 'project');
+      setProjDesc(enhanced);
+      toast.success('✨ Description enhanced with Hanna AI!');
+    } catch {
+      toast.error('Failed to enhance description.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
 
   // Task form state
   const [taskTitle, setTaskTitle] = useState('');
@@ -188,6 +207,10 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
 
   const handleToggleTaskCompletion = async (task: TeamTask) => {
     if (!currentUser) return;
+    if (!canModifyTask(task)) {
+      toast.error('You do not have permission to modify this task');
+      return;
+    }
     try {
       const isCompleted = !task.isCompleted;
       const progress = isCompleted ? 100 : 0;
@@ -201,6 +224,10 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
 
   const handleAddChecklistItem = async (task: TeamTask) => {
     if (!currentUser || !checkText.trim()) return;
+    if (!canModifyTask(task)) {
+      toast.error('You do not have permission to modify this task');
+      return;
+    }
     try {
       const items = [...(task.checklist || []), {
         id: Math.random().toString(36).substring(2, 9),
@@ -217,6 +244,10 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
 
   const handleToggleChecklistItem = async (task: TeamTask, itemId: string) => {
     if (!currentUser) return;
+    if (!canModifyTask(task)) {
+      toast.error('You do not have permission to modify this task');
+      return;
+    }
     try {
       const items = task.checklist.map(item =>
         item.id === itemId ? { ...item, isCompleted: !item.isCompleted } : item
@@ -517,7 +548,24 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
               <Input id="projName" value={projName} onChange={e => setProjName(e.target.value)} placeholder="e.g. Science Fair Presentation" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="projDesc">Description</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="projDesc">Description</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={enhancingDescription || !projDesc.trim()}
+                  onClick={handleEnhanceDescriptionWithHanna}
+                  className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                >
+                  {enhancingDescription ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                  )}
+                  Generate with Hanna
+                </Button>
+              </div>
               <Textarea id="projDesc" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="What are the deliverables?" />
             </div>
             <div className="grid grid-cols-2 gap-4">

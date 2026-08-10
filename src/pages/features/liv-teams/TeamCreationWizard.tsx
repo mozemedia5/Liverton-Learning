@@ -11,8 +11,9 @@ import { MediaUploadField } from '@/components/MediaUploadField';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Loader2, Check, Users, Image as ImageIcon,
-  Globe, Settings2, ClipboardCheck, Pencil
+  Globe, Settings2, ClipboardCheck, Pencil, Sparkles
 } from 'lucide-react';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import { createTeam, teamCategories } from '@/services/livTeamsCoreService';
 import type { TeamVisibility } from '@/types/livTeams';
 import { TeamLogo } from './livTeamsUi';
@@ -84,6 +85,24 @@ export default function TeamCreationWizard({ open, onOpenChange, onCreated }: Te
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploadsInFlight, setUploadsInFlight] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
+
+  const handleEnhanceDescriptionWithHanna = async () => {
+    if (!form.description.trim()) {
+      toast.info('Please draft a quick description first!');
+      return;
+    }
+    setEnhancingDescription(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(form.description, 'team_description');
+      set('description', enhanced);
+      toast.success('✨ Description enhanced with Hanna AI!');
+    } catch {
+      toast.error('Failed to enhance description.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
 
   const set = useCallback(<K extends keyof WizardFormState>(key: K, value: WizardFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -345,7 +364,24 @@ export default function TeamCreationWizard({ open, onOpenChange, onCreated }: Te
                   {errorText('category')}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="wz-desc">Description</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="wz-desc">Description</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={enhancingDescription || !form.description.trim()}
+                      onClick={handleEnhanceDescriptionWithHanna}
+                      className="h-6 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                    >
+                      {enhancingDescription ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                      )}
+                      Generate with Hanna
+                    </Button>
+                  </div>
                   <Textarea
                     id="wz-desc"
                     className={inputClass}

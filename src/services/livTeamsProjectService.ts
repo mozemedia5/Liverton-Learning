@@ -99,6 +99,23 @@ export async function createTeamTask(teamId: string, projectId: string, task: Pa
 
     const docRef = await addDoc(ref, finalTask);
     await logTeamActivity(teamId, userId, userName, 'created task', finalTask.title);
+
+    // Send task assignment alerts to Liverton Inbox
+    if (finalTask.assignedMembers && finalTask.assignedMembers.length > 0) {
+      for (const assigneeId of finalTask.assignedMembers) {
+        await addDoc(collection(db, 'notifications'), {
+          title: `📝 New Task Assigned: "${finalTask.title}"`,
+          content: `You have been assigned a new task "${finalTask.title}". Please review and complete your deliverables!`,
+          type: 'announcement',
+          targetAudience: [],
+          targetUsers: [assigneeId],
+          sender: userName,
+          senderId: userId,
+          createdAt: Timestamp.now()
+        });
+      }
+    }
+
     return docRef.id;
   } catch (error) {
     console.error('Error creating task:', error);

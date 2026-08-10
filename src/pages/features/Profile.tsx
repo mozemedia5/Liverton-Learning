@@ -38,6 +38,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { sendEmailVerification } from 'firebase/auth';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
+import { Sparkles } from 'lucide-react';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { SEO } from '@/components/SEO';
 
@@ -122,6 +124,25 @@ export default function Profile() {
     address: userData?.address || '',
     bio: userData?.bio || '',
   });
+
+  const [enhancingBio, setEnhancingBio] = useState(false);
+
+  const handleEnhanceBioWithHanna = async () => {
+    if (!formData.bio.trim()) {
+      toast.info('Please draft a quick bio first!');
+      return;
+    }
+    setEnhancingBio(true);
+    try {
+      const enhanced = await enhanceTextWithHanna(formData.bio, 'bio');
+      setFormData(prev => ({ ...prev, bio: enhanced }));
+      toast.success('✨ Bio enhanced with Hanna AI! Please review and save.');
+    } catch {
+      toast.error('Failed to enhance bio.');
+    } finally {
+      setEnhancingBio(false);
+    }
+  };
 
   /**
    * Handle profile image upload to Firebase Storage
@@ -509,7 +530,26 @@ export default function Profile() {
 
             {/* Bio Section */}
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="bio">Bio</Label>
+                {isEditing && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={enhancingBio || !formData.bio.trim()}
+                    onClick={handleEnhanceBioWithHanna}
+                    className="h-7 text-[10px] text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 gap-1 font-bold rounded-md px-2"
+                  >
+                    {enhancingBio ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-emerald-500 animate-pulse" />
+                    )}
+                    Generate with Hanna
+                  </Button>
+                )}
+              </div>
               <textarea
                 id="bio"
                 value={formData.bio}
