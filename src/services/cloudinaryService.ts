@@ -4,6 +4,8 @@
  */
 
 import { toast } from 'sonner';
+import { db, auth } from '../lib/firebase';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where, Timestamp } from 'firebase/firestore';
 
 export type CloudinaryUploadType = 'image' | 'course_video' | 'short_video' | 'audio' | 'document';
 
@@ -23,6 +25,10 @@ export interface CloudinaryUploadOptions {
   onProgress?: (percent: number) => void;
   /** Set to false to handle error presentation yourself (default: true) */
   showErrorToast?: boolean;
+  /** Context metadata for storing in Firestore tracking */
+  userId?: string;
+  referenceId?: string; // e.g. chatId, courseId, docId, etc.
+  purpose?: string;     // e.g. 'chat_video', 'profile_picture', 'course_material', etc.
 }
 
 const CLOUDINARY_CONFIG: CloudinaryConfig = {
@@ -41,13 +47,20 @@ const CLOUDINARY_CONFIG: CloudinaryConfig = {
  * Map a browser File to the correct configured upload classification.
  * Images, audio, videos and documents each use their dedicated preset;
  * small videos use the shorts preset while larger ones use the courses preset.
+ *
+ * If isChat is true, any video is forced to use the 'course_video' preset.
  */
-export function mapFileToCloudinaryType(file: File | Blob, fileName?: string): CloudinaryUploadType {
+export function mapFileToCloudinaryType(
+  file: File | Blob,
+  fileName?: string,
+  isChat?: boolean
+): CloudinaryUploadType {
   const type = (file.type || '').toLowerCase();
 
   if (type.startsWith('image/')) return 'image';
   if (type.startsWith('audio/')) return 'audio';
   if (type.startsWith('video/')) {
+    if (isChat) return 'course_video'; // Force chat videos to Courses/Video preset
     return file.size > 20 * 1024 * 1024 ? 'course_video' : 'short_video';
   }
 
@@ -77,6 +90,103 @@ function resolvePreset(type: CloudinaryUploadType): { preset: string; resourceTy
 }
 
 /**
+ * Track an uploaded asset in the Firestore 'uploaded_assets' collection.
+ */
+async function trackAssetInFirestore(
+  data: { secure_url: string; public_id: string; resource_type: string },
+  file: File | Blob,
+  type: CloudinaryUploadType,
+  options: CloudinaryUploadOptions
+): Promise<void> {
+  try {
+    if (!db) {
+      console.warn('Firestore db not available. Skipping tracking.');
+      return;
+    }
+
+    const uploaderId = options.userId || auth?.currentUser?.uid || 'anonymous';
+    const referenceId = options.referenceId || 'none';
+    const contentType = file.type || '';
+
+    // Determine purpose
+    let purpose = options.purpose || '';
+    if (!purpose) {
+      if (type === 'image') purpose = 'image';
+      else if (type === 'course_video') purpose = 'course_video';
+      else if (type === 'short_video') purpose = 'shorts';
+      else if (type === 'audio') purpose = 'audio';
+      else if (type === 'document') purpose = 'document';
+      else purpose = 'other';
+    }
+
+    const isTemporaryChatVideo = purpose === 'chat_video';
+    const uploadedAt = Timestamp.now();
+    let deleteAfter = null;
+
+    if (isTemporaryChatVideo) {
+      // Set to delete 7 days from now
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 7);
+      deleteAfter = Timestamp.fromDate(futureDate);
+    }
+
+    await addDoc(collection(db, 'uploaded_assets'), {
+      publicId: data.public_id || '',
+      resourceType: data.resource_type || '',
+      url: data.secure_url,
+      uploadedAt,
+      uploader: uploaderId,
+      contentType,
+      referenceId,
+      purpose,
+      isTemporaryChatVideo,
+      ...(deleteAfter ? { deleteAfter } : {})
+    });
+
+    console.log('Successfully tracked uploaded asset in Firestore:', data.public_id);
+  } catch (err) {
+    console.error('Error tracking uploaded asset in Firestore:', err);
+  }
+}
+
+/**
+ * Client-side automatic cleanup routine for temporary chat videos.
+ * Queries Firestore for expired temporary chat videos, deletes the Firestore tracking documents,
+ * and logs their Cloudinary public IDs for compliance tracking.
+ */
+export async function cleanupTemporaryChatVideos(): Promise<void> {
+  try {
+    if (!db) return;
+
+    const now = Timestamp.now();
+    const q = query(
+      collection(db, 'uploaded_assets'),
+      where('isTemporaryChatVideo', '==', true),
+      where('deleteAfter', '<=', now)
+    );
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      console.log('No expired temporary chat videos found for cleanup.');
+      return;
+    }
+
+    console.log(`Found ${snapshot.size} expired temporary chat video(s). Executing cleanup...`);
+
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      console.log(`[CLEANUP] Deleting expired chat video from tracking. PublicID: ${data.publicId}, URL: ${data.url}`);
+      // In a frontend-only app, we delete the reference document from Firestore.
+      await deleteDoc(doc(db, 'uploaded_assets', docSnap.id));
+    }
+
+    console.log('Cleanup of expired temporary chat videos completed successfully.');
+  } catch (err) {
+    console.error('Error during temporary chat video cleanup:', err);
+  }
+}
+
+/**
  * Upload a file to Cloudinary with progress/error handling.
  * Uses XMLHttpRequest so callers can receive real upload progress.
  *
@@ -100,7 +210,7 @@ export async function uploadToCloudinary(
     formData.append('file', file);
     formData.append('upload_preset', preset);
 
-    const secureUrl = await new Promise<string>((resolve, reject) => {
+    const data = await new Promise<{ secure_url: string; public_id: string; resource_type: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
       xhr.upload.addEventListener('progress', (event) => {
@@ -111,12 +221,16 @@ export async function uploadToCloudinary(
 
       xhr.addEventListener('load', () => {
         try {
-          const data = JSON.parse(xhr.responseText || '{}');
-          if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
+          const resData = JSON.parse(xhr.responseText || '{}');
+          if (xhr.status >= 200 && xhr.status < 300 && resData.secure_url) {
             onProgress?.(100);
-            resolve(data.secure_url as string);
+            resolve({
+              secure_url: resData.secure_url,
+              public_id: resData.public_id || '',
+              resource_type: resData.resource_type || resourceType
+            });
           } else {
-            reject(new Error(data?.error?.message || `Upload failed (status ${xhr.status})`));
+            reject(new Error(resData?.error?.message || `Upload failed (status ${xhr.status})`));
           }
         } catch {
           reject(new Error('Upload failed (invalid server response)'));
@@ -132,7 +246,10 @@ export async function uploadToCloudinary(
       xhr.send(formData);
     });
 
-    return secureUrl;
+    // Track asset in Firestore asynchronously without blocking upload resolution
+    trackAssetInFirestore(data, file, type, options);
+
+    return data.secure_url;
   } catch (error) {
     console.error('Cloudinary upload error details:', error);
     if (showErrorToast) {
