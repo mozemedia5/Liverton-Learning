@@ -291,7 +291,18 @@ export default function HannaChatIntegrated() {
     setUploadingFiles(true);
     for (const file of files) {
       try {
-        const url = await uploadToCloudinary(file, mapFileToCloudinaryType(file, file.name), { showErrorToast: false });
+        const cType = mapFileToCloudinaryType(file, file.name);
+        let purpose = 'hanna_document';
+        if (file.type.startsWith('image/')) purpose = 'hanna_image';
+        else if (file.type.startsWith('audio/')) purpose = 'hanna_audio';
+        else if (file.type.startsWith('video/')) purpose = 'hanna_video';
+
+        const url = await uploadToCloudinary(file, cType, {
+          showErrorToast: false,
+          userId: currentUser.uid,
+          referenceId: currentChatId || 'hanna',
+          purpose
+        });
         setAttachments(prev => [...prev, { url, name: file.name, mimeType: file.type || 'application/octet-stream' }]);
       } catch (error) {
         console.error('Attachment upload failed:', error);

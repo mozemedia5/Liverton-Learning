@@ -36,7 +36,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { bannerThemes, getBannerTheme, DEFAULT_BANNER_THEME } from '@/lib/bannerThemes';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import {
   collection,
   addDoc,
@@ -48,7 +48,7 @@ import {
   orderBy,
   Timestamp,
 } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
 import {
   Dialog,
   DialogContent,
@@ -298,52 +298,22 @@ export default function DashboardBanners() {
     setUploadProgress(0);
 
     try {
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `banners/${currentUser?.uid || 'admin'}/${Date.now()}_${sanitizedName}`;
-      const storageRef = ref(storage, path);
+      const cloudinaryType = type === 'image' ? 'image' : 'short_video';
+      const purpose = type === 'image' ? 'banner_image' : 'banner_video';
 
-      // Use resumable upload with proper state tracking
-      await new Promise<void>((resolve, reject) => {
-        const task = uploadBytesResumable(storageRef, file, {
-          contentType: file.type,
-        });
-
-        task.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = Math.round(
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-            );
-            setUploadProgress(progress);
-          },
-          (error) => {
-            console.error('Upload state error:', error.code, error.message);
-            reject(error);
-          },
-          () => {
-            // Upload completed successfully
-            resolve();
-          }
-        );
+      const downloadUrl = await uploadToCloudinary(file, cloudinaryType, {
+        onProgress: (percent) => setUploadProgress(percent),
+        showErrorToast: false,
+        userId: currentUser?.uid || 'admin',
+        referenceId: 'banner',
+        purpose
       });
 
-      // Get download URL only after upload fully completes
-      const downloadUrl = await getDownloadURL(storageRef);
-
       setForm(prev => ({ ...prev, mediaUrl: downloadUrl, mediaType: type }));
-      toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`);
+      toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully to Cloudinary!`);
     } catch (err: unknown) {
       console.error('Upload error:', err);
-      const errorCode = (err as { code?: string })?.code || '';
-      if (errorCode === 'storage/unauthorized') {
-        toast.error('Upload failed: Permission denied. Please check Firebase Storage rules.');
-      } else if (errorCode === 'storage/canceled') {
-        toast.error('Upload was cancelled.');
-      } else if (errorCode === 'storage/retry-limit-exceeded') {
-        toast.error('Upload failed: Network timeout. Please check your connection and try again.');
-      } else {
-        toast.error('Upload failed. Please try again.');
-      }
+      toast.error('Upload failed. Please check your connection and try again.');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

@@ -26,6 +26,10 @@ describe('mapFileToCloudinaryType', () => {
     expect(mapFileToCloudinaryType(makeFile('video/mp4', 'lecture.mp4', 25 * 1024 * 1024))).toBe('course_video');
   });
 
+  it('forces small videos to courses preset if isChat flag is true', () => {
+    expect(mapFileToCloudinaryType(makeFile('video/mp4', 'clip.mp4', 5 * 1024 * 1024), 'clip.mp4', true)).toBe('course_video');
+  });
+
   it('maps office documents and archives to documents', () => {
     for (const name of ['a.pdf', 'b.docx', 'c.xlsx', 'd.pptx', 'e.zip', 'f.txt']) {
       expect(mapFileToCloudinaryType(makeFile('application/octet-stream', name))).toBe('document');
