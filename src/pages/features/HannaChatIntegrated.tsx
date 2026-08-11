@@ -3,9 +3,10 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
-  Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, Menu, X,
+  Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw, Pin, Search
+  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw, Pin, Search,
+  History
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -95,7 +96,6 @@ export default function HannaChatIntegrated() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [streamingText, setStreamingText] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024); // Default true on desktop for premium left sidebar
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -116,6 +116,70 @@ export default function HannaChatIntegrated() {
 
   const prevChatIdRef = useRef<string | null>(null);
   const userJustSentRef = useRef<boolean>(false);
+
+  const [typewriterText, setTypewriterText] = useState('');
+  const fullStreamedTextRef = useRef('');
+  const displayedTextRef = useRef('');
+  const isStreamActiveRef = useRef(false);
+  const typewriterIntervalRef = useRef<any>(null);
+  const onTypewriterCompleteRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (typewriterIntervalRef.current) {
+        clearInterval(typewriterIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const startTypewriter = (onComplete: () => void) => {
+    setTypewriterText('');
+    fullStreamedTextRef.current = '';
+    displayedTextRef.current = '';
+    isStreamActiveRef.current = true;
+    onTypewriterCompleteRef.current = onComplete;
+
+    if (typewriterIntervalRef.current) {
+      clearInterval(typewriterIntervalRef.current);
+    }
+
+    typewriterIntervalRef.current = setInterval(() => {
+      const target = fullStreamedTextRef.current;
+      const current = displayedTextRef.current;
+
+      if (current === target && !isStreamActiveRef.current) {
+        if (typewriterIntervalRef.current) {
+          clearInterval(typewriterIntervalRef.current);
+          typewriterIntervalRef.current = null;
+        }
+        if (onTypewriterCompleteRef.current) {
+          onTypewriterCompleteRef.current();
+          onTypewriterCompleteRef.current = null;
+        }
+        return;
+      }
+
+      // Append next words or catch up
+      const targetWords = target.split(' ');
+      const currentWords = current ? current.split(' ') : [];
+
+      const lag = targetWords.length - currentWords.length;
+      if (lag > 0) {
+        let increment = 1;
+        if (lag > 12) increment = 4;
+        else if (lag > 6) increment = 2;
+
+        const nextWordsCount = Math.min(currentWords.length + increment, targetWords.length);
+        const nextText = targetWords.slice(0, nextWordsCount).join(' ');
+
+        displayedTextRef.current = nextText;
+        setTypewriterText(nextText);
+      } else if (!isStreamActiveRef.current && target.length > current.length) {
+        displayedTextRef.current = target;
+        setTypewriterText(target);
+      }
+    }, 45);
+  };
 
   const geminiReady = isGeminiConfigured();
 
@@ -170,7 +234,7 @@ export default function HannaChatIntegrated() {
     } else {
       scrollToBottom('auto');
     }
-  }, [messages, streamingText, currentChatId, scrollToBottom]);
+  }, [messages, typewriterText, currentChatId, scrollToBottom]);
 
 
   // Auto-grow textarea
@@ -318,6 +382,18 @@ export default function HannaChatIntegrated() {
 
   const handleStop = () => {
     abortRef.current?.abort();
+    isStreamActiveRef.current = false;
+    if (typewriterIntervalRef.current) {
+      clearInterval(typewriterIntervalRef.current);
+      typewriterIntervalRef.current = null;
+    }
+    const finalContent = fullStreamedTextRef.current.trim() || displayedTextRef.current.trim() || 'I was stopped.';
+    displayedTextRef.current = finalContent;
+    setTypewriterText(finalContent);
+    if (onTypewriterCompleteRef.current) {
+      onTypewriterCompleteRef.current();
+      onTypewriterCompleteRef.current = null;
+    }
   };
 
   const handleSend = async (e?: React.FormEvent) => {
@@ -334,13 +410,15 @@ export default function HannaChatIntegrated() {
     setInputValue('');
     setAttachments([]);
     setIsGenerating(true);
-    setStreamingText('');
+    setTypewriterText('');
     userJustSentRef.current = true; // Mark that user just sent a message for smooth scrolling
 
     const isFirstExchange = messages.length === 0;
 
     // Load custom instructions from localStorage
     const savedInstructions = localStorage.getItem(`hanna_instructions_${currentUser.uid}`) || '';
+
+    let smartTitle = '';
 
     try {
       // 1. Persist the user message
@@ -363,11 +441,43 @@ export default function HannaChatIntegrated() {
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // Start the typewriter loop immediately!
+      startTypewriter(async () => {
+        try {
+          const finalText = displayedTextRef.current.trim() || 'I was interrupted — please ask me again.';
+          await addDoc(collection(db, 'hanna_messages'), {
+            chatId: currentChatId,
+            senderId: 'hanna-ai',
+            senderName: 'Hanna',
+            senderRole: 'hanna',
+            content: finalText,
+            createdAt: serverTimestamp(),
+          });
+
+          const sessionUpdates: Record<string, unknown> = {
+            updatedAt: serverTimestamp(),
+            messageCount: increment(2),
+          };
+          if (isFirstExchange && smartTitle) {
+            sessionUpdates.title = smartTitle;
+          }
+          await updateDoc(doc(db, 'hanna_chats', currentChatId), sessionUpdates);
+        } catch (err) {
+          console.error('Error saving typewriter text:', err);
+        } finally {
+          setIsGenerating(false);
+          setTypewriterText('');
+          abortRef.current = null;
+        }
+      });
+
       const replyPromise = streamHannaReply(
         history,
         text || 'Please describe the attached file(s).',
         currentAttachments,
-        (partial) => setStreamingText(partial),
+        (partial) => {
+          fullStreamedTextRef.current = partial;
+        },
         controller.signal,
         {
           userName: userData?.fullName || 'User',
@@ -377,35 +487,28 @@ export default function HannaChatIntegrated() {
       );
 
       // 3. Smart title generation in background if first message
-      let smartTitle = '';
       if (isFirstExchange) {
-        smartTitle = await generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
+        generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna').then(title => {
+          smartTitle = title;
+        }).catch(err => {
+          console.warn('Background smart title failed:', err);
+        });
       }
 
-      const reply = await replyPromise;
-
-      // 4. Persist the reply
-      const finalText = reply.trim() || 'I was interrupted — please ask me again.';
-      await addDoc(collection(db, 'hanna_messages'), {
-        chatId: currentChatId,
-        senderId: 'hanna-ai',
-        senderName: 'Hanna',
-        senderRole: 'hanna',
-        content: finalText,
-        createdAt: serverTimestamp(),
-      });
-
-      const sessionUpdates: Record<string, unknown> = {
-        updatedAt: serverTimestamp(),
-        messageCount: increment(2),
-      };
-      if (isFirstExchange && smartTitle) {
-        sessionUpdates.title = smartTitle;
-      }
-      await updateDoc(doc(db, 'hanna_chats', currentChatId), sessionUpdates);
+      await replyPromise;
+      isStreamActiveRef.current = false;
 
     } catch (error) {
       console.error('Hanna reply failed:', error);
+      isStreamActiveRef.current = false;
+      if (typewriterIntervalRef.current) {
+        clearInterval(typewriterIntervalRef.current);
+        typewriterIntervalRef.current = null;
+      }
+      setIsGenerating(false);
+      setTypewriterText('');
+      abortRef.current = null;
+
       const errName = error instanceof Error ? error.name : '';
       if (errName !== 'AbortError') {
         const friendly = String(error instanceof Error ? error.message : '').includes('API key')
@@ -413,10 +516,6 @@ export default function HannaChatIntegrated() {
           : 'Hanna could not respond right now. Please try again.';
         toast.error(friendly);
       }
-    } finally {
-      setIsGenerating(false);
-      setStreamingText('');
-      abortRef.current = null;
     }
   };
 
@@ -437,8 +536,6 @@ export default function HannaChatIntegrated() {
         : new Date(tsToMillis(timestamp));
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
-
-  const activeSession = chatSessions.find(s => s.id === currentChatId);
 
   const filteredSessions = chatSessions.filter(session => {
     return session.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -655,78 +752,79 @@ export default function HannaChatIntegrated() {
         {/* Main Take.app-style Focus Area */}
         <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
 
-          {/* Custom Overlapping Avatars Header with Active Dot & Back Button */}
-          <header className="px-4 py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-white/70 dark:bg-[#07070a]/70 backdrop-blur-xl">
+          {/* Custom Overlapping Avatars Header resembling Gemini in Firebase Cloud Console */}
+          <header className="px-4 py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
             <div className="flex items-center gap-3">
-              {/* Elegant Back Button */}
+              {/* Back Button with brand logo */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
-                title="Go back to Dashboard"
+                className="rounded-full w-8 h-8 hover:bg-white/10"
+                title="Back to Dashboard"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 text-slate-300" />
               </Button>
 
-              {/* Sidebar toggle for conversation history */}
+              {/* Overlapping Brand + AskHanna Avatars */}
+              <div className="relative flex items-center">
+                <div className="w-8 h-8 rounded-full bg-slate-900 border border-white/20 flex items-center justify-center overflow-hidden z-10">
+                  <img src="/logo.png" alt="Liverton" className="w-[85%] h-[85%] object-contain" />
+                </div>
+                <div className="w-8 h-8 rounded-full bg-black border border-white/20 flex items-center justify-center overflow-hidden -ml-3 z-20 shadow-md">
+                  <div className="scale-[1.6]">
+                    <AskHannaIcon size={20} showText={false} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Title & Brand Typography */}
+              <div className="flex items-baseline gap-1.5 min-w-0">
+                <span className="font-bold text-sm text-slate-100">Hanna</span>
+                <span className="text-[11px] text-slate-400 font-medium truncate">in Liverton</span>
+              </div>
+            </div>
+
+            {/* Responsive Actions resembling the Firebase Cloud Console header (+, history, settings, X) */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleNewChat}
+                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
+                title="New Chat"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsSidebarOpen(prev => !prev)}
-                className="rounded-full w-8 h-8 border border-slate-200/50 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
-                title="Toggle sessions list"
+                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
+                title="Conversation History"
               >
-                <Menu className="w-4 h-4" />
+                <History className="w-4 h-4" />
               </Button>
-
-              {/* High-fidelity overlapping brand & chatbot avatars with active indicator */}
-              <div className="relative flex items-center ml-1">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105 z-10">
-                  <img src="/logo.png" alt="Liverton" className="w-[85%] h-[85%] object-contain" />
-                </div>
-                <div className="w-9 h-9 rounded-xl bg-black border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden -ml-4 z-20 shadow-md">
-                  <div className="scale-[1.6]">
-                    <AskHannaIcon size={24} showText={false} />
-                  </div>
-                </div>
-                {/* Active Indicator Status Green Dot */}
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#07070a] rounded-full z-30 animate-pulse" />
-              </div>
-
-              {/* Chat Session Info */}
-              <div className="min-w-0 ml-1.5">
-                <h2 className="font-bold text-sm text-slate-800 dark:text-white truncate">
-                  {activeSession?.title || 'Hanna AI'}
-                </h2>
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  <span>Online & Ready</span>
-                  <span>•</span>
-                  <span>{geminiReady ? 'Gemini AI' : 'Offline'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Premium Header Action Bar with (...) options and elegant close/dismiss */}
-            <div className="flex items-center gap-2">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNewChat}
-                className="hidden sm:flex items-center gap-1 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 font-semibold text-xs"
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setSettingsTab('instructions');
+                  setIsSettingsOpen(true);
+                }}
+                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
+                title="Settings"
               >
-                <Plus className="w-3.5 h-3.5" />
-                New Chat
+                <Settings className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-8 h-8 text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                title="Exit Chat Workspace"
+                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
+                title="Close"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4.5 h-4.5" />
               </Button>
             </div>
           </header>
@@ -739,7 +837,7 @@ export default function HannaChatIntegrated() {
                 <div className="max-w-2xl mx-auto space-y-6">
 
                   {/* Empty state: Suggested prompts for streamlined user guidance */}
-                  {messages.length === 0 && !streamingText && (
+                  {messages.length === 0 && !typewriterText && (
                     <div className="flex flex-col items-center justify-center py-12 text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <div className="w-20 h-20 bg-slate-950 dark:bg-black rounded-[28px] flex items-center justify-center shadow-xl border border-white/5 relative">
                         <div className="scale-[2.4]">
@@ -882,9 +980,9 @@ export default function HannaChatIntegrated() {
                       </div>
                       <div className="space-y-1">
                         <div className="bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px] px-4 py-3 text-sm leading-relaxed shadow-sm min-w-[100px]">
-                          {streamingText ? (
+                          {typewriterText ? (
                             <div>
-                              <HannaMarkdown text={streamingText} />
+                              <HannaMarkdown text={typewriterText} />
                               <span className="inline-block w-2.5 h-4 bg-emerald-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
                             </div>
                           ) : (

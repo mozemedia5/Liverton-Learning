@@ -43,9 +43,10 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   }, [navigate]);
 
   const isFullScreenPage = location.pathname.startsWith('/chat') || location.pathname === '/features/hanna-ai';
+  const isHannaAiFullScreenPage = location.pathname === '/features/hanna-ai';
 
   const mainClasses = isFullScreenPage
-    ? `relative z-10 w-full h-screen lg:h-screen pb-[76px] lg:pb-0 overflow-hidden transition-all duration-300 ${
+    ? `relative z-10 w-full h-dvh lg:h-dvh ${isHannaAiFullScreenPage ? 'pb-0' : 'pb-[76px]'} lg:pb-0 overflow-hidden transition-all duration-300 ${
         show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
       }`
     : `relative z-10 w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 px-4 sm:px-6 lg:px-8 ${
@@ -61,10 +62,12 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
       {/* Mobile: BottomNav only */}
       {show && (
         <>
-          {/* Mobile: Bottom Nav (visible on small screens) */}
-          <div className="lg:hidden">
-            <MobileBottomNav userRole={userRole} />
-          </div>
+          {/* Mobile: Bottom Nav (visible on small screens except on dedicated full screen Hanna AI) */}
+          {!isHannaAiFullScreenPage && (
+            <div className="lg:hidden">
+              <MobileBottomNav userRole={userRole} />
+            </div>
+          )}
 
           {/* Desktop: Collapsible Sidebar (visible on large screens) */}
           <div className="hidden lg:block">
