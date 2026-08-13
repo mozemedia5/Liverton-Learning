@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   BookOpen,
@@ -215,35 +215,82 @@ export default function StudentDashboard() {
         )}
 
         {/* Blue "entire summary" card */}
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white p-5 sm:p-6 shadow-xl">
-          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-          <div className="absolute -left-8 -bottom-12 w-40 h-40 rounded-full bg-black/10 blur-2xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 border border-emerald-500/10 text-white p-5 sm:p-6 shadow-glass backdrop-blur-xl">
+          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+          <div className="absolute -left-8 -bottom-12 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
           <div className="flex items-center justify-between relative z-10 mb-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">Learning Summary</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">Learning Summary</p>
               <h2 className="text-lg sm:text-xl font-extrabold mt-0.5">Your progress at a glance</h2>
             </div>
             <Button
               size="sm"
               onClick={() => navigate('/student/courses')}
-              className="bg-white text-blue-600 hover:bg-blue-50 font-bold rounded-full border-0"
+              className="bg-emerald-500 text-white hover:bg-emerald-600 font-bold rounded-xl border-0"
             >
-              Courses <ArrowRight className="w-4 h-4 ml-1" />
+              Modules <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 relative z-10">
             {summaryStats.map((stat) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.label} className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-3">
-                  <Icon className="w-5 h-5 text-blue-100 mb-2" />
-                  <p className="text-xl sm:text-2xl font-extrabold leading-none">{stat.value}</p>
-                  <p className="text-[11px] font-semibold text-blue-200 mt-1 uppercase tracking-wide">{stat.label}</p>
+                <div key={stat.label} className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/5 p-3.5">
+                  <Icon className="w-5 h-5 text-emerald-400 mb-2" />
+                  <p className="text-xl sm:text-2xl font-black leading-none text-white">{stat.value}</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1.5 uppercase tracking-wider">{stat.label}</p>
                 </div>
               );
             })}
           </div>
         </div>
+
+        {/* Visual Analytics Graph - identical to Liv Teams aesthetic */}
+        <Card className="bg-[#030f26]/30 border-white/5 backdrop-blur-xl rounded-[24px] overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-base font-extrabold text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-400" />
+              Your Study & Assignment Metrics
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-400">Visualizing average lesson participation and module performance score trends</CardDescription>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="relative w-full h-52 bg-slate-950/40 rounded-2xl border border-white/5 flex items-end p-4">
+              <div className="absolute inset-0 grid grid-rows-4 grid-cols-6 opacity-5 pointer-events-none">
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div key={i} className="border-t border-l border-white" />
+                ))}
+              </div>
+              <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 600 200" preserveAspectRatio="none">
+                <path
+                  d="M 0 150 Q 150 110 300 130 T 600 50"
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M 0 170 Q 120 140 240 110 T 600 30"
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeDasharray="4 4"
+                />
+              </svg>
+              <div className="absolute bottom-4 left-4 flex gap-4 text-[10px] font-bold">
+                <div className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  Syllabus Grade Score
+                </div>
+                <div className="flex items-center gap-1 text-amber-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  Study Hours (Weekly)
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Upcoming Events Section */}
         <Card>

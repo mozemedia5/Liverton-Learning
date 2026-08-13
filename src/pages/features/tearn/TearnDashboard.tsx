@@ -1,10 +1,10 @@
 /**
  * TEARN (Teacher Earn) Workspace Dashboard
  * High-fidelity premium SaaS hub for educators.
- * Designed with Liverton emerald/gold accents and glassmorphism.
+ * Designed with Liverton emerald/gold accents, Liv Teams glassmorphism, and Module-first learning architecture.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -16,23 +16,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   BookOpen,
-  DollarSign,
-  Users,
-  Video,
-  Sparkles,
   TrendingUp,
   Plus,
-  Trash2,
-  Edit2,
   FileText,
-  Wallet,
   Bookmark,
-  CheckCircle,
   Eye,
-  Star,
   Users2,
   Tv,
-  Award
+  Award,
+  ChevronRight,
+  ShieldCheck,
+  Percent,
+  HelpCircle,
+  Sliders,
+  Video
 } from 'lucide-react';
 import {
   createBook,
@@ -40,37 +37,122 @@ import {
   createShort,
   subscribeToTeacherShorts,
   getEducatorWallet,
-  requestWithdrawal,
-  getTeacherBadges,
   type EducationalBook,
   type EducationalShort,
-  type Review,
-  type EducatorWallet,
-  type TeachingBadge
+  type EducatorWallet
 } from '@/services/tearnService';
-import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
-import { getTeacherLessons, type ZoomLesson } from '@/lib/zoomService';
+import {
+  subscribeToTeacherCourses,
+  createCourse,
+  updateCourse,
+  type Course
+} from '@/services/courseService';
+import { getTeacherLessons } from '@/lib/zoomService';
 import { getAllTeams } from '@/services/livTeamsCoreService';
 import { type Team } from '@/types/livTeams';
+import { SEO } from '@/components/SEO';
+
+// Declare interfaces locally to avoid type resolve issues in composite builds
+export interface Lesson {
+  id: string;
+  title: string;
+  explanation: string;
+  format: 'video' | 'live' | 'other';
+  videoUrl?: string;
+  scheduledAt?: string;
+  drivePdfUrls?: string[];
+  notes?: string;
+  assignment: {
+    instructions: string;
+    requirements: string;
+    deadline?: string;
+    points: number;
+    submissions?: Array<{
+      studentId: string;
+      studentName: string;
+      fileUrl: string;
+      submittedAt: any;
+      status: 'pending' | 'graded';
+      grade?: number;
+      feedback?: string;
+    }>;
+  };
+  quiz?: any;
+  isReleased: boolean;
+  releasedAt?: string;
+}
+
+export interface FinalExam {
+  title: string;
+  description: string;
+  questions: any[];
+  duration: number;
+  maxAttempts: number;
+  passingScore: number;
+  status: 'draft' | 'published';
+}
+
+export interface RevenueShareMember {
+  userId: string;
+  fullName: string;
+  percentage: number;
+}
+
+export interface ModuleTeamConfig {
+  teamId: string;
+  collaborators: Array<{
+    userId: string;
+    role: string;
+    permissions: string[];
+  }>;
+  revenueShares: RevenueShareMember[];
+  established: boolean;
+}
+
+const SUBJECTS = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Computer Science'];
+const LEVELS = ['Primary', 'Secondary', 'University', 'Vocational', 'General'];
+
+// Direct Revenue Share Calculator function declared locally
+export function calculateRevenueDistributionLocal(
+  gross: number,
+  revenueShares: RevenueShareMember[]
+) {
+  const platformShare = Number((gross * 0.10).toFixed(2));
+  const distributableAmount = Number((gross - platformShare).toFixed(2));
+
+  const memberShares = (revenueShares || []).map(member => {
+    const shareValue = Number((distributableAmount * (member.percentage / 100)).toFixed(2));
+    return {
+      userId: member.userId,
+      fullName: member.fullName,
+      percentage: member.percentage,
+      shareValue
+    };
+  });
+
+  return {
+    gross,
+    platformShare,
+    distributableAmount,
+    memberShares
+  };
+}
 
 export default function TearnDashboard() {
   const navigate = useNavigate();
-  const { currentUser, userData, userRole } = useAuth();
+  const { currentUser, userData } = useAuth();
 
   // Selected tab state
   const [activeTab, setActiveTab] = useState('overview');
 
   // Data states
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [modules, setModules] = useState<Course[]>([]);
   const [books, setBooks] = useState<EducationalBook[]>([]);
   const [shorts, setShorts] = useState<EducationalShort[]>([]);
-  const [lessons, setLessons] = useState<ZoomLesson[]>([]);
   const [wallet, setWallet] = useState<EducatorWallet | null>(null);
-  const [badges, setBadges] = useState<TeachingBadge[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [recentReviews, setRecentReviews] = useState<Review[]>([]);
 
-  // Detailed Premium Metrics state (Simulated real-time tracking)
+  // Detailed Premium Metrics state
   const [analyticsMetrics] = useState({
     watchTimeMinutes: 24500,
     completionRate: 84.5,
@@ -89,7 +171,63 @@ export default function TearnDashboard() {
     teacherGrowthPercent: 12.5,
   });
 
+  // State for selected active module inside the Workspace Builder
+  const [selectedModule, setSelectedModule] = useState<Course | null>(null);
+  const [workspaceSubTab, setWorkspaceSubTab] = useState<'lessons' | 'exam' | 'team' | 'revenue'>('lessons');
+
   // Form Modals states
+  const [showModuleModal, setShowModuleModal] = useState(false);
+  const [newModule, setNewModule] = useState({
+    title: '',
+    description: '',
+    subject: 'Mathematics',
+    level: 'Secondary',
+    coverUrl: '',
+    price: 29.99,
+    learningObjectives: '',
+    status: 'draft' as 'draft' | 'active'
+  });
+
+  // Lesson Builder states
+  const [showLessonModal, setShowLessonModal] = useState(false);
+  const [newLesson, setNewLesson] = useState({
+    title: '',
+    explanation: '',
+    format: 'video' as 'video' | 'live' | 'other',
+    videoUrl: '',
+    scheduledAt: '',
+    drivePdfUrls: '',
+    notes: '',
+    assignmentInstructions: '',
+    assignmentRequirements: '',
+    assignmentDeadline: '',
+    assignmentPoints: 100,
+    addQuiz: false,
+    quizTitle: '',
+    quizQuestion: '',
+    quizOptions: ['', '', '', ''],
+    quizCorrectAnswer: 0
+  });
+
+  // Final Exam builder states
+  const [newExam, setNewExam] = useState<FinalExam>({
+    title: 'Module Final Exam',
+    description: 'This is the comprehensive final assessment for this module.',
+    duration: 60,
+    maxAttempts: 2,
+    passingScore: 70,
+    questions: [],
+    status: 'draft'
+  });
+  const [examQuestionText, setExamQuestionText] = useState('');
+  const [examOptions, setExamOptions] = useState(['', '', '', '']);
+  const [examCorrect, setExamCorrect] = useState(0);
+
+  // Liv Team co-creator config states
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [collaborators, setCollaborators] = useState<Array<{ userId: string; role: string; permissions: string[] }>>([]);
+  const [revenueShares, setRevenueShares] = useState<Array<{ userId: string; fullName: string; percentage: number }>>([]);
+
   const [showBookModal, setShowBookModal] = useState(false);
   const [newBook, setNewBook] = useState({
     title: '',
@@ -98,7 +236,6 @@ export default function TearnDashboard() {
     price: 19.99,
     chapters: [] as Array<{ title: string; content: string; drivePdfUrls: string[] }>
   });
-  const [chapterInput, setChapterInput] = useState({ title: '', content: '', pdfUrl: '' });
 
   const [showShortModal, setShowShortModal] = useState(false);
   const [newShort, setNewShort] = useState({
@@ -109,15 +246,12 @@ export default function TearnDashboard() {
     lessonId: ''
   });
 
-  const [withdrawalAmount, setWithdrawalAmount] = useState('');
-  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
-
   // Subscriptions & Fetching
   useEffect(() => {
     if (!currentUser?.uid) return;
 
     const unsubscribeCourses = subscribeToTeacherCourses(currentUser.uid, (data) => {
-      setCourses(data);
+      setModules(data);
     });
 
     const unsubscribeBooks = subscribeToTeacherBooks(currentUser.uid, (data) => {
@@ -131,51 +265,12 @@ export default function TearnDashboard() {
     // Fetch live lessons, wallet, badges, teams
     const fetchData = async () => {
       try {
-        const teacherLessons = await getTeacherLessons(currentUser.uid);
-        setLessons(teacherLessons);
-
+        await getTeacherLessons(currentUser.uid);
         const wData = await getEducatorWallet(currentUser.uid);
         setWallet(wData);
 
-        const bData = await getTeacherBadges(currentUser.uid);
-        setBadges(bData);
-
         const teamsList = await getAllTeams();
         setTeams(teamsList.filter(t => t.members.some(m => m.userId === currentUser.uid)));
-
-        // Pull some high-quality recent reviews
-        setRecentReviews([
-          {
-            id: 'rev_1',
-            type: 'course',
-            targetId: 'course_1',
-            studentId: 'student_1',
-            studentName: 'Alex Mercer',
-            rating: 5,
-            comment: 'Fantastic modules! The chapters are beautifully organized and extremely easy to grasp.',
-            createdAt: new Date(Date.now() - 12 * 3600 * 1000)
-          },
-          {
-            id: 'rev_2',
-            type: 'book',
-            targetId: 'book_1',
-            studentId: 'student_2',
-            studentName: 'Clara Oswald',
-            rating: 4,
-            comment: 'Very helpful handbook. Pinned Drive PDFs are highly educational.',
-            createdAt: new Date(Date.now() - 2 * 24 * 3600 * 1000)
-          },
-          {
-            id: 'rev_3',
-            type: 'teacher',
-            targetId: currentUser.uid,
-            studentId: 'student_3',
-            studentName: 'Julian Barry',
-            rating: 5,
-            comment: 'Truly an outstanding educator! Explanations during Live Lessons are crystal clear.',
-            createdAt: new Date(Date.now() - 5 * 24 * 3600 * 1000)
-          }
-        ]);
       } catch (err) {
         console.error('Error fetching TEARN data:', err);
       }
@@ -190,876 +285,521 @@ export default function TearnDashboard() {
     };
   }, [currentUser?.uid]);
 
-  // Book additions
-  const handleAddChapter = () => {
-    if (!chapterInput.title || !chapterInput.content) {
-      toast.error('Please enter chapter title and content');
-      return;
-    }
-    setNewBook(prev => ({
-      ...prev,
-      chapters: [
-        ...prev.chapters,
-        {
-          title: chapterInput.title,
-          content: chapterInput.content,
-          drivePdfUrls: chapterInput.pdfUrl ? [chapterInput.pdfUrl] : []
-        }
-      ]
-    }));
-    setChapterInput({ title: '', content: '', pdfUrl: '' });
-    toast.success('Chapter added to draft!');
-  };
+  // Synchronize builder config when module selection changes
+  useEffect(() => {
+    if (selectedModule) {
+      const moduleAny = selectedModule as any;
+      if (moduleAny.finalExam) {
+        setNewExam(moduleAny.finalExam);
+      } else {
+        setNewExam({
+          title: 'Module Final Exam',
+          description: `Final exam for ${selectedModule.title}`,
+          duration: 60,
+          maxAttempts: 2,
+          passingScore: 70,
+          questions: [],
+          status: 'draft'
+        });
+      }
 
-  const handleCreateBookSubmit = async () => {
-    if (!newBook.title || !newBook.description) {
-      toast.error('Please fill book Title and Description');
+      if (moduleAny.teamConfig) {
+        setSelectedTeamId(moduleAny.teamConfig.teamId);
+        setCollaborators(moduleAny.teamConfig.collaborators || []);
+        setRevenueShares(moduleAny.teamConfig.revenueShares || []);
+      } else {
+        setSelectedTeamId('');
+        setCollaborators([]);
+        setRevenueShares([]);
+      }
+    }
+  }, [selectedModule]);
+
+  // Module creation handler
+  const handleCreateModule = async () => {
+    if (!newModule.title || !newModule.description) {
+      toast.error('Please complete title and description.');
       return;
     }
     try {
-      await createBook(currentUser!.uid, currentUser!.displayName || userData?.fullName || 'Educator', {
+      const parsedObjectives = newModule.learningObjectives
+        ? newModule.learningObjectives.split('\n').filter((o: string) => o.trim() !== '')
+        : [];
+
+      await createCourse(currentUser!.uid, userData?.fullName || 'Educator', {
+        title: newModule.title,
+        description: newModule.description,
+        subject: newModule.subject,
+        level: newModule.level,
+        coverUrl: newModule.coverUrl,
+        price: Number(newModule.price),
+        status: newModule.status,
+        learningObjectives: parsedObjectives,
+        lessonsList: [],
+        lessons: 0
+      } as any);
+
+      toast.success('Module successfully created in your TEARN Workspace!');
+      setShowModuleModal(false);
+      setNewModule({
+        title: '',
+        description: '',
+        subject: 'Mathematics',
+        level: 'Secondary',
+        coverUrl: '',
+        price: 29.99,
+        learningObjectives: '',
+        status: 'draft'
+      });
+    } catch (err: any) {
+      toast.error('Failed to create Module: ' + err.message);
+    }
+  };
+
+  // Add lesson to module
+  const handleAddLesson = async () => {
+    if (!selectedModule) return;
+    if (!newLesson.title || !newLesson.explanation) {
+      toast.error('Please complete lesson title and explanation content.');
+      return;
+    }
+
+    try {
+      const lessonObj: Lesson = {
+        id: `lesson_${Date.now()}`,
+        title: newLesson.title,
+        explanation: newLesson.explanation,
+        format: newLesson.format,
+        videoUrl: newLesson.videoUrl || undefined,
+        scheduledAt: newLesson.scheduledAt || undefined,
+        drivePdfUrls: newLesson.drivePdfUrls ? newLesson.drivePdfUrls.split('\n').filter((u: string) => u.trim() !== '') : [],
+        notes: newLesson.notes || undefined,
+        assignment: {
+          instructions: newLesson.assignmentInstructions || 'Please review the lesson materials and submit your solution.',
+          requirements: newLesson.assignmentRequirements || 'Submit a PDF document answering the prompt.',
+          deadline: newLesson.assignmentDeadline || undefined,
+          points: Number(newLesson.assignmentPoints) || 100,
+          submissions: []
+        },
+        isReleased: true
+      };
+
+      if (newLesson.addQuiz && newLesson.quizTitle && newLesson.quizQuestion) {
+        lessonObj.quiz = {
+          id: `quiz_${Date.now()}`,
+          courseId: selectedModule.id,
+          title: newLesson.quizTitle,
+          questions: [
+            {
+              id: `q_1`,
+              question: newLesson.quizQuestion,
+              options: newLesson.quizOptions,
+              correctAnswer: newLesson.quizCorrectAnswer
+            }
+          ],
+          createdAt: new Date()
+        };
+      }
+
+      const currentList = (selectedModule as any).lessonsList || [];
+      const updatedLessonsList = [...currentList, lessonObj];
+      await updateCourse(selectedModule.id, {
+        lessonsList: updatedLessonsList,
+        lessons: updatedLessonsList.length
+      } as any);
+
+      toast.success('Sequential Lesson added to Module successfully!');
+      setShowLessonModal(false);
+      setNewLesson({
+        title: '',
+        explanation: '',
+        format: 'video',
+        videoUrl: '',
+        scheduledAt: '',
+        drivePdfUrls: '',
+        notes: '',
+        assignmentInstructions: '',
+        assignmentRequirements: '',
+        assignmentDeadline: '',
+        assignmentPoints: 100,
+        addQuiz: false,
+        quizTitle: '',
+        quizQuestion: '',
+        quizOptions: ['', '', '', ''],
+        quizCorrectAnswer: 0
+      });
+
+      // Refresh current builder
+      const updatedModule = { ...selectedModule, lessonsList: updatedLessonsList, lessons: updatedLessonsList.length } as any;
+      setSelectedModule(updatedModule);
+    } catch (err: any) {
+      toast.error('Failed to add lesson: ' + err.message);
+    }
+  };
+
+  // Add exam question
+  const handleAddExamQuestion = () => {
+    if (!examQuestionText) {
+      toast.error('Please complete question text.');
+      return;
+    }
+    const qObj = {
+      id: `eq_${Date.now()}`,
+      question: examQuestionText,
+      options: [...examOptions],
+      correctAnswer: examCorrect
+    };
+
+    setNewExam((prev: any) => ({
+      ...prev,
+      questions: [...prev.questions, qObj]
+    }));
+
+    setExamQuestionText('');
+    setExamOptions(['', '', '', '']);
+    setExamCorrect(0);
+    toast.success('Question added to Exam Draft!');
+  };
+
+  // Save Final Exam to Module
+  const handleSaveFinalExam = async () => {
+    if (!selectedModule) return;
+    try {
+      await updateCourse(selectedModule.id, {
+        finalExam: { ...newExam, status: 'published' }
+      } as any);
+
+      toast.success('Module Final Exam published successfully!');
+      // Update local state
+      const updatedModule = { ...selectedModule, finalExam: { ...newExam, status: 'published' as const } } as any;
+      setSelectedModule(updatedModule);
+    } catch (err: any) {
+      toast.error('Failed to save Final Exam: ' + err.message);
+    }
+  };
+
+  // Link Liv Team & co-creators configuration
+  const handleLinkTeam = async () => {
+    if (!selectedModule || !selectedTeamId) return;
+    try {
+      const linkedTeam = teams.find(t => t.id === selectedTeamId);
+      if (!linkedTeam) return;
+
+      // Automatically construct co-creators from linked team members
+      const collaboratorsList = linkedTeam.members.map(m => ({
+        userId: m.userId,
+        fullName: m.fullName,
+        role: m.role === 'owner' ? 'Module Lead' : 'Co-Teacher',
+        permissions: m.role === 'owner'
+          ? ['teach', 'create_assignment', 'create_quiz', 'create_exam', 'review_submissions', 'manage_students']
+          : ['teach', 'review_submissions']
+      }));
+
+      // Initialize default equal revenue distribution including Liverton platform split
+      const revSharesList = linkedTeam.members.map(m => ({
+        userId: m.userId,
+        fullName: m.fullName,
+        percentage: Math.round(100 / linkedTeam.members.length)
+      }));
+
+      const teamConfigObj: ModuleTeamConfig = {
+        teamId: selectedTeamId,
+        collaborators: collaboratorsList,
+        revenueShares: revSharesList,
+        established: true
+      };
+
+      await updateCourse(selectedModule.id, {
+        teamConfig: teamConfigObj
+      } as any);
+
+      toast.success(`Liv Team "${linkedTeam.name}" successfully linked as collaboration layer!`);
+      const updatedModule = { ...selectedModule, teamConfig: teamConfigObj } as any;
+      setSelectedModule(updatedModule);
+    } catch (err: any) {
+      toast.error('Failed to link Liv Team: ' + err.message);
+    }
+  };
+
+  // Save Revenue sharing settings
+  const handleSaveRevenueShares = async () => {
+    if (!selectedModule || !(selectedModule as any).teamConfig) return;
+
+    const totalPercentage = revenueShares.reduce((sum, member) => sum + member.percentage, 0);
+    if (totalPercentage !== 100) {
+      toast.error(`Co-creator shares must sum to exactly 100%. Current sum: ${totalPercentage}%`);
+      return;
+    }
+
+    try {
+      const updatedTeamConfig: ModuleTeamConfig = {
+        ...(selectedModule as any).teamConfig,
+        revenueShares: revenueShares
+      };
+
+      await updateCourse(selectedModule.id, {
+        teamConfig: updatedTeamConfig
+      } as any);
+
+      toast.success('Revenue-sharing settings saved & audited successfully!');
+      const updatedModule = { ...selectedModule, teamConfig: updatedTeamConfig } as any;
+      setSelectedModule(updatedModule);
+    } catch (err: any) {
+      toast.error('Failed to save revenue shares: ' + err.message);
+    }
+  };
+
+  // Educational Book creation handler
+  const handleCreateBook = async () => {
+    if (!newBook.title || !newBook.description) {
+      toast.error('Please enter a title and description.');
+      return;
+    }
+    try {
+      await createBook(currentUser!.uid, userData?.fullName || 'Educator', {
         title: newBook.title,
         description: newBook.description,
-        coverUrl: newBook.coverUrl || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400',
-        chapters: newBook.chapters,
+        coverUrl: newBook.coverUrl || undefined,
+        price: Number(newBook.price),
         status: 'published',
-        price: Number(newBook.price) || 0,
-        currency: 'USD'
+        chapters: newBook.chapters
       });
-      toast.success('Book successfully published on Liverton Platform!');
+      toast.success('Your educational handbook has been published successfully!');
       setShowBookModal(false);
       setNewBook({ title: '', description: '', coverUrl: '', price: 19.99, chapters: [] });
-    } catch (err) {
-      toast.error('Failed to publish book');
+    } catch (err: any) {
+      toast.error('Book creation failed: ' + err.message);
     }
   };
 
-  // Short submissions
-  const handleCreateShortSubmit = async () => {
+  // Educational Short creation handler
+  const handleCreateShort = async () => {
     if (!newShort.title || !newShort.videoUrl) {
-      toast.error('Please provide Title and Video Link');
+      toast.error('Please complete title and Cloudinary video URL.');
       return;
     }
     try {
-      await createShort(currentUser!.uid, currentUser!.displayName || userData?.fullName || 'Educator', {
+      await createShort(currentUser!.uid, userData?.fullName || 'Educator', {
         title: newShort.title,
-        description: newShort.description,
+        description: newShort.description || undefined,
         videoUrl: newShort.videoUrl,
         courseId: newShort.courseId || undefined,
         lessonId: newShort.lessonId || undefined
       });
-      toast.success('Short video published successfully!');
+      toast.success('Promotional short successfully published in the Arena!');
       setShowShortModal(false);
       setNewShort({ title: '', description: '', videoUrl: '', courseId: '', lessonId: '' });
-    } catch (err) {
-      toast.error('Failed to post Short');
-    }
-  };
-
-  // Withdrawal processing
-  const handleWithdrawalRequest = async () => {
-    const amt = Number(withdrawalAmount);
-    if (!amt || amt <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    try {
-      await requestWithdrawal(currentUser!.uid, amt);
-      toast.success(`Withdrawal of $${amt} successfully requested!`);
-      setShowWithdrawalModal(false);
-      setWithdrawalAmount('');
-      // Refresh wallet
-      const wData = await getEducatorWallet(currentUser!.uid);
-      setWallet(wData);
     } catch (err: any) {
-      toast.error(err.message || 'Withdrawal request failed');
+      toast.error('Short publishing failed: ' + err.message);
     }
   };
 
-  const hasAccess = userRole === 'teacher' || userRole === 'school_admin' || userRole === 'platform_admin';
-
-  if (!hasAccess) {
-    return (
-      <div className="min-h-screen bg-[#020813] text-white flex items-center justify-center p-6">
-        <Card className="bg-[#03112a]/60 border-white/5 max-w-md p-8 text-center backdrop-blur-md">
-          <Award className="w-16 h-16 text-yellow-500 mx-auto mb-4 animate-bounce" />
-          <h2 className="text-xl font-bold text-white mb-2">Workspace Restrained</h2>
-          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            The TEARN professional publisher and financial analytics tools are exclusively available to Teachers and School Administrators on Liverton Learning.
-          </p>
-          <Button onClick={() => navigate('/')} className="bg-emerald-500 hover:bg-emerald-600 rounded-full font-bold">
-            Return to Dashboard
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  // Revenue sharing calculations for active module
+  const currentRevenueDistribution = useMemo(() => {
+    if (!selectedModule || !(selectedModule as any).teamConfig) return null;
+    return calculateRevenueDistributionLocal(selectedModule.price || 100, (selectedModule as any).teamConfig.revenueShares || []);
+  }, [selectedModule, revenueShares]);
 
   return (
-    <div className="min-h-screen bg-[#020813] text-white transition-colors duration-300 pb-12">
-      {/* SaaS Premium Sub-Header */}
-      <div className="p-4 lg:p-6 bg-gradient-to-r from-emerald-950/40 to-slate-900 border-b border-white/5 sticky top-0 z-30 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
-                TEARN Ecosystem
-              </span>
-              <span className="text-yellow-500 text-xs flex items-center gap-1 font-semibold">
-                <Sparkles className="w-3.5 h-3.5 fill-yellow-500" /> Live Creator Workspace
-              </span>
+    <>
+      <SEO title="TEARN Workspace Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
+
+      <div className="space-y-8 pb-12">
+        {/* CJ Dropshipping inspired aesthetic backdrop blobs */}
+        <div className="absolute top-[-5%] right-[-5%] w-[40vw] h-[40vw] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
+        <div className="absolute bottom-[10%] left-[-5%] w-[40vw] h-[40vw] bg-amber-500/5 dark:bg-amber-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
+
+        {/* Workspace Top Header Bar */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-100/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-glass">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 via-emerald-600 to-amber-500 p-0.5 shadow-lg shadow-emerald-500/10">
+              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                <Award className="w-7 h-7 text-emerald-400" />
+              </div>
             </div>
-            <h1 className="text-2xl font-black mt-1 bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 bg-clip-text text-transparent">
-              Teacher Earn (TEARN) Professional Suite
-            </h1>
-            <p className="text-sm text-slate-400">
-              Create, publish, promote, co-author with Teams, and analyze your digital education business.
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">TEARN Creator Workspace</h1>
+                <Badge className="bg-amber-500/10 text-amber-400 border-none font-bold text-[10px]">PRO EDUCATOR</Badge>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">CJ Dropshipping inspired analytics • Module-first learning framework</p>
+            </div>
           </div>
-          <div className="flex gap-2.5">
+          <div className="flex gap-3">
             <Button
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/15"
-              onClick={() => navigate('/teacher/courses/create')}
+              className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs h-10 px-5 shadow-lg shadow-emerald-500/10"
+              onClick={() => setShowModuleModal(true)}
             >
-              <Plus className="w-4 h-4 mr-1" /> Create Course
+              <Plus className="w-4 h-4 mr-1.5" /> Create Module
             </Button>
             <Button
               variant="outline"
-              className="border-white/10 hover:bg-white/5 rounded-xl text-amber-400 bg-amber-500/5 hover:border-amber-500/30"
-              onClick={() => setShowBookModal(true)}
+              className="border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-xs h-10 px-5 text-slate-700 dark:text-slate-300"
+              onClick={() => navigate('/teacher/zoom-lessons')}
             >
-              <FileText className="w-4 h-4 mr-1" /> Publish Book
+              <Video className="w-4 h-4 mr-1.5 text-rose-400" /> Live lesson Schedule
             </Button>
           </div>
         </div>
-      </div>
 
-      {/* Main SaaS Interface container */}
-      <div className="max-w-7xl mx-auto p-4 lg:p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-900/60 border border-white/5 p-1 rounded-2xl flex flex-wrap gap-1 h-auto overflow-x-auto">
-            <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Overview
+        {/* Global Dashboard Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+          <TabsList className="bg-slate-200/50 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
+            <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+              Overview & Analytics
             </TabsTrigger>
-            <TabsTrigger value="courses" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Courses ({courses.length})
+            <TabsTrigger value="modules" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+              Modules Workspace ({modules.length})
             </TabsTrigger>
-            <TabsTrigger value="books" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Books ({books.length})
+            <TabsTrigger value="books" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+              Resource Books ({books.length})
             </TabsTrigger>
-            <TabsTrigger value="live-lessons" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Live Lessons ({lessons.length})
+            <TabsTrigger value="shorts" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+              Promotional Shorts ({shorts.length})
             </TabsTrigger>
-            <TabsTrigger value="shorts" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Shorts ({shorts.length})
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              SaaS Analytics
-            </TabsTrigger>
-            <TabsTrigger value="reviews" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Reviews
-            </TabsTrigger>
-            <TabsTrigger value="wallet" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Wallet (${wallet?.balance || 1250})
-            </TabsTrigger>
-            <TabsTrigger value="teams" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Teams ({teams.length})
-            </TabsTrigger>
-            <TabsTrigger value="badges" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-              Badges ({badges.length})
+            <TabsTrigger value="wallet" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+              TEARN Wallet & Splits
             </TabsTrigger>
           </TabsList>
 
-          {/* OVERVIEW TAB */}
+          {/* OVERVIEW & ANALYTICS TAB */}
           <TabsContent value="overview" className="space-y-6 outline-none">
-            {/* Quick Metrics rail */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Revenue</p>
-                    <p className="text-3xl font-black mt-1 text-emerald-400">
-                      ${((wallet?.balance || 1250) + (wallet?.withdrawn || 350)).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
-                      <TrendingUp className="w-3.5 h-3.5" /> +{analyticsMetrics.teacherGrowthPercent}% growth
-                    </p>
+            {/* CJ Dropshipping-inspired Key Stats Card Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
+                <CardContent className="p-5 flex flex-col justify-between h-28">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Gross Payouts</span>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">${wallet?.balance || '1,250'}</span>
+                    <span className="text-xs text-emerald-400 font-bold flex items-center">+{analyticsMetrics.teacherGrowthPercent}%</span>
                   </div>
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400">
-                    <DollarSign className="w-6 h-6" />
-                  </div>
+                  <span className="text-[10px] text-slate-400">Total earnings after team splits</span>
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Followers</p>
-                    <p className="text-3xl font-black mt-1 text-amber-400">
-                      {analyticsMetrics.followersCount}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">Active subscribers</p>
+              <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
+                <CardContent className="p-5 flex flex-col justify-between h-28">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Active Students</span>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">{analyticsMetrics.activeStudents}</span>
+                    <span className="text-xs text-slate-400">learners</span>
                   </div>
-                  <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400">
-                    <Users className="w-6 h-6" />
-                  </div>
+                  <span className="text-[10px] text-slate-400">Currently enrolled in active modules</span>
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Publications</p>
-                    <p className="text-3xl font-black mt-1 text-teal-400">
-                      {courses.length + books.length + shorts.length}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">Courses, Books & Shorts</p>
+              <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
+                <CardContent className="p-5 flex flex-col justify-between h-28">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Module Completion Avg</span>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">{analyticsMetrics.completionRate}%</span>
+                    <span className="text-xs text-emerald-400 font-bold">Excellent</span>
                   </div>
-                  <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-400">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
+                  <span className="text-[10px] text-slate-400">Completed lessons & assignments</span>
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Rating Avg</p>
-                    <p className="text-3xl font-black mt-1 text-yellow-400">4.9 / 5.0</p>
-                    <p className="text-xs text-slate-400 mt-1">Highly acclaimed reviews</p>
+              <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
+                <CardContent className="p-5 flex flex-col justify-between h-28">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Submission Rate</span>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">91.4%</span>
+                    <span className="text-xs text-emerald-400 font-bold">High</span>
                   </div>
-                  <div className="w-12 h-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center text-yellow-400">
-                    <Star className="w-6 h-6 fill-yellow-500" />
-                  </div>
+                  <span className="text-[10px] text-slate-400">Required lesson assignments turned in</span>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Main Dashboard Layout Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Analytics and earnings graph placeholder */}
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md overflow-hidden">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-emerald-400" /> Monthly Creator Revenue Breakdown
-                    </CardTitle>
-                    <CardDescription>Real-time monthly aggregated earnings & publishing impressions</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-64 flex flex-col justify-end p-5">
-                    <div className="flex items-end justify-between h-40 gap-2 border-b border-white/10 pb-2">
-                      <div className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 h-[30%] rounded-t-lg transition-all cursor-pointer relative group">
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          $1,250
-                        </span>
-                      </div>
-                      <div className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 h-[45%] rounded-t-lg transition-all cursor-pointer relative group">
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          $1,840
-                        </span>
-                      </div>
-                      <div className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 h-[20%] rounded-t-lg transition-all cursor-pointer relative group">
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          $950
-                        </span>
-                      </div>
-                      <div className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 h-[70%] rounded-t-lg transition-all cursor-pointer relative group">
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          $2,400
-                        </span>
-                      </div>
-                      <div className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 h-[55%] rounded-t-lg transition-all cursor-pointer relative group">
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          $1,920
-                        </span>
-                      </div>
-                      <div className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 h-[90%] rounded-t-lg transition-all cursor-pointer relative group">
-                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          ${analyticsMetrics.monthlyRevenue}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-[11px] text-slate-400 mt-2 font-bold uppercase tracking-wider">
-                      <span>Jan</span>
-                      <span>Feb</span>
-                      <span>Mar</span>
-                      <span>Apr</span>
-                      <span>May</span>
-                      <span>Jun (Current)</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Shorts Promotion callout */}
-                <Card className="bg-gradient-to-r from-amber-950/20 via-[#030f26]/40 to-emerald-950/20 border-white/5 relative overflow-hidden">
-                  <div className="p-6 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <h4 className="font-extrabold text-lg text-amber-400 flex items-center gap-1.5">
-                        <Tv className="w-5 h-5 text-amber-400" /> Expand Discovery with Micro-Learning Shorts
-                      </h4>
-                      <p className="text-sm text-slate-300 mt-1 max-w-xl">
-                        Educational short videos are great funnels. Link your Shorts to full structural lessons to boost conversion and student retention.
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => setShowShortModal(true)}
-                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold rounded-xl shrink-0"
-                    >
-                      <Plus className="w-4 h-4 mr-1" /> Create Short
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Sidebar Checklist & Feed */}
-              <div className="space-y-6">
-                <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                  <CardHeader>
-                    <CardTitle className="text-base">Ecosystem Progress Checklist</CardTitle>
-                    <CardDescription>Qualify for top-tier rewards and credential Badges</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold">Verified Teacher Badge</p>
-                        <p className="text-xs text-slate-400">Complete curriculum verification (Unlocked)</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold">Rising Teacher Badge</p>
-                        <p className="text-xs text-slate-400">Gain first 10 course subscribers (Unlocked)</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 text-slate-400">
-                      <div className="w-5 h-5 rounded-full border border-slate-500 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                        3
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">Expert Educator Status</p>
-                        <p className="text-xs text-slate-400">Earn $5,000+ total revenue and post 3 books</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Recent Activity Feed */}
-                <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                  <CardHeader>
-                    <CardTitle className="text-base">Real-time Activity Feed</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="text-xs p-2.5 rounded-xl bg-white/5 flex flex-col gap-1 border border-white/5">
-                      <div className="flex items-center justify-between font-bold">
-                        <span className="text-emerald-400">Digital Book Purchase</span>
-                        <span>Just now</span>
-                      </div>
-                      <p className="text-slate-300">Alex Mercer purchased "Advanced Physics Module 1" book</p>
-                    </div>
-                    <div className="text-xs p-2.5 rounded-xl bg-white/5 flex flex-col gap-1 border border-white/5">
-                      <div className="flex items-center justify-between font-bold">
-                        <span className="text-amber-400">Live Lesson Session Ended</span>
-                        <span>4 hours ago</span>
-                      </div>
-                      <p className="text-slate-300">12 students joined your "Quantum Mechanics Overview" live lesson</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* COURSES TAB */}
-          <TabsContent value="courses" className="space-y-6 outline-none">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold">Manage Courses & Lesson Ordering</h3>
-              <Button
-                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold"
-                onClick={() => navigate('/teacher/courses/create')}
-              >
-                <Plus className="w-4 h-4 mr-1" /> New Course
-              </Button>
-            </div>
-
-            {courses.length === 0 ? (
-              <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-12 text-center">
-                <BookOpen className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                <h4 className="text-lg font-bold">No courses created yet</h4>
-                <p className="text-slate-400 text-sm mt-1 max-w-md mx-auto">
-                  Courses remain the primary way of building educational content. Create structured modules, chapters, and lessons inside them.
-                </p>
-                <Button
-                  className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold mt-4"
-                  onClick={() => navigate('/teacher/courses/create')}
-                >
-                  Create Your First Course
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map(course => (
-                  <Card key={course.id} className="bg-[#030f26]/40 border-white/5 hover:border-emerald-500/40 transition-all overflow-hidden flex flex-col">
-                    <div className="h-32 bg-gradient-to-br from-emerald-950 to-slate-900 flex items-center justify-center border-b border-white/5">
-                      <BookOpen className="w-12 h-12 text-emerald-400/50" />
-                    </div>
-                    <CardContent className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <Badge className="bg-emerald-500/10 text-emerald-400 border-none">{course.subject}</Badge>
-                          <span className="text-xs text-slate-400 capitalize">{course.status}</span>
-                        </div>
-                        <h4 className="font-extrabold text-lg mt-2 truncate">{course.title}</h4>
-                        <p className="text-sm text-slate-400 line-clamp-2 mt-1">{course.description}</p>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-slate-400 border-t border-white/5 pt-3">
-                        <span>{course.enrolledStudents?.length || 0} enrolled</span>
-                        <span className="font-bold text-emerald-400">${course.price}</span>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 border-white/10 hover:bg-white/5 rounded-xl text-xs"
-                          onClick={() => navigate(`/courses/${course.id}`)}
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" /> View Spaces
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold"
-                          onClick={() => navigate(`/teacher/courses/${course.id}/edit`)}
-                        >
-                          <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit Structure
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* BOOKS TAB */}
-          <TabsContent value="books" className="space-y-6 outline-none">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">Book Publishing Center</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Author handbooks, textbooks, and free companion worksheets</p>
-              </div>
-              <Button
-                className="bg-amber-500 hover:bg-amber-600 rounded-xl text-slate-950 font-black"
-                onClick={() => setShowBookModal(true)}
-              >
-                <Plus className="w-4 h-4 mr-1" /> Publish New Book
-              </Button>
-            </div>
-
-            {books.length === 0 ? (
-              <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-12 text-center">
-                <Bookmark className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                <h4 className="text-lg font-bold">No books written yet</h4>
-                <p className="text-slate-400 text-sm mt-1 max-w-sm mx-auto">
-                  Books are natural extensions of your courses. Attach your educational chapters and GDrive PDF files today.
-                </p>
-                <Button
-                  className="bg-amber-500 hover:bg-amber-600 rounded-xl text-slate-950 font-bold mt-4"
-                  onClick={() => setShowBookModal(true)}
-                >
-                  Publish First Book
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {books.map(book => (
-                  <Card key={book.id} className="bg-[#030f26]/40 border-white/5 hover:border-amber-500/40 transition-all overflow-hidden flex flex-col justify-between">
-                    <div>
-                      <img src={book.coverUrl || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400'} alt={book.title} className="h-44 w-full object-cover" />
-                      <div className="p-4">
-                        <h4 className="font-extrabold text-base truncate">{book.title}</h4>
-                        <p className="text-xs text-slate-400 line-clamp-2 mt-1">{book.description}</p>
-                      </div>
-                    </div>
-                    <div className="p-4 pt-0">
-                      <div className="flex items-center justify-between text-xs mb-3 border-t border-white/5 pt-2">
-                        <span>{book.chapters?.length || 0} chapters</span>
-                        <span className="text-amber-400 font-bold">${book.price}</span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full border-white/10 hover:bg-white/5 text-xs rounded-xl text-amber-400"
-                        onClick={() => navigate(`/features/books/${book.id}`)}
-                      >
-                        <Eye className="w-3.5 h-3.5 mr-1" /> Open Reader
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* LIVE LESSONS TAB */}
-          <TabsContent value="live-lessons" className="space-y-6 outline-none">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">Live Lessons & Stream Scheduler</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Instantly start zoom rooms or schedule interactive webinars</p>
-              </div>
-              <Button
-                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold"
-                onClick={() => navigate('/teacher/zoom-lessons')}
-              >
-                <Plus className="w-4 h-4 mr-1" /> Schedule Live
-              </Button>
-            </div>
-
-            {lessons.length === 0 ? (
-              <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-12 text-center">
-                <Video className="w-12 h-12 text-slate-500 mx-auto mb-4 animate-pulse" />
-                <h4 className="text-lg font-bold">No Scheduled Live Classes</h4>
-                <p className="text-slate-400 text-sm mt-1 max-w-sm mx-auto">
-                  Hold live classes, answer questions directly, track student attendance, and automatically publish recordings on Liverton.
-                </p>
-                <Button
-                  className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold mt-4"
-                  onClick={() => navigate('/teacher/zoom-lessons')}
-                >
-                  Schedule First Session
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {lessons.map(lesson => (
-                  <Card key={lesson.id} className="bg-[#030f26]/40 border-white/5 p-5">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <Badge className="bg-emerald-500/15 text-emerald-400 border-none capitalize mb-2">
-                          {lesson.status || 'scheduled'}
-                        </Badge>
-                        <h4 className="font-extrabold text-lg">{lesson.title}</h4>
-                        <p className="text-xs text-slate-400 mt-1">{new Date(lesson.scheduledDate).toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-emerald-400 block">${lesson.enrollmentFee}</span>
-                        <span className="text-xs text-slate-400">{lesson.enrolledCount || 0} joined</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-300 mt-3">{lesson.description}</p>
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
-                      <Button
-                        variant="outline"
-                        className="flex-1 border-white/10 text-xs rounded-xl"
-                        onClick={() => navigate(`/zoom-lessons/${lesson.id}`)}
-                      >
-                        Launch Lesson Arena
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* SHORTS TAB */}
-          <TabsContent value="shorts" className="space-y-6 outline-none">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">Micro-learning Shorts</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Short video clips linked back to structural modules</p>
-              </div>
-              <Button
-                className="bg-amber-500 hover:bg-amber-600 rounded-xl text-slate-950 font-bold"
-                onClick={() => setShowShortModal(true)}
-              >
-                <Plus className="w-4 h-4 mr-1" /> Post Short
-              </Button>
-            </div>
-
-            {shorts.length === 0 ? (
-              <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-12 text-center">
-                <Tv className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                <h4 className="text-lg font-bold">No Shorts uploaded yet</h4>
-                <p className="text-slate-400 text-sm mt-1 max-w-sm mx-auto">
-                  Boost enrollment rates by pinning engaging 60s clips that funnel students directly to lessons.
-                </p>
-                <Button
-                  className="bg-amber-500 hover:bg-amber-600 rounded-xl text-slate-950 font-bold mt-4"
-                  onClick={() => setShowShortModal(true)}
-                >
-                  Create Your First Short
-                </Button>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {shorts.map(short => (
-                  <Card key={short.id} className="bg-[#030f26]/40 border-white/5 overflow-hidden group relative">
-                    <div className="aspect-[9/16] bg-slate-950 flex items-center justify-center relative">
-                      <Tv className="w-12 h-12 text-slate-800" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                        <p className="font-extrabold text-sm truncate">{short.title}</p>
-                        <p className="text-[11px] text-slate-400">{short.views} views • {short.likes} likes</p>
-                        <Button
-                          size="sm"
-                          className="bg-emerald-500 text-slate-950 font-extrabold rounded-xl text-xs mt-2"
-                          onClick={() => navigate('/features/tearn/shorts')}
-                        >
-                          Watch Short
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* SAAS DETAILED ANALYTICS TAB */}
-          <TabsContent value="analytics" className="space-y-6 outline-none">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-              {/* Engagement & Retention Card */}
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400">Student Progress & Retention</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Course Completion Avg</span>
-                    <span className="text-sm font-extrabold text-emerald-400">{analyticsMetrics.completionRate}%</span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500" style={{ width: `${analyticsMetrics.completionRate}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Returning Student Rate</span>
-                    <span className="text-sm font-extrabold text-teal-400">{analyticsMetrics.returningStudents}%</span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-teal-400" style={{ width: `${analyticsMetrics.returningStudents}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Engagement Score</span>
-                    <span className="text-sm font-extrabold text-yellow-400">{analyticsMetrics.engagementScore} pts</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Attendance & Watch Time Card */}
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400">Learning Delivery Metrics</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Aggregate Watch Time</span>
-                    <span className="text-sm font-extrabold text-slate-200">{(analyticsMetrics.watchTimeMinutes / 60).toFixed(0)} hrs</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Live Lessons Attendance</span>
-                    <span className="text-sm font-extrabold text-purple-400">{analyticsMetrics.attendanceRate}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Book Library Downloads</span>
-                    <span className="text-sm font-extrabold text-amber-400">{analyticsMetrics.bookDownloads} copies</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Shorts Funnel Engagement</span>
-                    <span className="text-sm font-extrabold text-rose-400">+{analyticsMetrics.shortsEngagementRate}%</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Submissions Card */}
-              <Card className="bg-[#030f26]/40 border-white/5 backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400">Student Exercises & Submissions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Quiz Participation Rate</span>
-                    <span className="text-sm font-extrabold text-emerald-400">{analyticsMetrics.quizParticipation}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Assignments Evaluated</span>
-                    <span className="text-sm font-extrabold text-indigo-400">{analyticsMetrics.assignmentSubmissions} items</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Collaborative Team Projects</span>
-                    <span className="text-sm font-extrabold text-yellow-400">{analyticsMetrics.teamContributions} co-authored</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-            </div>
-          </TabsContent>
-
-          {/* REVIEWS TAB */}
-          <TabsContent value="reviews" className="space-y-6 outline-none">
-            <Card className="bg-[#030f26]/40 border-white/5">
+            {/* Simulated Analytical Graph (SVG) - identical to high-fidelity Liv Teams styling */}
+            <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle>Ratings Summary & Student Feedbacks</CardTitle>
-                <CardDescription>Analyze your overall educational impact across all published courses and books</CardDescription>
+                <CardTitle className="text-lg font-black flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  Performance & Engagement Trends (Last 30 Days)
+                </CardTitle>
+                <CardDescription>Visualizing Module Sales and active Student Engagement across your workspace</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col md:flex-row items-center gap-6 p-4 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="text-center">
-                    <h4 className="text-4xl font-black text-yellow-400">4.9</h4>
-                    <div className="flex gap-1 justify-center my-1">
-                      {[1, 2, 3, 4, 5].map(i => <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />)}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">Average score (12 reviews)</p>
+              <CardContent className="p-6">
+                <div className="relative w-full h-64 bg-slate-900/40 rounded-2xl border border-white/5 flex items-end p-4 overflow-hidden">
+                  {/* Decorative backdrop grid */}
+                  <div className="absolute inset-0 grid grid-rows-5 grid-cols-6 opacity-5 pointer-events-none">
+                    {Array.from({ length: 30 }).map((_, i: number) => (
+                      <div key={i} className="border-t border-l border-white" />
+                    ))}
                   </div>
-                  <div className="flex-1 space-y-2 w-full">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="w-8">5 Star</span>
-                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-500" style={{ width: '92%' }}></div>
-                      </div>
-                      <span className="w-8 text-right text-slate-400">92%</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="w-8">4 Star</span>
-                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-500" style={{ width: '8%' }}></div>
-                      </div>
-                      <span className="w-8 text-right text-slate-400">8%</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="space-y-3">
-                  <h4 className="font-extrabold text-sm uppercase tracking-wider text-slate-400">Recent Feedbacks</h4>
-                  {recentReviews.map(review => (
-                    <div key={review.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-bold text-sm">{review.studentName}</p>
-                          <p className="text-[11px] text-slate-400 capitalize">Review for {review.type} ID: {review.targetId}</p>
-                        </div>
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: review.rating }).map((_, i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-slate-300 text-sm leading-relaxed">"{review.comment}"</p>
+                  {/* SVG Chart paths */}
+                  <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 600 200" preserveAspectRatio="none">
+                    {/* Golden Revenue Path */}
+                    <path
+                      d="M 0 160 Q 100 120 200 140 T 400 80 T 600 40"
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                    />
+                    {/* Emerald Engagement Path */}
+                    <path
+                      d="M 0 180 Q 120 140 240 120 T 480 50 T 600 20"
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeDasharray="4 4"
+                    />
+                  </svg>
+
+                  {/* Legends */}
+                  <div className="absolute bottom-4 left-4 flex gap-4 text-xs font-semibold">
+                    <div className="flex items-center gap-1.5 text-amber-400">
+                      <span className="w-3.5 h-3.5 rounded-full bg-amber-400" />
+                      Module Earnings ($)
                     </div>
-                  ))}
+                    <div className="flex items-center gap-1.5 text-emerald-400">
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-400" />
+                      Syllabus Engagement (Lessons)
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* WALLET TAB */}
-          <TabsContent value="wallet" className="space-y-6 outline-none">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Financial Box */}
-              <Card className="bg-gradient-to-br from-emerald-950/40 via-slate-900 to-amber-950/20 border-white/5 p-6 flex flex-col justify-between h-52">
-                <div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Available Balance</p>
-                      <h4 className="text-4xl font-black text-emerald-400 mt-1">${wallet?.balance || '1,250'}</h4>
-                    </div>
-                    <Wallet className="w-6 h-6 text-emerald-400" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/10"
-                    onClick={() => setShowWithdrawalModal(true)}
-                  >
-                    Withdraw Funds
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Pending Cash */}
-              <Card className="bg-[#030f26]/40 border-white/5 p-6 flex flex-col justify-between h-52">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pending Escrow</p>
-                  <h4 className="text-4xl font-black text-amber-500 mt-1">${wallet?.pending || '420'}</h4>
-                  <p className="text-xs text-slate-400 mt-1">Settles within 3-5 days after student completes courses</p>
-                </div>
-              </Card>
-
-              {/* Total Withdrawn */}
-              <Card className="bg-[#030f26]/40 border-white/5 p-6 flex flex-col justify-between h-52">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Withdrawn History</p>
-                  <h4 className="text-4xl font-black text-slate-300 mt-1">${wallet?.withdrawn || '350'}</h4>
-                  <p className="text-xs text-slate-400 mt-1">Transferred directly to bank</p>
-                </div>
-              </Card>
-            </div>
-
-            {/* Transaction stream */}
-            <Card className="bg-[#030f26]/40 border-white/5">
+            {/* Connected Liv Teams Contribution Block */}
+            <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle>Transactions Log</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(wallet?.transactions || []).map((t, idx) => (
-                  <div key={t.id || idx} className="flex justify-between items-center p-3 bg-white/5 rounded-xl text-sm border border-white/5">
-                    <div>
-                      <p className="font-bold">{t.description}</p>
-                      <span className="text-xs text-slate-400">{new Date(t.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <span className={`font-extrabold ${t.type === 'withdrawal' ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {t.type === 'withdrawal' ? '-' : '+'}${t.amount}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* TEAMS TAB */}
-          <TabsContent value="teams" className="space-y-6 outline-none">
-            <Card className="bg-[#030f26]/40 border-white/5">
-              <CardHeader>
-                <CardTitle>Collaborative Liv Teams Workspace</CardTitle>
-                <CardDescription>Partner with fellow educators to co-produce courses and books, sharing analytics and splitting revenues</CardDescription>
+                <CardTitle className="text-lg font-black flex items-center gap-2">
+                  <Users2 className="w-5 h-5 text-amber-500" />
+                  Your Active Co-Creator Liv Teams
+                </CardTitle>
+                <CardDescription>Collaboratively produced modules and current revenue allocation agreements</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {teams.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users2 className="w-12 h-12 text-slate-600 mx-auto mb-3 animate-pulse" />
-                    <p className="text-sm text-slate-400">You are not a member of any collaborative educator teams yet.</p>
-                    <Button
-                      variant="outline"
-                      className="border-white/10 hover:bg-white/5 text-emerald-400 rounded-xl mt-4 bg-emerald-500/5 hover:border-emerald-500/20"
-                      onClick={() => navigate('/features/liv-teams')}
-                    >
-                      Browse/Create Liv Teams
-                    </Button>
+                  <div className="text-center py-6">
+                    <p className="text-sm text-slate-400">You are not part of any co-creator teams yet. Create a team in Liv Teams to co-produce courses!</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {teams.map(team => (
-                      <div key={team.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
-                        <div className="flex justify-between items-start">
+                      <div key={team.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between space-y-3">
+                        <div className="flex items-start justify-between">
                           <div>
-                            <h4 className="font-bold text-base text-emerald-400">{team.name}</h4>
-                            <p className="text-xs text-slate-400">{team.description}</p>
+                            <h4 className="font-extrabold text-sm text-white">{team.name}</h4>
+                            <p className="text-xs text-slate-400 mt-0.5">{team.members?.length || 0} active members co-creating</p>
                           </div>
-                          <Badge className="bg-emerald-500/10 text-emerald-400 border-none">
-                            {team.members.length} members
-                          </Badge>
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-none font-bold text-[10px]">active</Badge>
                         </div>
-                        <Button
-                          variant="outline"
-                          className="w-full text-xs rounded-xl border-white/5 hover:bg-white/5"
-                          onClick={() => navigate(`/features/liv-teams/workspace/${team.id}`)}
-                        >
-                          Enter Team Workspace
-                        </Button>
+                        <div className="flex justify-between items-center text-xs text-slate-400 border-t border-white/5 pt-2">
+                          <span>Team Balance: <b>{team.savingsBalance || 0} UGX</b></span>
+                          <Button
+                            variant="link"
+                            className="text-emerald-400 hover:text-emerald-300 p-0 text-xs font-bold"
+                            onClick={() => navigate(`/features/liv-teams`)}
+                          >
+                            Manage Team Workspace <ChevronRight className="w-3 h-3 ml-0.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1068,239 +808,927 @@ export default function TearnDashboard() {
             </Card>
           </TabsContent>
 
-          {/* BADGES TAB */}
-          <TabsContent value="badges" className="space-y-6 outline-none">
-            <Card className="bg-[#030f26]/40 border-white/5">
-              <CardHeader>
-                <CardTitle>Teaching Badges & Credentials</CardTitle>
-                <CardDescription>Earn badges for quality instruction, consistent uploading, high ratings, and positive reviews</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {badges.map(badge => (
-                    <div key={badge.id} className="p-5 bg-gradient-to-br from-emerald-950/20 via-slate-900 to-slate-900 rounded-2xl border border-white/5 text-center flex flex-col justify-between space-y-3">
-                      <div>
-                        <span className="text-4xl block mb-2">{badge.icon}</span>
-                        <h4 className="font-extrabold text-lg text-amber-300">{badge.name}</h4>
-                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">{badge.description}</p>
-                      </div>
-                      <span className="text-[10px] text-slate-500 block">Awarded on: {new Date(badge.awardedAt).toLocaleDateString()}</span>
-                    </div>
-                  ))}
+          {/* MODULES WORKSPACE TAB */}
+          <TabsContent value="modules" className="space-y-6 outline-none">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* Modules List Panel */}
+              <div className="lg:col-span-1 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Modules</h3>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs"
+                    onClick={() => setShowModuleModal(true)}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Create New
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+
+                {modules.length === 0 ? (
+                  <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-8 text-center rounded-3xl">
+                    <BookOpen className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+                    <h4 className="font-extrabold text-sm text-white">No modules created yet</h4>
+                    <p className="text-xs text-slate-400 mt-1">Create a Module directly inside TEARN to begin adding sequential lessons and assignments.</p>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {modules.map(module => (
+                      <div
+                        key={module.id}
+                        onClick={() => setSelectedModule(module)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                          selectedModule?.id === module.id
+                            ? 'bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/5'
+                            : 'bg-[#030f26]/40 border-white/5 hover:border-white/10'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <Badge className="bg-emerald-500/10 text-emerald-400 border-none text-[9px] font-bold uppercase">{module.subject}</Badge>
+                            <h4 className="font-extrabold text-sm text-white mt-1.5">{module.title}</h4>
+                            <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{module.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-400 border-t border-white/5 pt-2.5 mt-2.5">
+                          <span>{((module as any).lessonsList || []).length} lessons</span>
+                          <span className="font-black text-emerald-400">${module.price}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Comprehensive Module Builder Panel (Lessons, Exams, Teams, Splits) */}
+              <div className="lg:col-span-2 space-y-4">
+                {selectedModule ? (
+                  <Card className="bg-[#030f26]/40 border-white/5 rounded-3xl overflow-hidden flex flex-col">
+                    <div className="p-6 bg-white/[0.02] border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-black text-white">{selectedModule.title}</h3>
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-none font-bold uppercase text-[9px]">{selectedModule.status}</Badge>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xl">{selectedModule.description}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold"
+                        onClick={() => {
+                          setShowLessonModal(true);
+                        }}
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Sequential Lesson
+                      </Button>
+                    </div>
+
+                    {/* Builder Navigation Sub-Tabs */}
+                    <div className="px-6 py-2 bg-slate-100/50 dark:bg-white/[0.01] border-b border-slate-200/40 dark:border-white/5 flex gap-2">
+                      <button
+                        onClick={() => setWorkspaceSubTab('lessons')}
+                        className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                          workspaceSubTab === 'lessons'
+                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/10'
+                            : 'text-slate-400 hover:bg-white/5'
+                        }`}
+                      >
+                        Lessons & Assignments ({((selectedModule as any).lessonsList || []).length})
+                      </button>
+                      <button
+                        onClick={() => setWorkspaceSubTab('exam')}
+                        className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                          workspaceSubTab === 'exam'
+                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/10'
+                            : 'text-slate-400 hover:bg-white/5'
+                        }`}
+                      >
+                        Module Final Exam
+                      </button>
+                      <button
+                        onClick={() => setWorkspaceSubTab('team')}
+                        className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                          workspaceSubTab === 'team'
+                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/10'
+                            : 'text-slate-400 hover:bg-white/5'
+                        }`}
+                      >
+                        Liv Team Collaboration
+                      </button>
+                      <button
+                        onClick={() => setWorkspaceSubTab('revenue')}
+                        className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                          workspaceSubTab === 'revenue'
+                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/10'
+                            : 'text-slate-400 hover:bg-white/5'
+                        }`}
+                      >
+                        Revenue Sharing Settings
+                      </button>
+                    </div>
+
+                    <CardContent className="p-6">
+
+                      {/* LESSONS SUB-TAB */}
+                      {workspaceSubTab === 'lessons' && (
+                        <div className="space-y-4">
+                          {!((selectedModule as any).lessonsList) || ((selectedModule as any).lessonsList).length === 0 ? (
+                            <div className="text-center py-12">
+                              <BookOpen className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+                              <h4 className="font-extrabold text-white">No sequential lessons in this module yet</h4>
+                              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Build your course curriculum lesson-by-lesson. Each lesson requires a mandatory assignment at the end.</p>
+                              <Button
+                                size="sm"
+                                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold mt-4"
+                                onClick={() => {
+                                  setShowLessonModal(true);
+                                }}
+                              >
+                                Add Your First Lesson
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {((selectedModule as any).lessonsList as Lesson[]).map((lesson: Lesson, idx: number) => (
+                                <div key={lesson.id || idx} className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge className="bg-emerald-500/10 text-emerald-400 border-none text-[9px] font-bold">LESSON {idx + 1}</Badge>
+                                        <Badge className="bg-amber-500/10 text-amber-400 border-none text-[9px] font-bold uppercase">{lesson.format}</Badge>
+                                      </div>
+                                      <h4 className="font-extrabold text-sm text-white mt-1.5">{lesson.title}</h4>
+                                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{lesson.explanation}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Resources & Drive PDF Display */}
+                                  {lesson.drivePdfUrls && lesson.drivePdfUrls.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                      {lesson.drivePdfUrls.map((url: string, uidx: number) => (
+                                        <a
+                                          key={uidx}
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1 bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/10"
+                                        >
+                                          <FileText className="w-3.5 h-3.5" /> GDrive PDF Resource {uidx + 1}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Mandatory Lesson Assignment Block */}
+                                  <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/10 space-y-1.5">
+                                    <h5 className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                                      <ShieldCheck className="w-3.5 h-3.5" />
+                                      Mandatory Homework: {lesson.assignment.instructions}
+                                    </h5>
+                                    <p className="text-[11px] text-slate-400">Submission requirements: {lesson.assignment.requirements}</p>
+                                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                                      <span>Points: <b>{lesson.assignment.points} max</b></span>
+                                      {lesson.assignment.deadline && <span>Deadline: <b>{lesson.assignment.deadline}</b></span>}
+                                    </div>
+                                  </div>
+
+                                  {/* Optional Quiz Preview */}
+                                  {lesson.quiz && (
+                                    <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/10 text-xs flex justify-between items-center text-violet-400">
+                                      <span className="font-bold flex items-center gap-1">
+                                        <HelpCircle className="w-3.5 h-3.5" />
+                                        Quiz attached: {lesson.quiz.title}
+                                      </span>
+                                      <span>({lesson.quiz.questions?.length || 1} multiple choice question)</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* FINAL EXAM SUB-TAB */}
+                      {workspaceSubTab === 'exam' && (
+                        <div className="space-y-6">
+                          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white">Configure Module Final Exam</h4>
+                            <p className="text-xs text-slate-400">The final exam belongs to the module and is unlocked only when students complete all lessons.</p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                              <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400">Duration (Minutes)</label>
+                                <Input
+                                  type="number"
+                                  value={newExam.duration}
+                                  onChange={e => setNewExam((prev: any) => ({ ...prev, duration: Number(e.target.value) }))}
+                                  className="bg-white/5 border-white/10 rounded-xl text-xs h-10"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400">Max Attempts</label>
+                                <Input
+                                  type="number"
+                                  value={newExam.maxAttempts}
+                                  onChange={e => setNewExam((prev: any) => ({ ...prev, maxAttempts: Number(e.target.value) }))}
+                                  className="bg-white/5 border-white/10 rounded-xl text-xs h-10"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400">Passing Score (%)</label>
+                                <Input
+                                  type="number"
+                                  value={newExam.passingScore}
+                                  onChange={e => setNewExam((prev: any) => ({ ...prev, passingScore: Number(e.target.value) }))}
+                                  className="bg-white/5 border-white/10 rounded-xl text-xs h-10"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Question Builder */}
+                          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white">Final Exam Question Builder</h4>
+
+                            <div className="space-y-3">
+                              <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400">Question Text</label>
+                                <Input
+                                  placeholder="e.g. What is the derivative of x^2?"
+                                  value={examQuestionText}
+                                  onChange={e => setExamQuestionText(e.target.value)}
+                                  className="bg-white/5 border-white/10 rounded-xl text-xs h-10"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {examOptions.map((opt, oidx) => (
+                                  <div key={oidx} className="space-y-1.5">
+                                    <label className="text-xs text-slate-400">Option {String.fromCharCode(65 + oidx)}</label>
+                                    <Input
+                                      placeholder={`Option ${oidx + 1}`}
+                                      value={opt}
+                                      onChange={e => {
+                                        const updatedOpts = [...examOptions];
+                                        updatedOpts[oidx] = e.target.value;
+                                        setExamOptions(updatedOpts);
+                                      }}
+                                      className="bg-white/5 border-white/10 rounded-xl text-xs h-10"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <label className="text-xs text-slate-400">Correct Option Index (0-3)</label>
+                                <select
+                                  value={examCorrect}
+                                  onChange={e => setExamCorrect(Number(e.target.value))}
+                                  className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                                >
+                                  <option value={0}>Option A</option>
+                                  <option value={1}>Option B</option>
+                                  <option value={2}>Option C</option>
+                                  <option value={3}>Option D</option>
+                                </select>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold"
+                                onClick={handleAddExamQuestion}
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-1" /> Add Question to Draft
+                              </Button>
+                            </div>
+
+                            {/* Added questions list */}
+                            {newExam.questions.length > 0 && (
+                              <div className="border-t border-white/5 pt-4 space-y-3">
+                                <h5 className="text-xs font-bold uppercase text-slate-400">Exam Question Drafts ({newExam.questions.length})</h5>
+                                {newExam.questions.map((q: any, idx: number) => (
+                                  <div key={idx} className="p-3 rounded-xl bg-white/5 text-xs">
+                                    <p className="font-extrabold">Q{idx + 1}: {q.question}</p>
+                                    <ul className="list-disc list-inside mt-2 text-slate-400 space-y-1">
+                                      {q.options.map((opt: string, oidx: number) => (
+                                        <li key={oidx} className={oidx === q.correctAnswer ? "text-emerald-400 font-bold" : ""}>
+                                          {opt} {oidx === q.correctAnswer && "✓"}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <Button
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs py-5"
+                            onClick={handleSaveFinalExam}
+                          >
+                            Save and Publish Final Exam
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* LIV TEAM COLLABORATION */}
+                      {workspaceSubTab === 'team' && (
+                        <div className="space-y-6">
+                          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white">Connect Liv Team to this Module</h4>
+                            <p className="text-xs text-slate-400">Bring co-creators from your organization. Invite, delegate responsibilities, co-teach, and split wallet payouts automatically.</p>
+
+                            <div className="space-y-3">
+                              <label className="text-xs text-slate-400 block">Select Liv Team Workspace</label>
+                              <select
+                                value={selectedTeamId}
+                                onChange={e => setSelectedTeamId(e.target.value)}
+                                className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                              >
+                                <option value="">-- Choose co-creator Team --</option>
+                                {teams.map(team => (
+                                  <option key={team.id} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                              <Button
+                                size="sm"
+                                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold"
+                                onClick={handleLinkTeam}
+                                disabled={!selectedTeamId}
+                              >
+                                Link collaboration Team
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Co-creator permission configuration list */}
+                          {(selectedModule as any).teamConfig && (
+                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                              <h4 className="text-sm font-extrabold text-white">Delegated co-creator permissions</h4>
+                              <div className="space-y-3">
+                                {collaborators.map((c, idx) => (
+                                  <div key={idx} className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                                    <div>
+                                      <p className="font-extrabold text-white">{(c as any).fullName || c.userId}</p>
+                                      <p className="text-[11px] text-slate-400 mt-0.5">Assigned role: <b>{c.role}</b></p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {c.permissions.map((perm, pidx) => (
+                                        <Badge key={pidx} className="bg-emerald-500/10 text-emerald-400 border-none text-[9px] font-bold">
+                                          {perm.replace('_', ' ')}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* REVENUE SHARING SETTINGS */}
+                      {workspaceSubTab === 'revenue' && (
+                        <div className="space-y-6">
+                          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white flex items-center gap-1">
+                              <Percent className="w-4 h-4 text-emerald-400" />
+                              Revenue Split Configuration (Must be established before publishing)
+                            </h4>
+                            <p className="text-xs text-slate-400">Split payouts for student registrations. Ordinary team members are strictly prohibited from changing these configurations.</p>
+
+                            {!(selectedModule as any).teamConfig ? (
+                              <div className="p-6 bg-amber-500/5 border border-amber-500/10 rounded-xl text-xs text-amber-400 text-center">
+                                Please connect a co-creator team in the &quot;Liv Team Collaboration&quot; tab first before configuring revenue distribution.
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="space-y-3 border-b border-white/5 pb-4">
+                                  {revenueShares.map((member, idx) => (
+                                    <div key={idx} className="flex items-center justify-between gap-4">
+                                      <span className="text-xs font-bold text-white">{member.fullName}</span>
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          type="number"
+                                          value={member.percentage}
+                                          onChange={e => {
+                                            const updatedShares = [...revenueShares];
+                                            updatedShares[idx].percentage = Number(e.target.value) || 0;
+                                            setRevenueShares(updatedShares);
+                                          }}
+                                          className="bg-white/5 border-white/10 rounded-xl text-xs h-9 w-20 text-center"
+                                        />
+                                        <span className="text-xs text-slate-400">%</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Dynamic calculations displaying gross, platforms fee & member share values */}
+                                {currentRevenueDistribution && (
+                                  <div className="p-4 rounded-2xl bg-slate-900/60 border border-white/5 space-y-3.5 text-xs">
+                                    <h5 className="font-bold text-white uppercase text-[10px] tracking-wider">Split Simulation (Gross: ${selectedModule.price})</h5>
+
+                                    <div className="flex justify-between text-slate-300">
+                                      <span>Gross Module Price:</span>
+                                      <span>${currentRevenueDistribution.gross}</span>
+                                    </div>
+
+                                    <div className="flex justify-between text-rose-400">
+                                      <span>Liverton Platform Share (10% fee):</span>
+                                      <span>-${currentRevenueDistribution.platformShare}</span>
+                                    </div>
+
+                                    <div className="flex justify-between text-emerald-400 font-extrabold border-t border-white/5 pt-2">
+                                      <span>Remaining Distributable:</span>
+                                      <span>${currentRevenueDistribution.distributableAmount}</span>
+                                    </div>
+
+                                    <div className="space-y-2 border-t border-white/5 pt-2">
+                                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Individual Member Splits:</span>
+                                      {currentRevenueDistribution.memberShares.map((ms: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between text-slate-300 pl-2">
+                                          <span>{ms.fullName} ({ms.percentage}%):</span>
+                                          <span className="font-bold">${ms.shareValue}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <Button
+                                  className="w-full bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs"
+                                  onClick={handleSaveRevenueShares}
+                                >
+                                  Save Splits and Lock Config
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="bg-[#030f26]/20 border-white/5 border-dashed p-16 text-center rounded-3xl">
+                    <Sliders className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                    <h4 className="font-extrabold text-white text-lg">No Module Selected</h4>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Select a Module on the left panel to configure lessons, final exams, co-creators permissions, and split payouts.</p>
+                  </Card>
+                )}
+              </div>
+
+            </div>
+          </TabsContent>
+
+          {/* RESOURCE BOOKS TAB */}
+          <TabsContent value="books" className="space-y-6 outline-none">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">Your Educational Handbooks</h3>
+              <Button
+                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs h-10 px-5"
+                onClick={() => setShowBookModal(true)}
+              >
+                <Plus className="w-4 h-4 mr-1" /> New Handbook
+              </Button>
+            </div>
+
+            {books.length === 0 ? (
+              <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-12 text-center rounded-3xl">
+                <Bookmark className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+                <h4 className="text-lg font-bold text-white">No Books published yet</h4>
+                <p className="text-slate-400 text-sm mt-1 max-w-md mx-auto">
+                  Publish educational reference guides, study packs, and resources with Drive PDF links attached.
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {books.map(book => (
+                  <Card key={book.id} className="bg-[#030f26]/40 border-white/5 hover:border-emerald-500/40 transition-all overflow-hidden flex flex-col rounded-3xl">
+                    <div className="h-32 bg-gradient-to-br from-indigo-950 to-slate-900 flex items-center justify-center border-b border-white/5">
+                      <Bookmark className="w-12 h-12 text-emerald-400/50" />
+                    </div>
+                    <CardContent className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-none text-[9px] font-bold uppercase">BOOK</Badge>
+                          <span className="text-xs text-slate-400">${book.price}</span>
+                        </div>
+                        <h4 className="font-extrabold text-base mt-2 truncate text-white">{book.title}</h4>
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-1">{book.description}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-white/10 hover:bg-white/5 rounded-xl text-xs"
+                        onClick={() => navigate(`/features/books/${book.id}`)}
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" /> View Content Book
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* PROMOTIONAL SHORTS TAB */}
+          <TabsContent value="shorts" className="space-y-6 outline-none">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white font-black">Creator Shorts Arena</h3>
+              <Button
+                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs h-10 px-5"
+                onClick={() => setShowShortModal(true)}
+              >
+                <Plus className="w-4 h-4 mr-1" /> Publish Short
+              </Button>
+            </div>
+
+            {shorts.length === 0 ? (
+              <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-12 text-center rounded-3xl">
+                <Tv className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+                <h4 className="text-lg font-bold text-white">No promotional shorts yet</h4>
+                <p className="text-slate-400 text-sm mt-1 max-w-md mx-auto">
+                  Create high-engagement micro lessons or course teasers linked directly to a module to boost subscriptions!
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {shorts.map(sh => (
+                  <Card key={sh.id} className="bg-[#030f26]/40 border-white/5 hover:border-emerald-500/40 transition-all overflow-hidden flex flex-col rounded-3xl relative justify-between">
+                    <div className="aspect-[9/16] bg-slate-950 flex items-center justify-center border-b border-white/5 relative group">
+                      <video src={sh.videoUrl} className="w-full h-full object-cover" preload="metadata" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                        <p className="text-xs text-white font-extrabold line-clamp-2">{sh.title}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Likes: {sh.likes} • Views: {sh.views}</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* WALLET & SPLITS TAB */}
+          <TabsContent value="wallet" className="space-y-6 outline-none">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+              <Card className="md:col-span-1 bg-[#030f26]/40 border-white/5 rounded-3xl p-6 flex flex-col justify-between space-y-6">
+                <div>
+                  <h4 className="font-extrabold text-sm uppercase tracking-wider text-slate-400">Total Payout Balance</h4>
+                  <p className="text-4xl font-black text-white mt-2">${wallet?.balance || '1,250'}</p>
+                  <p className="text-xs text-slate-400 mt-1">Pending clearance: ${wallet?.pending || '420'}</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Button
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs py-4"
+                  >
+                    Request bank withdrawal
+                  </Button>
+                  <p className="text-[10px] text-slate-500 text-center">Settles instantly via bank split payout system</p>
+                </div>
+              </Card>
+
+              {/* Transactions list */}
+              <Card className="md:col-span-2 bg-[#030f26]/40 border-white/5 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-base font-extrabold text-white">Wallet Transaction Ledger</CardTitle>
+                  <CardDescription>Direct, audited transaction history for all module split payouts</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-white/5">
+                    {(wallet?.transactions || []).map((t: any, idx: number) => (
+                      <div key={t.id || idx} className="p-4 flex justify-between items-center text-xs text-slate-300">
+                        <div>
+                          <p className="font-bold text-white">{t.description}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">{new Date(t.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-emerald-400">+${t.amount}</p>
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-none text-[8px] font-bold mt-1">{t.status}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Book Publishing Draft Form Modal */}
-      {showBookModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#030f26] border border-white/10 rounded-2xl p-6 max-w-xl w-full space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-extrabold text-emerald-400">Publish Educational Book</h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-slate-300 block mb-1">Book Title *</label>
-                <Input
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="e.g. Complete Chemistry Guide"
-                  value={newBook.title}
-                  onChange={e => setNewBook(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-slate-300 block mb-1">Book Description</label>
-                <Textarea
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="Summarize book outlines..."
-                  value={newBook.description}
-                  onChange={e => setNewBook(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-slate-300 block mb-1">Cover Image Link (Optional URL)</label>
-                <Input
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="https://..."
-                  value={newBook.coverUrl}
-                  onChange={e => setNewBook(prev => ({ ...prev, coverUrl: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-slate-300 block mb-1">Price ($)</label>
-                <Input
-                  type="number"
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="19.99"
-                  value={newBook.price}
-                  onChange={e => setNewBook(prev => ({ ...prev, price: Number(e.target.value) }))}
-                />
-              </div>
-
-              {/* Chapters Area */}
-              <div className="border-t border-white/5 pt-3 space-y-2">
-                <h4 className="font-extrabold text-sm text-slate-300">Add Chapters</h4>
-                {newBook.chapters.map((ch, idx) => (
-                  <div key={idx} className="p-2 bg-white/5 rounded-lg text-xs flex justify-between items-center">
-                    <span>Chapter {idx + 1}: {ch.title}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-400 hover:text-red-500 h-6 w-6"
-                      onClick={() => setNewBook(prev => ({ ...prev, chapters: prev.chapters.filter((_, i) => i !== idx) }))}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="space-y-2 bg-white/5 p-3 rounded-xl">
+      {/* MODULE CREATION DIALOG */}
+      {showModuleModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-white/5">
+              <CardTitle className="text-lg font-black text-white">Create Direct Learning Module</CardTitle>
+              <CardDescription>Configure title, level, subject, objectives, and access model.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Module Title</label>
                   <Input
-                    placeholder="Chapter Title"
-                    className="bg-slate-900 border-white/5 text-xs text-white"
-                    value={chapterInput.title}
-                    onChange={e => setChapterInput(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g. Advanced Trigonometry"
+                    value={newModule.title}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, title: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
                   />
-                  <Textarea
-                    placeholder="Chapter content body..."
-                    className="bg-slate-900 border-white/5 text-xs text-white"
-                    value={chapterInput.content}
-                    onChange={e => setChapterInput(prev => ({ ...prev, content: e.target.value }))}
-                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Cover Image URL</label>
                   <Input
-                    placeholder="Attach Google Drive PDF Link"
-                    className="bg-slate-900 border-white/5 text-xs text-white"
-                    value={chapterInput.pdfUrl}
-                    onChange={e => setChapterInput(prev => ({ ...prev, pdfUrl: e.target.value }))}
+                    placeholder="Cover URL"
+                    value={newModule.coverUrl}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, coverUrl: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="text-xs w-full py-1 h-8"
-                    onClick={handleAddChapter}
-                  >
-                    Add Chapter Draft
-                  </Button>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-2 pt-4 border-t border-white/5 justify-end">
-              <Button
-                variant="outline"
-                className="border-white/5 text-slate-300"
-                onClick={() => setShowBookModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-                onClick={handleCreateBookSubmit}
-              >
-                Publish Book
-              </Button>
-            </div>
-          </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-bold">Subject Area</label>
+                <select
+                  value={newModule.subject}
+                  onChange={e => setNewModule((prev: any) => ({ ...prev, subject: e.target.value }))}
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                >
+                  {SUBJECTS.filter(s => s !== 'All').map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-bold">Education Level</label>
+                <select
+                  value={newModule.level}
+                  onChange={e => setNewModule((prev: any) => ({ ...prev, level: e.target.value }))}
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                >
+                  {LEVELS.map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Module Description</label>
+                <Textarea
+                  placeholder="Provide module summary"
+                  value={newModule.description}
+                  onChange={e => setNewModule((prev: any) => ({ ...prev, description: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Learning Objectives (One per line)</label>
+                <Textarea
+                  placeholder="Objective 1&#10;Objective 2"
+                  value={newModule.learningObjectives}
+                  onChange={e => setNewModule((prev: any) => ({ ...prev, learningObjectives: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Price (USD)</label>
+                  <Input
+                    type="number"
+                    value={newModule.price}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, price: Number(e.target.value) }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Publishing Status</label>
+                  <select
+                    value={newModule.status}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, status: e.target.value as any }))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="active">Publish immediately</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                <Button
+                  variant="ghost"
+                  className="rounded-xl font-bold text-xs"
+                  onClick={() => setShowModuleModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs"
+                  onClick={handleCreateModule}
+                >
+                  Create Module
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Short upload Form Modal */}
+      {/* SEQUENTIAL LESSON CREATION DIALOG */}
+      {showLessonModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+          <Card className="w-full max-w-xl bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-white/5">
+              <CardTitle className="text-lg font-black text-white">Add Lesson to Module</CardTitle>
+              <CardDescription>Setup explanation content, teaching formats, resources, and mandatory homework instructions.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Lesson Title</label>
+                  <Input
+                    placeholder="e.g. Lesson 1: Introduction"
+                    value={newLesson.title}
+                    onChange={e => setNewLesson((prev: any) => ({ ...prev, title: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Teaching Format</label>
+                  <select
+                    value={newLesson.format}
+                    onChange={e => setNewLesson((prev: any) => ({ ...prev, format: e.target.value as any }))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                  >
+                    <option value="video">Recorded Video</option>
+                    <option value="live">Scheduled Live Lesson</option>
+                    <option value="other">Other teaching format</option>
+                  </select>
+                </div>
+              </div>
+
+              {newLesson.format === 'video' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Cloudinary Video URL</label>
+                  <Input
+                    placeholder="https://res.cloudinary.com/..."
+                    value={newLesson.videoUrl}
+                    onChange={e => setNewLesson((prev: any) => ({ ...prev, videoUrl: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  />
+                </div>
+              )}
+
+              {newLesson.format === 'live' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Scheduled Date & Time</label>
+                  <Input
+                    type="datetime-local"
+                    value={newLesson.scheduledAt}
+                    onChange={e => setNewLesson((prev: any) => ({ ...prev, scheduledAt: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Content Explanation</label>
+                <Textarea
+                  placeholder="Provide detailed written syllabus explanation/content"
+                  value={newLesson.explanation}
+                  onChange={e => setNewLesson((prev: any) => ({ ...prev, explanation: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Google Drive PDF URLs (One per line)</label>
+                <Textarea
+                  placeholder="https://drive.google.com/..."
+                  value={newLesson.drivePdfUrls}
+                  onChange={e => setNewLesson((prev: any) => ({ ...prev, drivePdfUrls: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                />
+              </div>
+
+              {/* MANDATORY ASSIGNMENT CONFIGURATION */}
+              <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 space-y-3">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider">Mandatory Homework Assignment</h4>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Instructions</label>
+                  <Input
+                    placeholder="e.g. Answer questions 1 to 5 from chapter 2"
+                    value={newLesson.assignmentInstructions}
+                    onChange={e => setNewLesson((prev: any) => ({ ...prev, assignmentInstructions: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400">Requirements & Deadline</label>
+                  <Input
+                    placeholder="e.g. PDF upload before next class"
+                    value={newLesson.assignmentRequirements}
+                    onChange={e => setNewLesson((prev: any) => ({ ...prev, assignmentRequirements: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                <Button
+                  variant="ghost"
+                  className="rounded-xl font-bold text-xs"
+                  onClick={() => setShowLessonModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs"
+                  onClick={handleAddLesson}
+                >
+                  Add Sequential Lesson
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* HANDBOOK CREATION DIALOG */}
+      {showBookModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-white/5">
+              <CardTitle className="text-lg font-black text-white">Create Educational handbook</CardTitle>
+              <CardDescription>Publish resources with chapters and linked Drive PDFs.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Title</label>
+                <Input
+                  value={newBook.title}
+                  onChange={e => setNewBook((prev: any) => ({ ...prev, title: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Description</label>
+                <Textarea
+                  value={newBook.description}
+                  onChange={e => setNewBook((prev: any) => ({ ...prev, description: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setShowBookModal(false)}>Cancel</Button>
+                <Button className="bg-emerald-500 hover:bg-emerald-600 font-bold" onClick={handleCreateBook}>Publish</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* PROMOTIONAL SHORT DIALOG */}
       {showShortModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#030f26] border border-white/10 rounded-2xl p-6 max-w-md w-full space-y-4">
-            <h3 className="text-lg font-extrabold text-amber-400">Post educational Short</h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-slate-300 block mb-1">Short Title *</label>
+          <Card className="w-full max-w-lg bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-white/5">
+              <CardTitle className="text-lg font-black text-white">Publish Creator Short</CardTitle>
+              <CardDescription>Upload micro lesson teasers linked to your modules.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-bold">Video URL (Cloudinary)</label>
                 <Input
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="e.g. Cool Physics Trick in 60s"
-                  value={newShort.title}
-                  onChange={e => setNewShort(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-slate-300 block mb-1">Short Description</label>
-                <Textarea
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="Briefly state Short goal..."
-                  value={newShort.description}
-                  onChange={e => setNewShort(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-slate-300 block mb-1">Cloudinary/Video Resource URL *</label>
-                <Input
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="https://..."
                   value={newShort.videoUrl}
-                  onChange={e => setNewShort(prev => ({ ...prev, videoUrl: e.target.value }))}
+                  onChange={e => setNewShort((prev: any) => ({ ...prev, videoUrl: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
                 />
               </div>
-              <div>
-                <label className="text-slate-300 block mb-1">Related Course ID (Optional)</label>
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400">Title</label>
                 <Input
-                  className="bg-slate-900 border-white/5 text-white"
-                  placeholder="Copy course ID here..."
-                  value={newShort.courseId}
-                  onChange={e => setNewShort(prev => ({ ...prev, courseId: e.target.value }))}
+                  value={newShort.title}
+                  onChange={e => setNewShort((prev: any) => ({ ...prev, title: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
                 />
               </div>
-            </div>
-            <div className="flex gap-2 pt-4 border-t border-white/5 justify-end">
-              <Button
-                variant="outline"
-                className="border-white/5 text-slate-300"
-                onClick={() => setShowShortModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
-                onClick={handleCreateShortSubmit}
-              >
-                Post Short
-              </Button>
-            </div>
-          </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setShowShortModal(false)}>Cancel</Button>
+                <Button className="bg-emerald-500 hover:bg-emerald-600 font-bold" onClick={handleCreateShort}>Publish</Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
-
-      {/* Withdrawal Form Modal */}
-      {showWithdrawalModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#030f26] border border-white/10 rounded-2xl p-6 max-w-sm w-full space-y-4">
-            <h3 className="text-lg font-extrabold text-emerald-400">Withdraw Funds</h3>
-            <p className="text-xs text-slate-400">Deduct funds from available balance. Transferred securely to your linked deposit bank.</p>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-slate-300 block mb-1">Withdrawal Amount ($) *</label>
-                <Input
-                  type="number"
-                  className="bg-slate-900 border-white/5 text-white text-lg font-extrabold"
-                  placeholder="e.g. 500"
-                  value={withdrawalAmount}
-                  onChange={e => setWithdrawalAmount(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-4 border-t border-white/5 justify-end">
-              <Button
-                variant="outline"
-                className="border-white/5 text-slate-300"
-                onClick={() => setShowWithdrawalModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-                onClick={handleWithdrawalRequest}
-              >
-                Confirm Withdrawal
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
@@ -144,45 +144,45 @@ export default function SchoolAdminDashboard() {
         {/* School Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Total Students Card */}
-          <Card>
+          <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Students</p>
-                  <p className="text-xl font-bold">{analytics?.totalStudents || 0}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Students</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{analytics?.totalStudents || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Total Teachers Card */}
-          <Card>
+          <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Teachers</p>
-                  <p className="text-xl font-bold">{analytics?.totalTeachers || 0}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Teachers</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{analytics?.totalTeachers || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Attendance Today Card */}
-          <Card>
+          <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-purple-600" />
+                <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Attendance Today</p>
-                  <p className="text-xl font-bold">{analytics?.attendanceToday || 0}%</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Attendance Today</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{analytics?.attendanceToday || 0}%</p>
                 </div>
               </div>
             </CardContent>
@@ -219,43 +219,90 @@ export default function SchoolAdminDashboard() {
           </Card>
         </div>
 
+        {/* Visual Analytics Graph - identical to Liv Teams aesthetic */}
+        <Card className="bg-[#030f26]/30 border-white/5 backdrop-blur-xl rounded-[24px] overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-base font-extrabold text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-400" />
+              School Learning & Engagement Analysis
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-400">Aggregated metrics of co-creators syllabus participation and attendance averages</CardDescription>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="relative w-full h-52 bg-slate-950/40 rounded-2xl border border-white/5 flex items-end p-4">
+              <div className="absolute inset-0 grid grid-rows-4 grid-cols-6 opacity-5 pointer-events-none">
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div key={i} className="border-t border-l border-white" />
+                ))}
+              </div>
+              <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 600 200" preserveAspectRatio="none">
+                <path
+                  d="M 0 160 Q 150 110 300 130 T 600 50"
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M 0 180 Q 120 140 240 100 T 600 20"
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeDasharray="4 4"
+                />
+              </svg>
+              <div className="absolute bottom-4 left-4 flex gap-4 text-[10px] font-bold">
+                <div className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  Syllabus Module Activations
+                </div>
+                <div className="flex items-center gap-1 text-amber-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  School Student Attendance (%)
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Additional Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-indigo-600" />
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
-                  <p className="text-xl font-bold">{analytics?.totalCourses || 0}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Modules</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{analytics?.totalCourses || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-pink-600" />
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Active Enrollments</p>
-                  <p className="text-xl font-bold">{analytics?.activeEnrollments || 0}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Enrollments</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{analytics?.activeEnrollments || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-teal-600" />
+                <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Monthly Revenue</p>
-                  <p className="text-xl font-bold">${(analytics?.monthlyRevenue || 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">School Revenue</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white">${(analytics?.monthlyRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>

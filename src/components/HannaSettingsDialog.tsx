@@ -7,11 +7,11 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { X, Sparkles, BookOpen, GraduationCap, PenTool, ShieldCheck, Heart } from 'lucide-react';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
-import { toast } from 'sonner';
 
 interface HannaSettingsDialogProps {
   isOpen: boolean;
@@ -20,9 +20,9 @@ interface HannaSettingsDialogProps {
   defaultTab?: 'about' | 'instructions';
 }
 
-export function HannaSettingsDialog({ isOpen, onClose, userId, defaultTab }: HannaSettingsDialogProps) {
+export function HannaSettingsDialog({ isOpen, onClose, userId: _userId, defaultTab }: HannaSettingsDialogProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'about' | 'instructions'>('about');
-  const [instructions, setInstructions] = useState('');
 
   // Sync activeTab when defaultTab or isOpen changes
   useEffect(() => {
@@ -31,22 +31,7 @@ export function HannaSettingsDialog({ isOpen, onClose, userId, defaultTab }: Han
     }
   }, [isOpen, defaultTab]);
 
-  // Load custom instructions from localStorage
-  useEffect(() => {
-    if (!isOpen || !userId) return;
-    const key = `hanna_instructions_${userId}`;
-    const saved = localStorage.getItem(key) || '';
-    setInstructions(saved);
-  }, [isOpen, userId]);
-
   if (!isOpen) return null;
-
-  const handleSave = () => {
-    const key = `hanna_instructions_${userId}`;
-    localStorage.setItem(key, instructions.trim());
-    toast.success('Hanna instructions updated successfully!');
-    onClose();
-  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -159,26 +144,21 @@ export function HannaSettingsDialog({ isOpen, onClose, userId, defaultTab }: Han
               </div>
             </div>
           ) : (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div>
-                <h4 className="font-bold text-xs text-slate-800 dark:text-white">What would you like Hanna to know about you?</h4>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 leading-relaxed">
-                  These instructions will be automatically injected into Hanna's system prompt before each message you send. You can ask Hanna to explain things at a certain age level, focus on specific subjects, use specific learning rules, or format responses in a special way.
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <textarea
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  placeholder="e.g. 'I am preparing for UCE exams in Uganda. Please explain complex scientific concepts using simple local analogies and end answers with a quick 1-sentence revision hint.'"
-                  rows={6}
-                  className="w-full p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] outline-none text-xs leading-relaxed focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/5 transition-all text-slate-800 dark:text-slate-100"
-                />
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium px-1">
-                  Keep instructions constructive and educational. Custom rules remain stored on your device.
-                </p>
-              </div>
+            <div className="space-y-4 animate-in fade-in duration-200 text-center py-6">
+              <Sparkles className="w-12 h-12 text-emerald-400 mx-auto mb-3 animate-pulse" />
+              <h4 className="font-bold text-sm text-slate-800 dark:text-white">Custom Instructions has moved!</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto leading-relaxed">
+                Hanna AI personalization custom instructions are now managed directly within your secure Profile Personalization Workspace.
+              </p>
+              <Button
+                onClick={() => {
+                  onClose();
+                  navigate('/profile');
+                }}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs mt-4"
+              >
+                Go to Profile Personalization
+              </Button>
             </div>
           )}
         </div>
@@ -192,14 +172,6 @@ export function HannaSettingsDialog({ isOpen, onClose, userId, defaultTab }: Han
           >
             Close
           </Button>
-          {activeTab === 'instructions' && (
-            <Button
-              onClick={handleSave}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs h-10 px-6 shadow-md shadow-emerald-500/10 transition-all active:scale-95"
-            >
-              Save Instructions
-            </Button>
-          )}
         </div>
       </Card>
     </div>

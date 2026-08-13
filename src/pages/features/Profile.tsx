@@ -116,6 +116,23 @@ export default function Profile() {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // Hanna Custom Instructions State
+  const [hannaInstructions, setHannaInstructions] = useState('');
+
+  useEffect(() => {
+    if (currentUser?.uid) {
+      const saved = localStorage.getItem(`hanna_instructions_${currentUser.uid}`) || '';
+      setHannaInstructions(saved);
+    }
+  }, [currentUser]);
+
+  const handleSaveHannaInstructions = () => {
+    if (currentUser?.uid) {
+      localStorage.setItem(`hanna_instructions_${currentUser.uid}`, hannaInstructions.trim());
+      toast.success('🎉 Hanna AI custom instructions updated successfully!');
+    }
+  };
   
   const [formData, setFormData] = useState({
     fullName: userData?.fullName || '',
@@ -718,6 +735,34 @@ export default function Profile() {
                   </Button>
                 </div>
               )}
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-4" />
+
+            {/* Hanna AI Custom Instructions Section */}
+            <div className="space-y-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-500" />
+                <h3 className="font-bold text-sm text-slate-800 dark:text-white">Hanna AI Personalization</h3>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                Provide custom instructions to guide how Hanna AI answers your prompts (e.g. your preparation goals, local Uganda syllabus references, or formatting preferences).
+              </p>
+              <textarea
+                placeholder="e.g. Explain concepts with simple Uganda syllabus analogies and end with a quick 1-sentence hint."
+                value={hannaInstructions}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setHannaInstructions(e.target.value)}
+                className="w-full p-4 bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-800 dark:text-slate-100 mt-2 focus:border-emerald-500/50 outline-none transition-all"
+                rows={4}
+              />
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveHannaInstructions}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs h-9 px-4"
+                >
+                  Save Personalization
+                </Button>
+              </div>
             </div>
 
             <div className="border-t border-gray-200 dark:border-gray-800 pt-4" />

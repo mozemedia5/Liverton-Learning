@@ -21,7 +21,8 @@ import {
   Sparkles,
   BookOpen,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  TrendingUp
 } from 'lucide-react';
 import BannerCarousel from '@/components/BannerCarousel';
 import MotivationCorner from '@/components/MotivationCorner';
@@ -337,6 +338,53 @@ export default function PlatformAdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Visual Analytics Graph - identical to Liv Teams aesthetic */}
+        <Card className="bg-[#030f26]/30 border border-white/5 backdrop-blur-xl rounded-[24px] overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-base font-extrabold text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-400" />
+              Global Platform Activity & Financial Analytics
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-400">Monitoring real-time student registration rate and general platform revenue inflow</CardDescription>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="relative w-full h-52 bg-slate-950/40 rounded-2xl border border-white/5 flex items-end p-4">
+              <div className="absolute inset-0 grid grid-rows-4 grid-cols-6 opacity-5 pointer-events-none">
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div key={i} className="border-t border-l border-white" />
+                ))}
+              </div>
+              <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 600 200" preserveAspectRatio="none">
+                <path
+                  d="M 0 170 Q 150 110 300 130 T 600 30"
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M 0 150 Q 120 140 240 90 T 600 10"
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeDasharray="4 4"
+                />
+              </svg>
+              <div className="absolute bottom-4 left-4 flex gap-4 text-[10px] font-bold">
+                <div className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  Active student signups (monthly)
+                </div>
+                <div className="flex items-center gap-1 text-amber-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  Platform gross revenue inflow ($)
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Access Tools */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

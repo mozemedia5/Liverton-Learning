@@ -488,8 +488,12 @@ export default function HannaChatIntegrated() {
 
       // 3. Smart title generation in background if first message
       if (isFirstExchange) {
-        generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna').then(title => {
+        generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna').then(async (title) => {
           smartTitle = title;
+          await updateDoc(doc(db, 'hanna_chats', currentChatId), {
+            title: title
+          });
+          toast.success(`Hanna renamed this chat to: "${title}"`);
         }).catch(err => {
           console.warn('Background smart title failed:', err);
         });
@@ -605,7 +609,7 @@ export default function HannaChatIntegrated() {
   return (
     <>
       <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
-      <div className="flex h-full bg-[#fafafc] dark:bg-[#07070a] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+      <div className="flex h-full bg-[#fafafc] dark:bg-[#0c0d12] text-slate-900 dark:text-slate-100 overflow-hidden relative">
 
         {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
@@ -614,10 +618,13 @@ export default function HannaChatIntegrated() {
         {/* Dynamic Slide-out Sidebar for Conversation History resembling ChatGPT app */}
         <div
           className={`
-            fixed inset-y-0 left-0 z-40 w-80 bg-white/95 dark:bg-[#0a0a0f]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
+            fixed inset-y-0 left-0 z-40 bg-white/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
             transition-all duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
-            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            lg:relative lg:translate-x-0 lg:bg-white/40 lg:dark:bg-[#0a0a0f]/40
+            ${isSidebarOpen
+              ? 'translate-x-0 w-80 opacity-100'
+              : '-translate-x-full opacity-0 lg:w-0 lg:opacity-0 lg:overflow-hidden lg:border-r-0 lg:translate-x-0'
+            }
+            lg:relative lg:bg-white/40 lg:dark:bg-[#0c0d12]/40
           `}
         >
           {/* ChatGPT-style Sidebar Header with Prominent "+ New Chat" button at the top */}
@@ -699,16 +706,6 @@ export default function HannaChatIntegrated() {
 
           {/* Unified Action Bar inside the Sidebar */}
           <div className="p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
-            <button
-              onClick={() => {
-                setSettingsTab('instructions');
-                setIsSettingsOpen(true);
-              }}
-              className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
-            >
-              <Settings className="w-4 h-4 text-emerald-500" />
-              Custom Instructions
-            </button>
             <button
               onClick={() => {
                 setSettingsTab('about');
@@ -809,13 +806,12 @@ export default function HannaChatIntegrated() {
                 variant="ghost"
                 size="icon"
                 onClick={() => {
-                  setSettingsTab('instructions');
-                  setIsSettingsOpen(true);
+                  navigate('/profile');
                 }}
                 className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
-                title="Settings"
+                title="Personalization Settings"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 text-emerald-400" />
               </Button>
               <Button
                 variant="ghost"
