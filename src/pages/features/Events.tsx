@@ -174,26 +174,26 @@ export default function Events() {
       <SEO title="Events" description="School events, classes, exams and meetups on Liverton Learning" />
       <div className="max-w-2xl mx-auto pb-24">
         {/* Blue hero header */}
-        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white p-5 sm:p-7 shadow-xl">
-          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-          <div className="absolute -left-8 -bottom-12 w-40 h-40 rounded-full bg-black/10 blur-2xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 border border-emerald-500/10 text-white p-5 sm:p-7 shadow-glass backdrop-blur-xl">
+          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+          <div className="absolute -left-8 -bottom-12 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
 
           <div className="flex items-center justify-between relative z-10">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">{monthLabel}</p>
-              <h1 className="text-2xl sm:text-3xl font-extrabold mt-1">My Events</h1>
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">{monthLabel}</p>
+              <h1 className="text-2xl sm:text-3xl font-black mt-1 text-white">My Events</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate('/announcements')}
-                className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur flex items-center justify-center transition-colors"
+                className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 backdrop-blur flex items-center justify-center transition-colors border border-white/5"
                 title="Notifications"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5 text-emerald-400" />
               </button>
               <button
                 onClick={() => navigate('/events/create')}
-                className="w-10 h-10 rounded-full bg-white text-blue-600 hover:bg-blue-50 flex items-center justify-center shadow-lg transition-colors"
+                className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-lg transition-colors border-0"
                 title="Create event"
               >
                 <Plus className="w-5 h-5" />
@@ -211,13 +211,13 @@ export default function Events() {
                   onClick={() => setSelectedDate(d.key)}
                   className={`flex flex-col items-center justify-center min-w-[52px] h-[68px] rounded-2xl transition-all ${
                     active
-                      ? 'bg-white text-blue-600 shadow-lg scale-105'
-                      : 'bg-white/10 text-blue-100 hover:bg-white/20'
+                      ? 'bg-emerald-500 text-white shadow-lg scale-105'
+                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
                   }`}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wide">{d.weekday}</span>
                   <span className="text-lg font-extrabold leading-none mt-1">{d.dayNum}</span>
-                  {d.isToday && !active && <span className="w-1 h-1 rounded-full bg-white mt-1" />}
+                  {d.isToday && !active && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1" />}
                 </button>
               );
             })}
@@ -232,8 +232,8 @@ export default function Events() {
               onClick={() => setFilter(f.value)}
               className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
                 filter === f.value
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-blue-300'
+                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                  : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:border-emerald-500/40'
               }`}
             >
               {f.label}
@@ -244,7 +244,7 @@ export default function Events() {
         {/* Event lists */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
           </div>
         ) : (
           <div className="space-y-6 mt-5">
@@ -254,12 +254,12 @@ export default function Events() {
               </h2>
               <div className="space-y-3">
                 {eventsForSelectedDay.length === 0 ? (
-                  <div className="text-center py-10 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                  <div className="text-center py-10 rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/5">
                     <CalendarDays className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                     <p className="text-sm text-slate-500 dark:text-slate-400">No events on this day</p>
                     <button
                       onClick={() => navigate('/events/create')}
-                      className="mt-3 text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                      className="mt-3 text-sm font-bold text-emerald-500 dark:text-emerald-400 hover:underline"
                     >
                       + Create one
                     </button>
