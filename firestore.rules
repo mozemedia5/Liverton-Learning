@@ -451,6 +451,38 @@ service cloud.firestore {
       allow delete: if isPlatformAdmin();
     }
     
+    // ==================== MODULE COLLABORATION & DELIVERY ====================
+
+    match /workHubs/{hubId} {
+      allow read: if isAuthenticated() && (hubId == currentUserId() || currentUserId() in resource.data.memberIds);
+      allow create: if isTeacher() && hubId == currentUserId() && request.resource.data.ownerId == currentUserId();
+      allow update: if isTeacher() && hubId == currentUserId() && resource.data.ownerId == currentUserId();
+    }
+
+    match /workHubInvitations/{invitationId} {
+      allow create: if isTeacher() && request.resource.data.ownerId == currentUserId();
+      allow read: if isAuthenticated() && (resource.data.ownerId == currentUserId() || resource.data.teacherId == currentUserId() || resource.data.teacherEmail == currentUserData().email);
+      allow update: if isAuthenticated() && (resource.data.ownerId == currentUserId() || resource.data.teacherId == currentUserId());
+    }
+
+    match /uploaded_assets/{assetId} {
+      allow create: if isAuthenticated() && request.resource.data.uploader == currentUserId();
+      allow read: if isAuthenticated() && (resource.data.uploader == currentUserId() || resource.data.referenceOwnerId == currentUserId());
+      allow update, delete: if isAuthenticated() && resource.data.uploader == currentUserId();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isStudent() && request.resource.data.studentId == currentUserId() && request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+      allow update, delete: if isStudent() && resource.data.studentId == currentUserId();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == currentUserId();
+      allow update: if isAuthenticated() && resource.data.userId == currentUserId() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      allow create: if isPlatformAdmin();
+    }
+
     // ==================== DEFAULT RULE ====================
     // Covers every collection NOT matched above. If you add a new
     // top-level collection, add it to this list (or give it explicit rules).

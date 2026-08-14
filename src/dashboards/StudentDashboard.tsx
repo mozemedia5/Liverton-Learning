@@ -247,7 +247,7 @@ export default function StudentDashboard() {
           })}
         </div>
 
-        {/* RECOMMENDED MODULES CATALOG GRID (CJ Dropshipping inspired aesthetic with promo video hover) */}
+        {/* RECOMMENDED MODULES CATALOG GRID (promo video preview) */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -255,7 +255,7 @@ export default function StudentDashboard() {
                 <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500" />
                 Recommended Direct Learning Modules
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Discover trending modules, view short promo teasers, subscribe, and rate courses.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Discover modules, preview Shorts, enroll, and leave eligible reviews.</p>
             </div>
             <Button
               variant="ghost"

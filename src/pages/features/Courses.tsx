@@ -11,7 +11,6 @@ import {
   Play, 
   Clock,
   Star,
-  ShoppingCart,
   FileText,
   Loader2,
   Share2,
@@ -62,12 +61,8 @@ export default function Courses() {
     return matchesSearch && matchesSubject;
   });
 
-  const handleEnroll = (course: Course) => {
-    toast.success(`Enrolled in ${course.title}!`);
-  };
-
-  const handlePurchase = (course: Course) => {
-    toast.info(`Redirecting to payment for ${course.title}...`);
+  const openModule = (course: Course) => {
+    navigate(`/modules/${course.id}`);
   };
 
   return (
@@ -87,13 +82,13 @@ export default function Courses() {
                   className="w-[90%] h-[90%] object-contain"
                 />
               </div>
-              <span className="font-semibold">Courses</span>
+              <span className="font-semibold">Modules</span>
             </div>
           </div>
           {userRole === 'teacher' && (
-            <Button onClick={() => toast.info('Create course feature coming soon!')}>
+            <Button onClick={() => navigate('/modules/create')}>
               <BookOpen className="w-4 h-4 mr-2" />
-              Create Course
+              Create Module
             </Button>
           )}
         </div>
@@ -106,7 +101,7 @@ export default function Courses() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search courses or teachers..."
+              placeholder="Search modules or teachers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -151,7 +146,7 @@ export default function Courses() {
                   <button
                     onClick={() => openShare(course)}
                     className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                    aria-label="Share course"
+                    aria-label="Share module"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
@@ -185,10 +180,10 @@ export default function Courses() {
                 {userRole === 'student' || userRole === 'parent' ? (
                   <Button 
                     className="w-full bg-black dark:bg-white text-white dark:text-black"
-                    onClick={() => handlePurchase(course)}
+                    onClick={() => openModule(course)}
                   >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Buy Now
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    View Module
                   </Button>
                 ) : userRole === 'teacher' ? (
                   <Button 
@@ -197,13 +192,13 @@ export default function Courses() {
                     onClick={() => toast.info('Edit course feature coming soon!')}
                   >
                     <FileText className="w-4 h-4 mr-2" />
-                    Manage Course
+                    Manage Module
                   </Button>
                 ) : (
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => handleEnroll(course)}
+                    onClick={() => openModule(course)}
                   >
                     View Details
                   </Button>
@@ -217,7 +212,7 @@ export default function Courses() {
         {!loading && filteredCourses.length === 0 && (
           <div className="text-center py-12">
             <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold">No courses found</h3>
+            <h3 className="text-lg font-semibold">No modules found</h3>
             <p className="text-gray-600 dark:text-gray-400">Try adjusting your search or filters</p>
           </div>
         )}

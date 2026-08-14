@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where, Timestamp } from 'firebase/firestore';
 
-export type CloudinaryUploadType = 'image' | 'course_video' | 'short_video' | 'audio' | 'document';
+export type CloudinaryUploadType = 'profile_image' | 'module_cover' | 'module_video' | 'short_video' | 'banner_image' | 'banner_video' | 'audio' | 'document' | 'image' | 'course_video';
 
 export interface CloudinaryConfig {
   cloudName: string;
@@ -17,6 +17,7 @@ export interface CloudinaryConfig {
     shorts: string;
     audio: string;
     documents: string;
+    banners?: string;
   };
 }
 
@@ -40,6 +41,7 @@ const CLOUDINARY_CONFIG: CloudinaryConfig = {
     shorts: 'liverton_learning_shorts',
     audio: 'liverton_learning_audio',
     documents: 'liverton_learning_documents',
+    banners: 'liverton_learning_banners',
   }
 };
 
@@ -53,8 +55,10 @@ const CLOUDINARY_CONFIG: CloudinaryConfig = {
 export function mapFileToCloudinaryType(
   file: File | Blob,
   fileName?: string,
-  isChat?: boolean
-): CloudinaryUploadType {
+  isChat?: boolean,
+  purpose?: CloudinaryUploadType
+): CloudinaryUploadType { 
+  if (purpose) return purpose;
   const type = (file.type || '').toLowerCase();
 
   if (type.startsWith('image/')) return 'image';
@@ -74,18 +78,24 @@ export function mapFileToCloudinaryType(
 
 function resolvePreset(type: CloudinaryUploadType): { preset: string; resourceType: string } {
   switch (type) {
+    case 'module_video':
     case 'course_video':
       return { preset: CLOUDINARY_CONFIG.presets.courses, resourceType: 'video' };
     case 'short_video':
       return { preset: CLOUDINARY_CONFIG.presets.shorts, resourceType: 'video' };
+    case 'banner_video':
+      return { preset: CLOUDINARY_CONFIG.presets.banners || CLOUDINARY_CONFIG.presets.images, resourceType: 'video' };
     case 'audio':
       // Cloudinary stores audio under the "video" resource type
       return { preset: CLOUDINARY_CONFIG.presets.audio, resourceType: 'video' };
     case 'document':
       return { preset: CLOUDINARY_CONFIG.presets.documents, resourceType: 'raw' };
+    case 'profile_image':
+    case 'module_cover':
+    case 'banner_image':
     case 'image':
     default:
-      return { preset: CLOUDINARY_CONFIG.presets.images, resourceType: 'image' };
+      return { preset: type === 'banner_image' ? (CLOUDINARY_CONFIG.presets.banners || CLOUDINARY_CONFIG.presets.images) : CLOUDINARY_CONFIG.presets.images, resourceType: 'image' };
   }
 }
 

@@ -218,7 +218,7 @@ export default function DashboardBanners() {
 
   const isAdmin = userRole === 'platform_admin';
 
-  // ── Load banners ──────────────────────────────────────────────────────────
+  // ── Load banners ─────────────────────────���────────────────────────────────
 
   const loadBanners = async () => {
     try {
@@ -298,7 +298,7 @@ export default function DashboardBanners() {
     setUploadProgress(0);
 
     try {
-      const cloudinaryType = type === 'image' ? 'image' : 'short_video';
+      const cloudinaryType = type === 'image' ? 'banner_image' : 'banner_video';
       const purpose = type === 'image' ? 'banner_image' : 'banner_video';
 
       const downloadUrl = await uploadToCloudinary(file, cloudinaryType, {

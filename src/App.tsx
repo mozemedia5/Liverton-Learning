@@ -73,7 +73,7 @@ import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
 import StudentZoomLessons from '@/components/ZoomLessons/StudentZoomLessons';
 import ParentZoomLessons from '@/components/ZoomLessons/ParentZoomLessons';
 
-// TEARN Features
+  // Work Hub and education features
 import TearnDashboard from '@/pages/features/tearn/TearnDashboard';
 import ShortsArena from '@/pages/features/tearn/ShortsArena';
 import BookReader from '@/pages/features/tearn/BookReader';
@@ -406,7 +406,9 @@ function AppRoutes() {
         <AuthenticatedLayout><CourseView /></AuthenticatedLayout>
       } />
       {/* Shareable public profile page */}
-      <Route path="/profile/:userId" element={
+      <Route path="/account" element={<Navigate to="/profile" replace />} />
+  <Route path="/account/settings" element={<Navigate to="/settings" replace />} />
+  <Route path="/profile/:userId" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><PublicProfile /></AuthenticatedLayout>
         </ProtectedRoute>
@@ -461,11 +463,18 @@ function AppRoutes() {
       } />
 
       {/* Global Feature Routes - Protected, accessible to all authenticated users */}
-      <Route path="/features/tearn" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><TearnDashboard /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
+  <Route path="/work-hub" element={
+    <ProtectedRoute allowedRoles={['teacher']}>
+      <AuthenticatedLayout><TearnDashboard /></AuthenticatedLayout>
+    </ProtectedRoute>
+  } />
+  <Route path="/modules/create" element={<Navigate to="/teacher/courses/create" replace />} />
+  <Route path="/modules/:courseId" element={<CourseView />} />
+  <Route path="/features/tearn" element={
+    <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+      <AuthenticatedLayout><TearnDashboard /></AuthenticatedLayout>
+    </ProtectedRoute>
+  } />
       <Route path="/features/tearn/shorts" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><ShortsArena /></AuthenticatedLayout>

@@ -1,5 +1,5 @@
 /**
- * TEARN (Teacher Earn) Workspace Dashboard
+ * Work Hub Workspace Dashboard
  * High-fidelity premium SaaS hub for educators.
  * Designed with Liverton emerald/gold accents, Liv Teams glassmorphism, and Module-first learning architecture.
  */
@@ -312,7 +312,7 @@ export default function TearnDashboard() {
         const teamsList = await getAllTeams();
         setTeams(teamsList.filter(t => t.members.some(m => m.userId === currentUser.uid)));
       } catch (err) {
-        console.error('Error fetching TEARN data:', err);
+        console.error('Error fetching Work Hub data:', err);
       }
     };
 
@@ -359,7 +359,7 @@ export default function TearnDashboard() {
   const handleCoverUpload = async (file: File) => {
     setUploadingCover(true);
     try {
-      const url = await uploadToCloudinary(file, 'image');
+      const url = await uploadToCloudinary(file, 'module_cover', { referenceId: 'module-draft', purpose: 'module_cover' });
       setNewModule(prev => ({ ...prev, coverUrl: url }));
       toast.success('Cover image uploaded successfully!');
     } catch (err: any) {
@@ -372,7 +372,7 @@ export default function TearnDashboard() {
   const handlePromoVideoUpload = async (file: File) => {
     setUploadingPromoVideo(true);
     try {
-      const url = await uploadToCloudinary(file, 'short_video');
+      const url = await uploadToCloudinary(file, 'short_video', { referenceId: 'module-draft', purpose: 'module_short' });
       setNewModule(prev => ({ ...prev, promoVideoUrl: url }));
       toast.success('Promo video uploaded successfully!');
     } catch (err: any) {
@@ -896,13 +896,9 @@ export default function TearnDashboard() {
 
   return (
     <>
-      <SEO title="TEARN Workspace Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
+      <SEO title="Work Hub" description="Teacher workspace for building, teaching and collaborating on learning modules with Liv Teams." />
 
       <div className="space-y-8 pb-12">
-        {/* CJ Dropshipping inspired aesthetic backdrop blobs */}
-        <div className="absolute top-[-5%] right-[-5%] w-[40vw] h-[40vw] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
-        <div className="absolute bottom-[10%] left-[-5%] w-[40vw] h-[40vw] bg-amber-500/5 dark:bg-amber-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
-
         {/* Workspace Top Header Bar */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-100/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-glass">
           <div className="flex items-center gap-4">
@@ -913,10 +909,10 @@ export default function TearnDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">TEARN Creator Workspace</h1>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Work Hub</h1>
                 <Badge className="bg-amber-500/10 text-amber-400 border-none font-bold text-[10px]">PRO EDUCATOR</Badge>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">CJ Dropshipping inspired analytics • Module-first learning framework</p>
+              <p className="text-xs text-slate-400 mt-0.5">Focused teaching analytics • Module-first learning framework</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -952,13 +948,13 @@ export default function TearnDashboard() {
               Promotional Shorts ({shorts.length})
             </TabsTrigger>
             <TabsTrigger value="wallet" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
-              TEARN Wallet & Splits
+              Teacher earnings & collaboration
             </TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW & ANALYTICS TAB */}
           <TabsContent value="overview" className="space-y-6 outline-none">
-            {/* CJ Dropshipping-inspired Key Stats Card Grid */}
+            {/* Teaching performance snapshot */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
                 <CardContent className="p-5 flex flex-col justify-between h-28">
@@ -1123,7 +1119,7 @@ export default function TearnDashboard() {
                   <Card className="bg-[#030f26]/40 border-white/5 border-dashed p-8 text-center rounded-3xl">
                     <BookOpen className="w-10 h-10 text-slate-500 mx-auto mb-3" />
                     <h4 className="font-extrabold text-sm text-white">No modules created yet</h4>
-                    <p className="text-xs text-slate-400 mt-1">Create a Module directly inside TEARN to begin adding sequential lessons and assignments.</p>
+                    <p className="text-xs text-slate-400 mt-1">Create a module directly inside Work Hub to begin adding sequential lessons and assignments.</p>
                   </Card>
                 ) : (
                   <div className="space-y-3">

@@ -88,7 +88,7 @@ const DEFAULT_ICONS = [GraduationCap, CalendarDays, Sparkle];
 
 /**
  * BannerCarousel - dynamic marketplace-style promo banner rail
- * (CJ Dropshipping / AliExpress / Jumia pattern):
+ * Responsive education campaign banner rail:
  * - Auto-rotating gradient slides with CTA buttons
  * - Admin-published Firestore banners take priority
  * - Built-in dynamic slides as fallback so the rail is never empty
