@@ -20,7 +20,6 @@ import {
   Calculator,
   BarChart3,
   LogOut,
-  Video,
   Users,
   GraduationCap,
   Shield,
@@ -144,14 +143,13 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: CalendarDays, label: 'Events', path: '/events' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
-          { icon: Award, label: 'TEARN', path: '/features/tearn' },
+          { icon: Award, label: 'Work Hub', path: '/features/tearn' },
         );
         break;
       case 'teacher':
         baseItems.push(
           { icon: HelpCircle, label: 'My Quiz', path: '/teacher/my-quiz' },
           { icon: Users, label: 'Students', path: '/teacher/students' },
-          { icon: Video, label: 'Live Lessons', path: '/teacher/zoom-lessons' },
           { icon: CreditCard, label: 'Earnings', path: '/payments' },
           { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
@@ -159,13 +157,12 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
-          { icon: Award, label: 'TEARN', path: '/features/tearn' },
+          { icon: Award, label: 'Work Hub', path: '/features/tearn' },
         );
         break;
       case 'parent':
         baseItems.push(
           { icon: CreditCard, label: 'School Fees', path: '/parent/fees' },
-          { icon: Video, label: 'Live Lessons', path: '/parent/zoom-lessons' },
           { icon: BookOpen, label: 'Courses', path: '/parent/courses' },
           { icon: FileText, label: 'Quizzes', path: '/parent/quizzes' },
           { icon: FileText, label: 'Documents', path: '/dashboard/documents' },
@@ -186,14 +183,13 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: Bell, label: 'Notifications', path: '/announcements' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Users, label: 'Liv Teams', path: '/features/liv-teams' },
-          { icon: Award, label: 'TEARN', path: '/features/tearn' },
+          { icon: Award, label: 'Work Hub', path: '/features/tearn' },
         );
         break;
       case 'student':
       default:
         baseItems.push(
           { icon: FileText, label: 'Quizzes', path: '/student/quizzes' },
-          { icon: Video, label: 'Live Lessons', path: '/student/zoom-lessons' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
           { icon: CalendarDays, label: 'Events', path: '/events' },
           { icon: Bell, label: 'Notifications', path: '/announcements' },
