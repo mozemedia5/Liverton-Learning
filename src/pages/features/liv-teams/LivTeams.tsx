@@ -895,7 +895,7 @@ export default function LivTeams() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500 dark:text-slate-400">Media storage</span>
-                    <span className="font-semibold text-emerald-500">Cloudinary (configured)</span>
+                    <span className="font-semibold text-emerald-500">Verified Cloud Storage</span>
                   </div>
                 </CardContent>
               </Card>

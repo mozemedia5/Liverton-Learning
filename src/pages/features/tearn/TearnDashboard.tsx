@@ -7,6 +7,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,8 +31,12 @@ import {
   Percent,
   HelpCircle,
   Sliders,
-  Video
+  Video,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
+import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import {
   createBook,
   subscribeToTeacherBooks,
@@ -109,7 +115,25 @@ export interface ModuleTeamConfig {
   established: boolean;
 }
 
-const SUBJECTS = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Computer Science'];
+const SUBJECTS = [
+  'All',
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'English',
+  'History',
+  'Computer Science',
+  'Economics',
+  'Geography',
+  'Art',
+  'Music',
+  'French',
+  'Literature',
+  'Business Studies',
+  'Environmental Science',
+  'Custom'
+];
 const LEVELS = ['Primary', 'Secondary', 'University', 'Vocational', 'General'];
 
 // Direct Revenue Share Calculator function declared locally
@@ -181,12 +205,28 @@ export default function TearnDashboard() {
     title: '',
     description: '',
     subject: 'Mathematics',
+    customSubject: '',
     level: 'Secondary',
     coverUrl: '',
     price: 29.99,
     learningObjectives: '',
-    status: 'draft' as 'draft' | 'active'
+    status: 'draft' as 'draft' | 'active',
+    promoVideoUrl: ''
   });
+
+  // State for image/video upload progress/loading
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingPromoVideo, setUploadingPromoVideo] = useState(false);
+
+  // State for Hanna AI generation loading indicators
+  const [generatingTitle, setGeneratingTitle] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [generatingObjectives, setGeneratingObjectives] = useState(false);
+
+  // Teacher Collaboration states
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
+  const [teacherSearchResults, setTeacherSearchResults] = useState<any[]>([]);
+  const [searchingTeachers, setSearchingTeachers] = useState(false);
 
   // Lesson Builder states
   const [showLessonModal, setShowLessonModal] = useState(false);
@@ -315,6 +355,255 @@ export default function TearnDashboard() {
     }
   }, [selectedModule]);
 
+  // File Upload Handlers using our Cloudinary Preset
+  const handleCoverUpload = async (file: File) => {
+    setUploadingCover(true);
+    try {
+      const url = await uploadToCloudinary(file, 'image');
+      setNewModule(prev => ({ ...prev, coverUrl: url }));
+      toast.success('Cover image uploaded successfully!');
+    } catch (err: any) {
+      toast.error('Failed to upload cover image: ' + err.message);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handlePromoVideoUpload = async (file: File) => {
+    setUploadingPromoVideo(true);
+    try {
+      const url = await uploadToCloudinary(file, 'short_video');
+      setNewModule(prev => ({ ...prev, promoVideoUrl: url }));
+      toast.success('Promo video uploaded successfully!');
+    } catch (err: any) {
+      toast.error('Failed to upload promo video: ' + err.message);
+    } finally {
+      setUploadingPromoVideo(false);
+    }
+  };
+
+  // Hanna AI Generation Helpers using Gemini API
+  const handleGenerateTitleWithHanna = async () => {
+    if (!newModule.description.trim() && !newModule.title.trim()) {
+      toast.info('Please draft a quick description or title context first!');
+      return;
+    }
+    setGeneratingTitle(true);
+    try {
+      const context = newModule.description || newModule.title;
+      const enhanced = await enhanceTextWithHanna(context, 'project');
+      setNewModule(prev => ({ ...prev, title: enhanced.slice(0, 80) }));
+      toast.success('✨ Title enhanced with Hanna AI!');
+    } catch (err: any) {
+      toast.error('Hanna AI was unable to generate title: ' + err.message);
+    } finally {
+      setGeneratingTitle(false);
+    }
+  };
+
+  const handleGenerateDescriptionWithHanna = async () => {
+    if (!newModule.title.trim() && !newModule.description.trim()) {
+      toast.info('Please enter a draft title or topic first!');
+      return;
+    }
+    setGeneratingDescription(true);
+    try {
+      const context = newModule.title || newModule.description;
+      const enhanced = await enhanceTextWithHanna(context, 'team_description');
+      setNewModule(prev => ({ ...prev, description: enhanced }));
+      toast.success('✨ Description enhanced with Hanna AI!');
+    } catch (err: any) {
+      toast.error('Hanna AI was unable to generate description: ' + err.message);
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
+
+  const handleGenerateObjectivesWithHanna = async () => {
+    if (!newModule.title.trim() && !newModule.description.trim()) {
+      toast.info('Please enter a draft title or description first!');
+      return;
+    }
+    setGeneratingObjectives(true);
+    try {
+      const draft = `Module: ${newModule.title}. Description: ${newModule.description}.`;
+      const prompt = `Based on this learning module, draft 3 clear, action-oriented student learning objectives (one per line). Respond ONLY with the objectives list, no other text.`;
+      const enhanced = await enhanceTextWithHanna(`${draft}\n${prompt}`, 'project');
+      setNewModule(prev => ({ ...prev, learningObjectives: enhanced }));
+      toast.success('✨ Objectives generated with Hanna AI!');
+    } catch (err: any) {
+      toast.error('Hanna AI was unable to generate objectives: ' + err.message);
+    } finally {
+      setGeneratingObjectives(false);
+    }
+  };
+
+  // Search for teachers exclusively
+  const handleSearchTeachers = async () => {
+    if (!teacherSearchQuery.trim()) {
+      toast.info('Please enter a name or email to search.');
+      return;
+    }
+    setSearchingTeachers(true);
+    try {
+      const qUsers = query(collection(db, 'users'), where('role', '==', 'teacher'));
+      const snapshot = await getDocs(qUsers);
+      const matched = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((u: any) =>
+          (u.fullName || '').toLowerCase().includes(teacherSearchQuery.toLowerCase()) ||
+          (u.email || '').toLowerCase().includes(teacherSearchQuery.toLowerCase())
+        );
+
+      setTeacherSearchResults(matched);
+      if (matched.length === 0) {
+        toast.info('No teachers found matching your search.');
+      } else {
+        toast.success(`Found ${matched.length} teacher(s).`);
+      }
+    } catch (err: any) {
+      toast.error('Search failed: ' + err.message);
+    } finally {
+      setSearchingTeachers(false);
+    }
+  };
+
+  // Invite teacher as Work Hub collaborator
+  const handleInviteTeacher = async (teacher: any) => {
+    if (!selectedModule) {
+      toast.error('Please select an active Module to link collaborators.');
+      return;
+    }
+
+    const currentConfig = (selectedModule as any).teamConfig || {
+      teamId: '',
+      collaborators: [],
+      revenueShares: [],
+      established: true
+    };
+
+    const alreadyCollaborator = (currentConfig.collaborators || []).some(
+      (c: any) => c.userId === teacher.id
+    );
+
+    if (alreadyCollaborator) {
+      toast.info(`${teacher.fullName || 'Teacher'} is already a collaborator on this Module.`);
+      return;
+    }
+
+    const newCollaborator = {
+      userId: teacher.id,
+      fullName: teacher.fullName || 'Teacher',
+      role: 'Co-Creator',
+      permissions: ['edit_lessons', 'view_analytics', 'manage_settings']
+    };
+
+    const updatedConfig = {
+      ...currentConfig,
+      collaborators: [...(currentConfig.collaborators || []), newCollaborator],
+      revenueShares: [
+        ...(currentConfig.revenueShares || []),
+        { userId: teacher.id, fullName: teacher.fullName || 'Teacher', percentage: 0 }
+      ]
+    };
+
+    try {
+      await updateCourse(selectedModule.id, {
+        teamConfig: updatedConfig
+      } as any);
+
+      toast.success(`${teacher.fullName || 'Teacher'} successfully invited to Work Hub!`);
+
+      // Update local state
+      const updatedModule = { ...selectedModule, teamConfig: updatedConfig } as any;
+      setSelectedModule(updatedModule);
+      setCollaborators(updatedConfig.collaborators);
+      setRevenueShares(updatedConfig.revenueShares);
+    } catch (err: any) {
+      toast.error('Failed to invite teacher: ' + err.message);
+    }
+  };
+
+  // Change collaborator role and dynamically assign permissions
+  const handleUpdateCollaboratorRole = async (userId: string, newRole: string) => {
+    if (!selectedModule || !(selectedModule as any).teamConfig) return;
+
+    let permissions: string[] = [];
+    if (newRole === 'Co-Creator') {
+      permissions = ['edit_lessons', 'view_analytics', 'manage_settings'];
+    } else if (newRole === 'Co-Teacher') {
+      permissions = ['edit_lessons', 'view_analytics'];
+    } else if (newRole === 'Reviewer') {
+      permissions = ['view_analytics'];
+    } else {
+      // Assistant
+      permissions = ['view_analytics'];
+    }
+
+    const currentConfig = (selectedModule as any).teamConfig;
+    const updatedCollaborators = (currentConfig.collaborators || []).map((c: any) => {
+      if (c.userId === userId) {
+        return { ...c, role: newRole, permissions };
+      }
+      return c;
+    });
+
+    const updatedConfig = {
+      ...currentConfig,
+      collaborators: updatedCollaborators
+    };
+
+    try {
+      await updateCourse(selectedModule.id, {
+        teamConfig: updatedConfig
+      } as any);
+
+      toast.success('Collaborator role updated successfully!');
+
+      // Update local state
+      const updatedModule = { ...selectedModule, teamConfig: updatedConfig } as any;
+      setSelectedModule(updatedModule);
+      setCollaborators(updatedCollaborators);
+    } catch (err: any) {
+      toast.error('Failed to update role: ' + err.message);
+    }
+  };
+
+  // Remove collaborator
+  const handleRemoveCollaborator = async (userId: string) => {
+    if (!selectedModule || !(selectedModule as any).teamConfig) return;
+
+    const currentConfig = (selectedModule as any).teamConfig;
+    const updatedCollaborators = (currentConfig.collaborators || []).filter(
+      (c: any) => c.userId !== userId
+    );
+    const updatedRevenueShares = (currentConfig.revenueShares || []).filter(
+      (r: any) => r.userId !== userId
+    );
+
+    const updatedConfig = {
+      ...currentConfig,
+      collaborators: updatedCollaborators,
+      revenueShares: updatedRevenueShares
+    };
+
+    try {
+      await updateCourse(selectedModule.id, {
+        teamConfig: updatedConfig
+      } as any);
+
+      toast.success('Collaborator removed successfully.');
+
+      // Update local state
+      const updatedModule = { ...selectedModule, teamConfig: updatedConfig } as any;
+      setSelectedModule(updatedModule);
+      setCollaborators(updatedCollaborators);
+      setRevenueShares(updatedRevenueShares);
+    } catch (err: any) {
+      toast.error('Failed to remove collaborator: ' + err.message);
+    }
+  };
+
   // Module creation handler
   const handleCreateModule = async () => {
     if (!newModule.title || !newModule.description) {
@@ -326,30 +615,35 @@ export default function TearnDashboard() {
         ? newModule.learningObjectives.split('\n').filter((o: string) => o.trim() !== '')
         : [];
 
+      const savedSubject = newModule.subject === 'Custom' ? newModule.customSubject : newModule.subject;
+
       await createCourse(currentUser!.uid, userData?.fullName || 'Educator', {
         title: newModule.title,
         description: newModule.description,
-        subject: newModule.subject,
+        subject: savedSubject,
         level: newModule.level,
         coverUrl: newModule.coverUrl,
         price: Number(newModule.price),
         status: newModule.status,
         learningObjectives: parsedObjectives,
         lessonsList: [],
-        lessons: 0
+        lessons: 0,
+        promoVideoUrl: newModule.promoVideoUrl
       } as any);
 
-      toast.success('Module successfully created in your TEARN Workspace!');
+      toast.success('Module successfully created in your Work Hub!');
       setShowModuleModal(false);
       setNewModule({
         title: '',
         description: '',
         subject: 'Mathematics',
+        customSubject: '',
         level: 'Secondary',
         coverUrl: '',
         price: 29.99,
         learningObjectives: '',
-        status: 'draft'
+        status: 'draft',
+        promoVideoUrl: ''
       });
     } catch (err: any) {
       toast.error('Failed to create Module: ' + err.message);
@@ -575,7 +869,7 @@ export default function TearnDashboard() {
   // Educational Short creation handler
   const handleCreateShort = async () => {
     if (!newShort.title || !newShort.videoUrl) {
-      toast.error('Please complete title and Cloudinary video URL.');
+      toast.error('Please complete title and video URL.');
       return;
     }
     try {
@@ -1134,13 +1428,111 @@ export default function TearnDashboard() {
 
                       {/* LIV TEAM COLLABORATION */}
                       {workspaceSubTab === 'team' && (
-                        <div className="space-y-6">
-                          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
-                            <h4 className="text-sm font-extrabold text-white">Connect Liv Team to this Module</h4>
-                            <p className="text-xs text-slate-400">Bring co-creators from your organization. Invite, delegate responsibilities, co-teach, and split wallet payouts automatically.</p>
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                          {/* Direct Teacher Search & Invitation */}
+                          <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-emerald-400" />
+                              Invite Educator Collaborators
+                            </h4>
+                            <p className="text-xs text-slate-400">Search and bring certified teachers into your Work Hub to collaborate on lectures, lessons, and share payout percentages.</p>
 
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Search by Teacher's Name or Email..."
+                                value={teacherSearchQuery}
+                                onChange={e => setTeacherSearchQuery(e.target.value)}
+                                className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                                onKeyDown={e => e.key === 'Enter' && handleSearchTeachers()}
+                              />
+                              <Button
+                                onClick={handleSearchTeachers}
+                                disabled={searchingTeachers}
+                                className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold px-4"
+                              >
+                                {searchingTeachers ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                              </Button>
+                            </div>
+
+                            {/* Teacher Search Results */}
+                            {teacherSearchResults.length > 0 && (
+                              <div className="mt-4 border border-white/5 rounded-xl divide-y divide-white/5 bg-slate-950/40 max-h-[180px] overflow-y-auto">
+                                {teacherSearchResults.map((teacher) => (
+                                  <div key={teacher.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                                    <div>
+                                      <p className="font-bold text-white">{teacher.fullName}</p>
+                                      <p className="text-[10px] text-slate-400 mt-0.5">{teacher.email}</p>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400 text-[10px] font-bold h-7 rounded-lg"
+                                      onClick={() => handleInviteTeacher(teacher)}
+                                    >
+                                      Invite
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Existing/Linked collaborators List */}
+                          <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white flex items-center justify-between">
+                              <span>Work Hub Active Collaborators ({collaborators.length})</span>
+                              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Role Settings</span>
+                            </h4>
+
+                            {collaborators.length === 0 ? (
+                              <div className="p-6 text-center text-xs text-slate-400 bg-white/5 rounded-xl border border-dashed border-white/5">
+                                No educators invited to this module workspace yet. Use the search box above to get started.
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {collaborators.map((c, idx) => (
+                                  <div key={idx} className="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+                                    <div>
+                                      <p className="font-extrabold text-white">{(c as any).fullName || c.userId}</p>
+                                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                        {c.permissions.map((perm, pidx) => (
+                                          <Badge key={pidx} className="bg-emerald-500/10 text-emerald-400 border-none text-[9px] font-bold">
+                                            {perm.replace('_', ' ')}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={c.role}
+                                        onChange={e => handleUpdateCollaboratorRole(c.userId, e.target.value)}
+                                        className="bg-slate-950 border border-white/10 rounded-xl text-xs h-8 px-2 text-slate-300 outline-none"
+                                      >
+                                        <option value="Co-Creator">Co-Creator</option>
+                                        <option value="Co-Teacher">Co-Teacher</option>
+                                        <option value="Assistant">Assistant</option>
+                                        <option value="Reviewer">Reviewer</option>
+                                      </select>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl text-[10px] font-bold"
+                                        onClick={() => handleRemoveCollaborator(c.userId)}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Link Team Workspace (Backwards-compatibility option) */}
+                          <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                            <h4 className="text-sm font-extrabold text-white">Connect Existing Liv Team Workspace</h4>
                             <div className="space-y-3">
-                              <label className="text-xs text-slate-400 block">Select Liv Team Workspace</label>
                               <select
                                 value={selectedTeamId}
                                 onChange={e => setSelectedTeamId(e.target.value)}
@@ -1161,30 +1553,6 @@ export default function TearnDashboard() {
                               </Button>
                             </div>
                           </div>
-
-                          {/* Co-creator permission configuration list */}
-                          {(selectedModule as any).teamConfig && (
-                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
-                              <h4 className="text-sm font-extrabold text-white">Delegated co-creator permissions</h4>
-                              <div className="space-y-3">
-                                {collaborators.map((c, idx) => (
-                                  <div key={idx} className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-                                    <div>
-                                      <p className="font-extrabold text-white">{(c as any).fullName || c.userId}</p>
-                                      <p className="text-[11px] text-slate-400 mt-0.5">Assigned role: <b>{c.role}</b></p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {c.permissions.map((perm, pidx) => (
-                                        <Badge key={pidx} className="bg-emerald-500/10 text-emerald-400 border-none text-[9px] font-bold">
-                                          {perm.replace('_', ' ')}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -1424,91 +1792,228 @@ export default function TearnDashboard() {
       {/* MODULE CREATION DIALOG */}
       {showModuleModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
-            <CardHeader className="p-6 border-b border-white/5">
-              <CardTitle className="text-lg font-black text-white">Create Direct Learning Module</CardTitle>
+          <Card className="w-full max-w-xl bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl max-h-[90vh] flex flex-col">
+            <CardHeader className="p-6 border-b border-white/5 flex-shrink-0">
+              <CardTitle className="text-lg font-black text-white flex items-center justify-between">
+                <span>Create Direct Learning Module</span>
+                <Badge className="bg-emerald-500/10 text-emerald-400 border-none">Work Hub Builder</Badge>
+              </CardTitle>
               <CardDescription>Configure title, level, subject, objectives, and access model.</CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Cover Image & Promo Video Section */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Cover Image Upload */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Module Cover Image</label>
+                  <div className="border border-dashed border-white/10 rounded-2xl p-3 bg-white/5 text-center flex flex-col items-center justify-center min-h-[110px]">
+                    {newModule.coverUrl ? (
+                      <div className="relative w-full h-[80px] rounded-lg overflow-hidden group">
+                        <img src={newModule.coverUrl} className="w-full h-full object-cover" alt="Cover" />
+                        <button
+                          onClick={() => setNewModule(prev => ({ ...prev, coverUrl: '' }))}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-red-400 font-bold transition-opacity"
+                        >
+                          Remove Image
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
+                        {uploadingCover ? (
+                          <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="w-5 h-5 text-slate-400 mb-1" />
+                            <span className="text-[10px] text-slate-400 font-bold">Upload Cover File</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => e.target.files && handleCoverUpload(e.target.files[0])}
+                          disabled={uploadingCover}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Promo Video Upload */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Promo Short Video</label>
+                  <div className="border border-dashed border-white/10 rounded-2xl p-3 bg-white/5 text-center flex flex-col items-center justify-center min-h-[110px]">
+                    {newModule.promoVideoUrl ? (
+                      <div className="relative w-full h-[80px] rounded-lg overflow-hidden group flex items-center justify-center bg-slate-900">
+                        <span className="text-[10px] text-emerald-400 font-bold flex items-center">
+                          ✓ Video Uploaded
+                        </span>
+                        <button
+                          onClick={() => setNewModule(prev => ({ ...prev, promoVideoUrl: '' }))}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-red-400 font-bold transition-opacity"
+                        >
+                          Remove Video
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
+                        {uploadingPromoVideo ? (
+                          <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="w-5 h-5 text-slate-400 mb-1" />
+                            <span className="text-[10px] text-slate-400 font-bold">Upload Promo Video</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          onChange={e => e.target.files && handlePromoVideoUpload(e.target.files[0])}
+                          disabled={uploadingPromoVideo}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Title & Hanna AI */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-slate-400 font-bold">Module Title</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleGenerateTitleWithHanna}
+                    disabled={generatingTitle}
+                    className="h-6 px-2 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg flex items-center gap-1 border border-emerald-500/20"
+                  >
+                    {generatingTitle ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-yellow-400 fill-yellow-400 animate-pulse" />
+                    )}
+                    Generate with Hanna
+                  </Button>
+                </div>
+                <Input
+                  placeholder="e.g. Advanced Trigonometry & Spherical Navigation"
+                  value={newModule.title}
+                  onChange={e => setNewModule((prev: any) => ({ ...prev, title: e.target.value }))}
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10"
+                />
+              </div>
+
+              {/* Subject & Education Level */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Module Title</label>
-                  <Input
-                    placeholder="e.g. Advanced Trigonometry"
-                    value={newModule.title}
-                    onChange={e => setNewModule((prev: any) => ({ ...prev, title: e.target.value }))}
-                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
-                  />
+                  <label className="text-xs text-slate-400 font-bold">Subject Area</label>
+                  <select
+                    value={newModule.subject}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, subject: e.target.value }))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                  >
+                    {SUBJECTS.filter(s => s !== 'All').map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
                 </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Cover Image URL</label>
-                  <Input
-                    placeholder="Cover URL"
-                    value={newModule.coverUrl}
-                    onChange={e => setNewModule((prev: any) => ({ ...prev, coverUrl: e.target.value }))}
-                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
-                  />
+                  <label className="text-xs text-slate-400 font-bold">Education Level</label>
+                  <select
+                    value={newModule.level}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, level: e.target.value }))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
+                  >
+                    {LEVELS.map(lvl => (
+                      <option key={lvl} value={lvl}>{lvl}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-bold">Subject Area</label>
-                <select
-                  value={newModule.subject}
-                  onChange={e => setNewModule((prev: any) => ({ ...prev, subject: e.target.value }))}
-                  className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
-                >
-                  {SUBJECTS.filter(s => s !== 'All').map(sub => (
-                    <option key={sub} value={sub}>{sub}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Custom Subject field if Custom is selected */}
+              {newModule.subject === 'Custom' && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <label className="text-xs text-amber-400 font-bold">Type Custom Subject Area</label>
+                  <Input
+                    placeholder="e.g. Astro-biology or Advanced Robotics"
+                    value={newModule.customSubject}
+                    onChange={e => setNewModule((prev: any) => ({ ...prev, customSubject: e.target.value }))}
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10"
+                  />
+                </div>
+              )}
 
+              {/* Description & Hanna AI */}
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-bold">Education Level</label>
-                <select
-                  value={newModule.level}
-                  onChange={e => setNewModule((prev: any) => ({ ...prev, level: e.target.value }))}
-                  className="w-full bg-slate-900 border border-white/10 rounded-xl text-xs h-10 px-3 text-slate-300 outline-none"
-                >
-                  {LEVELS.map(lvl => (
-                    <option key={lvl} value={lvl}>{lvl}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Module Description</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-slate-400 font-bold">Module Description</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleGenerateDescriptionWithHanna}
+                    disabled={generatingDescription}
+                    className="h-6 px-2 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg flex items-center gap-1 border border-emerald-500/20"
+                  >
+                    {generatingDescription ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-yellow-400 fill-yellow-400 animate-pulse" />
+                    )}
+                    Generate with Hanna
+                  </Button>
+                </div>
                 <Textarea
-                  placeholder="Provide module summary"
+                  placeholder="Provide an engaging module summary..."
                   value={newModule.description}
                   onChange={e => setNewModule((prev: any) => ({ ...prev, description: e.target.value }))}
-                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white min-h-[70px]"
                 />
               </div>
 
+              {/* Learning Objectives & Hanna AI */}
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Learning Objectives (One per line)</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-slate-400 font-bold">Learning Objectives (Aim, Regulation & Plan - One per line)</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleGenerateObjectivesWithHanna}
+                    disabled={generatingObjectives}
+                    className="h-6 px-2 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg flex items-center gap-1 border border-emerald-500/20"
+                  >
+                    {generatingObjectives ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-yellow-400 fill-yellow-400 animate-pulse" />
+                    )}
+                    Generate with Hanna
+                  </Button>
+                </div>
                 <Textarea
-                  placeholder="Objective 1&#10;Objective 2"
+                  placeholder="Understand the mechanics of trigonometry&#10;Model real-world physical systems with sine equations"
                   value={newModule.learningObjectives}
                   onChange={e => setNewModule((prev: any) => ({ ...prev, learningObjectives: e.target.value }))}
-                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white min-h-[70px]"
                 />
               </div>
 
+              {/* Price & Publishing Status */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Price (USD)</label>
+                  <label className="text-xs text-slate-400 font-bold">Price (USD)</label>
                   <Input
                     type="number"
                     value={newModule.price}
                     onChange={e => setNewModule((prev: any) => ({ ...prev, price: Number(e.target.value) }))}
-                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
+                    className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Publishing Status</label>
+                  <label className="text-xs text-slate-400 font-bold">Publishing Status</label>
                   <select
                     value={newModule.status}
                     onChange={e => setNewModule((prev: any) => ({ ...prev, status: e.target.value as any }))}
@@ -1519,23 +2024,24 @@ export default function TearnDashboard() {
                   </select>
                 </div>
               </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
-                <Button
-                  variant="ghost"
-                  className="rounded-xl font-bold text-xs"
-                  onClick={() => setShowModuleModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs"
-                  onClick={handleCreateModule}
-                >
-                  Create Module
-                </Button>
-              </div>
             </CardContent>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-white/5 flex-shrink-0 bg-slate-950/40">
+              <Button
+                variant="ghost"
+                className="rounded-xl font-bold text-xs"
+                onClick={() => setShowModuleModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs"
+                onClick={handleCreateModule}
+                disabled={uploadingCover || uploadingPromoVideo}
+              >
+                Create Module
+              </Button>
+            </div>
           </Card>
         </div>
       )}
@@ -1575,9 +2081,9 @@ export default function TearnDashboard() {
 
               {newLesson.format === 'video' && (
                 <div className="space-y-1.5">
-                  <label className="text-xs text-slate-400">Cloudinary Video URL</label>
+                  <label className="text-xs text-slate-400">Video File URL</label>
                   <Input
-                    placeholder="https://res.cloudinary.com/..."
+                    placeholder="https://cdn.example.com/video.mp4"
                     value={newLesson.videoUrl}
                     onChange={e => setNewLesson((prev: any) => ({ ...prev, videoUrl: e.target.value }))}
                     className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
@@ -1706,7 +2212,7 @@ export default function TearnDashboard() {
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-bold">Video URL (Cloudinary)</label>
+                <label className="text-xs text-slate-400 font-bold">Video File URL</label>
                 <Input
                   value={newShort.videoUrl}
                   onChange={e => setNewShort((prev: any) => ({ ...prev, videoUrl: e.target.value }))}

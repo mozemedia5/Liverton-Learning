@@ -17,7 +17,6 @@ import {
   HelpCircle,
   CalendarDays,
   FileText,
-  Video,
   ArrowRight,
   Clock,
   MapPin,
@@ -44,13 +43,12 @@ import type { DashboardAnnouncement } from '@/types/announcement';
 
 // Quick channel chips (WorkHub-style category rail)
 const QUICK_CHANNELS = [
-  { label: 'Courses', path: '/teacher/courses', icon: BookOpen, color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400' },
+  { label: 'Modules', path: '/teacher/courses', icon: BookOpen, color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400' },
   { label: 'Quizzes', path: '/teacher/quizzes', icon: HelpCircle, color: 'bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400' },
   { label: 'Events', path: '/events', icon: CalendarDays, color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' },
-  { label: 'Live Lessons', path: '/teacher/zoom-lessons', icon: Video, color: 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400' },
+  { label: 'Work Hub', path: '/features/tearn', icon: Award, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400' },
   { label: 'Documents', path: '/dashboard/documents', icon: FileText, color: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400' },
   { label: 'Students', path: '/teacher/students', icon: Users, color: 'bg-cyan-100 text-cyan-600 dark:bg-cyan-950 dark:text-cyan-400' },
-  { label: 'TEARN', path: '/features/tearn', icon: Award, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400' },
   { label: 'Liv Teams', path: '/features/liv-teams', icon: Users, color: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400' },
 ];
 

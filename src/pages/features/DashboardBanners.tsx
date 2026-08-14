@@ -310,7 +310,7 @@ export default function DashboardBanners() {
       });
 
       setForm(prev => ({ ...prev, mediaUrl: downloadUrl, mediaType: type }));
-      toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully to Cloudinary!`);
+      toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`);
     } catch (err: unknown) {
       console.error('Upload error:', err);
       toast.error('Upload failed. Please check your connection and try again.');
