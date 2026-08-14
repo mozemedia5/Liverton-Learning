@@ -39,7 +39,7 @@ interface Banner {
 }
 
 /**
- * Built-in dynamic promo slides (Jumia / AliExpress style): always shown
+ * Built-in dynamic learning slides: always shown
  * when the admin has not published Firestore banners, so every dashboard
  * has a lively, dynamic banner rail out of the box.
  */
@@ -48,12 +48,12 @@ function getDefaultBanners(role: string | null): Banner[] {
   return [
     {
       id: 'default-welcome',
-      title: isTeacher ? 'Share what you know, earn while you teach' : 'Learn anything, anywhere',
+      title: isTeacher ? 'Build your next learning module' : 'Learn with confidence, anywhere',
       subtitle: isTeacher
-        ? 'Publish courses and quizzes, host live lessons and reach students across the globe.'
-        : 'Browse top courses, join live lessons and track your progress in one place.',
-      ctaLabel: isTeacher ? 'Create a Course' : 'Browse Courses',
-      clickUrl: isTeacher ? '/teacher/courses/create' : '/student/courses',
+        ? 'Create lessons, assessments and live sessions from one focused teacher workspace.'
+        : 'Discover modules, join live lessons and track your progress in one place.',
+      ctaLabel: isTeacher ? 'Open Work Hub' : 'Browse Modules',
+      clickUrl: isTeacher ? '/work-hub' : '/student/courses',
       clickUrlType: 'internal',
       theme: 'ocean-blue',
       badge: 'LIVERTON SPOTLIGHT',
@@ -89,7 +89,7 @@ const DEFAULT_ICONS = [GraduationCap, CalendarDays, Sparkle];
 /**
  * BannerCarousel - dynamic marketplace-style promo banner rail
  * Responsive education campaign banner rail:
- * - Auto-rotating gradient slides with CTA buttons
+ * - Auto-rotating learning slides with CTA buttons
  * - Admin-published Firestore banners take priority
  * - Built-in dynamic slides as fallback so the rail is never empty
  * - Dot indicators, arrows, play/pause and touch swipe

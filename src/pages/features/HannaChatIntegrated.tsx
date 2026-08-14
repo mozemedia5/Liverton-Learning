@@ -853,7 +853,7 @@ export default function HannaChatIntegrated() {
                         </p>
                       </div>
 
-                      {/* Suggested prompts in a high-fidelity minimalist Jumia grid with smooth wavy staggered animations */}
+                      {/* Suggested prompts in a focused learning grid with subtle staggered animations */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
                         {SUGGESTED_PROMPTS.map((item, i) => (
                           <button

@@ -57,7 +57,7 @@ const QUICK_CHANNELS = [
  *
  * Features:
  * - App-style header with greeting + notifications in the upper right corner
- * - Dynamic promo banner rail (Jumia/AliExpress pattern)
+ * - Dynamic learning banner rail
  * - Quick-create action grid (add quiz/course/event/document/lesson/announcement)
  * - Quick channel chips to reach every section of the app
  * - Blue "entire summary" card with the key metrics

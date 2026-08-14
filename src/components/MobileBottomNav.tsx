@@ -80,7 +80,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
   const activePath = location.pathname;
   const unreadChatsCount = useUnreadChatsCount();
 
-  // Custom Jumia-style bottom tabs dynamically selected per user role
+  // Compact bottom tabs dynamically selected per user role
   const tabs: TabItem[] = useMemo(() => {
     const homePath = getHomePath(userRole);
     switch (userRole) {
