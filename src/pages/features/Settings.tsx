@@ -18,7 +18,8 @@ import {
   MapPin,
   Edit2,
   Check,
-  X
+  X,
+  User
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -151,7 +152,18 @@ export default function Settings() {
               <span className="font-semibold">Settings</span>
             </div>
           </div>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/profile')}
+              className="rounded-xl border-gray-200 dark:border-gray-700"
+            >
+              <User className="w-4 h-4 mr-1.5" />
+              Profile
+            </Button>
+            <Button size="sm" className="rounded-xl" onClick={handleSave}>Save Changes</Button>
+          </div>
         </div>
       </header>
 

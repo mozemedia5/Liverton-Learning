@@ -87,14 +87,17 @@ function getDefaultBanners(role: string | null): Banner[] {
 const DEFAULT_ICONS = [GraduationCap, CalendarDays, Sparkle];
 
 /**
- * BannerCarousel - dynamic marketplace-style promo banner rail
- * (CJ Dropshipping / AliExpress / Jumia pattern):
+ * BannerCarousel - dynamic marketplace-style promo banner rail:
  * - Auto-rotating gradient slides with CTA buttons
  * - Admin-published Firestore banners take priority
  * - Built-in dynamic slides as fallback so the rail is never empty
  * - Dot indicators, arrows, play/pause and touch swipe
  */
-export default function BannerCarousel() {
+interface BannerCarouselProps {
+  pageScope?: 'student' | 'teacher' | 'parent' | 'school_admin' | 'liv_teams' | 'all' | string;
+}
+
+export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   const [remoteBanners, setRemoteBanners] = useState<Banner[]>([]);
@@ -133,7 +136,9 @@ export default function BannerCarousel() {
           const roles = Array.isArray(raw.targetRoles) ? raw.targetRoles : [];
           if (roles.length === 0) return null;
 
-          const visible = roles.includes('all') || roles.includes(userRole);
+          const visible = roles.includes('all') ||
+            (pageScope && roles.includes(pageScope)) ||
+            (userRole && roles.includes(userRole));
           if (!visible) return null;
 
           return raw;

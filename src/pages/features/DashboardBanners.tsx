@@ -60,7 +60,7 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type MediaType = 'image' | 'video' | 'url';
-type AudienceRole = 'student' | 'teacher' | 'parent' | 'school_admin' | 'all';
+type AudienceRole = 'student' | 'teacher' | 'parent' | 'school_admin' | 'liv_teams' | 'all';
 
 interface DashboardBanner {
   id: string;
@@ -118,11 +118,12 @@ const inAppRoutes = [
 ];
 
 const audienceOptions: { id: AudienceRole; label: string; icon: string; color: string }[] = [
-  { id: 'all', label: 'Everyone', icon: '🌍', color: 'bg-gradient-to-br from-violet-500 to-purple-600' },
-  { id: 'student', label: 'Students', icon: '🎓', color: 'bg-gradient-to-br from-blue-500 to-cyan-600' },
-  { id: 'teacher', label: 'Teachers', icon: '👩‍🏫', color: 'bg-gradient-to-br from-green-500 to-emerald-600' },
-  { id: 'parent', label: 'Parents', icon: '👨‍👩‍👧', color: 'bg-gradient-to-br from-orange-500 to-amber-600' },
-  { id: 'school_admin', label: 'School Admins', icon: '🏫', color: 'bg-gradient-to-br from-pink-500 to-rose-600' },
+  { id: 'all', label: 'Everyone (Universal)', icon: '🌍', color: 'bg-gradient-to-br from-violet-500 to-purple-600' },
+  { id: 'student', label: 'Student Dashboard', icon: '🎓', color: 'bg-gradient-to-br from-blue-500 to-cyan-600' },
+  { id: 'teacher', label: 'Teacher Work Hub', icon: '👩‍🏫', color: 'bg-gradient-to-br from-green-500 to-emerald-600' },
+  { id: 'parent', label: 'Parent Dashboard', icon: '👨‍👩‍👧', color: 'bg-gradient-to-br from-orange-500 to-amber-600' },
+  { id: 'school_admin', label: 'School Admin', icon: '🏫', color: 'bg-gradient-to-br from-pink-500 to-rose-600' },
+  { id: 'liv_teams', label: 'Liv Teams Page', icon: '👥', color: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
 ];
 
 // ─── URL Preview fetcher ─────────────────────────────────────────────────────

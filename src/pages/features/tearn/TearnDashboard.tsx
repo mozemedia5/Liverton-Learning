@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   BookOpen,
@@ -896,10 +897,10 @@ export default function TearnDashboard() {
 
   return (
     <>
-      <SEO title="TEARN Workspace Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
+      <SEO title="Teacher Work Hub Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
 
       <div className="space-y-8 pb-12">
-        {/* CJ Dropshipping inspired aesthetic backdrop blobs */}
+        {/* Aesthetic backdrop blobs */}
         <div className="absolute top-[-5%] right-[-5%] w-[40vw] h-[40vw] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
         <div className="absolute bottom-[10%] left-[-5%] w-[40vw] h-[40vw] bg-amber-500/5 dark:bg-amber-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
 
@@ -913,10 +914,10 @@ export default function TearnDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">TEARN Creator Workspace</h1>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Teacher Work Hub</h1>
                 <Badge className="bg-amber-500/10 text-amber-400 border-none font-bold text-[10px]">PRO EDUCATOR</Badge>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">CJ Dropshipping inspired analytics • Module-first learning framework</p>
+              <p className="text-xs text-slate-400 mt-0.5">Advanced Educational Analytics • Module-first learning framework</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -936,29 +937,47 @@ export default function TearnDashboard() {
           </div>
         </div>
 
+        {/* Sleek Dropdown View Selector for Work Hub */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="w-full sm:w-64">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full bg-slate-100/60 dark:bg-slate-900/60 backdrop-blur-md border-emerald-500/20 font-semibold rounded-xl text-xs h-10">
+                <SelectValue placeholder="Select workspace section..." />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-emerald-500/20">
+                <SelectItem value="overview">📊 Overview & Analytics</SelectItem>
+                <SelectItem value="modules">📚 Modules Workspace ({modules.length})</SelectItem>
+                <SelectItem value="books">📖 Resource Books ({books.length})</SelectItem>
+                <SelectItem value="shorts">🎬 Creator Shorts ({shorts.length})</SelectItem>
+                <SelectItem value="wallet">💳 Work Hub Wallet & Splits</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Global Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-          <TabsList className="bg-slate-200/50 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
-            <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+          <TabsList className="flex w-full justify-start overflow-x-auto gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 scrollbar-none">
+            <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2 whitespace-nowrap">
               Overview & Analytics
             </TabsTrigger>
-            <TabsTrigger value="modules" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+            <TabsTrigger value="modules" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2 whitespace-nowrap">
               Modules Workspace ({modules.length})
             </TabsTrigger>
-            <TabsTrigger value="books" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+            <TabsTrigger value="books" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2 whitespace-nowrap">
               Resource Books ({books.length})
             </TabsTrigger>
-            <TabsTrigger value="shorts" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
+            <TabsTrigger value="shorts" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2 whitespace-nowrap">
               Promotional Shorts ({shorts.length})
             </TabsTrigger>
-            <TabsTrigger value="wallet" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2">
-              TEARN Wallet & Splits
+            <TabsTrigger value="wallet" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2 whitespace-nowrap">
+              Work Hub Wallet & Splits
             </TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW & ANALYTICS TAB */}
           <TabsContent value="overview" className="space-y-6 outline-none">
-            {/* CJ Dropshipping-inspired Key Stats Card Grid */}
+            {/* Key Stats Card Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
                 <CardContent className="p-5 flex flex-col justify-between h-28">

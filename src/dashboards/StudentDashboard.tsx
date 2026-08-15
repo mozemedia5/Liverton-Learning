@@ -247,7 +247,7 @@ export default function StudentDashboard() {
           })}
         </div>
 
-        {/* RECOMMENDED MODULES CATALOG GRID (CJ Dropshipping inspired aesthetic with promo video hover) */}
+        {/* RECOMMENDED MODULES CATALOG GRID (interactive marketplace grid with promo video hover) */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>

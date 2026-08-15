@@ -24,6 +24,7 @@ import {
 } from 'firebase/storage';
 import type { Unsubscribe } from 'firebase/firestore';
 import { uploadToCloudinary } from './cloudinaryService';
+import { dispatchEnrollmentNotification } from './notificationService';
 import { db, storage } from '@/lib/firebase';
 
 // ==========================================
@@ -413,7 +414,9 @@ export function subscribeToAllCoursesAdmin(
 export async function enrollStudent(
   courseId: string,
   studentId: string,
-  studentName: string
+  studentName: string,
+  studentEmail?: string,
+  studentPhone?: string
 ): Promise<void> {
   const courseRef = doc(db, 'courses', courseId);
   const enrollmentRef = collection(db, 'enrollments');
@@ -425,6 +428,12 @@ export async function enrollStudent(
   }
 
   const course = courseSnap.data() as Course;
+
+  // Prevent duplicate enrollment
+  if (course.enrolledStudents?.includes(studentId)) {
+    console.log(`Student ${studentId} is already enrolled in course ${courseId}.`);
+    return;
+  }
 
   // Update course enrolledStudents array
   await updateDoc(courseRef, {
@@ -441,6 +450,22 @@ export async function enrollStudent(
     progress: 0,
     status: 'active'
   });
+
+  // Dispatch real enrollment notifications (Firestore + PWA + Email + WhatsApp provider abstractions)
+  try {
+    await dispatchEnrollmentNotification({
+      courseId,
+      courseTitle: course.title,
+      studentId,
+      studentName,
+      studentEmail,
+      studentPhone,
+      teacherId: course.teacherId,
+      teacherName: course.teacherName
+    });
+  } catch (notifyErr) {
+    console.warn('Enrollment notification dispatch warning:', notifyErr);
+  }
 }
 
 /**

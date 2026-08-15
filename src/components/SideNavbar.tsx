@@ -143,7 +143,7 @@ export default function SideNavbar() {
     { label: 'Dashboard Banners', path: '/admin/dashboard-banners', icon: ImageIcon, roles: ['platform_admin'] },
 
     // Shared routes for all authenticated users
-    { label: 'TEARN Workspace', path: '/features/tearn', icon: Award },
+    { label: 'Work Hub', path: '/features/tearn', icon: Award },
     { label: 'Calendar', path: '/calendar', icon: Calendar },
     { label: 'Liv Teams', path: '/features/liv-teams', icon: Users },
     { label: 'Announcements', path: '/announcements', icon: Bell },

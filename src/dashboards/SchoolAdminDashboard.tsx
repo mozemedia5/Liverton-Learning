@@ -107,12 +107,12 @@ export default function SchoolAdminDashboard() {
         {/* Dashboard Banner */}
         <BannerCarousel />
 
-        {/* Unified TEARN Hub Fast Banners for High-fidelity SaaS entry */}
+        {/* Unified Work Hub Fast Banners for High-fidelity SaaS entry */}
         <Card className="bg-gradient-to-r from-emerald-950/30 via-slate-900 to-indigo-950/20 border-emerald-500/20 shadow-lg overflow-hidden relative">
           <div className="p-6 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h4 className="font-extrabold text-lg text-emerald-400 flex items-center gap-1.5">
-                <Award className="w-5 h-5 text-emerald-400" /> School TEARN Center
+                <Award className="w-5 h-5 text-emerald-400" /> School Work Hub Center
               </h4>
               <p className="text-sm text-slate-300 mt-1 max-w-xl">
                 Monitor teacher publications, audit book drafts, review total platform transactions, and coordinate educator teams seamlessly.
@@ -122,7 +122,7 @@ export default function SchoolAdminDashboard() {
               onClick={() => navigate('/features/tearn')}
               className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl shrink-0"
             >
-              Open TEARN Workspace <ArrowRight className="w-4 h-4 ml-1" />
+              Open Work Hub <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </Card>

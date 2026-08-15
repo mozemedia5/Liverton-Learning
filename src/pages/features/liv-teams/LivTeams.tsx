@@ -40,6 +40,7 @@ import {
 import { formatUGX } from './livTeamsUtils';
 import TeamCreationWizard from './TeamCreationWizard';
 import { CloudinaryImage } from '@/components/CloudinaryImage';
+import BannerCarousel from '@/components/BannerCarousel';
 import { SEO } from '@/components/SEO';
 
 type FundingWithTeam = ProjectFundingRequest & { teamName: string };
@@ -455,14 +456,40 @@ export default function LivTeams() {
               </p>
             </div>
           </div>
-          <Button
-            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md flex-shrink-0"
-            onClick={() => setCreateDialogOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Create Team
-          </Button>
+          {myTeams.length === 0 && (
+            <Button
+              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md flex-shrink-0"
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Create Team
+            </Button>
+          )}
         </CardContent>
       </Card>
+
+      {/* Platform Banners for Liv Teams */}
+      <BannerCarousel pageScope="liv_teams" />
+
+      {/* Sleek Tab Navigation Bar with Dropdown View Selector */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="w-full sm:w-64">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-emerald-500/20 font-semibold rounded-xl text-xs h-10">
+              <SelectValue placeholder="Select section..." />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-emerald-500/20">
+              <SelectItem value="home">🏠 Home Overview</SelectItem>
+              <SelectItem value="my-teams">👥 My Teams ({myTeams.length})</SelectItem>
+              <SelectItem value="discover">🧭 Discover Teams</SelectItem>
+              <SelectItem value="invitations">✉️ Invitations ({invitations.length})</SelectItem>
+              <SelectItem value="saved">🔖 Saved Teams ({savedTeams.length})</SelectItem>
+              <SelectItem value="marketplace">🏪 Marketplace</SelectItem>
+              <SelectItem value="funding">🏛️ Funding Campaigns</SelectItem>
+              <SelectItem value="settings">⚙️ Settings</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex w-full justify-start overflow-x-auto gap-1 bg-transparent p-0 h-auto scrollbar-none">
@@ -500,14 +527,29 @@ export default function LivTeams() {
             <LivStatCard icon={<Store className="w-5 h-5" />} label="Marketplace Items" value={marketplaceItems.length} color="purple" />
           </div>
 
+          {/* MY TEAMS DISPLAYED FIRST WHEN USER HAS TEAMS */}
+          {myTeams.length > 0 && (
+            <div className="space-y-4">
+              <LivSectionHeader title="Your Workspaces" subtitle="Teams you belong to. Click to open your workspace.">
+                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setActiveTab('my-teams')}>
+                  View all ({myTeams.length}) <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </LivSectionHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myTeams.slice(0, 6).map(team => renderTeamCard(team, 'mine'))}
+              </div>
+            </div>
+          )}
+
+          {/* QUICK ACTION CARDS (CREATE TEAM POSITIONED CLEANLY BELOW EXISTING TEAMS) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="cursor-pointer group" onClick={() => setCreateDialogOpen(true)}>
+            <Card className="cursor-pointer group hover:border-emerald-500/30 transition-all" onClick={() => setCreateDialogOpen(true)}>
               <CardContent className="p-5 flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
                   <Plus className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-semibold">Create a Team</p>
+                  <p className="font-semibold">Create New Team</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Start a club, revision room or project hub</p>
                 </div>
               </CardContent>
