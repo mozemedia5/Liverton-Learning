@@ -4,20 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Bell, 
-  ArrowLeft, 
+  ChevronLeft,
+  MoreHorizontal,
   Plus,
   Loader2,
   Trash2,
   User,
-  Calendar,
   Clock,
   Megaphone,
   Eye,
   EyeOff,
   BookOpen,
   Award,
-  Sparkles
+  Sparkles,
+  Inbox,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -40,6 +41,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 interface NotificationItem {
   id?: string;
@@ -58,14 +66,19 @@ interface NotificationItem {
   hiddenBy?: string;
   hiddenAt?: Date | Timestamp;
   hideReason?: string;
+  isRead?: boolean;
 }
+
+type TabCategory = 'all' | 'updates' | 'opportunities' | 'insights';
 
 export default function Announcements() {
   const navigate = useNavigate();
   const { userRole, currentUser } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterAudience, setFilterAudience] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<TabCategory>('all');
+  const [sortAsc, setSortAsc] = useState(false);
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showHideDialog, setShowHideDialog] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
@@ -84,14 +97,11 @@ export default function Announcements() {
     }
   };
 
-  const audienceFilters = isAdmin ? [
+  const tabs: { id: TabCategory; label: string }[] = [
     { id: 'all', label: 'All' },
-    { id: 'students', label: 'Students' },
-    { id: 'teachers', label: 'Teachers' },
-    { id: 'parents', label: 'Parents' },
-    { id: 'school_admins', label: 'School Admins' },
-  ] : [
-    { id: 'all', label: 'All' },
+    { id: 'updates', label: 'Updates' },
+    { id: 'opportunities', label: 'Opportunities' },
+    { id: 'insights', label: 'Insights' },
   ];
 
   useEffect(() => {
@@ -118,6 +128,7 @@ export default function Announcements() {
           hiddenBy: d.hiddenBy || undefined,
           hiddenAt: d.hiddenAt?.toDate() || undefined,
           hideReason: d.hideReason || undefined,
+          isRead: d.isRead || false,
         } as NotificationItem;
       });
 
@@ -152,9 +163,23 @@ export default function Announcements() {
     return () => unsubscribe();
   }, [userRole, currentUser, isAdmin]);
 
+  // Filter notifications based on tab category
   const filteredNotifications = notifications.filter(a => {
-    if (filterAudience === 'all') return true;
-    return a.targetAudience?.includes(filterAudience);
+    if (activeTab === 'all') return true;
+    if (activeTab === 'updates') {
+      return a.type === 'announcement' || !a.type;
+    }
+    if (activeTab === 'opportunities') {
+      return a.type === 'course' || a.type === 'quiz';
+    }
+    if (activeTab === 'insights') {
+      return a.type === 'reminder' || a.type === 'motivation';
+    }
+    return true;
+  }).sort((a, b) => {
+    const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+    const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+    return sortAsc ? timeA - timeB : timeB - timeA;
   });
 
   const handleDelete = async () => {
@@ -205,117 +230,120 @@ export default function Announcements() {
   const getTypeConfig = (type: string) => {
     switch (type) {
       case 'quiz':
-        return { icon: Award, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/20', badge: 'secondary' as const, label: '📝 Quiz Alert' };
+        return { icon: Award, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/20', badge: 'secondary' as const, label: 'Quiz Alert' };
       case 'course':
-        return { icon: BookOpen, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/20', badge: 'default' as const, label: '📚 New Course' };
+        return { icon: BookOpen, color: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', badge: 'default' as const, label: 'New Course' };
       case 'reminder':
-        return { icon: Clock, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/20', badge: 'secondary' as const, label: '⏰ Reminder' };
+        return { icon: Clock, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20', badge: 'secondary' as const, label: 'Reminder' };
       case 'motivation':
-        return { icon: Sparkles, color: 'text-indigo-500', bg: 'bg-indigo-100 dark:bg-indigo-900/20', badge: 'outline' as const, label: '✨ Daily Motivation' };
+        return { icon: Sparkles, color: 'text-purple-500 dark:text-purple-400', bg: 'bg-purple-500/10 dark:bg-purple-500/20', badge: 'outline' as const, label: 'Motivation' };
       default:
-        return { icon: Megaphone, color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-800', badge: 'outline' as const, label: '📢 Announcement' };
+        return { icon: Megaphone, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', badge: 'outline' as const, label: 'Update' };
     }
   };
 
   const formatDate = (date: any) => {
     if (!date) return '';
     const d = date instanceof Date ? date : new Date(date);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white transition-colors duration-300">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Bell className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-semibold text-lg">Notification Center</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {canCreate && (
-              <Button onClick={() => navigate('/announcements/create')} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                New Notification
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+
+      {/* Top Header Bar matching screenshot structure */}
+      <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-full h-9 w-9 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </Button>
+
+          <h1 className="text-xl font-medium tracking-tight text-slate-900 dark:text-white">
+            Notifications
+          </h1>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-9 w-9 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <MoreHorizontal className="w-5 h-5" />
               </Button>
-            )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 rounded-xl glass-card">
+              {canCreate && (
+                <>
+                  <DropdownMenuItem onClick={() => navigate('/announcements/create')} className="gap-2 cursor-pointer">
+                    <Plus className="w-4 h-4 text-emerald-500" />
+                    <span>Create Notification</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem onClick={() => setSortAsc(!sortAsc)} className="gap-2 cursor-pointer">
+                <Clock className="w-4 h-4 text-blue-500" />
+                <span>Sort: {sortAsc ? 'Oldest First' : 'Recent First'}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 cursor-pointer">
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span>Notification Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Filter Pills / Chips Container */}
+        <div className="max-w-3xl mx-auto pt-3 px-1 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    px-5 py-1.5 text-sm font-medium rounded-full transition-all duration-200 shrink-0 border
+                    ${isActive
+                      ? 'bg-slate-900 text-white border-slate-900 dark:bg-emerald-500 dark:text-slate-950 dark:border-emerald-500 shadow-sm'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }
+                  `}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
-        
-        {/* Role Notice */}
-        {!isAdmin && userRole && (
-          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-800/30 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0 text-sm">
-              🔔
-            </div>
-            <div>
-              <span className="font-semibold block text-sm text-gray-900 dark:text-white capitalize">
-                {userRole.replace('_', ' ')} Workspace Alerts
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                You are viewing standard announcements and task notifications broadcasted directly to you.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Admin Banner */}
-        {isAdmin && (
-          <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200/50 dark:border-purple-800/30 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 font-bold shrink-0 text-sm">
-              🛡️
-            </div>
-            <div>
-              <span className="font-semibold block text-sm text-gray-900 dark:text-white">Admin Moderation mode</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                You have power to review, hide, or permanently purge notifications created by teachers and school admins.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Audience Filters */}
-        <div className="flex flex-wrap gap-2">
-          {audienceFilters.map((filter) => (
-            <Button
-              key={filter.id}
-              variant={filterAudience === filter.id ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterAudience(filter.id)}
-              className="rounded-full"
-            >
-              {filter.label}
-            </Button>
-          ))}
-        </div>
-
-        {/* Notifications Grid */}
+      {/* Main Content Body */}
+      <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-6 pb-24">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-            <p className="text-xs text-gray-500">Loading alerts...</p>
+          <div className="flex flex-col items-center justify-center py-24">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-3" />
+            <p className="text-xs text-slate-500 dark:text-slate-400">Loading notifications...</p>
           </div>
         ) : filteredNotifications.length === 0 ? (
-          <div className="text-center py-16">
-            <Bell className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <h3 className="text-base font-bold text-gray-700 dark:text-gray-300">All caught up!</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              No notifications available at this moment.
+          /* Empty State styled according to the screenshot layout */
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <div className="w-12 h-12 mb-4 rounded-full bg-slate-100 dark:bg-slate-800/60 flex items-center justify-center text-slate-800 dark:text-slate-200">
+              <Inbox className="w-6 h-6 stroke-[1.5]" />
+            </div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              No notifications in {tabs.find(t => t.id === activeTab)?.label}
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          /* Notifications List */
+          <div className="space-y-3">
             {filteredNotifications.map((notif) => {
               const cfg = getTypeConfig(notif.type);
               const Icon = cfg.icon;
@@ -324,56 +352,58 @@ export default function Announcements() {
                 <Card
                   key={notif.id}
                   className={`
-                    group overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-md
-                    ${notif.isHidden ? 'opacity-60 bg-gray-100 dark:bg-gray-900/40' : 'bg-white dark:bg-slate-900'}
+                    group overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-md
+                    ${notif.isHidden
+                      ? 'opacity-60 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800'
+                      : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800'
+                    }
                   `}
                 >
-                  <CardContent className="p-5">
-                    <div className="flex items-start gap-4">
-                      {/* Icon */}
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
-                        <Icon className={`w-6 h-6 ${cfg.color}`} />
+                  <CardContent className="p-4 sm:p-5">
+                    <div className="flex items-start gap-3.5">
+                      {/* Category Icon */}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                        <Icon className={`w-5 h-5 ${cfg.color}`} />
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white leading-tight">
-                            {notif.title}
-                          </h4>
-                          <Badge variant={cfg.badge} className="text-[10px] uppercase font-bold tracking-wider">
-                            {cfg.label}
-                          </Badge>
-                          {notif.isHidden && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              Hidden
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white leading-snug">
+                              {notif.title}
+                            </h4>
+                            <Badge variant={cfg.badge} className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
+                              {cfg.label}
                             </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                          {notif.body}
-                        </p>
-
-                        {/* Metadata bar */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-slate-800">
-                          <span className="flex items-center gap-1 font-medium">
-                            <User className="w-3.5 h-3.5" />
-                            {notif.sender}
-                            <span className="capitalize text-[10px] opacity-75">({notif.senderRole?.replace('_', ' ')})</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
+                            {notif.isHidden && (
+                              <Badge variant="destructive" className="text-[10px] px-2 py-0.5 rounded-full">
+                                Hidden
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
                             {formatDate(notif.createdAt)}
                           </span>
                         </div>
 
-                        {/* Link redirection */}
-                        {notif.link && (
-                          <div className="pt-2">
+                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                          {notif.body}
+                        </p>
+
+                        {/* Metadata Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/80">
+                          <span className="flex items-center gap-1 font-medium">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            {notif.sender}
+                            <span className="capitalize text-[10px] opacity-75">({notif.senderRole?.replace('_', ' ')})</span>
+                          </span>
+
+                          {/* Link Redirection */}
+                          {notif.link && (
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
                               onClick={() => {
                                 if (notif.link?.startsWith('http')) {
                                   window.open(notif.link, '_blank', 'noopener,noreferrer');
@@ -381,25 +411,25 @@ export default function Announcements() {
                                   navigate(notif.link || '/');
                                 }
                               }}
-                              className="rounded-full text-xs font-semibold"
+                              className="h-7 px-2.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-medium"
                             >
-                              Open Attachment Link →
+                              View Details →
                             </Button>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
-                        {/* Admin / Owner Actions */}
+                        {/* Admin / Sender Moderation Controls */}
                         {(isAdmin || currentUser?.uid === notif.senderId) && (
-                          <div className="flex items-center gap-2 pt-3 flex-wrap">
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
                             {isAdmin && (
                               notif.isHidden ? (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleUnhide(notif)}
-                                  className="text-emerald-600 hover:text-emerald-700 h-8"
+                                  className="text-emerald-600 hover:text-emerald-700 h-7 text-xs px-2"
                                 >
-                                  <Eye className="w-4 h-4 mr-1" />
+                                  <Eye className="w-3.5 h-3.5 mr-1" />
                                   Unhide
                                 </Button>
                               ) : (
@@ -410,9 +440,9 @@ export default function Announcements() {
                                     setSelectedNotification(notif);
                                     setShowHideDialog(true);
                                   }}
-                                  className="text-amber-600 hover:text-amber-700 h-8"
+                                  className="text-amber-600 hover:text-amber-700 h-7 text-xs px-2"
                                 >
-                                  <EyeOff className="w-4 h-4 mr-1" />
+                                  <EyeOff className="w-3.5 h-3.5 mr-1" />
                                   Hide
                                 </Button>
                               )
@@ -424,10 +454,10 @@ export default function Announcements() {
                                 setSelectedNotification(notif);
                                 setShowDeleteDialog(true);
                               }}
-                              className="text-red-500 hover:text-red-600 h-8"
+                              className="text-red-500 hover:text-red-600 h-7 text-xs px-2 ml-auto"
                             >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete Alert
+                              <Trash2 className="w-3.5 h-3.5 mr-1" />
+                              Delete
                             </Button>
                           </div>
                         )}
@@ -441,9 +471,30 @@ export default function Announcements() {
         )}
       </main>
 
+      {/* Bottom Sticky Action Controls matching screenshot layout */}
+      <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 p-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between px-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate(-1)}
+            className="rounded-xl px-6 h-10 border-slate-300 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 shadow-sm"
+          >
+            Back
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setSortAsc(!sortAsc)}
+            className="rounded-xl px-6 h-10 border-slate-300 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 shadow-sm"
+          >
+            {sortAsc ? 'Oldest' : 'Recent'}
+          </Button>
+        </div>
+      </footer>
+
       {/* Hide Dialog */}
       <Dialog open={showHideDialog} onOpenChange={setShowHideDialog}>
-        <DialogContent className="rounded-2xl">
+        <DialogContent className="rounded-2xl glass-card">
           <DialogHeader>
             <DialogTitle>Hide Notification</DialogTitle>
             <DialogDescription>
@@ -451,10 +502,10 @@ export default function Announcements() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-3">
-            <label className="text-xs font-semibold text-gray-500">Moderation Reason</label>
+            <label className="text-xs font-semibold text-slate-500">Moderation Reason</label>
             <input
               type="text"
-              className="w-full mt-1 px-3 py-2 border rounded-xl bg-white dark:bg-gray-900"
+              className="w-full mt-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-700"
               placeholder="e.g. Outdated announcement details..."
               value={hideReason}
               onChange={(e) => setHideReason(e.target.value)}
@@ -464,14 +515,14 @@ export default function Announcements() {
             <Button variant="outline" className="rounded-xl" onClick={() => { setShowHideDialog(false); setHideReason(''); }}>
               Cancel
             </Button>
-            <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white" onClick={handleHide}>Hide Alert</Button>
+            <Button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleHide}>Hide Alert</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="rounded-2xl">
+        <DialogContent className="rounded-2xl glass-card">
           <DialogHeader>
             <DialogTitle>Delete Notification Alert</DialogTitle>
             <DialogDescription>
