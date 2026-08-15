@@ -3,6 +3,9 @@
  * Handles PWA notifications for announcements and other events
  */
 
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 export interface NotificationPayload {
   title: string;
   message: string;
@@ -10,6 +13,201 @@ export interface NotificationPayload {
   badge?: string;
   tag?: string;
   data?: Record<string, any>;
+}
+
+export interface EnrollmentNotificationParams {
+  courseId: string;
+  courseTitle: string;
+  studentId: string;
+  studentName: string;
+  studentEmail?: string;
+  studentPhone?: string;
+  teacherId: string;
+  teacherName: string;
+}
+
+export interface ProviderStatus {
+  emailSent: boolean;
+  whatsAppSent: boolean;
+  pwaSent: boolean;
+  firestoreRecorded: boolean;
+  emailDetails?: string;
+  whatsAppDetails?: string;
+}
+
+/**
+ * WhatsApp Provider Abstraction
+ * Sends WhatsApp notification via configured WhatsApp Business API or reports missing configuration.
+ */
+export async function sendWhatsAppNotification(
+  recipientPhone: string,
+  message: string
+): Promise<{ success: boolean; message: string }> {
+  const apiKey = import.meta.env.VITE_WHATSAPP_API_KEY || import.meta.env.WHATSAPP_API_KEY;
+  const phoneId = import.meta.env.VITE_WHATSAPP_PHONE_ID || import.meta.env.WHATSAPP_PHONE_ID;
+
+  if (!apiKey || !phoneId) {
+    return {
+      success: false,
+      message: 'WhatsApp provider unconfigured (requires VITE_WHATSAPP_API_KEY and VITE_WHATSAPP_PHONE_ID).'
+    };
+  }
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: recipientPhone,
+        type: 'text',
+        text: { body: message }
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, message: errData?.error?.message || `WhatsApp API error ${res.status}` };
+    }
+
+    return { success: true, message: 'WhatsApp message sent successfully.' };
+  } catch (err: any) {
+    return { success: false, message: `WhatsApp network error: ${err.message}` };
+  }
+}
+
+/**
+ * Email Provider Abstraction
+ * Sends Email notification via Resend / Email Provider or reports status.
+ */
+export async function sendEmailNotification(
+  toEmail: string,
+  subject: string,
+  htmlContent: string
+): Promise<{ success: boolean; message: string }> {
+  const apiKey = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      message: 'Email provider unconfigured (requires VITE_RESEND_API_KEY environment variable).'
+    };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Liverton Learning <notifications@livertonlearning.com>',
+        to: [toEmail],
+        subject,
+        html: htmlContent
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, message: errData?.message || `Resend API error ${res.status}` };
+    }
+
+    return { success: true, message: 'Email sent successfully.' };
+  } catch (err: any) {
+    return { success: false, message: `Email network error: ${err.message}` };
+  }
+}
+
+/**
+ * Dispatch Enrollment Notifications across all configured channels
+ */
+export async function dispatchEnrollmentNotification(
+  params: EnrollmentNotificationParams
+): Promise<ProviderStatus> {
+  const {
+    courseId,
+    courseTitle,
+    studentId,
+    studentName,
+    studentEmail,
+    studentPhone,
+    teacherName
+  } = params;
+
+  const title = `Enrolled in ${courseTitle}`;
+  const message = `Welcome ${studentName}! You have successfully enrolled in "${courseTitle}" taught by ${teacherName}.`;
+  const redirectUrl = `/student/courses`;
+
+  const status: ProviderStatus = {
+    emailSent: false,
+    whatsAppSent: false,
+    pwaSent: false,
+    firestoreRecorded: false
+  };
+
+  // 1. Record Notification in Firestore `notifications` collection
+  try {
+    if (db) {
+      await addDoc(collection(db, 'notifications'), {
+        type: 'course',
+        title,
+        message,
+        targetAudience: ['students'],
+        senderId: params.teacherId,
+        senderName: teacherName,
+        recipientId: studentId,
+        redirectUrl,
+        referenceId: courseId,
+        isRead: false,
+        isHidden: false,
+        createdAt: serverTimestamp()
+      });
+      status.firestoreRecorded = true;
+    }
+  } catch (err) {
+    console.warn('Error recording enrollment notification in Firestore:', err);
+  }
+
+  // 2. Dispatch PWA Browser Notification
+  const pwaNotif = showNotification({
+    title,
+    message,
+    tag: `enrollment-${courseId}-${studentId}`,
+    data: { redirectUrl, courseId }
+  });
+  status.pwaSent = !!pwaNotif;
+
+  // 3. Dispatch Email Notification via Provider Abstraction
+  if (studentEmail) {
+    const emailRes = await sendEmailNotification(
+      studentEmail,
+      `Enrollment Confirmation: ${courseTitle}`,
+      `<h2>Welcome to ${courseTitle}!</h2><p>Hi ${studentName},</p><p>You are now enrolled in <strong>${courseTitle}</strong> instructed by ${teacherName}.</p><p><a href="https://livertonlearning.com/student/courses">Click here to start learning</a></p>`
+    );
+    status.emailSent = emailRes.success;
+    status.emailDetails = emailRes.message;
+  } else {
+    status.emailDetails = 'No student email provided.';
+  }
+
+  // 4. Dispatch WhatsApp Notification via Provider Abstraction
+  if (studentPhone) {
+    const waRes = await sendWhatsAppNotification(
+      studentPhone,
+      `*Liverton Learning*: Hello ${studentName}, you are enrolled in "${courseTitle}" by ${teacherName}. Access your lessons at https://livertonlearning.com/student/courses`
+    );
+    status.whatsAppSent = waRes.success;
+    status.whatsAppDetails = waRes.message;
+  } else {
+    status.whatsAppDetails = 'No student phone number provided.';
+  }
+
+  return status;
 }
 
 /**

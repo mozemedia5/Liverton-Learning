@@ -33,7 +33,8 @@ import {
   Trash2,
   ShieldAlert,
   Check,
-  RefreshCw
+  RefreshCw,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -357,22 +358,35 @@ export default function Profile() {
               <span className="font-semibold">Profile</span>
             </div>
           </div>
-          <Button 
-            variant={isEditing ? 'default' : 'outline'}
-            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : isEditing ? (
-              <><Save className="w-4 h-4 mr-2" /> Save</>
-            ) : (
-              <><Edit2 className="w-4 h-4 mr-2" /> Edit</>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/settings')}
+              className="rounded-xl border-gray-200 dark:border-gray-700"
+            >
+              <SettingsIcon className="w-4 h-4 mr-1.5" />
+              Settings
+            </Button>
+            <Button
+              size="sm"
+              variant={isEditing ? 'default' : 'outline'}
+              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              disabled={isSaving}
+              className="rounded-xl"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : isEditing ? (
+                <><Save className="w-4 h-4 mr-1.5" /> Save</>
+              ) : (
+                <><Edit2 className="w-4 h-4 mr-1.5" /> Edit Profile</>
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
