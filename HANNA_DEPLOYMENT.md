@@ -38,7 +38,7 @@ npm install
 npm run build
 
 # Set environment variables
-firebase functions:config:set gemini.api_key="AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs"
+firebase functions:config:set gemini.api_key="YOUR_GEMINI_API_KEY"
 
 # Deploy functions
 firebase deploy --only functions

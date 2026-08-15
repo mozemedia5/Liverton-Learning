@@ -86,7 +86,7 @@ npm run dev
 
 ```env
 # Firebase Configuration
-VITE_FIREBASE_API_KEY=AIzaSyD1234567890abcdefghijklmnopqrst
+VITE_FIREBASE_API_KEY=your_firebase_api_key_here
 VITE_FIREBASE_AUTH_DOMAIN=liverton-learning.firebaseapp.com
 VITE_FIREBASE_DATABASE_URL=https://liverton-learning.firebaseio.com
 VITE_FIREBASE_PROJECT_ID=liverton-learning
