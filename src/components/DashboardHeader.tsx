@@ -55,9 +55,15 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
           if (expiresAt && expiresAt <= now) return;
           const targets: string[] = Array.isArray(data.targetAudience) ? data.targetAudience : [];
           const targeted =
-            targets.includes('all') || (audienceKey && targets.includes(audienceKey)) || data.senderId === currentUser.uid;
+            targets.includes('all') ||
+            (audienceKey && targets.includes(audienceKey)) ||
+            (userRole && targets.includes(userRole)) ||
+            data.senderId === currentUser.uid;
           if (!targeted) return;
-          if (data.isRead === false || data.isRead === undefined) count += 1;
+
+          const readBy: string[] = Array.isArray(data.readBy) ? data.readBy : [];
+          const isUserRead = readBy.includes(currentUser.uid) || data.isRead === true;
+          if (!isUserRead) count += 1;
         });
         setUnread(count);
       },

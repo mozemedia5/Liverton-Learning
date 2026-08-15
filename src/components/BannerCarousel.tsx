@@ -14,7 +14,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBannerTheme } from '@/lib/bannerThemes';
 
@@ -184,8 +184,20 @@ export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) 
   const isClickable = !!redirectUrl && rawType !== 'none';
   const DefaultIcon = DEFAULT_ICONS[safeIndex % DEFAULT_ICONS.length] || BookOpen;
 
-  const handleBannerClick = () => {
+  const handleBannerClick = async () => {
     if (!isClickable) return;
+
+    // Track click engagement if it's a real Firestore banner
+    if (currentBanner.id && !currentBanner.id.startsWith('default-')) {
+      try {
+        const bannerRef = doc(db, 'dashboardBanners', currentBanner.id);
+        await updateDoc(bannerRef, {
+          clicks: increment(1)
+        });
+      } catch (err) {
+        console.error('Failed to increment banner click count:', err);
+      }
+    }
 
     if (rawType === 'external' || redirectUrl.startsWith('http')) {
       const href = /^https?:\/\//i.test(redirectUrl) ? redirectUrl : `https://${redirectUrl}`;

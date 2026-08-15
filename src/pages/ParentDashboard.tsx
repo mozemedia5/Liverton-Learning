@@ -17,7 +17,6 @@ import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
 import DashboardHeader from '@/components/DashboardHeader';
-import MotivationCorner from '@/components/MotivationCorner';
 import { getLinkedStudents } from '@/lib/parentService';
 import { 
   subscribeToParentAnalytics,
@@ -121,8 +120,6 @@ export default function ParentDashboard() {
         {/* Dashboard Banner */}
         <BannerCarousel />
 
-        {/* Motivation Corner widget */}
-        <MotivationCorner />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6 mb-8">

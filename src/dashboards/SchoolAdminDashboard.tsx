@@ -23,7 +23,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
 import DashboardHeader from '@/components/DashboardHeader';
-import MotivationCorner from '@/components/MotivationCorner';
 import { 
   subscribeToSchoolAnalytics,
   type SchoolAnalytics
@@ -127,8 +126,6 @@ export default function SchoolAdminDashboard() {
           </div>
         </Card>
 
-        {/* Motivation Corner widget */}
-        <MotivationCorner />
 
         {/* Quick Actions */}
         <div className="flex justify-end">
