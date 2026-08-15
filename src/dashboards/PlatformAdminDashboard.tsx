@@ -25,7 +25,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 import BannerCarousel from '@/components/BannerCarousel';
-import MotivationCorner from '@/components/MotivationCorner';
 import { 
   getDashboardStats, 
   getPendingVerifications,
@@ -250,8 +249,6 @@ export default function PlatformAdminDashboard() {
         {/* Dashboard Banner */}
         <BannerCarousel />
 
-        {/* Motivation Corner widget */}
-        <MotivationCorner />
 
         {/* Welcome */}
         <div className="flex items-center justify-between">

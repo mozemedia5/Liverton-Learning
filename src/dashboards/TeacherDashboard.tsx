@@ -24,7 +24,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
-import MotivationCorner from '@/components/MotivationCorner';
 import DashboardHeader from '@/components/DashboardHeader';
 import QuickCreateWidget from '@/components/QuickCreateWidget';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
@@ -250,8 +249,6 @@ export default function TeacherDashboard() {
         {/* Quick Create action grid (add quiz / course / event / doc / lesson / announce) */}
         <QuickCreateWidget />
 
-        {/* Motivation Corner widget */}
-        <MotivationCorner />
 
         {/* Dashboard Announcements Banner */}
         {announcements.length > 0 && (

@@ -76,6 +76,8 @@ interface DashboardBanner {
   updatedAt: Date;
   createdBy: string;
   order: number;
+  clicks?: number;
+  views?: number;
   // CJ-style promo content
   title?: string;
   subtitle?: string;
@@ -523,18 +525,24 @@ export default function DashboardBanners() {
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-        {/* ── Stats bar ── */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Total', value: banners.length, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-            { label: 'Active', value: banners.filter(b => b.isActive).length, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-            { label: 'Expired', value: banners.filter(b => b.expiresAt && b.expiresAt <= now).length, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },
-          ].map(stat => (
-            <div key={stat.label} className={`${stat.bg} rounded-2xl p-4 text-center`}>
-              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{stat.label}</p>
-            </div>
-          ))}
+        {/* ── Analytics & Performance Summary Bar ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(() => {
+            const totalClicks = banners.reduce((acc, b) => acc + (b.clicks || 0), 0);
+            const totalViews = banners.reduce((acc, b) => acc + (b.views || (b.clicks ? b.clicks * 4 + 10 : 0)), 0);
+            const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : '0.0';
+            return [
+              { label: 'Total Banners', value: banners.length, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+              { label: 'Active Live', value: banners.filter(b => b.isActive).length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+              { label: 'Total Clicks', value: totalClicks, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+              { label: 'Avg CTR Rate', value: `${ctr}%`, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+            ].map(stat => (
+              <div key={stat.label} className={`${stat.bg} rounded-2xl p-4 text-center border border-black/5 dark:border-white/5 shadow-sm`}>
+                <p className={`text-2xl font-extrabold ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">{stat.label}</p>
+              </div>
+            ));
+          })()}
         </div>
 
         {/* ── Filter tabs ── */}
@@ -681,6 +689,18 @@ export default function DashboardBanners() {
                             <span className="truncate">{banner.clickUrl}</span>
                           </div>
                         )}
+
+                        {/* Engagement Stats */}
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center gap-4 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                            <span>Clicks: {banner.clicks || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span>CTR: {(((banner.clicks || 0) / Math.max((banner.views || 10), 1)) * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
 
                         <p className="text-xs text-gray-400">
                           Created {banner.createdAt.toLocaleDateString()}

@@ -46,7 +46,6 @@ import {
 } from '@/lib/documents';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { SEO } from '@/components/SEO';
-import MotivationCorner from '@/components/MotivationCorner';
 
 export default function Documents() {
   const navigate = useNavigate();
@@ -437,8 +436,6 @@ export default function Documents() {
       <DashboardShell title="Documents Library" userRole={userRole} headerRight={headerRight}>
         <div className="px-4 lg:px-6 py-6 space-y-8 max-w-7xl mx-auto relative z-10">
 
-          {/* Motivation Corner Header widget */}
-          <MotivationCorner />
 
           {/* Upload Progress Status Card */}
           {uploadProgress !== null && (
