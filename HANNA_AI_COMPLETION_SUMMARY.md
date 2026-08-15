@@ -129,7 +129,7 @@ firestore.rules                # Security rules
 1. **Set Environment Variables**
    ```bash
    # In Firebase Console or via CLI
-   firebase functions:config:set gemini.api_key="AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs"
+   firebase functions:config:set gemini.api_key="YOUR_GEMINI_API_KEY"
    ```
 
 2. **Deploy Cloud Functions**
