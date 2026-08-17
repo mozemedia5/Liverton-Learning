@@ -1,0 +1,26 @@
+# Liverton Learning
+
+> Liverton Learning is an educational platform for students, teachers, parents, and schools.
+
+## Public resources
+
+- [Home](https://liverton-learning.vercel.app/): Product overview and entry points.
+- [About](https://liverton-learning.vercel.app/about): Platform mission and capabilities.
+- [For schools](https://liverton-learning.vercel.app/about/schools): School coordination and learning tools.
+- [For teachers](https://liverton-learning.vercel.app/about/teachers): Course, lesson, and assessment workflows.
+- [For students](https://liverton-learning.vercel.app/about/students): Student learning and study tools.
+- [Support](https://liverton-learning.vercel.app/support): Help and frequently asked questions.
+- [Privacy policy](https://liverton-learning.vercel.app/privacy-policy): Privacy information.
+- [XML sitemap](https://liverton-learning.vercel.app/sitemap.xml): Crawlable public URLs.
+
+## Main content categories
+
+The application includes courses, live lessons, quizzes, documents, announcements, collaborative Liv Teams workspaces, events, and AI-assisted study features. Authenticated dashboards and user-generated resources are private and are not intentionally exposed for public indexing.
+
+## Public data and APIs
+
+No unauthenticated public API is advertised by this application. Public pages should be read from their HTML and structured metadata. Do not attempt to access authenticated or token-protected resources without authorization.
+
+## Access boundaries
+
+Login, registration, verification, dashboards, administrative tools, profiles, documents, courses, chats, and other account-scoped areas require the appropriate authentication and role permissions.

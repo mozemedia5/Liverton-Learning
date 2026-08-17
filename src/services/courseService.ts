@@ -279,6 +279,16 @@ export async function getCourse(courseId: string): Promise<Course | null> {
   } as Course;
 }
 
+/**
+ * Get a course that is intentionally published for public sharing.
+ * Draft and archived courses remain available to authenticated owner workflows
+ * through getCourse, but are never exposed by the public course route.
+ */
+export async function getPublicCourse(courseId: string): Promise<Course | null> {
+  const course = await getCourse(courseId);
+  return course?.status === 'active' ? course : null;
+}
+
 // ==========================================
 // COURSE SUBSCRIPTIONS (REAL-TIME)
 // ==========================================

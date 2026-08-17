@@ -19,7 +19,7 @@ import {
   FileSpreadsheet, Presentation, Image as ImageIcon, File as FileIcon,
   Users, DollarSign, Pencil, Share2, LogIn, UserPlus, Lock
 } from 'lucide-react';
-import { getCourse, type Course, type CourseMaterial } from '@/services/courseService';
+import { getPublicCourse, type Course, type CourseMaterial } from '@/services/courseService';
 import { absoluteUrl } from '@/lib/seo';
 
 function materialIcon(type: CourseMaterial['type']) {
@@ -43,8 +43,11 @@ export default function CourseView() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { currentUser, userRole } = useAuth();
+  const location = useLocation();
 
   const [course, setCourse] = useState<Course | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -52,7 +55,7 @@ export default function CourseView() {
     const load = async () => {
       if (!courseId) return;
       try {
-        const data = await getCourse(courseId);
+        const data = await getPublicCourse(courseId);
         if (!data) {
           setNotFound(true);
         } else {
@@ -76,46 +79,6 @@ export default function CourseView() {
     } catch {
       toast.info(url);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-        <p className="text-sm text-slate-400">Loading course...</p>
-      </div>
-    );
-  }
-
-  if (notFound || !course) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-        <BookOpen className="w-10 h-10 text-slate-300" />
-        <p className="font-semibold">Course not found</p>
-        <Button variant="outline" className="rounded-xl" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-1.5" /> Go back
-        </Button>
-      </div>
-    );
-  }
-
-  const isOwner = currentUser?.uid === course.teacherId;
-  const isEnrolled = !!currentUser && course.enrolledStudents?.includes(currentUser.uid);
-  const isStudentLike = userRole === 'student' || userRole === 'parent';
-
-  // Guest trigger state
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authModalReason, setAuthModalReason] = useState('');
-  const location = useLocation();
-
-  const handleGuestAction = (reason: string) => {
-    setAuthModalReason(reason);
-    setShowAuthModal(true);
-  };
-
-  const handleAuthRedirect = (mode: 'login' | 'register') => {
-    const intended = `${location.pathname}${location.search}${location.hash}`;
-    navigate(`/${mode}`, { state: { from: intended } });
   };
 
   // Structured Data (JSON-LD) for SEO / AI Search Engines
@@ -148,6 +111,42 @@ export default function CourseView() {
       document.head.removeChild(script);
     };
   }, [course]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        <p className="text-sm text-slate-400">Loading course...</p>
+      </div>
+    );
+  }
+
+  if (notFound || !course) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+        <BookOpen className="w-10 h-10 text-slate-300" />
+        <p className="font-semibold">Course not found</p>
+        <Button variant="outline" className="rounded-xl" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-1.5" /> Go back
+        </Button>
+      </div>
+    );
+  }
+
+  const isOwner = currentUser?.uid === course.teacherId;
+  const isEnrolled = !!currentUser && course.enrolledStudents?.includes(currentUser.uid);
+  const isStudentLike = userRole === 'student' || userRole === 'parent';
+
+  // Guest trigger state
+  const handleGuestAction = (reason: string) => {
+    setAuthModalReason(reason);
+    setShowAuthModal(true);
+  };
+
+  const handleAuthRedirect = (mode: 'login' | 'register') => {
+    const intended = `${location.pathname}${location.search}${location.hash}`;
+    navigate(`/${mode}`, { state: { from: intended } });
+  };
 
   return (
     <div className="space-y-6">

@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
 import LogoLoader from '@/components/LogoLoader';
+import RouteMetadata from '@/components/RouteMetadata';
 
 // Pages
 import LandingPage from '@/pages/LandingPage';
@@ -196,7 +197,9 @@ function PublicAccessibleRoute({ children }: { children: React.ReactNode }) {
  */
 function AppRoutes() {
   return (
-    <Routes>
+    <>
+      <RouteMetadata />
+      <Routes>
       {/* Public Routes - Accessible to all, but redirect authenticated users to dashboard */}
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
       <Route path="/get-started" element={<PublicRoute><RoleSelection /></PublicRoute>} />
@@ -516,7 +519,8 @@ function AppRoutes() {
 
       {/* 404 - Page not found */}
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

@@ -1,12 +1,23 @@
-# Liverton Learning — robots.txt
-# When moving to https://livertonlearning.com, update the host entries below.
-
+# Liverton Learning crawler policy
 User-agent: *
 Allow: /
+
+# Authentication and account areas are not public content.
 Disallow: /login
 Disallow: /register
 Disallow: /verify-email
 Disallow: /settings
+Disallow: /profile
+Disallow: /student/
+Disallow: /teacher/
+Disallow: /parent/
+Disallow: /school-admin/
 Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /chat
+Disallow: /payments
+Disallow: /documents/public/
+Disallow: /features/
+Disallow: /zoom-lessons/
 
 Sitemap: https://liverton-learning.vercel.app/sitemap.xml
