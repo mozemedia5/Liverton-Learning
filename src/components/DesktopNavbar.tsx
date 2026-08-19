@@ -81,7 +81,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   return (
     <aside className={`liv-sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
       <div className="liv-sidebar-brand">
-        <button className="liv-brand-mark" onClick={() => navigate(homeFor(userRole))} aria-label="Liverton home">L</button>
+        <button className="liv-brand-mark" onClick={() => navigate(homeFor(userRole))} aria-label="Liverton home"><img src="/liverton-mark.jpg" alt="" /></button>
         {!isCollapsed && <div><strong>Liverton</strong><span>Learning platform</span></div>}
         <button className="liv-collapse" onClick={() => setIsCollapsed(!isCollapsed)} aria-label={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}>
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}

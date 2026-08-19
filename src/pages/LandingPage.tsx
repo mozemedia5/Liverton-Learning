@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import './landing.css';
+import './auth.css';
 
 type Role = 'student' | 'educator' | 'organization';
 
@@ -56,7 +57,7 @@ const imageSources = [
 function Logo() {
   return (
     <span className="liverton-logo" aria-label="Liverton">
-      <span className="liverton-logo-mark">L</span>
+      <span className="liverton-logo-mark"><img src="/liverton-mark.jpg" alt="" /></span>
       <span>liverton<span className="liverton-logo-dot">.</span></span>
     </span>
   );
