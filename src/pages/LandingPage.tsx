@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   CircleDollarSign,
+  Download as DownloadIcon,
   ClipboardCheck,
   GraduationCap,
   Heart,
@@ -24,6 +25,11 @@ import {
 } from 'lucide-react';
 
 type Role = 'student' | 'teacher' | 'parent' | 'organization';
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
 
 const roleContent: Record<Role, {
   label: string;
@@ -109,12 +115,54 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [role, setRole] = useState<Role>('teacher');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [installMessage, setInstallMessage] = useState('Install Liverton for a faster, app-like learning experience.');
   const content = roleContent[role];
+
+  useEffect(() => {
+    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
+    const isStandalone = standaloneMedia.matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIsInstalled(isStandalone);
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+    const handleDisplayModeChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setIsInstalled(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    standaloneMedia.addEventListener?.('change', handleDisplayModeChange);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      standaloneMedia.removeEventListener?.('change', handleDisplayModeChange);
+    };
+  }, []);
+
+  const installApp = async () => {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') setIsInstalled(true);
+      setInstallPrompt(null);
+      return;
+    }
+    setInstallMessage('Use your browser menu and choose “Install app” or “Add to Home Screen”.');
+  };
 
   return (
     <div className="lp-page">
-      <nav className="lp-nav"><div className="lp-nav-inner"><button className="lp-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span className="lp-brand-mark">L</span><span>liverton<span className="lp-logo-dot">.</span></span></button><div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}><a href="#platform" onClick={() => setMenuOpen(false)}>Platform</a><a href="#roles" onClick={() => setMenuOpen(false)}>For teams</a><a href="#stories" onClick={() => setMenuOpen(false)}>Stories</a><button className="lp-nav-login" onClick={() => navigate('/login')}>Log in</button><button className="lp-button lp-button-dark lp-nav-cta" onClick={() => navigate('/get-started')}>Get started <ArrowRight size={16} /></button></div><button className="lp-menu-button" aria-label="Toggle navigation" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></nav>
+      <nav className="lp-nav"><div className="lp-nav-inner"><button className="lp-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span className="lp-brand-mark">L</span><span>liverton<span className="lp-logo-dot">.</span></span></button><div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}><a href="#platform" onClick={() => setMenuOpen(false)}>Platform</a><a href="#roles" onClick={() => setMenuOpen(false)}>For teams</a><a href="#stories" onClick={() => setMenuOpen(false)}>Stories</a><button className="lp-nav-login" onClick={() => navigate('/login')}>Log in</button><button className="lp-button lp-button-dark lp-nav-cta" onClick={() => navigate('/get-started')}>Get started <ArrowRight size={16} /></button></div>{!isInstalled && <button className="lp-install-nav" onClick={installApp}><DownloadIcon /> Install app</button>}<button className="lp-menu-button" aria-label="Toggle navigation" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></nav>
       <main>
+        {!isInstalled && <section className="lp-install-banner" aria-live="polite"><div className="lp-install-banner-icon"><DownloadIcon /></div><div><strong>Take Liverton with you.</strong><span>{installMessage}</span></div><button onClick={installApp}>{installPrompt ? 'Install app' : 'How to install'} <ArrowRight size={15} /></button></section>}
         <section className="lp-hero" id="platform"><div className="lp-hero-copy"><div className="lp-pill"><span>✦</span> One home for every learning journey</div><h1>Make room for<br /><em>what’s next.</em></h1><p>Liverton brings learning, collaboration, funding, and opportunity into one beautifully simple workspace.</p><div className="lp-hero-actions"><button className="lp-button lp-button-dark" onClick={() => navigate('/get-started')}>Start your journey <ArrowRight size={17} /></button><button className="lp-button lp-button-quiet" onClick={() => document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth' })}><Play size={16} fill="currentColor" /> See how it works</button></div><div className="lp-proof"><div className="lp-proof-avatars"><span>AM</span><span>JD</span><span>SK</span><span>LV</span></div><div><div className="lp-stars">★★★★★</div><small>Loved by learners, educators & teams</small></div></div></div><div className="lp-hero-art"><div className="lp-art-ring lp-art-ring-one" /><div className="lp-art-ring lp-art-ring-two" /><div className="lp-art-card lp-art-card-main"><span className="lp-art-label">LIVE NOW</span><strong>Build your<br /><span>brightest</span> future.</strong><div className="lp-art-footer"><span>liverton learning</span><span>↗</span></div></div><div className="lp-art-card lp-art-card-small lp-art-card-top"><Sparkles size={17} /><strong>7 day<br />streak</strong></div><div className="lp-art-card lp-art-card-small lp-art-card-bottom"><Heart size={16} fill="currentColor" /><strong>4.9<br /><small>module rating</small></strong></div></div></section>
         <section className="lp-role-strip" id="roles"><div className="lp-role-heading"><span className="lp-overline">A space for every perspective</span><h2>Choose your<br /><em>point of view.</em></h2></div><div className="lp-role-tabs">{(Object.keys(roleContent) as Role[]).map((item) => <button key={item} className={role === item ? 'active' : ''} onClick={() => setRole(item)}><span className="lp-role-icon">{item === 'teacher' ? <GraduationCap size={17} /> : item === 'student' ? <BookOpen size={17} /> : item === 'parent' ? <Heart size={17} /> : <ShieldCheck size={17} />}</span>{roleContent[item].label}<span className="lp-tab-arrow">↗</span></button>)}</div></section>
         <section className="lp-dashboard-section" id="preview"><div className="lp-dashboard-heading"><div><span className="lp-overline" style={{ color: content.accent === '#c9f36b' ? '#5a6f19' : '#6d55c7' }}>{content.eyebrow}</span><h2>{content.title}</h2></div><p>{content.description}</p></div><DashboardPreview role={role} /></section>
