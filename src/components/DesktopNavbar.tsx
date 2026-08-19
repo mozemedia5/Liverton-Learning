@@ -21,6 +21,8 @@ import {
   Calculator,
   BarChart3,
   CreditCard,
+  CircleDollarSign,
+  Store,
   Users,
   GraduationCap,
   Shield,
@@ -201,6 +203,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
 
     // Shared standard tools
     tools.push(
+      { icon: CircleDollarSign, label: 'Live Fund · Go get funded', path: '/features/liv-fund' },
+      { icon: Store, label: 'Live Mart', path: '/features/liv-mart' },
       { icon: Settings, label: 'Settings', path: '/settings' },
       { icon: User, label: 'Profile', path: '/profile' }
     );
@@ -270,7 +274,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   return (
     <>
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-40 bg-white/70 dark:bg-slate-950/75 backdrop-blur-xl text-slate-700 dark:text-slate-300 border-r border-slate-200/50 dark:border-white/10 shadow-glass transition-all duration-300 flex flex-col overflow-hidden ${
+        className={`lp-desktop-sidebar fixed top-0 left-0 bottom-0 z-40 bg-white/70 dark:bg-slate-950/75 backdrop-blur-xl text-slate-700 dark:text-slate-300 border-r border-slate-200/50 dark:border-white/10 shadow-glass transition-all duration-300 flex flex-col overflow-hidden ${
           isCollapsed ? 'w-20' : 'w-72'
         }`}
       >

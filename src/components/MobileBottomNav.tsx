@@ -16,6 +16,8 @@ import {
   CalendarDays,
   Sparkles,
   CreditCard,
+  CircleDollarSign,
+  Store,
   Bell,
   Calculator,
   BarChart3,
@@ -200,8 +202,10 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
         break;
     }
 
-    // Shared settings and profile
+    // Shared product destinations plus settings and profile
     baseItems.push(
+      { icon: CircleDollarSign, label: 'Live Fund · Go get funded', path: '/features/liv-fund' },
+      { icon: Store, label: 'Live Mart', path: '/features/liv-mart' },
       { icon: Settings, label: 'Settings', path: '/settings' },
       { icon: User, label: 'Profile', path: '/profile' }
     );
@@ -473,7 +477,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       )}
 
       {/* Bottom Tab Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-2 pt-1 lg:hidden">
+      <nav className="lp-mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 px-4 pb-2 pt-1 lg:hidden">
         <div className="max-w-lg mx-auto tab-enter bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl shadow-black/5 dark:shadow-black/20">
           <div className="flex items-center justify-around h-16 px-1">
             {tabs.map((rawItem) => {

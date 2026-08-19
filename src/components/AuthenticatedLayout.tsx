@@ -54,7 +54,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
       }`;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors duration-300">
+    <div className="lp-auth-shell min-h-screen bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors duration-300">
       {/* Background glowing emerald & gold blobs to enhance glassmorphism rendering */}
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-500/10 dark:bg-amber-500/5 blur-[120px] pointer-events-none" />
@@ -81,7 +81,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
       )}
 
       {/* Main Content Area */}
-      <main className={mainClasses}>
+      <main className={`lp-auth-main ${mainClasses}`}>
         {isFullScreenPage ? (
           <div className="w-full h-full">
             {props.children ?? <Outlet />}

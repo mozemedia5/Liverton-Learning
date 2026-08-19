@@ -70,6 +70,8 @@ import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
 import Analytics from '@/pages/features/Analytics';
+import LiveFund from '@/pages/features/LiveFund';
+import LiveMart from '@/pages/features/LiveMart';
 import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
 import StudentZoomLessons from '@/components/ZoomLessons/StudentZoomLessons';
 import ParentZoomLessons from '@/components/ZoomLessons/ParentZoomLessons';
@@ -485,6 +487,16 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/features/liv-fund" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <LiveFund />
+        </ProtectedRoute>
+      } />
+      <Route path="/features/liv-mart" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <LiveMart />
+        </ProtectedRoute>
+      } />
       <Route path="/features/liv-teams" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><LivTeams /></AuthenticatedLayout>
