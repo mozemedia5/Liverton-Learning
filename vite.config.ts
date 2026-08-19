@@ -21,7 +21,7 @@ export default defineConfig({
     ]
   },
   plugins: [
-    inspectAttr(), 
+    ...(process.env.NODE_ENV === 'development' ? [inspectAttr()] : []),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
