@@ -10,14 +10,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'GEMINI_'],
   server: {
     middlewareMode: false,
-    allowedHosts: [
-      'localhost',
-      '127.0.0.1',
-      '5173-it2wj4czjxfn8nzxvtmkx.e2b.app',
-      'liverton-learning.lindy.site',
-      '.lindy.site',
-      '.e2b.app'
-    ]
+    allowedHosts: true
   },
   plugins: [
     inspectAttr(), 
