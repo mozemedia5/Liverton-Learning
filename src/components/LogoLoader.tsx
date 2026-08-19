@@ -1,92 +1,34 @@
-/**
- * LogoLoader Component
- * 
- * A modern, extremely fast loading animation featuring the brand logo
- * with an elegant orbiting glow ring. Replaces the slow, heavy 3D Rubik's Cube.
- */
-
 interface LogoLoaderProps {
   message?: string;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export default function LogoLoader({ message = 'Loading...', size = 'md' }: LogoLoaderProps) {
-  // Size configurations
-  const sizeClasses = {
-    sm: { container: 'h-16 w-16', logo: 'w-10 h-10', text: 'text-xs' },
-    md: { container: 'h-24 w-24', logo: 'w-16 h-16', text: 'text-sm' },
-    lg: { container: 'h-40 w-40', logo: 'w-28 h-28', text: 'text-base' }
-  };
-
-  const currentSize = sizeClasses[size];
+export default function LogoLoader({ message = 'Loading Liverton…', size = 'md' }: LogoLoaderProps) {
+  const sizes = { sm: 'h-14 w-14', md: 'h-24 w-24', lg: 'h-36 w-36' };
+  const markSize = sizes[size];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-background transition-colors duration-300">
-      <div className="flex flex-col items-center gap-10">
-        {/* Animated Logo Container */}
-        <div className="relative flex items-center justify-center">
-          {/* Background glow effect */}
-          <div className={`absolute inset-0 ${currentSize.container} bg-blue-500/10 dark:bg-blue-400/5 rounded-full blur-2xl animate-pulse`}></div>
-          
-          {/* Brand Logo with pulse & scale transition */}
-          <div className={`${currentSize.logo} relative z-10 transition-transform duration-300 hover:scale-110 flex items-center justify-center`}>
-            <img
-              src="/logo.png"
-              alt="Liverton Learning Logo"
-              className="w-full h-full object-contain animate-logo-pulse rounded-2xl"
-              onError={(e) => {
-                // Fallback if image not loaded yet
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
-          
-          {/* Orbiting ring */}
-          <div className={`absolute ${currentSize.container} border-2 border-dashed border-blue-500/30 dark:border-blue-400/25 rounded-full animate-spin-slow`}></div>
+    <div className="min-h-screen flex items-center justify-center bg-[#050505] text-white" role="status" aria-live="polite">
+      <div className="flex flex-col items-center gap-7">
+        <div className={`liverton-loader-mark ${markSize}`}>
+          <span className="liverton-loader-orbit" />
+          <img src="/icons/liverton-icon-master.png" alt="Liverton Learning" className="liverton-loader-image" />
         </div>
-
-        {/* Loading Message */}
         <div className="flex flex-col items-center gap-3">
-          <p className={`${currentSize.text} font-medium tracking-widest uppercase text-gray-500 dark:text-gray-400 animate-pulse`}>
-            {message}
-          </p>
-          
-          {/* Progress bar style loader */}
-          <div className="w-32 h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-600 dark:bg-blue-500 rounded-full animate-progress-loading"></div>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/65">{message}</p>
+          <span className="liverton-loader-dots" aria-hidden="true"><i /><i /><i /></span>
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        @keyframes progress-loading {
-          0% { width: 0%; transform: translateX(-100%); }
-          50% { width: 100%; transform: translateX(0%); }
-          100% { width: 0%; transform: translateX(100%); }
-        }
-
-        @keyframes logo-pulse {
-          0%, 100% { transform: scale(1); opacity: 0.95; }
-          50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.4)); }
-        }
-
-        .animate-spin-slow {
-          animation: spin-slow 8s linear infinite;
-        }
-
-        .animate-progress-loading {
-          animation: progress-loading 2s ease-in-out infinite;
-        }
-
-        .animate-logo-pulse {
-          animation: logo-pulse 2s ease-in-out infinite;
-        }
-      `}} />
+      <style>{`
+        .liverton-loader-mark{position:relative;display:flex;align-items:center;justify-content:center;isolation:isolate}
+        .liverton-loader-mark:before{content:'';position:absolute;inset:8%;border-radius:28%;background:radial-gradient(circle,#7c5cff55,transparent 68%);filter:blur(12px);animation:loader-glow 2.4s ease-in-out infinite}
+        .liverton-loader-image{width:76%;height:76%;object-fit:contain;border-radius:24%;position:relative;z-index:2;animation:loader-logo 2.8s cubic-bezier(.23,1,.32,1) infinite;transform-origin:center}
+        .liverton-loader-orbit{position:absolute;inset:0;border:1px solid rgba(255,255,255,.2);border-top-color:#9a82ff;border-radius:34%;transform:rotate(18deg);animation:loader-orbit 1.9s linear infinite}
+        .liverton-loader-dots{display:flex;gap:5px}.liverton-loader-dots i{display:block;width:5px;height:5px;border-radius:50%;background:#9a82ff;animation:loader-dot 1.1s ease-in-out infinite}.liverton-loader-dots i:nth-child(2){animation-delay:.15s}.liverton-loader-dots i:nth-child(3){animation-delay:.3s}
+        @keyframes loader-logo{0%,100%{transform:rotate(0deg) scale(1)}45%{transform:rotate(180deg) scale(1.08)}65%{transform:rotate(360deg) scale(.96)}80%{transform:rotate(360deg) scale(1)}}
+        @keyframes loader-orbit{to{transform:rotate(378deg)}}@keyframes loader-glow{50%{opacity:.55;transform:scale(1.12)}}@keyframes loader-dot{0%,100%{opacity:.28;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
+        @media(prefers-reduced-motion:reduce){.liverton-loader-image,.liverton-loader-orbit,.liverton-loader-mark:before,.liverton-loader-dots i{animation:none}.liverton-loader-image{transform:none}}
+      `}</style>
     </div>
   );
 }

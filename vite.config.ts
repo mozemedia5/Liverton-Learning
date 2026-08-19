@@ -31,7 +31,7 @@ export default defineConfig({
         name: 'Liverton Learning',
         short_name: 'Liverton',
         description: 'A comprehensive learning management system for students, teachers, and schools',
-        theme_color: '#2563eb',
+        theme_color: '#050505',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
@@ -39,25 +39,25 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'icons/icon-192x192.png',
+            src: 'icons/liverton-icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'icons/icon-192x192-maskable.png',
+            src: 'icons/liverton-icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable'
           },
           {
-            src: 'icons/icon-512x512.png',
+            src: 'icons/liverton-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'icons/icon-512x512-maskable.png',
+            src: 'icons/liverton-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'

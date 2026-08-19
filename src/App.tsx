@@ -87,6 +87,7 @@ import About from '@/pages/about/About';
 import AboutSchools from '@/pages/about/AboutSchools';
 import AboutTeachers from '@/pages/about/AboutTeachers';
 import AboutStudents from '@/pages/about/AboutStudents';
+import AboutParents from '@/pages/about/AboutParents';
 
 // Support & Legal Pages
 import Support from '@/pages/Support';
@@ -219,6 +220,7 @@ function AppRoutes() {
       <Route path="/about/schools" element={<PublicAccessibleRoute><AboutSchools /></PublicAccessibleRoute>} />
       <Route path="/about/teachers" element={<PublicAccessibleRoute><AboutTeachers /></PublicAccessibleRoute>} />
       <Route path="/about/students" element={<PublicAccessibleRoute><AboutStudents /></PublicAccessibleRoute>} />
+      <Route path="/about/parents" element={<PublicAccessibleRoute><AboutParents /></PublicAccessibleRoute>} />
 
       {/* Support & Legal Pages - Accessible to all users (both authenticated and unauthenticated) */}
       <Route path="/support" element={<PublicAccessibleRoute><Support /></PublicAccessibleRoute>} />

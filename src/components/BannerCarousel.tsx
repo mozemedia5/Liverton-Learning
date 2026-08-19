@@ -72,9 +72,9 @@ function getDefaultBanners(role: string | null): Banner[] {
     },
     {
       id: 'default-hanna',
-      title: 'Meet Hanna, your AI study buddy',
-      subtitle: 'Summaries, quiz practice, document help and instant answers — right inside Liverton.',
-      ctaLabel: 'Ask Hanna',
+      title: 'Meet Hanna, your AI learning & project partner',
+      subtitle: 'Study support, project planning, document help, team coordination, and instant answers — right inside Liverton.',
+      ctaLabel: 'Work with Hanna',
       clickUrl: '/features/hanna-ai',
       clickUrlType: 'internal',
       theme: 'royal-purple',
