@@ -4,170 +4,157 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  ChevronRight,
-  CircleDollarSign,
-  Download as DownloadIcon,
-  ClipboardCheck,
+  Check,
+  ChevronDown,
+  Compass,
   GraduationCap,
   Heart,
-  LayoutDashboard,
+  Lightbulb,
   Menu,
   MessageCircle,
   Play,
-  Search,
-  ShieldCheck,
   Sparkles,
-  Star,
   Store,
   Users,
   X,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import './landing.css';
 
-type Role = 'student' | 'teacher' | 'parent' | 'organization';
+type Role = 'student' | 'educator' | 'organization';
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
-
-const roleContent: Record<Role, {
-  label: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  accent: string;
-  avatar: string;
-  stats: [string, string][];
-}> = {
+const roleContent: Record<Role, { label: string; title: string; body: string; stat: string; statLabel: string }> = {
   student: {
-    label: 'Students',
-    eyebrow: 'Your learning space',
-    title: 'Learn in a way that feels like you.',
-    description: 'Discover modules, build your streak, join teams, and keep every lesson in one calm workspace.',
-    accent: '#c9f36b',
-    avatar: 'AM',
-    stats: [['12', 'modules in progress'], ['84%', 'average score']],
+    label: 'For learners',
+    title: 'Find your people. Build your next chapter.',
+    body: 'Explore learning paths, join live teams, and turn every small win into momentum you can feel.',
+    stat: '84%',
+    statLabel: 'average progress this week',
   },
-  teacher: {
-    label: 'Educators',
-    eyebrow: 'Your creator workspace',
-    title: 'Turn your expertise into momentum.',
-    description: 'Create rich modules, invite collaborators, assess learners, and publish work that people want to return to.',
-    accent: '#bca7ff',
-    avatar: 'JD',
-    stats: [['24', 'active learners'], ['4.9', 'module rating']],
-  },
-  parent: {
-    label: 'Parents',
-    eyebrow: 'Your family dashboard',
-    title: 'See the whole learning journey.',
-    description: 'Monitor progress, celebrate milestones, and stay connected to the people helping your learner grow.',
-    accent: '#ffbf8a',
-    avatar: 'SK',
-    stats: [['3', 'learners connected'], ['92%', 'weekly engagement']],
+  educator: {
+    label: 'For educators',
+    title: 'Teach with more room to make an impact.',
+    body: 'Create rich modules, bring collaborators in, and give every learner a clearer path forward.',
+    stat: '4.9/5',
+    statLabel: 'creator satisfaction score',
   },
   organization: {
-    label: 'Organizations',
-    eyebrow: 'Your organization hub',
-    title: 'Build programs that move people forward.',
-    description: 'Coordinate teams, fund projects, manage learning programs, and bring your community into one platform.',
-    accent: '#8de5dc',
-    avatar: 'LV',
-    stats: [['8', 'programs live'], ['31', 'team members']],
+    label: 'For organizations',
+    title: 'Make learning a shared advantage.',
+    body: 'Coordinate programs, teams, projects, funding, and opportunity from one calm workspace.',
+    stat: '31',
+    statLabel: 'active community members',
   },
 };
 
-const dashboardLinks = [
-  { icon: LayoutDashboard, label: 'Overview' },
-  { icon: BookOpen, label: 'Modules' },
-  { icon: Users, label: 'Audience' },
-  { icon: BarChart3, label: 'Insights' },
-  { icon: Menu, label: 'More' },
+const imageSources = [
+  'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=85',
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=85',
+  'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=85',
 ];
 
-function DashboardPreview({ role }: { role: Role }) {
-  const content = roleContent[role];
+function Logo() {
   return (
-    <div className="lp-preview-shell">
-      <div className="lp-preview-sidebar">
-        <div className="lp-mini-brand"><span className="lp-brand-mark">L</span><span>liverton</span></div>
-        <div className="lp-mini-profile"><span className="lp-avatar" style={{ background: content.accent }}>{content.avatar}</span><span><strong>{content.label}</strong><small>Workspace</small></span></div>
-        <div className="lp-mini-links">
-          {dashboardLinks.map((item, index) => {
-            const Icon = item.icon;
-            return <div className={`lp-mini-link ${index === 0 ? 'active' : ''}`} key={item.label}><Icon size={16} /><span>{item.label}</span></div>;
-          })}
-        </div>
-        <div className="lp-mini-fund"><CircleDollarSign size={18} /><strong>Live Fund</strong><small>Go get funded</small><span className="lp-fund-arrow">↗</span></div>
-      </div>
-      <div className="lp-preview-main">
-        <div className="lp-preview-top"><div><span className="lp-overline">{content.eyebrow}</span><h3>Good morning, Alex <span>✦</span></h3></div><div className="lp-preview-actions"><span className="lp-search"><Search size={15} /> Search</span><span className="lp-notification">2</span><span className="lp-avatar lp-avatar-small">{content.avatar}</span></div></div>
-        <div className="lp-hero-banner" style={{ background: `linear-gradient(135deg, ${content.accent}, #ffffff)` }}><div><span className="lp-banner-kicker">{role === 'teacher' ? 'Creator spotlight' : role === 'parent' ? 'Family pulse' : role === 'organization' ? 'Program health' : 'Keep going'}</span><h4>{role === 'teacher' ? 'Your next module is one idea away.' : role === 'parent' ? 'Maya completed 3 lessons this week.' : role === 'organization' ? 'Your learning community is in motion.' : 'Small steps make big progress.'}</h4><button>Open workspace <ArrowRight size={15} /></button></div><div className="lp-banner-orb"><Sparkles size={28} /></div></div>
-        <div className="lp-preview-grid">{content.stats.map(([value, label]) => <div className="lp-stat-card" key={label}><strong>{value}</strong><span>{label}</span><div className="lp-stat-line"><i /></div></div>)}<div className="lp-stat-card lp-stat-accent"><Star size={18} fill="currentColor" /><strong>4.8</strong><span>community rating</span></div></div>
-        <div className="lp-preview-section"><div className="lp-section-title"><span>Continue building</span><button>View all <ChevronRight size={15} /></button></div><div className="lp-module-row"><div className="lp-module-icon"><ClipboardCheck size={19} /></div><div><strong>{role === 'teacher' ? 'Design an assessment' : 'Creative problem solving'}</strong><small>{role === 'teacher' ? 'Draft · 6 questions · 14 min' : 'Module · 68% complete · 3 lessons left'}</small></div><span className="lp-progress"><i style={{ width: role === 'teacher' ? '44%' : '68%' }} /></span><ChevronRight size={17} /></div></div>
-      </div>
-    </div>
+    <span className="liverton-logo" aria-label="Liverton">
+      <span className="liverton-logo-mark">L</span>
+      <span>liverton<span className="liverton-logo-dot">.</span></span>
+    </span>
   );
 }
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [role, setRole] = useState<Role>('teacher');
+  const { isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [installMessage, setInstallMessage] = useState('Install Liverton for a faster, app-like learning experience.');
+  const [role, setRole] = useState<Role>('student');
+  const [showVideo, setShowVideo] = useState(false);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const content = roleContent[role];
 
   useEffect(() => {
-    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
-    const isStandalone = standaloneMedia.matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setIsInstalled(isStandalone);
-
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    };
-    const handleDisplayModeChange = (event: MediaQueryListEvent) => {
-      if (event.matches) setIsInstalled(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    standaloneMedia.addEventListener?.('change', handleDisplayModeChange);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-      standaloneMedia.removeEventListener?.('change', handleDisplayModeChange);
-    };
+    document.title = 'Liverton — Learn together. Go further.';
   }, []);
 
-  const installApp = async () => {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      if (choice.outcome === 'accepted') setIsInstalled(true);
-      setInstallPrompt(null);
+  const go = (path: string) => {
+    setMenuOpen(false);
+    if (!isAuthenticated && path.startsWith('/features')) {
+      navigate('/login', { state: { from: path } });
       return;
     }
-    setInstallMessage('Use your browser menu and choose “Install app” or “Add to Home Screen”.');
+    navigate(path);
+  };
+
+  const scrollTo = (id: string) => {
+    setMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
-    <div className="lp-page">
-      <nav className="lp-nav"><div className="lp-nav-inner"><button className="lp-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span className="lp-brand-mark">L</span><span>liverton<span className="lp-logo-dot">.</span></span></button><div className={`lp-nav-links ${menuOpen ? 'open' : ''}`}><a href="#platform" onClick={() => setMenuOpen(false)}>Platform</a><a href="#roles" onClick={() => setMenuOpen(false)}>For teams</a><a href="#stories" onClick={() => setMenuOpen(false)}>Stories</a><button className="lp-nav-login" onClick={() => navigate('/login')}>Log in</button><button className="lp-button lp-button-dark lp-nav-cta" onClick={() => navigate('/get-started')}>Get started <ArrowRight size={16} /></button></div>{!isInstalled && <button className="lp-install-nav" onClick={installApp}><DownloadIcon /> Install app</button>}<button className="lp-menu-button" aria-label="Toggle navigation" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div></nav>
-      <main>
-        {!isInstalled && <section className="lp-install-banner" aria-live="polite"><div className="lp-install-banner-icon"><DownloadIcon /></div><div><strong>Take Liverton with you.</strong><span>{installMessage}</span></div><button onClick={installApp}>{installPrompt ? 'Install app' : 'How to install'} <ArrowRight size={15} /></button></section>}
-        <section className="lp-hero" id="platform"><div className="lp-hero-copy"><div className="lp-pill"><span>✦</span> One home for every learning journey</div><h1>Make room for<br /><em>what’s next.</em></h1><p>Liverton brings learning, collaboration, funding, and opportunity into one beautifully simple workspace.</p><div className="lp-hero-actions"><button className="lp-button lp-button-dark" onClick={() => navigate('/get-started')}>Start your journey <ArrowRight size={17} /></button><button className="lp-button lp-button-quiet" onClick={() => document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth' })}><Play size={16} fill="currentColor" /> See how it works</button></div><div className="lp-proof"><div className="lp-proof-avatars"><span>AM</span><span>JD</span><span>SK</span><span>LV</span></div><div><div className="lp-stars">★★★★★</div><small>Loved by learners, educators & teams</small></div></div></div><div className="lp-hero-art"><div className="lp-art-ring lp-art-ring-one" /><div className="lp-art-ring lp-art-ring-two" /><div className="lp-art-card lp-art-card-main"><span className="lp-art-label">LIVE NOW</span><strong>Build your<br /><span>brightest</span> future.</strong><div className="lp-art-footer"><span>liverton learning</span><span>↗</span></div></div><div className="lp-art-card lp-art-card-small lp-art-card-top"><Sparkles size={17} /><strong>7 day<br />streak</strong></div><div className="lp-art-card lp-art-card-small lp-art-card-bottom"><Heart size={16} fill="currentColor" /><strong>4.9<br /><small>module rating</small></strong></div></div></section>
-        <section className="lp-role-strip" id="roles"><div className="lp-role-heading"><span className="lp-overline">A space for every perspective</span><h2>Choose your<br /><em>point of view.</em></h2></div><div className="lp-role-tabs">{(Object.keys(roleContent) as Role[]).map((item) => <button key={item} className={role === item ? 'active' : ''} onClick={() => setRole(item)}><span className="lp-role-icon">{item === 'teacher' ? <GraduationCap size={17} /> : item === 'student' ? <BookOpen size={17} /> : item === 'parent' ? <Heart size={17} /> : <ShieldCheck size={17} />}</span>{roleContent[item].label}<span className="lp-tab-arrow">↗</span></button>)}</div></section>
-        <section className="lp-dashboard-section" id="preview"><div className="lp-dashboard-heading"><div><span className="lp-overline" style={{ color: content.accent === '#c9f36b' ? '#5a6f19' : '#6d55c7' }}>{content.eyebrow}</span><h2>{content.title}</h2></div><p>{content.description}</p></div><DashboardPreview role={role} /></section>
-        <section className="lp-products" id="stories"><div className="lp-products-heading"><span className="lp-overline">The liverton ecosystem</span><h2>More than modules.<br /><em>A whole world of momentum.</em></h2></div><div className="lp-product-grid"><div className="lp-product-card lp-product-teams"><div className="lp-product-icon"><MessageCircle size={20} /></div><span className="lp-overline">Collaborate</span><h3>Live Teams</h3><p>Chat, plan projects, assign roles, schedule sessions, and keep the whole team moving together.</p><button>Explore teams <ArrowRight size={15} /></button><div className="lp-chat-bubbles"><span>Nice work on the brief!</span><span>Meeting moved to 4:30 ↗</span></div></div><div className="lp-product-card lp-product-fund"><div className="lp-product-icon"><CircleDollarSign size={20} /></div><span className="lp-overline">Grow ideas</span><h3>Live Fund</h3><p>Find support for your next learning project and give ambitious ideas the runway they deserve.</p><button>Go get funded <ArrowRight size={15} /></button><div className="lp-fund-progress"><span><i /></span><small>68% funded · 12 days left</small></div></div><div className="lp-product-card lp-product-mart"><div className="lp-product-icon"><Store size={20} /></div><span className="lp-overline">Share & sell</span><h3>Live Mart</h3><p>Turn completed projects, school essentials, and creator resources into new opportunities.</p><button>Visit the mart <ArrowRight size={15} /></button><div className="lp-mart-products"><span>Lesson kit</span><span>Project guide</span><span>+12 more</span></div></div></div></section>
+    <div className="liverton-home">
+      <nav className="home-nav">
+        <button className="home-brand" onClick={() => scrollTo('top')}><Logo /></button>
+        <div className={`home-nav-links ${menuOpen ? 'is-open' : ''}`}>
+          <button onClick={() => scrollTo('why-liverton')}>Why Liverton</button>
+          <button onClick={() => scrollTo('ecosystem')}>Explore</button>
+          <button onClick={() => scrollTo('stories')}>Stories</button>
+          <button className="nav-login" onClick={() => navigate('/login')}>Log in</button>
+          <button className="nav-cta" onClick={() => navigate('/get-started')}>Get started <ArrowRight size={16} /></button>
+        </div>
+        <button className="nav-menu" aria-label="Open navigation" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X /> : <Menu />}</button>
+      </nav>
+
+      <main id="top">
+        <section className="home-hero">
+          <div className="hero-copy">
+            <div className="eyebrow"><span className="eyebrow-spark">✦</span> One home for every learning journey</div>
+            <h1>Make room for<br /><em>what’s next.</em></h1>
+            <p className="hero-lede">Liverton brings learning, collaboration, funding, and opportunity into one beautifully simple workspace.</p>
+            <div className="hero-actions">
+              <button className="primary-cta" onClick={() => navigate('/get-started')}>Start your journey <ArrowRight size={18} /></button>
+              <button className="secondary-cta" onClick={() => setShowVideo(true)}><span className="play-chip"><Play size={13} fill="currentColor" /></span> Watch the story</button>
+            </div>
+            <div className="hero-proof"><div className="proof-avatars"><span>AM</span><span>JD</span><span>SK</span><span>LV</span></div><div><div className="proof-stars">★★★★★</div><small>Loved by learners, educators & teams</small></div></div>
+          </div>
+          <div className="hero-visual" aria-label="Liverton learning community preview">
+            <div className="hero-sun" />
+            <div className="hero-image-card hero-image-main"><img src={imageSources[0]} alt="Students learning together in a bright classroom" /><div className="image-caption"><span>Learning looks better together.</span><strong>01 / 03</strong></div></div>
+            <div className="hero-float-card hero-float-streak"><Sparkles size={16} /><strong>7 day<br />streak</strong><span>Keep going</span></div>
+            <div className="hero-float-card hero-float-rate"><Heart size={16} fill="currentColor" /><strong>4.9</strong><span>community rating</span></div>
+            <div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" />
+          </div>
+        </section>
+
+        <section className="trust-strip"><span>Built for the people moving learning forward</span><div><span>LEARNERS</span><span>EDUCATORS</span><span>ORGANIZATIONS</span><span>CREATORS</span></div></section>
+
+        <section className="section-shell why-section" id="why-liverton">
+          <div className="section-heading"><div><span className="section-kicker">A clearer way forward</span><h2>Everything you need<br /><em>to keep going.</em></h2></div><p>From your first lesson to your boldest project, Liverton keeps the right people, tools, and opportunities close at hand.</p></div>
+          <div className="feature-grid">
+            <article className="feature-card feature-card-lime"><div className="feature-icon"><Compass size={21} /></div><span className="feature-index">01</span><h3>Find your path</h3><p>Discover focused modules and learning spaces that feel personal, practical, and worth returning to.</p><button onClick={() => go('/student/courses')}>Explore learning <ArrowRight size={16} /></button></article>
+            <article className="feature-card feature-card-lilac"><div className="feature-icon"><Users size={21} /></div><span className="feature-index">02</span><h3>Move as a team</h3><p>Bring learners, educators, and collaborators into the same rhythm with Live Teams.</p><button onClick={() => go('/features/liv-teams')}>Meet your team <ArrowRight size={16} /></button></article>
+            <article className="feature-card feature-card-peach"><div className="feature-icon"><Lightbulb size={21} /></div><span className="feature-index">03</span><h3>Make ideas real</h3><p>Turn ambitious projects into momentum with visibility, funding, and a community that cares.</p><button onClick={() => go('/features/liv-fund')}>See what’s possible <ArrowRight size={16} /></button></article>
+          </div>
+        </section>
+
+        <section className="section-shell role-section" id="stories">
+          <div className="role-header"><div><span className="section-kicker">A space for every perspective</span><h2>Choose your<br /><em>point of view.</em></h2></div><div className="role-tabs">{(Object.keys(roleContent) as Role[]).map((item) => <button key={item} className={role === item ? 'active' : ''} onClick={() => setRole(item)}>{roleContent[item].label}<span>↗</span></button>)}</div></div>
+          <div className="role-showcase"><div className="role-showcase-copy"><span className="role-label">{content.label}</span><h3>{content.title}</h3><p>{content.body}</p><button className="dark-cta" onClick={() => navigate('/get-started')}>Build your space <ArrowRight size={17} /></button><div className="role-stat"><strong>{content.stat}</strong><span>{content.statLabel}</span></div></div><div className="role-image-stack"><img src={imageSources[1]} alt="A diverse group collaborating around a laptop" /><div className="mini-profile-card"><span className="mini-avatar">AM</span><div><strong>Alex joined your space</strong><span>Just now · Liverton Learning</span></div><Check size={17} /></div></div></div>
+        </section>
+
+        <section className="section-shell ecosystem-section" id="ecosystem">
+          <div className="section-heading"><div><span className="section-kicker">The Liverton ecosystem</span><h2>More than modules.<br /><em>A whole world of momentum.</em></h2></div><p>One identity, many ways to learn, build, share, and grow. Your work travels with you.</p></div>
+          <div className="ecosystem-grid"><button className="ecosystem-card ecosystem-teams" onClick={() => go('/features/liv-teams')}><div className="ecosystem-card-top"><MessageCircle size={20} /><span>01</span></div><span className="feature-index">COLLABORATE</span><h3>Live Teams</h3><p>Chat, plan projects, schedule sessions, and keep the whole team moving together.</p><span className="card-link">Open Live Teams <ArrowRight size={16} /></span><img src={imageSources[2]} alt="Students collaborating in a modern learning space" /></button><button className="ecosystem-card ecosystem-ai" onClick={() => go('/features/hanna-ai')}><div className="ecosystem-card-top"><Sparkles size={20} /><span>02</span></div><span className="feature-index">THINK WITH YOU</span><h3>Hanna AI</h3><p>A supportive study companion for clearer questions, stronger ideas, and better next steps.</p><span className="card-link">Meet Hanna <ArrowRight size={16} /></span><div className="hanna-chat"><span className="hanna-avatar">H</span><div><strong>Ask Hanna anything</strong><small>Try: “Help me plan my study week”</small></div><ArrowRight size={15} /></div></button><button className="ecosystem-card ecosystem-mart" onClick={() => go('/features/liv-mart')}><div className="ecosystem-card-top"><Store size={20} /><span>03</span></div><span className="feature-index">SHARE & SELL</span><h3>LivMart</h3><p>Turn completed projects, school essentials, and creator resources into new opportunity.</p><span className="card-link">Visit LivMart <ArrowRight size={16} /></span><div className="mart-pills"><span>Lesson kits</span><span>Project guides</span><span>+12 more</span></div></button></div>
+        </section>
+
+        <section className="home-quote"><div className="quote-mark">“</div><blockquote>Liverton makes progress feel less like a solo climb and more like a shared horizon.</blockquote><div className="quote-byline"><span className="quote-avatar">NK</span><span><strong>Nadia K.</strong><small>Learner & community builder</small></span></div></section>
+
+        <section className="section-shell faq-section"><div><span className="section-kicker">Still curious?</span><h2>Let’s make the<br /><em>next step easy.</em></h2></div><div className="faq-list">{['Can I join Liverton as a learner or educator?', 'What is Hanna AI?', 'Can organizations create their own learning spaces?'].map((question, index) => <div className={`faq-item ${expandedFaq === index ? 'open' : ''}`} key={question}><button onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}><span>{question}</span><ChevronDown size={18} /></button>{expandedFaq === index && <p>{index === 0 ? 'Yes. Start with the role that fits you best, then move between learning, teams, projects, and opportunity with one Liverton identity.' : index === 1 ? 'Hanna is Liverton’s thoughtful AI study companion. It helps you clarify ideas, plan your learning, and create stronger work.' : 'Yes. Organizations can coordinate people, programs, modules, projects, and financial opportunity in one connected workspace.'}</p>}</div>)}</div></section>
+
+        <section className="final-cta"><div className="final-cta-glow" /><span className="section-kicker">Your next chapter starts here</span><h2>Make room for<br /><em>what’s next.</em></h2><p>Learning is better when you don’t have to do it alone.</p><button className="light-cta" onClick={() => navigate('/get-started')}>Get started free <ArrowRight size={18} /></button></section>
       </main>
-      <footer className="lp-footer"><div className="lp-footer-brand"><span className="lp-brand-mark">L</span><strong>liverton.</strong><span>Learn together. Go further.</span></div><div className="lp-footer-links"><a href="#platform">Platform</a><a href="#roles">For teams</a><a href="#stories">Stories</a><button onClick={() => navigate('/login')}>Log in</button></div><span className="lp-footer-copy">© 2026 Liverton Learning</span></footer>
+
+      <footer className="home-footer"><div className="footer-brand"><Logo /><span>Learn together. Go further.</span></div><div className="footer-links"><button onClick={() => scrollTo('why-liverton')}>Why Liverton</button><button onClick={() => scrollTo('ecosystem')}>Explore</button><button onClick={() => navigate('/about')}>About</button><button onClick={() => navigate('/login')}>Log in</button></div><span className="footer-copy">© 2026 Liverton Learning</span></footer>
+
+      {showVideo && <div className="video-modal" role="dialog" aria-modal="true" aria-label="Liverton story"><button className="video-close" onClick={() => setShowVideo(false)} aria-label="Close video"><X /></button><div className="video-frame"><video controls autoPlay poster={imageSources[0]}><source src="https://videos.pexels.com/video-files/3129595/3129595-hd_1920_1080_25fps.mp4" type="video/mp4" /></video><div className="video-fallback"><Play size={28} fill="currentColor" /><span>Liverton in motion</span></div></div></div>}
     </div>
   );
 }

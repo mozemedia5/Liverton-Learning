@@ -16,7 +16,8 @@ export default defineConfig({
       '5173-it2wj4czjxfn8nzxvtmkx.e2b.app',
       'liverton-learning.lindy.site',
       '.lindy.site',
-      '.e2b.app'
+      '.e2b.app',
+      '.manus.computer'
     ]
   },
   plugins: [
