@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  Check,
   ChevronRight,
   CircleDollarSign,
   Download as DownloadIcon,
