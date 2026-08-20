@@ -362,6 +362,20 @@ service cloud.firestore {
       return isAuthenticated() && 
         currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('memberIds', []);
     }
+
+    function isTeamFinanceManager(teamId) {
+      return isTeamMember(teamId) && (
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('financeManagerIds', [])
+      );
+    }
+
+    function isTeamAIManager(teamId) {
+      return isTeamMember(teamId) && (
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('aiManagerIds', [])
+      );
+    }
     
     // Check the requester holds a pending invitation for this team
     // (invitation docs use deterministic IDs: {teamId}_{email})
@@ -440,6 +454,21 @@ service cloud.firestore {
         (isAuthenticated() && resource.data.senderId == currentUserId());
     }
     
+    // Sensitive team ledgers are top-level collections so they do not inherit
+    // the broad team workspace wildcard. Reads and writes remain role-scoped.
+    match /team_treasury_ledger/{entryId} {
+      allow read: if isPlatformAdmin() || isTeamFinanceManager(resource.data.teamId);
+      allow create: if isPlatformAdmin() || isTeamFinanceManager(request.resource.data.teamId);
+      allow update: if isPlatformAdmin() || isTeamFinanceManager(resource.data.teamId);
+      allow delete: if isPlatformAdmin();
+    }
+
+    match /team_ai_credit_ledger/{entryId} {
+      allow read: if isPlatformAdmin() || isTeamMember(resource.data.teamId);
+      allow create: if isPlatformAdmin() || isTeamAIManager(request.resource.data.teamId) || isTeamMember(request.resource.data.teamId);
+      allow update, delete: if isPlatformAdmin();
+    }
+
     // Marketplace listings are public-read inside the app
     match /marketplace_items/{itemId} {
       allow read: if isAuthenticated();

@@ -105,7 +105,11 @@ export type ProjectStatus =
   | 'Active'
   | 'Testing'
   | 'Review'
+  | 'Near Completion'
   | 'Completed'
+  | 'Submitted for Verification'
+  | 'Verified'
+  | 'Listed'
   | 'Archived';
 
 export interface ProjectComment {
@@ -123,15 +127,25 @@ export interface TeamProject {
   description: string;
   coverUrl?: string;
   category: string;
+  ownerId?: string;
   members: string[]; // userIds of assigned members
+  memberRoles?: Record<string, string>;
+  objectives?: string[];
+  deliverables?: string[];
+  requiredMaterials?: string[];
   budget: number;
+  actualSpend?: number;
+  currency?: string;
   timeline: string;
+  targetCompletionDate?: string;
   status: ProjectStatus;
   milestones: string[];
-  progress: number; // percentage 0-100
+  progress: number; // percentage 0-100; derived from task/milestone records when available
   createdAt: Date | any;
   updatedAt: Date | any;
   isPublishedToMarketplace?: boolean;
+  submittedForVerificationAt?: Date | any;
+  verifiedAt?: Date | any;
 }
 
 export interface TaskChecklistItem {
@@ -139,6 +153,8 @@ export interface TaskChecklistItem {
   text: string;
   isCompleted: boolean;
 }
+
+export type TeamTaskStatus = 'Todo' | 'In Progress' | 'Blocked' | 'Review' | 'Completed';
 
 export interface TeamTask {
   id: string;
@@ -148,14 +164,59 @@ export interface TeamTask {
   description: string;
   deadline: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
+  status?: TeamTaskStatus;
   assignedMembers: string[]; // userIds
   attachments: { name: string; url: string }[];
   checklist: TaskChecklistItem[];
   comments: ProjectComment[];
   progress: number; // 0-100
   isCompleted: boolean;
+  createdBy?: string;
   createdAt: Date | any;
   updatedAt: Date | any;
+}
+
+export interface TeamMilestone {
+  id: string;
+  teamId: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  targetDate?: string;
+  taskIds: string[];
+  responsibleUserIds: string[];
+  evidenceFileIds?: string[];
+  isCompleted: boolean;
+  createdBy: string;
+  createdAt: Date | any;
+  updatedAt: Date | any;
+}
+
+export interface TeamTreasuryLedgerEntry {
+  id: string;
+  teamId: string;
+  type: 'credit' | 'debit' | 'refund' | 'hold' | 'release';
+  amount: number;
+  currency: string;
+  source?: string;
+  destination?: string;
+  actorId: string;
+  reference?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'failed';
+  idempotencyKey?: string;
+  createdAt: Date | any;
+}
+
+export interface TeamAICreditLedgerEntry {
+  id: string;
+  teamId: string;
+  operation: string;
+  credits: number;
+  type: 'purchased' | 'granted' | 'consumed' | 'refunded' | 'expired';
+  actorId: string;
+  projectId?: string;
+  reference?: string;
+  createdAt: Date | any;
 }
 
 export interface TeamFolderFile {

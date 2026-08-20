@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -10,8 +11,9 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { TeamProject, TeamTask, TeamFolderFile } from '@/types/livTeams';
+import type { TeamProject, TeamTask, TeamFolderFile, TeamMilestone } from '@/types/livTeams';
 import { logTeamActivity } from './livTeamsCoreService';
+import { isValidProjectTransition } from './livTeamsGovernanceService';
 
 /**
  * Projects CRUD
@@ -23,9 +25,12 @@ export async function createTeamProject(teamId: string, project: Partial<TeamPro
       ...project,
       teamId,
       status: project.status || 'Idea',
-      members: project.members || [],
+      ownerId: project.ownerId || userId,
+      members: project.members && project.members.length > 0 ? project.members : [userId],
+      memberRoles: project.memberRoles || { [userId]: 'Project Owner' },
       milestones: project.milestones || [],
-      progress: project.progress || 0,
+      currency: project.currency || 'UGX',
+      progress: 0,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     };
@@ -54,6 +59,12 @@ export async function getTeamProjects(teamId: string): Promise<TeamProject[]> {
 export async function updateTeamProject(teamId: string, projectId: string, updates: Partial<TeamProject>, userId: string, userName: string): Promise<void> {
   try {
     const docRef = doc(db, 'teams', teamId, 'projects', projectId);
+    const current = await getDoc(docRef);
+    if (!current.exists()) throw new Error('Project not found');
+    const currentProject = current.data() as TeamProject;
+    if (updates.status && !isValidProjectTransition(currentProject.status, updates.status)) {
+      throw new Error(`Invalid project transition from ${currentProject.status} to ${updates.status}`);
+    }
     await updateDoc(docRef, {
       ...updates,
       updatedAt: Timestamp.now()
@@ -87,6 +98,8 @@ export async function createTeamTask(teamId: string, projectId: string, task: Pa
       teamId,
       projectId,
       priority: task.priority || 'medium',
+      status: task.status || (task.isCompleted ? 'Completed' : 'Todo'),
+      createdBy: task.createdBy || userId,
       assignedMembers: task.assignedMembers || [],
       attachments: task.attachments || [],
       checklist: task.checklist || [],
@@ -138,14 +151,89 @@ export async function getTeamTasks(teamId: string): Promise<TeamTask[]> {
 export async function updateTeamTask(teamId: string, taskId: string, updates: Partial<TeamTask>): Promise<void> {
   try {
     const docRef = doc(db, 'teams', teamId, 'tasks', taskId);
+    const nextStatus = updates.status || (updates.isCompleted ? 'Completed' : undefined);
     await updateDoc(docRef, {
       ...updates,
+      ...(nextStatus ? { status: nextStatus } : {}),
+      ...(nextStatus === 'Completed' ? { isCompleted: true, progress: 100 } : {}),
       updatedAt: Timestamp.now()
     });
+
+    const taskSnapshot = await getDoc(docRef);
+    if (taskSnapshot.exists()) {
+      const taskData = taskSnapshot.data() as TeamTask;
+      const siblingTasks = await getTeamTasks(teamId);
+      const projectTasks = siblingTasks.filter(task => task.projectId === taskData.projectId);
+      const progress = projectTasks.length
+        ? Math.round(projectTasks.reduce((sum, task) => sum + (task.id === taskId ? (nextStatus === 'Completed' ? 100 : (updates.progress ?? task.progress ?? 0)) : (task.isCompleted ? 100 : task.progress || 0)), 0) / projectTasks.length)
+        : 0;
+      await updateDoc(doc(db, 'teams', teamId, 'projects', taskData.projectId), { progress, updatedAt: Timestamp.now() });
+    }
   } catch (error) {
     console.error('Error updating task:', error);
     throw error;
   }
+}
+
+export async function createTeamMilestone(
+  teamId: string,
+  projectId: string,
+  milestone: Partial<TeamMilestone>,
+  userId: string,
+  userName: string
+): Promise<string> {
+  const ref = collection(db, 'teams', teamId, 'milestones');
+  const finalMilestone = {
+    ...milestone,
+    teamId,
+    projectId,
+    taskIds: milestone.taskIds || [],
+    responsibleUserIds: milestone.responsibleUserIds || [],
+    evidenceFileIds: milestone.evidenceFileIds || [],
+    isCompleted: false,
+    createdBy: userId,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now()
+  };
+  const docRef = await addDoc(ref, finalMilestone);
+  await logTeamActivity(teamId, userId, userName, 'created a milestone', milestone.title);
+  return docRef.id;
+}
+
+export async function getTeamMilestones(teamId: string, projectId: string): Promise<TeamMilestone[]> {
+  const ref = collection(db, 'teams', teamId, 'milestones');
+  const snap = await getDocs(query(ref, orderBy('createdAt', 'asc')));
+  return snap.docs
+    .map(snapshot => ({ id: snapshot.id, ...snapshot.data() } as TeamMilestone))
+    .filter(milestone => milestone.projectId === projectId);
+}
+
+export async function updateTeamMilestone(
+  teamId: string,
+  milestoneId: string,
+  updates: Partial<TeamMilestone>,
+  userId: string,
+  userName: string
+): Promise<void> {
+  await updateDoc(doc(db, 'teams', teamId, 'milestones', milestoneId), {
+    ...updates,
+    updatedAt: Timestamp.now()
+  });
+  await logTeamActivity(teamId, userId, userName, updates.isCompleted ? 'completed a milestone' : 'updated a milestone');
+}
+
+export function deriveProjectProgress(project: TeamProject, tasks: TeamTask[], milestones: TeamMilestone[] = []): number {
+  const projectTasks = tasks.filter(task => task.projectId === project.id);
+  const taskScore = projectTasks.length
+    ? projectTasks.reduce((sum, task) => sum + (task.status === 'Completed' || task.isCompleted ? 100 : task.progress || 0), 0) / projectTasks.length
+    : 0;
+  const milestoneScore = milestones.length
+    ? milestones.reduce((sum, milestone) => sum + (milestone.isCompleted ? 100 : 0), 0) / milestones.length
+    : 0;
+  if (!projectTasks.length && !milestones.length) return project.progress || 0;
+  if (!projectTasks.length) return Math.round(milestoneScore);
+  if (!milestones.length) return Math.round(taskScore);
+  return Math.round((taskScore + milestoneScore) / 2);
 }
 
 /**
