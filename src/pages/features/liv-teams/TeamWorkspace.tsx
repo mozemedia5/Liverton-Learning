@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Users, Calendar, FileText, Landmark, MessageSquare, TrendingUp,
-  ArrowLeft, Trophy, CalendarDays, Wallet, Activity, Trash2,
+  ArrowLeft, Trophy, CalendarDays, Wallet, Activity, Trash2, Bot,
   Shield, Loader2, LogIn, LogOut, Pencil, Lock, LayoutGrid, Megaphone,
   Globe, UserPlus
 } from 'lucide-react';
@@ -51,6 +51,7 @@ import TeamWorkspaceCalendar from './TeamWorkspaceCalendar';
 import TeamWorkspaceFinance from './TeamWorkspaceFinance';
 import TeamWorkspacePolls from './TeamWorkspacePolls';
 import TeamWorkspaceAnalytics from './TeamWorkspaceAnalytics';
+import TeamWorkspaceHanna from './TeamWorkspaceHanna';
 
 const teamRoleOptions: { value: TeamRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
@@ -596,6 +597,7 @@ export default function TeamWorkspace() {
   const workspaceTabs = [
     { value: 'dashboard', label: 'Dashboard', icon: <LayoutGrid className="w-4 h-4" />, locked: false },
     { value: 'chat', label: 'Chat', icon: <MessageSquare className="w-4 h-4" />, locked: !canParticipate },
+    { value: 'hanna', label: 'Hanna', icon: <Bot className="w-4 h-4" />, locked: !canParticipate },
     { value: 'members', label: 'Members', icon: <Users className="w-4 h-4" />, locked: false },
     { value: 'files', label: 'Files', icon: <FileText className="w-4 h-4" />, locked: !canParticipate },
     { value: 'projects', label: 'Projects', icon: <Trophy className="w-4 h-4" />, locked: !canParticipate },
@@ -805,6 +807,11 @@ export default function TeamWorkspace() {
               <TeamWorkspaceChat teamId={team.id} teamName={team.name} teamRole={currentMemberRole} />
             </div>
           )}
+        </TabsContent>
+
+        {/* ============================ HANNA ============================ */}
+        <TabsContent value="hanna" className="outline-none">
+          {canParticipate && <TeamWorkspaceHanna team={team} activities={activities} />}
         </TabsContent>
 
         {/* ============================ MEMBERS ============================ */}

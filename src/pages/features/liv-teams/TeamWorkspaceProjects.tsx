@@ -22,9 +22,12 @@ import {
   updateTeamProject,
   createTeamTask,
   getTeamTasks,
-  updateTeamTask
+  updateTeamTask,
+  createTeamMilestone,
+  getTeamMilestones,
+  updateTeamMilestone
 } from '@/services/livTeamsProjectService';
-import type { TeamProject, TeamTask, TeamRole, TeamMember, ProjectStatus } from '@/types/livTeams';
+import type { TeamProject, TeamTask, TeamRole, TeamMember, ProjectStatus, TeamMilestone } from '@/types/livTeams';
 import { LivEmptyState, LivSectionHeader } from './livTeamsUi';
 import { formatUGX } from './livTeamsUtils';
 
@@ -56,10 +59,12 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
   const [projects, setProjects] = useState<TeamProject[]>([]);
   const [tasks, setTasks] = useState<TeamTask[]>([]);
   const [activeProject, setActiveProject] = useState<TeamProject | null>(null);
+  const [milestones, setMilestones] = useState<TeamMilestone[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [projectModalOpen, setProjectOpen] = useState(false);
   const [taskModalOpen, setTaskOpen] = useState(false);
+  const [milestoneModalOpen, setMilestoneOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Project form state
@@ -92,6 +97,9 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
   const [taskDeadline, setTaskDeadline] = useState('');
   const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
+  const [milestoneTitle, setMilestoneTitle] = useState('');
+  const [milestoneDescription, setMilestoneDescription] = useState('');
+  const [milestoneDate, setMilestoneDate] = useState('');
 
   // Checklist input
   const [checkText, setCheckText] = useState('');
@@ -100,6 +108,14 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
     loadProjectsAndTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
+
+  useEffect(() => {
+    if (!activeProject) {
+      setMilestones([]);
+      return;
+    }
+    getTeamMilestones(teamId, activeProject.id).then(setMilestones).catch(() => setMilestones([]));
+  }, [teamId, activeProject?.id]);
 
   const loadProjectsAndTasks = async () => {
     if (!teamId) return;
@@ -170,6 +186,41 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
       loadProjectsAndTasks();
     } catch {
       toast.error('Failed to change status');
+    }
+  };
+
+  const handleCreateMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !activeProject || !milestoneTitle.trim()) return;
+    setSaving(true);
+    try {
+      await createTeamMilestone(teamId, activeProject.id, {
+        title: milestoneTitle.trim(),
+        description: milestoneDescription.trim(),
+        targetDate: milestoneDate,
+        taskIds: [],
+        responsibleUserIds: [],
+      }, currentUser.uid, userData?.fullName || 'Anonymous');
+      toast.success('Milestone created');
+      setMilestoneOpen(false);
+      setMilestoneTitle('');
+      setMilestoneDescription('');
+      setMilestoneDate('');
+      setMilestones(await getTeamMilestones(teamId, activeProject.id));
+    } catch {
+      toast.error('Failed to create milestone');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleMilestone = async (milestone: TeamMilestone) => {
+    if (!currentUser || !isPMOrAbove) return;
+    try {
+      await updateTeamMilestone(teamId, milestone.id, { isCompleted: !milestone.isCompleted }, currentUser.uid, userData?.fullName || 'Anonymous');
+      setMilestones(prev => prev.map(item => item.id === milestone.id ? { ...item, isCompleted: !item.isCompleted } : item));
+    } catch {
+      toast.error('Failed to update milestone');
     }
   };
 
@@ -384,6 +435,9 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
                         ))}
                       </SelectContent>
                     </Select>
+                    <Button size="sm" onClick={() => setMilestoneOpen(true)} variant="outline" className="rounded-lg h-8">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Milestone
+                    </Button>
                     <Button size="sm" onClick={() => setTaskOpen(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8">
                       <Plus className="w-3.5 h-3.5 mr-1" /> Add Task
                     </Button>
@@ -418,6 +472,15 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
                       <span className="text-xs font-bold">{computedProgress}%</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Milestones */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/5 pb-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Milestones</h4>
+                    <span className="text-xs text-slate-400">{milestones.filter(item => item.isCompleted).length}/{milestones.length} complete</span>
+                  </div>
+                  {milestones.length === 0 ? <p className="text-sm text-slate-400">No milestones yet. Add the project’s first major deliverable.</p> : <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{milestones.map(milestone => <button key={milestone.id} type="button" onClick={() => handleToggleMilestone(milestone)} className="text-left rounded-xl border border-gray-200 dark:border-white/10 p-3 hover:border-emerald-400 transition-colors"><div className="flex items-start gap-2"><CheckCircle2 className={`w-4 h-4 mt-0.5 ${milestone.isCompleted ? 'text-emerald-500' : 'text-slate-300'}`} /><div><p className={`text-sm font-semibold ${milestone.isCompleted ? 'line-through text-slate-400' : ''}`}>{milestone.title}</p><p className="text-xs text-slate-400">Target: {milestone.targetDate || 'Not set'}</p>{milestone.description && <p className="text-xs text-slate-500 mt-1">{milestone.description}</p>}</div></div></button>)}</div>}
                 </div>
 
                 {/* Tasks */}
@@ -538,6 +601,19 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
           )}
         </div>
       </div>
+
+      {/* Create milestone dialog */}
+      <Dialog open={milestoneModalOpen} onOpenChange={setMilestoneOpen}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader><DialogTitle>New Milestone</DialogTitle><DialogDescription>Define a significant project stage or deliverable.</DialogDescription></DialogHeader>
+          <form onSubmit={handleCreateMilestone} className="space-y-4 py-2">
+            <div className="space-y-2"><Label htmlFor="milestoneTitle">Title *</Label><Input id="milestoneTitle" value={milestoneTitle} onChange={event => setMilestoneTitle(event.target.value)} required placeholder="e.g. Prototype completed" /></div>
+            <div className="space-y-2"><Label htmlFor="milestoneDescription">Description</Label><Textarea id="milestoneDescription" value={milestoneDescription} onChange={event => setMilestoneDescription(event.target.value)} placeholder="What evidence will show this milestone is complete?" /></div>
+            <div className="space-y-2"><Label htmlFor="milestoneDate">Target date</Label><Input id="milestoneDate" type="date" value={milestoneDate} onChange={event => setMilestoneDate(event.target.value)} /></div>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setMilestoneOpen(false)}>Cancel</Button><Button type="submit" disabled={saving || !milestoneTitle.trim()} className="bg-emerald-500 hover:bg-emerald-600 text-white">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Milestone'}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Create project dialog */}
       <Dialog open={projectModalOpen} onOpenChange={setProjectOpen}>
