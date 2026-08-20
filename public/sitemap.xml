@@ -1,44 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Liverton Learning sitemap. When moving to https://livertonlearning.com, update the host entries below. -->
+<!-- Canonical public URLs for Liverton Learning. Private, account-scoped,
+     tokenized, and dynamic application routes are intentionally excluded. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://liverton-learning.vercel.app/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/about</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/about/schools</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/about/teachers</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/about/students</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/support</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/privacy-policy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://liverton-learning.vercel.app/get-started</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
+  <url><loc>https://learn.liverton.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://learn.liverton.com/get-started</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://learn.liverton.com/about</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://learn.liverton.com/about/schools</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://learn.liverton.com/about/teachers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://learn.liverton.com/about/students</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://learn.liverton.com/about/parents</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://learn.liverton.com/support</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://learn.liverton.com/privacy-policy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>

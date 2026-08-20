@@ -5,6 +5,7 @@ import {
   DEFAULT_DESCRIPTION,
   DEFAULT_OG_IMAGE,
   DEFAULT_TITLE,
+  SITE_HANDLE,
   SITE_NAME,
 } from '@/lib/seo';
 
@@ -16,11 +17,7 @@ type RouteDefinition = {
 };
 
 const PUBLIC_ROUTES: Record<string, RouteDefinition> = {
-  '/': {
-    title: DEFAULT_TITLE,
-    description: DEFAULT_DESCRIPTION,
-    schemaType: 'WebPage',
-  },
+  '/': { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION, schemaType: 'WebPage' },
   '/get-started': {
     title: 'Get Started',
     description: 'Choose your Liverton Learning experience and join a modern learning community for students, teachers, parents and schools.',
@@ -46,6 +43,11 @@ const PUBLIC_ROUTES: Record<string, RouteDefinition> = {
     description: 'Explore courses, quizzes, live lessons and study tools designed to help students learn with confidence.',
     schemaType: 'AboutPage',
   },
+  '/about/parents': {
+    title: 'Learning Support for Parents',
+    description: 'Understand how Liverton Learning helps parents support progress, communication and opportunity across the learning journey.',
+    schemaType: 'AboutPage',
+  },
   '/support': {
     title: 'Support',
     description: 'Find answers to common questions and contact the Liverton Learning support team.',
@@ -56,21 +58,10 @@ const PUBLIC_ROUTES: Record<string, RouteDefinition> = {
     description: 'Read the Liverton Learning privacy policy and learn how account and platform information is handled.',
     schemaType: 'PrivacyPolicy',
   },
-  '/login': {
-    title: 'Sign In',
-    description: 'Sign in to your Liverton Learning account.',
-    noIndex: true,
-  },
-  '/register': {
-    title: 'Create an Account',
-    description: 'Create a Liverton Learning account for your learning or teaching journey.',
-    noIndex: true,
-  },
-  '/verify-email': {
-    title: 'Verify Email',
-    description: 'Verify your email address for Liverton Learning.',
-    noIndex: true,
-  },
+  '/login': { title: 'Sign In', description: 'Sign in to your Liverton Learning account.', noIndex: true },
+  '/register': { title: 'Create an Account', description: 'Create a Liverton Learning account for your learning or teaching journey.', noIndex: true },
+  '/verify-email': { title: 'Verify Email', description: 'Verify your email address for Liverton Learning.', noIndex: true },
+  '/register/verify-student': { title: 'Verify Student Email', description: 'Verify your student email address for Liverton Learning.', noIndex: true },
 };
 
 const PRIVATE_PREFIXES = [
@@ -121,28 +112,35 @@ export default function RouteMetadata() {
     const definition = PUBLIC_ROUTES[pathname];
     const isPrivate = PRIVATE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
     const isPublicCourse = /^\/courses\/[^/]+$/.test(pathname);
-    const isNotFound = !definition && !isPrivate && !isPublicCourse && pathname !== '/documents/public';
+    const isPublicProfile = /^\/public-profile\/[^/]+$/.test(pathname);
+    const isTokenizedDocument = /^\/documents\/public\/[^/]+$/.test(pathname);
+    const isNotFound = !definition && !isPrivate && !isPublicCourse && !isPublicProfile && !isTokenizedDocument;
     const title = definition?.title || (isNotFound ? 'Page Not Found' : DEFAULT_TITLE);
     const description = definition?.description || (isNotFound
       ? 'The requested Liverton Learning page could not be found.'
       : DEFAULT_DESCRIPTION);
-    const noIndex = definition?.noIndex || isPrivate || isNotFound;
+    const noIndex = definition?.noIndex || isPrivate || isNotFound || isTokenizedDocument;
     const canonical = absoluteUrl(pathname);
     const fullTitle = title === DEFAULT_TITLE || title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
 
     document.documentElement.lang = 'en';
     document.title = fullTitle;
     upsertMeta('name', 'description', description);
-    upsertMeta('name', 'robots', noIndex ? 'noindex, nofollow' : 'index, follow');
+    upsertMeta('name', 'robots', noIndex ? 'noindex, nofollow, noarchive' : 'index, follow');
+    upsertMeta('name', 'googlebot', noIndex ? 'noindex, nofollow, noarchive' : 'index, follow');
     upsertMeta('name', 'title', fullTitle);
     upsertMeta('property', 'og:site_name', SITE_NAME);
-    upsertMeta('property', 'og:type', 'website');
+    upsertMeta('property', 'og:type', definition?.schemaType === 'AboutPage' ? 'website' : 'website');
     upsertMeta('property', 'og:title', fullTitle);
     upsertMeta('property', 'og:description', description);
     upsertMeta('property', 'og:url', canonical);
     upsertMeta('property', 'og:image', DEFAULT_OG_IMAGE);
+    upsertMeta('property', 'og:image:width', '1200');
+    upsertMeta('property', 'og:image:height', '630');
     upsertMeta('property', 'og:image:alt', `${SITE_NAME} logo`);
+    upsertMeta('property', 'og:locale', 'en_GB');
     upsertMeta('name', 'twitter:card', 'summary_large_image');
+    upsertMeta('name', 'twitter:site', SITE_HANDLE);
     upsertMeta('name', 'twitter:title', fullTitle);
     upsertMeta('name', 'twitter:description', description);
     upsertMeta('name', 'twitter:image', DEFAULT_OG_IMAGE);
