@@ -1,6 +1,5 @@
 # Liverton Learning crawler policy
-# Public marketing and help content may be indexed. Account-scoped, private,
-# and tokenized resources must not be crawled or indexed.
+# The only production/public origin is https://liverton-learning.vercel.app.
 
 User-agent: *
 Allow: /
@@ -24,88 +23,8 @@ Disallow: /announcements/
 Disallow: /calendar
 Disallow: /events
 
-# Explicit AI/search crawlers: public pages are available for discovery and
-# answer generation; private paths inherit the rules above.
-User-agent: GPTBot
-Allow: /
-Disallow: /login
-Disallow: /register
-Disallow: /verify-email
-Disallow: /student/
-Disallow: /teacher/
-Disallow: /parent/
-Disallow: /school-admin/
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /chat
-Disallow: /payments
-Disallow: /documents/
-Disallow: /features/
-Disallow: /zoom-lessons/
-Disallow: /announcements/
-Disallow: /calendar
-Disallow: /events
+# GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Googlebot, and other
+# crawlers use the default policy above: public pages are allowed, while
+# account-scoped and private paths are blocked.
 
-User-agent: OAI-SearchBot
-Allow: /
-Disallow: /login
-Disallow: /register
-Disallow: /verify-email
-Disallow: /student/
-Disallow: /teacher/
-Disallow: /parent/
-Disallow: /school-admin/
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /chat
-Disallow: /payments
-Disallow: /documents/
-Disallow: /features/
-Disallow: /zoom-lessons/
-Disallow: /announcements/
-Disallow: /calendar
-Disallow: /events
-
-User-agent: ClaudeBot
-Allow: /
-Disallow: /login
-Disallow: /register
-Disallow: /verify-email
-Disallow: /student/
-Disallow: /teacher/
-Disallow: /parent/
-Disallow: /school-admin/
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /chat
-Disallow: /payments
-Disallow: /documents/
-Disallow: /features/
-Disallow: /zoom-lessons/
-Disallow: /announcements/
-Disallow: /calendar
-Disallow: /events
-
-User-agent: PerplexityBot
-Allow: /
-Disallow: /login
-Disallow: /register
-Disallow: /verify-email
-Disallow: /student/
-Disallow: /teacher/
-Disallow: /parent/
-Disallow: /school-admin/
-Disallow: /admin/
-Disallow: /dashboard/
-Disallow: /chat
-Disallow: /payments
-Disallow: /documents/
-Disallow: /features/
-Disallow: /zoom-lessons/
-Disallow: /announcements/
-Disallow: /calendar
-Disallow: /events
-
-# Both public origins expose the same canonical sitemap.
-Sitemap: https://learn.liverton.com/sitemap.xml
 Sitemap: https://liverton-learning.vercel.app/sitemap.xml

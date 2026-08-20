@@ -987,7 +987,7 @@ export default function Documents() {
                   type="email"
                   value={shareEmail}
                   onChange={(e) => setShareEmail(e.target.value)}
-                  placeholder="student@livertonlearning.com"
+                  placeholder="student@example.com"
                   className="glass-card"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleShare();

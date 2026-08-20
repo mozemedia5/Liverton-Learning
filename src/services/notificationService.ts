@@ -187,7 +187,7 @@ export async function dispatchEnrollmentNotification(
     const emailRes = await sendEmailNotification(
       studentEmail,
       `Enrollment Confirmation: ${courseTitle}`,
-      `<h2>Welcome to ${courseTitle}!</h2><p>Hi ${studentName},</p><p>You are now enrolled in <strong>${courseTitle}</strong> instructed by ${teacherName}.</p><p><a href="https://livertonlearning.com/student/courses">Click here to start learning</a></p>`
+      `<h2>Welcome to ${courseTitle}!</h2><p>Hi ${studentName},</p><p>You are now enrolled in <strong>${courseTitle}</strong> instructed by ${teacherName}.</p><p><a href="https://liverton-learning.vercel.app/student/courses">Click here to start learning</a></p>`
     );
     status.emailSent = emailRes.success;
     status.emailDetails = emailRes.message;
@@ -199,7 +199,7 @@ export async function dispatchEnrollmentNotification(
   if (studentPhone) {
     const waRes = await sendWhatsAppNotification(
       studentPhone,
-      `*Liverton Learning*: Hello ${studentName}, you are enrolled in "${courseTitle}" by ${teacherName}. Access your lessons at https://livertonlearning.com/student/courses`
+      `*Liverton Learning*: Hello ${studentName}, you are enrolled in "${courseTitle}" by ${teacherName}. Access your lessons at https://liverton-learning.vercel.app/student/courses`
     );
     status.whatsAppSent = waRes.success;
     status.whatsAppDetails = waRes.message;
