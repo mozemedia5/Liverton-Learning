@@ -491,7 +491,8 @@ export default function HannaChatIntegrated() {
           userName: userData?.fullName || 'User',
           userRole: userRole || 'student',
           customInstructions: savedInstructions
-        }
+        },
+        currentChatId
       );
 
       // 3. Smart title generation in background if first message

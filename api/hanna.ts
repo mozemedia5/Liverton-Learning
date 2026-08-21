@@ -1,0 +1,139 @@
+import type { Content, Part } from '@google/generative-ai';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAdminFirestore, applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server';
+import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini';
+
+const MAX_HISTORY = 20;
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+type Attachment = { url: string; name?: string; mimeType?: string };
+
+type GatewayMessage = { role: 'user' | 'model'; parts: Part[] };
+
+function history(input: unknown): GatewayMessage[] {
+  if (!Array.isArray(input)) return [];
+  return input.slice(-MAX_HISTORY).map((item): GatewayMessage => ({
+    role: item?.role === 'user' ? 'user' : 'model',
+    parts: [{ text: safeString(item?.content, 12000) }],
+  })).filter(item => Boolean(item.parts[0]?.text));
+}
+
+async function loadAuthorizedHistory(chatId: string, uid: string): Promise<GatewayMessage[]> {
+  const db = getAdminFirestore();
+  const chat = await db.collection('hanna_chats').doc(chatId).get();
+  if (!chat.exists || chat.data()?.userId !== uid) throw Object.assign(new Error('CHAT_FORBIDDEN'), { statusCode: 403 });
+  const snapshot = await db.collection('hanna_messages').where('chatId', '==', chatId).get();
+  const messages = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
+    const left = a.createdAt?.toMillis?.() || 0;
+    const right = b.createdAt?.toMillis?.() || 0;
+    return left - right;
+  });
+  return history(messages.map(message => ({ role: message.senderRole === 'user' ? 'user' : 'model', content: message.content })));
+}
+
+async function loadCloudinaryParts(input: unknown, uid: string): Promise<Part[]> {
+  if (!Array.isArray(input)) return [];
+  const parts: Part[] = [];
+  for (const item of input.slice(0, MAX_ATTACHMENTS) as Attachment[]) {
+    try {
+      const url = new URL(item.url);
+      const mimeType = safeString(item.mimeType, 100);
+      if (!['res.cloudinary.com', 'cloudinary.com'].includes(url.hostname)) continue;
+      if (!['image/', 'application/pdf'].some(prefix => mimeType.startsWith(prefix))) continue;
+      const assets = await getAdminFirestore().collection('uploaded_assets').where('url', '==', item.url).limit(1).get();
+      const asset = assets.docs[0]?.data();
+      if (!asset || asset.uploader !== uid) continue;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!response.ok) continue;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > MAX_ATTACHMENT_BYTES) continue;
+      parts.push({ inlineData: { mimeType, data: buffer.toString('base64') } });
+    } catch {
+      // Do not allow one inaccessible attachment to fail the complete request.
+    }
+  }
+  return parts;
+}
+
+function systemPrompt(identity: { name: string; email: string }, operation: string) {
+  return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\n\nRules:\n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.`;
+}
+
+function sse(res: VercelResponse, payload: Record<string, unknown>) {
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+async function recordUsage(uid: string, operation: string, model: string, credits: number, success: boolean) {
+  try {
+    await getAdminFirestore().collection('ai_usage').add({
+      userId: uid,
+      operation,
+      model,
+      credits,
+      success,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error('AI usage record failed', { operation, error: error instanceof Error ? error.message : 'unknown' });
+  }
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  applyCors(req, res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+
+  let identity: { uid: string; email: string; name: string } | undefined;
+  let operation = 'chat';
+  try {
+    identity = await requireIdentity(req);
+    const body = parseBody(req);
+    operation = safeString(body.operation || 'chat', 40) || 'chat';
+    const message = safeString(body.message, operationPolicy(operation).maxChars);
+    if (!message) return json(res, 400, { error: 'A message is required' });
+
+    const chatId = safeString(body.chatId, 160);
+    const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
+    const parts: Part[] = [...await loadCloudinaryParts(body.attachments, identity.uid), { text: message }];
+    const prompt = systemPrompt(identity, operation);
+    const policy = operationPolicy(operation);
+
+    if (operation !== 'chat') {
+      const result = await generateGemini(operation, prompt, requestHistory, parts);
+      await recordUsage(identity.uid, operation, result.model, result.credits, true);
+      return json(res, 200, { success: true, result: result.text, model: result.model });
+    }
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    let fullText = '';
+    for await (const text of streamGemini(operation, prompt, requestHistory, parts)) {
+      fullText += text;
+      sse(res, { type: 'chunk', text: fullText });
+    }
+    sse(res, { type: 'done', text: fullText, model: policy.model });
+    await recordUsage(identity.uid, operation, policy.model, policy.credits, true);
+    return res.end();
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'unknown';
+    const status = typeof (error as { statusCode?: unknown })?.statusCode === 'number' ? Number((error as { statusCode: number }).statusCode) : 500;
+    if (res.headersSent) {
+      sse(res, { type: 'error', error: code === 'AI_NOT_CONFIGURED' ? 'Hanna is not configured.' : 'Hanna could not complete this request.' });
+      return res.end();
+    }
+    if (identity) await recordUsage(identity.uid, operation, operationPolicy(operation).model, operationPolicy(operation).credits, false);
+    if (code === 'AUTH_REQUIRED' || code.includes('auth/')) return json(res, 401, { error: 'Authentication required' });
+    if (code === 'CHAT_FORBIDDEN') return json(res, 403, { error: 'You are not authorized to access this conversation' });
+    if (code.startsWith('SERVER_CONFIG_MISSING')) return json(res, 503, { error: 'Server configuration is incomplete' });
+    if (code === 'AI_NOT_CONFIGURED') return json(res, 503, { error: 'Hanna is temporarily unavailable' });
+    console.error('Vercel Hanna API error', { code, operation });
+    return json(res, status >= 400 && status < 600 ? status : 500, { error: 'Hanna could not complete this request' });
+  }
+}

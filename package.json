@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
     "build:full": "NODE_OPTIONS='--max-old-space-size=8192' tsc -b && vite build",
+    "typecheck:api": "tsc -p tsconfig.api.json",
     "test": "vitest",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -46,6 +47,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^12.9.0",
+    "firebase-admin": "^14.3.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.562.0",
     "next-themes": "^0.4.6",
@@ -67,6 +69,7 @@
     "@types/node": "^24.10.12",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.10.2",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.1",

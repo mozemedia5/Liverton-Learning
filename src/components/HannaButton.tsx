@@ -524,7 +524,8 @@ export function HannaButton() {
           userName: userData?.fullName || 'User',
           userRole: userRole || 'student',
           customInstructions: savedInstructions
-        }
+        },
+        currentChatId
       );
 
       // 6. Smart title generation in background if first message

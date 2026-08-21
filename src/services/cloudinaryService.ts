@@ -72,21 +72,26 @@ export function mapFileToCloudinaryType(
   return 'document';
 }
 
-function resolvePreset(type: CloudinaryUploadType): { preset: string; resourceType: string } {
-  switch (type) {
-    case 'course_video':
-      return { preset: CLOUDINARY_CONFIG.presets.courses, resourceType: 'video' };
-    case 'short_video':
-      return { preset: CLOUDINARY_CONFIG.presets.shorts, resourceType: 'video' };
-    case 'audio':
-      // Cloudinary stores audio under the "video" resource type
-      return { preset: CLOUDINARY_CONFIG.presets.audio, resourceType: 'video' };
-    case 'document':
-      return { preset: CLOUDINARY_CONFIG.presets.documents, resourceType: 'raw' };
-    case 'image':
-    default:
-      return { preset: CLOUDINARY_CONFIG.presets.images, resourceType: 'image' };
+function resolveResourceType(type: CloudinaryUploadType): 'image' | 'video' | 'raw' {
+  if (type === 'document') return 'raw';
+  if (type === 'course_video' || type === 'short_video' || type === 'audio') return 'video';
+  return 'image';
+}
+
+async function requestUploadSignature(type: CloudinaryUploadType, file: File | Blob) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Please sign in before uploading a file.');
+  const token = await user.getIdToken();
+  const response = await fetch(`${import.meta.env.VITE_VERCEL_API_BASE_URL || ''}/api/cloudinary/sign`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resourceType: resolveResourceType(type), contentType: file.type, size: file.size }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || 'Cloudinary upload authorization failed.');
   }
+  return response.json() as Promise<{ cloudName: string; apiKey: string; resourceType: string; folder: string; timestamp: number; signature: string }>;
 }
 
 /**
@@ -203,12 +208,15 @@ export async function uploadToCloudinary(
   const { onProgress, showErrorToast = true } = options;
 
   try {
-    const { preset, resourceType } = resolvePreset(type);
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/${resourceType}/upload`;
+    const signature = await requestUploadSignature(type, file);
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`;
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', preset);
+    formData.append('api_key', signature.apiKey);
+    formData.append('timestamp', String(signature.timestamp));
+    formData.append('signature', signature.signature);
+    formData.append('folder', signature.folder);
 
     const data = await new Promise<{ secure_url: string; public_id: string; resource_type: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -227,7 +235,7 @@ export async function uploadToCloudinary(
             resolve({
               secure_url: resData.secure_url,
               public_id: resData.public_id || '',
-              resource_type: resData.resource_type || resourceType
+              resource_type: resData.resource_type || signature.resourceType
             });
           } else {
             reject(new Error(resData?.error?.message || `Upload failed (status ${xhr.status})`));

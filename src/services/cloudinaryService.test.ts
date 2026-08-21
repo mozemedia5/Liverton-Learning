@@ -1,13 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { auth } from '../lib/firebase';
 import {
   uploadToCloudinary,
   optimizeCloudinaryUrl,
   mapFileToCloudinaryType,
 } from './cloudinaryService';
-
-/* ------------------------------------------------------------------ */
-/* mapFileToCloudinaryType                                             */
-/* ------------------------------------------------------------------ */
 
 describe('mapFileToCloudinaryType', () => {
   const makeFile = (type: string, name: string, size = 1024): File =>
@@ -41,10 +37,6 @@ describe('mapFileToCloudinaryType', () => {
   });
 });
 
-/* ------------------------------------------------------------------ */
-/* optimizeCloudinaryUrl                                               */
-/* ------------------------------------------------------------------ */
-
 describe('optimizeCloudinaryUrl', () => {
   const base = 'https://res.cloudinary.com/fbciycdw/image/upload/v1700000000/liverton-learning/images/abc.jpg';
 
@@ -72,10 +64,6 @@ describe('optimizeCloudinaryUrl', () => {
   });
 });
 
-/* ------------------------------------------------------------------ */
-/* uploadToCloudinary (mocked XHR)                                     */
-/* ------------------------------------------------------------------ */
-
 class MockXHR {
   public open = vi.fn();
   public send = vi.fn();
@@ -95,21 +83,40 @@ class MockXHR {
 }
 
 let lastXHR: MockXHR;
+let authSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   lastXHR = new MockXHR();
-  // Plain function (not arrow) so it can be invoked with `new`
+  authSpy = vi.spyOn(auth, 'currentUser', 'get').mockReturnValue({
+    getIdToken: vi.fn().mockResolvedValue('test-id-token'),
+  } as never);
+  vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const request = JSON.parse(String(init?.body || '{}')) as { resourceType?: string };
+    const resourceType = request.resourceType || 'image';
+    return new Response(JSON.stringify({
+      cloudName: 'fbciycdw',
+      apiKey: 'public-api-key',
+      resourceType,
+      folder: `liverton/test/${resourceType}`,
+      timestamp: 1,
+      signature: 'signed-upload',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }));
   vi.stubGlobal('XMLHttpRequest', function () {
     return lastXHR;
   });
 });
 
-describe('uploadToCloudinary', () => {
-  it('resolves with the secure_url on success', async () => {
-    lastXHR.responseText = JSON.stringify({ secure_url: 'https://res.cloudinary.com/x/image/upload/v1/ok.jpg' });
-    lastXHR.status = 200;
+afterEach(() => {
+  authSpy.mockRestore();
+  vi.unstubAllGlobals();
+});
 
+describe('uploadToCloudinary', () => {
+  it('requests a signed upload and resolves with the secure_url on success', async () => {
+    lastXHR.responseText = JSON.stringify({ secure_url: 'https://res.cloudinary.com/x/image/upload/v1/ok.jpg' });
     const promise = uploadToCloudinary(new File(['a'], 'a.png', { type: 'image/png' }), 'image');
+    await new Promise(resolve => setTimeout(resolve, 0));
     lastXHR.trigger('load');
 
     await expect(promise).resolves.toBe('https://res.cloudinary.com/x/image/upload/v1/ok.jpg');
@@ -119,13 +126,11 @@ describe('uploadToCloudinary', () => {
   it('reports progress through the callback', async () => {
     lastXHR.responseText = JSON.stringify({ secure_url: 'https://res.cloudinary.com/x/ok.jpg' });
     const progresses: number[] = [];
-
     const promise = uploadToCloudinary(new File(['a'], 'a.png', { type: 'image/png' }), 'image', {
       showErrorToast: false,
       onProgress: (p) => progresses.push(p),
     });
-
-    // simulate a progress event then completion
+    await new Promise(resolve => setTimeout(resolve, 0));
     const progressCb = lastXHR.upload.addEventListener.mock.calls[0]?.[1] as (e: ProgressEvent) => void;
     progressCb({ lengthComputable: true, loaded: 50, total: 100 } as ProgressEvent);
     lastXHR.trigger('load');
@@ -136,27 +141,25 @@ describe('uploadToCloudinary', () => {
 
   it('rejects with a readable message on HTTP error', async () => {
     lastXHR.status = 400;
-    lastXHR.responseText = JSON.stringify({ error: { message: 'Upload preset not found' } });
-
+    lastXHR.responseText = JSON.stringify({ error: { message: 'Signed upload rejected' } });
     const promise = uploadToCloudinary(new File(['a'], 'a.png', { type: 'image/png' }), 'image', { showErrorToast: false });
+    await new Promise(resolve => setTimeout(resolve, 0));
     lastXHR.trigger('load');
-
-    await expect(promise).rejects.toThrow('Upload preset not found');
+    await expect(promise).rejects.toThrow('Signed upload rejected');
   });
 
   it('rejects on network failure', async () => {
     const promise = uploadToCloudinary(new File(['a'], 'a.png', { type: 'image/png' }), 'image', { showErrorToast: false });
+    await new Promise(resolve => setTimeout(resolve, 0));
     lastXHR.trigger('error');
-
     await expect(promise).rejects.toThrow('Network error occurred during upload');
   });
 
   it('uses the video resource endpoint for audio uploads', async () => {
     lastXHR.responseText = JSON.stringify({ secure_url: 'https://res.cloudinary.com/x/a.mp3' });
-
     const promise = uploadToCloudinary(new File(['a'], 'a.mp3', { type: 'audio/mpeg' }), 'audio');
+    await new Promise(resolve => setTimeout(resolve, 0));
     lastXHR.trigger('load');
-
     await promise;
     expect(lastXHR.open).toHaveBeenCalledWith('POST', expect.stringContaining('/video/upload'));
   });
