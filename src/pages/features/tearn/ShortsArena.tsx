@@ -19,41 +19,16 @@ import {
   ExternalLink,
   BookOpen
 } from 'lucide-react';
-import { getAllShorts, type EducationalShort } from '@/services/tearnService';
-
-// Premium high-fidelity educational shorts mocks
-const defaultShorts: EducationalShort[] = [
-  {
-    id: 'sh_1',
-    title: 'Solving Quadratic Equations in 45 Seconds!',
-    description: 'Quick mnemonic mental trick to solve core quadratic formulas without pen and paper.',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-computer-39885-large.mp4',
-    courseId: 'sample_course_1',
-    teacherId: 'teacher_1',
-    teacherName: 'Prof. Liverton',
-    likes: 142,
-    views: 890,
-    createdAt: new Date()
-  },
-  {
-    id: 'sh_2',
-    title: 'How do plants actually breathe oxygen?',
-    description: 'A 60s interactive animation summary of cellular respiration paradigms.',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-group-of-multiethnic-business-people-working-34208-large.mp4',
-    courseId: 'sample_course_2',
-    teacherId: 'teacher_2',
-    teacherName: 'Dr. Clara Oswald',
-    likes: 310,
-    views: 1205,
-    createdAt: new Date()
-  }
-];
+import { getAllShorts, incrementShortLikes, incrementShortViews, followTeacher, type EducationalShort } from '@/services/tearnService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ShortsArena() {
   const navigate = useNavigate();
+  const { currentUser, userRole } = useAuth();
 
-  const [shorts, setShorts] = useState<EducationalShort[]>(defaultShorts);
+  const [shorts, setShorts] = useState<EducationalShort[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [likesCount, setLikesCount] = useState<Record<string, number>>({});
   const [hasLiked, setHasLiked] = useState<Record<string, boolean>>({});
 
@@ -66,22 +41,39 @@ export default function ShortsArena() {
         }
       } catch (err) {
         console.error('Error fetching educational shorts:', err);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchShorts();
   }, []);
 
-  const currentShort = shorts[currentIndex] || defaultShorts[0];
+  const currentShort = shorts[currentIndex];
 
-  const handleLike = () => {
+  useEffect(() => {
+    if (!currentShort?.id) return;
+    incrementShortViews(currentShort.id).catch((error) => console.error('Unable to record Short view:', error));
+  }, [currentShort?.id]);
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-black text-white grid place-items-center"><div className="text-center"><div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" /><p className="text-sm text-white/60">Loading published Shorts…</p></div></div>;
+  }
+
+  if (!currentShort) {
+    return <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center p-6"><Card className="max-w-md border-white/10 bg-white/[.06] p-8 text-center text-white"><Tv className="mx-auto mb-5 h-10 w-10 text-emerald-400" /><h1 className="text-2xl font-black">No published Shorts yet</h1><p className="mt-3 text-sm leading-6 text-white/60">When an educator publishes a Short, it will appear here. Nothing is being substituted with sample videos.</p><Button className="mt-6 rounded-full bg-white text-black hover:bg-white/90" onClick={() => navigate(-1)}>Go back</Button></Card></div>;
+  }
+
+  const handleLike = async () => {
     const sId = currentShort.id;
-    if (hasLiked[sId]) {
-      setLikesCount(prev => ({ ...prev, [sId]: (prev[sId] || currentShort.likes) - 1 }));
-      setHasLiked(prev => ({ ...prev, [sId]: false }));
-    } else {
+    if (hasLiked[sId]) return;
+    try {
+      await incrementShortLikes(sId);
       setLikesCount(prev => ({ ...prev, [sId]: (prev[sId] || currentShort.likes) + 1 }));
       setHasLiked(prev => ({ ...prev, [sId]: true }));
-      toast.success('Added to your favorite educational snippets!');
+      toast.success('Short liked');
+    } catch (error) {
+      console.error('Unable to like Short:', error);
+      toast.error('Could not save your like');
     }
   };
 
@@ -90,8 +82,18 @@ export default function ShortsArena() {
     toast.success('Short link copied successfully!');
   };
 
-  const handleFollow = () => {
-    toast.success(`You are now following ${currentShort.teacherName}!`);
+  const handleFollow = async () => {
+    if (!currentUser || userRole !== 'student') {
+      toast.info('Sign in as a student to follow educators.');
+      return;
+    }
+    try {
+      await followTeacher(currentUser.uid, currentShort.teacherId);
+      toast.success(`You are now following ${currentShort.teacherName}.`);
+    } catch (error) {
+      console.error('Unable to follow educator:', error);
+      toast.error('Could not save that follow right now');
+    }
   };
 
   const handleGoToCourse = () => {

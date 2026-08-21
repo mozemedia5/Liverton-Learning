@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3, BookOpen, CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign,
@@ -8,6 +8,7 @@ import {
 import type { UserRole } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 
 interface DesktopNavbarProps {
   userRole: UserRole | null;
@@ -37,6 +38,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const copy = roleCopy(userRole);
 
   const sections = useMemo(() => {
@@ -62,9 +65,15 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   const isActive = (path: string) => location.pathname === path || (path !== '/' && location.pathname.startsWith(`${path}/`));
   const go = (item: NavItem) => navigate(item.path);
   const handleLogout = async () => {
-    await logout();
-    toast.success('You are signed out');
-    navigate('/login');
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      toast.success('You are signed out');
+      navigate('/login');
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutConfirm(false);
+    }
   };
 
   const renderItem = (item: NavItem) => {
@@ -81,7 +90,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   return (
     <aside className={`liv-sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
       <div className="liv-sidebar-brand">
-        <button className="liv-brand-mark" onClick={() => navigate(homeFor(userRole))} aria-label="Liverton home"><img src="/liverton-mark.jpg" alt="" /></button>
+        <button className="liv-brand-mark" onClick={() => navigate(homeFor(userRole))} aria-label="Liverton home"><img src="/liverton-mark.jpg" alt="Liverton" /></button>
         {!isCollapsed && <div><strong>Liverton</strong><span>Learning platform</span></div>}
         <button className="liv-collapse" onClick={() => setIsCollapsed(!isCollapsed)} aria-label={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}>
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -108,8 +117,9 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
           <div className="liv-avatar">{copy.mark}</div>
           {!isCollapsed && <div><strong>{copy.title.replace(' space', '').replace(' studio', '')}</strong><span>{userRole === 'teacher' ? 'Educator account' : 'Liverton member'}</span></div>}
         </button>
-        <button className="liv-logout" onClick={handleLogout} title="Log out"><LogOut size={17} />{!isCollapsed && <span>Log out</span>}</button>
+        <button className="liv-logout" onClick={() => setShowLogoutConfirm(true)} title="Log out"><LogOut size={17} />{!isCollapsed && <span>Log out</span>}</button>
       </div>
+      <LogoutConfirmDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm} onConfirm={handleLogout} isLoading={isLoggingOut} />
     </aside>
   );
 }
