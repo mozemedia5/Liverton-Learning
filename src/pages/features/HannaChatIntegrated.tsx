@@ -101,6 +101,7 @@ export default function HannaChatIntegrated() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
   // Modals / Dialogs state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -202,6 +203,13 @@ export default function HannaChatIntegrated() {
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
+    setIsNearBottom(true);
+  }, []);
+
+  const handleMessageScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    setIsNearBottom(container.scrollHeight - container.scrollTop - container.clientHeight < 160);
   }, []);
 
   // Handle scrolling dynamically based on context to ensure zero jitter and no slow glides on switch
@@ -609,7 +617,7 @@ export default function HannaChatIntegrated() {
   return (
     <>
       <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
-      <div className="flex h-full bg-[#fafafc] dark:bg-[#0c0d12] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+      <div className="flex h-[100dvh] min-h-0 bg-[#fafafc] dark:bg-[#0c0d12] text-slate-900 dark:text-slate-100 overflow-hidden relative">
 
         {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
@@ -621,7 +629,7 @@ export default function HannaChatIntegrated() {
             fixed inset-y-0 left-0 z-40 bg-white/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
             transition-all duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
             ${isSidebarOpen
-              ? 'translate-x-0 w-80 opacity-100'
+              ? 'translate-x-0 w-[min(20rem,calc(100vw-1rem))] opacity-100'
               : '-translate-x-full opacity-0 lg:w-0 lg:opacity-0 lg:overflow-hidden lg:border-r-0 lg:translate-x-0'
             }
             lg:relative lg:bg-white/40 lg:dark:bg-[#0c0d12]/40
@@ -750,8 +758,8 @@ export default function HannaChatIntegrated() {
         <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
 
           {/* Custom Overlapping Avatars Header resembling Gemini in Firebase Cloud Console */}
-          <header className="px-4 py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
-            <div className="flex items-center gap-3">
+          <header className="px-2.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               {/* Back Button with brand logo */}
               <Button
                 variant="ghost"
@@ -778,7 +786,7 @@ export default function HannaChatIntegrated() {
               {/* Title & Brand Typography */}
               <div className="flex items-baseline gap-1.5 min-w-0">
                 <span className="font-bold text-sm text-slate-100">Hanna</span>
-                <span className="text-[11px] text-slate-400 font-medium truncate">in Liverton</span>
+                <span className="hidden sm:inline text-[11px] text-slate-400 font-medium truncate">in Liverton</span>
               </div>
             </div>
 
@@ -829,8 +837,8 @@ export default function HannaChatIntegrated() {
           {currentChatId ? (
             <>
               {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
-              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
-                <div className="max-w-2xl mx-auto space-y-6">
+              <div ref={scrollContainerRef} onScroll={handleMessageScroll} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 scrollbar-thin overscroll-contain">
+                <div className="max-w-3xl mx-auto space-y-5 sm:space-y-6">
 
                   {/* Empty state: Suggested prompts for streamlined user guidance */}
                   {messages.length === 0 && !typewriterText && (
@@ -890,7 +898,7 @@ export default function HannaChatIntegrated() {
                     const isUser = message.senderRole === 'user';
                     return (
                       <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
-                        <div className={`flex gap-3 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`flex gap-2.5 sm:gap-3 max-w-[92%] sm:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
 
                           {/* Avatar */}
                           <div className="flex-shrink-0 mt-1">
@@ -913,7 +921,7 @@ export default function HannaChatIntegrated() {
                               <div className={`flex flex-wrap gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                                 {message.attachments.map((att, i) => (
                                   att.mimeType.startsWith('image/') ? (
-                                    <img key={i} src={att.url} alt={att.name} className="max-w-[200px] max-h-32 rounded-2xl object-cover border border-slate-200/50 dark:border-white/10 shadow-sm" />
+                                    <img key={i} src={att.url} alt={att.name} className="max-w-[min(200px,78vw)] max-h-40 rounded-2xl object-cover border border-slate-200/50 dark:border-white/10 shadow-sm" />
                                   ) : (
                                     <span key={i} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-[11px]">
                                       <FileText className="w-3.5 h-3.5 text-emerald-500" /> {att.name}
@@ -926,7 +934,7 @@ export default function HannaChatIntegrated() {
                             {/* Asymmetric Corners */}
                             <div
                               className={`
-                                px-4 py-3 text-sm leading-relaxed shadow-sm
+                                px-3.5 sm:px-4 py-3 text-[13px] sm:text-sm leading-relaxed break-words shadow-sm
                                 ${isUser
                                   ? 'bg-emerald-600 dark:bg-emerald-600 text-white rounded-[24px] rounded-tr-[4px] font-medium'
                                   : 'bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px]'}
@@ -997,8 +1005,19 @@ export default function HannaChatIntegrated() {
                 </div>
               </div>
 
+              {!isNearBottom && messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => scrollToBottom('smooth')}
+                  className="absolute bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-white/95 dark:bg-[#111115]/95 px-3.5 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 -rotate-90" />
+                  Jump to latest
+                </button>
+              )}
+
               {/* Composer Box (Clean modern layout position at bottom centered) */}
-              <footer className="p-4 bg-transparent border-t border-slate-200/50 dark:border-white/5 relative z-20 pb-safe md:pb-4">
+              <footer className="sticky bottom-0 p-2 sm:p-4 bg-[#fafafc]/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-t border-slate-200/50 dark:border-white/5 relative z-20 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:pb-4">
                 <div className="max-w-2xl mx-auto space-y-3">
 
                   {/* Subtle Animated Suggestion Action Pills */}
@@ -1049,7 +1068,7 @@ export default function HannaChatIntegrated() {
                   {/* Input Form with modern floating focus borders */}
                   <form
                     onSubmit={handleSend}
-                    className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-2.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200"
+                    className="flex items-end gap-1.5 sm:gap-2.5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-2.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200"
                   >
                     <input
                       ref={fileInputRef}
@@ -1065,7 +1084,7 @@ export default function HannaChatIntegrated() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="rounded-full w-10 h-10 flex-shrink-0 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                      className="rounded-full w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingFiles || isGenerating}
                       title="Attach file"
@@ -1086,7 +1105,7 @@ export default function HannaChatIntegrated() {
                       }}
                       placeholder="Message Hanna..."
                       rows={1}
-                      className="flex-1 bg-transparent border-0 outline-none resize-none text-[14px] leading-relaxed py-2 px-1 max-h-40 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-100"
+                      className="flex-1 min-w-0 bg-transparent border-0 outline-none resize-none text-[16px] sm:text-[14px] leading-relaxed py-2 px-1 max-h-40 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-100"
                       disabled={isGenerating}
                     />
 
@@ -1095,7 +1114,7 @@ export default function HannaChatIntegrated() {
                       <Button
                         type="button"
                         size="icon"
-                        className="rounded-full w-10 h-10 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 flex-shrink-0 transition-transform"
+                        className="rounded-full w-9 h-9 sm:w-10 sm:h-10 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 flex-shrink-0 transition-transform"
                         onClick={handleStop}
                         title="Stop generating"
                       >
@@ -1105,7 +1124,7 @@ export default function HannaChatIntegrated() {
                       <Button
                         type="submit"
                         size="icon"
-                        className="rounded-full w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-md shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-transform"
+                        className="rounded-full w-9 h-9 sm:w-10 sm:h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-md shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-transform"
                         disabled={(!inputValue.trim() && attachments.length === 0) || uploadingFiles}
                         title="Send message"
                       >
