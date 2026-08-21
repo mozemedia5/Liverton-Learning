@@ -1,43 +1,101 @@
-import { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, BookOpen, CalendarDays, GraduationCap, Home, LayoutGrid, Menu, MessageCircle, Plus, Settings, ShoppingBag, Sparkles, Users, WalletCards, X } from 'lucide-react';
-import type { UserRole } from '@/types';
+import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Sparkles } from 'lucide-react';
 
-type Tab = { label: string; path?: string; icon: React.ElementType; action?: 'create' | 'more' };
-
-const homeFor = (role: UserRole | null) => role === 'teacher' ? '/teacher/dashboard' : role === 'parent' ? '/parent/dashboard' : role === 'school_admin' ? '/school-admin/dashboard' : '/student/dashboard';
-
-export function MobileBottomNav({ userRole }: { userRole: UserRole | null }) {
-  const navigate = useNavigate();
+export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const tabs = useMemo<Tab[]>(() => {
-    if (userRole === 'teacher') return [{ label: 'Home', path: homeFor(userRole), icon: Home }, { label: 'Modules', path: '/teacher/courses', icon: BookOpen }, { label: 'Create', icon: Plus, action: 'create' }, { label: 'Learners', path: '/teacher/students', icon: Users }, { label: 'More', icon: Menu, action: 'more' }];
-    if (userRole === 'parent') return [{ label: 'Home', path: homeFor(userRole), icon: Home }, { label: 'Children', path: '/parent/students', icon: Users }, { label: 'Progress', path: '/parent/performance', icon: BarChart3 }, { label: 'Messages', path: '/chat', icon: MessageCircle }, { label: 'More', icon: Menu, action: 'more' }];
-    if (userRole === 'school_admin') return [{ label: 'Home', path: homeFor(userRole), icon: Home }, { label: 'People', path: '/school-admin/students', icon: Users }, { label: 'Projects', path: '/features/liv-teams', icon: LayoutGrid }, { label: 'Reports', path: '/admin/analytics', icon: BarChart3 }, { label: 'More', icon: Menu, action: 'more' }];
-    return [{ label: 'Home', path: homeFor(userRole), icon: Home }, { label: 'Learn', path: '/student/courses', icon: BookOpen }, { label: 'Progress', path: '/student/quizzes', icon: BarChart3 }, { label: 'Teams', path: '/features/liv-teams', icon: Users }, { label: 'More', icon: Menu, action: 'more' }];
-  }, [userRole]);
+  const navigate = useNavigate();
+  const [showMore, setShowMore] = useState(false);
 
-  const moreItems = userRole === 'teacher'
-    ? [{ label: 'Assessments', path: '/teacher/quizzes', icon: GraduationCap }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Insights', path: '/features/analytics', icon: BarChart3 }, { label: 'Earnings', path: '/payments', icon: WalletCards }]
-    : userRole === 'parent'
-      ? [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }]
-      : [{ label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Short learning', path: '/features/tearn/shorts', icon: Sparkles }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Settings', path: '/settings', icon: Settings }];
+  const mainNavItems = [
+    { name: 'Home', path: '/dashboard', icon: Home },
+    { name: 'Modules', path: '/dashboard/courses', icon: BookOpen },
+    { name: 'Ask Hanna', path: '/features/hanna-ai', icon: Sparkles, isPrimary: true },
+    { name: 'Work Hub', path: '/features/tearn', icon: Briefcase },
+    { name: 'More', path: '#more', icon: MoreHorizontal, onClick: () => setShowMore(true) },
+  ];
 
-  const isActive = (path?: string) => Boolean(path && (location.pathname === path || location.pathname.startsWith(`${path}/`)));
-  const handleTab = (tab: Tab) => {
-    if (tab.action === 'more') setMoreOpen((open) => !open);
-    else if (tab.action === 'create') navigate('/teacher/courses/create');
-    else if (tab.path) { setMoreOpen(false); navigate(tab.path); }
-  };
+  const secondaryNavItems = [
+    { name: 'Documents', path: '/dashboard/documents', icon: FileText },
+    { name: 'Messages', path: '/chat', icon: MessageSquare },
+    { name: 'Announcements', path: '/announcements', icon: Bell },
+    { name: 'Settings', path: '/settings', icon: Settings },
+  ];
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
-      {moreOpen && <div className="liv-mobile-sheet-backdrop" onClick={() => setMoreOpen(false)} />}
-      {moreOpen && <section className="liv-mobile-sheet" aria-label="More navigation"><div className="liv-sheet-head"><div><span>Workspace</span><h2>More from Liverton</h2></div><button onClick={() => setMoreOpen(false)} aria-label="Close menu"><X size={19} /></button></div><div className="liv-sheet-grid">{moreItems.map(({ label, path, icon: Icon }) => <button key={path} onClick={() => { setMoreOpen(false); navigate(path); }}><span><Icon size={19} /></span><strong>{label}</strong></button>)}</div><button className="liv-sheet-profile" onClick={() => { setMoreOpen(false); navigate('/profile'); }}><span><Settings size={18} /></span><div><strong>Profile & settings</strong><small>Manage your Liverton account</small></div></button></section>}
-      <nav className="liv-mobile-nav" aria-label="Mobile navigation">
-        {tabs.map((tab) => { const Icon = tab.icon; const active = isActive(tab.path); return <button key={tab.label} onClick={() => handleTab(tab)} className={`${active ? 'is-active' : ''} ${tab.action === 'create' ? 'liv-mobile-create' : ''}`} aria-label={tab.label}><span className="liv-mobile-icon"><Icon size={tab.action === 'create' ? 22 : 19} /></span><small>{tab.label}</small></button>; })}
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-full shadow-lg shadow-slate-900/10 px-3 py-2 transition-all">
+        <div className="flex items-center justify-around">
+          {mainNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+
+            if (item.isPrimary) {
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => navigate(item.path)}
+                  className="relative -top-5 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-md shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all"
+                  aria-label={item.name}
+                >
+                  <Icon className="w-6 h-6" />
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={item.name}
+                onClick={() => (item.onClick ? item.onClick() : navigate(item.path))}
+                className={`flex flex-col items-center justify-center w-12 py-1 text-xs font-medium transition-colors ${
+                  active ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <Icon className={`w-5 h-5 mb-0.5 ${active ? 'scale-110' : ''} transition-transform`} />
+                <span className="text-[10px] tracking-tight">{item.name}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
+
+      {showMore && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end animate-in fade-in duration-200" onClick={() => setShowMore(false)}>
+          <div className="w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 rounded-t-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Quick Actions & Menu</h3>
+              <button onClick={() => setShowMore(false)} className="p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 py-2">
+              {secondaryNavItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => {
+                      setShowMore(false);
+                      navigate(item.path);
+                    }}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${
+                      active ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-medium text-center">{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
-}
+};

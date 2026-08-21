@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
+import { FileText, useMemo, useState } from 'react';
+import { FileText, useLocation, useNavigate } from 'react-router-dom';
+import { FileText,
   BarChart3, BookOpen, CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign,
   FileText, GraduationCap, Home, LayoutGrid, LogOut, MessageCircle, Plus, Settings,
   ShieldCheck, ShoppingBag, Sparkles, Users, Video, WalletCards,
 } from 'lucide-react';
 import type { UserRole } from '@/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { FileText, useAuth } from '@/contexts/AuthContext';
+import { FileText, toast } from 'sonner';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 
 interface DesktopNavbarProps {
