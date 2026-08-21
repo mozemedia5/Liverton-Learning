@@ -319,6 +319,64 @@ export interface TeamActivityFeedItem {
   createdAt: Date | any;
 }
 
+export type LivFundCampaignStatus = 'Draft' | 'Submitted' | 'Under Review' | 'Approved' | 'Active' | 'Paused' | 'Funded' | 'Completed' | 'Cancelled' | 'Expired';
+export type FinancialTransactionStatus = 'pending' | 'successful' | 'failed' | 'cancelled' | 'refunded' | 'disputed';
+export type LivMartListingStatus = 'Draft' | 'Marketplace Review' | 'Approved' | 'Listed' | 'Archived' | 'Rejected';
+export type LivMartOrderStatus = 'Order Created' | 'Payment Pending' | 'Payment Confirmed' | 'Processing' | 'Fulfillment Pending' | 'Fulfilled' | 'Completed' | 'Cancelled' | 'Refunded' | 'Disputed';
+
+export interface LivFundCampaign {
+  id: string;
+  projectId: string;
+  teamId: string;
+  title: string;
+  description: string;
+  objective: string;
+  targetAmountMinor: number;
+  currency: string;
+  minimumContributionMinor?: number;
+  deadline?: string;
+  purpose: string;
+  status: LivFundCampaignStatus;
+  ownerId: string;
+  ownerName: string;
+  milestoneIds: string[];
+  evidenceFileIds: string[];
+  createdAt: Date | any;
+  updatedAt: Date | any;
+}
+
+export interface LivFundContribution {
+  id: string;
+  campaignId: string;
+  projectId: string;
+  contributorId?: string;
+  contributorName?: string;
+  amountMinor: number;
+  currency: string;
+  provider: string;
+  providerReference: string;
+  status: FinancialTransactionStatus;
+  platformFeeMinor: number;
+  projectAmountMinor: number;
+  idempotencyKey: string;
+  refundOf?: string;
+  createdAt: Date | any;
+  updatedAt: Date | any;
+}
+
+export type ProjectVerificationStatus = 'Pending Review' | 'Additional Information Required' | 'Approved' | 'Rejected';
+export interface ProjectVerificationRecord {
+  id: string;
+  projectId: string;
+  teamId: string;
+  status: ProjectVerificationStatus;
+  reviewerId?: string;
+  reviewerName?: string;
+  reason?: string;
+  createdAt: Date | any;
+  updatedAt: Date | any;
+}
+
 export interface MarketplaceItem {
   id: string;
   teamId: string;
@@ -326,13 +384,42 @@ export interface MarketplaceItem {
   projectId: string;
   title: string;
   description: string;
-  price: number; // 0 for free/open-source
-  type: 'innovation' | 'resources' | 'research' | 'software' | 'notes' | 'open_source';
+  price: number; // legacy major-unit display value; new commerce records use priceMinor
+  priceMinor?: number;
+  currency?: string;
+  category?: string;
+  deliverables?: string[];
+  licensingTerms?: string;
+  deliveryMethod?: 'digital' | 'service' | 'physical';
+  supportTerms?: string;
+  status?: LivMartListingStatus;
+  sellerId?: string;
+  sellerName?: string;
+  sourceProjectStatus?: ProjectStatus;
   ratings: { userId: string; rating: number; review?: string; userName: string; date: Date | any }[];
   downloadsCount: number;
   purchasesCount: number;
   isVerified: boolean;
+  verificationId?: string;
   fileUrl?: string;
   coverUrl?: string;
   createdAt: Date | any;
+}
+
+export interface LivMartOrder {
+  id: string;
+  listingId: string;
+  projectId: string;
+  buyerId: string;
+  sellerId: string;
+  amountMinor: number;
+  platformFeeMinor: number;
+  sellerAmountMinor: number;
+  currency: string;
+  provider: string;
+  providerReference?: string;
+  status: LivMartOrderStatus;
+  idempotencyKey: string;
+  createdAt: Date | any;
+  updatedAt: Date | any;
 }

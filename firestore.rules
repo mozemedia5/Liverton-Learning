@@ -469,6 +469,31 @@ service cloud.firestore {
       allow update, delete: if isPlatformAdmin();
     }
 
+    // ==================== LIVFUND & LIVMART ECONOMIC RECORDS ====================
+    match /livfund_campaigns/{campaignId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.status in ['Approved', 'Active', 'Paused', 'Funded', 'Completed'] || resource.data.ownerId == currentUserId()));
+      allow create: if isPlatformAdmin() || (isAuthenticated() && request.resource.data.ownerId == currentUserId() && isTeamMember(request.resource.data.teamId));
+      allow update: if isPlatformAdmin() || (isAuthenticated() && resource.data.ownerId == currentUserId() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'objective', 'purpose', 'deadline', 'minimumContributionMinor', 'updatedAt']));
+      allow delete: if isPlatformAdmin();
+    }
+    match /livfund_contributions/{contributionId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.contributorId == currentUserId() || get(/databases/$(database)/documents/livfund_campaigns/$(resource.data.campaignId)).data.ownerId == currentUserId()));
+      allow create: if isAuthenticated() && get(/databases/$(database)/documents/livfund_campaigns/$(request.resource.data.campaignId)).data.status == 'Active' && request.resource.data.status == 'pending' && request.resource.data.amountMinor is int && request.resource.data.amountMinor > 0 && request.resource.data.contributorId == currentUserId();
+      allow update: if isPlatformAdmin();
+      allow delete: if false;
+    }
+    match /project_verifications/{verificationId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && isTeamMember(resource.data.teamId));
+      allow create: if isPlatformAdmin() || (isAuthenticated() && isTeamMember(request.resource.data.teamId));
+      allow update: if isPlatformAdmin();
+      allow delete: if isPlatformAdmin();
+    }
+    match /livmart_orders/{orderId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.buyerId == currentUserId() || resource.data.sellerId == currentUserId()));
+      allow create: if isAuthenticated() && request.resource.data.buyerId == currentUserId() && get(/databases/$(database)/documents/marketplace_items/$(request.resource.data.listingId)).data.status == 'Listed' && request.resource.data.status == 'Payment Pending';
+      allow update: if isPlatformAdmin();
+      allow delete: if false;
+    }
     // Marketplace listings are public-read inside the app
     match /marketplace_items/{itemId} {
       allow read: if isAuthenticated();
