@@ -45,6 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const profileLoadIdRef = useRef(0);
+  const cachedRole = normalizeUserRole(localStorage.getItem('liverton_user_role'));
+
+  const setResolvedRole = (role: UserRole | null) => {
+    setUserRole(role);
+    if (role) localStorage.setItem('liverton_user_role', role);
+    else localStorage.removeItem('liverton_user_role');
+  };
+
+  const getProfileWithTimeout = async (uid: string) => {
+    const timeout = new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error('PROFILE_LOOKUP_TIMEOUT')), 5000);
+    });
+    return Promise.race([getDoc(doc(db, 'users', uid)), timeout]);
+  };
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -61,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: 'mock@liverton.com',
         uid: 'mock-uid',
       } as any);
-      setUserRole(mockRole as any);
+      setResolvedRole(mockRole as any);
       setLoading(false);
       setInitialLoadComplete(true);
       return;
@@ -74,8 +88,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCurrentUser(user);
         
         if (user) {
+          // Reuse the last known role immediately. The full Firestore profile
+          // refresh continues below, so returning users do not wait on a network
+          // read before the app can render their dashboard.
+          if (cachedRole) {
+            setUserData(prev => prev || {
+              uid: user.uid,
+              email: user.email || '',
+              fullName: user.displayName || 'Liverton User',
+              role: cachedRole,
+            } as User);
+            setResolvedRole(cachedRole);
+            setLoading(false);
+            setInitialLoadComplete(true);
+          }
           try {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            const userDoc = await getProfileWithTimeout(user.uid);
             if (userDoc.exists()) {
               const data = userDoc.data() as User;
               // Force platform_admin role for the specific admin email if it's not set in Firestore
@@ -86,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (!normalizedRole) throw new Error('Your account profile has an unsupported role. Please contact support.');
               data.role = normalizedRole;
               setUserData(data);
-              setUserRole(normalizedRole);
+              setResolvedRole(normalizedRole);
             } else if (user.email === 'infoliverton@gmail.com') {
               // Fallback for the admin user if document doesn't exist yet
               const adminData: User = {
@@ -101,20 +129,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 updatedAt: new Date(),
               };
               setUserData(adminData);
-              setUserRole('platform_admin');
+              setResolvedRole('platform_admin');
             }
           } catch (error) {
             console.error('Error fetching user data:', error);
+            if (error instanceof Error && error.message === 'PROFILE_LOOKUP_TIMEOUT' && cachedRole) {
+              setResolvedRole(cachedRole);
+              setUserData(prev => prev || {
+                uid: user.uid,
+                email: user.email || '',
+                fullName: user.displayName || 'Liverton User',
+                role: cachedRole,
+              } as User);
+            }
             // Do not clear a profile that was just written by register/login while
             // this listener was still resolving the same Firebase user.
-            if (profileLoadId === profileLoadIdRef.current) {
+            if (profileLoadId === profileLoadIdRef.current && !cachedRole) {
               setUserData(prev => prev?.uid === user.uid ? prev : null);
-              setUserRole(prev => prev ?? null);
+              setResolvedRole(null);
             }
           }
         } else {
           setUserData(null);
-          setUserRole(null);
+          setResolvedRole(null);
         }
       } finally {
         setLoading(false);
@@ -140,9 +177,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
         data.role = 'platform_admin';
       }
+      const normalizedRole = normalizeUserRole(data.role);
+      if (!normalizedRole) throw new Error('Your account profile has an unsupported role. Please contact support.');
+      data.role = normalizedRole;
       setUserData(data);
-      setUserRole(data.role);
-      return data.role;
+      setResolvedRole(normalizedRole);
+      return normalizedRole;
     } else if (email === 'infoliverton@gmail.com') {
       // Fallback for the admin user if document doesn't exist
       const adminData: User = {
@@ -157,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(),
       };
       setUserData(adminData);
-      setUserRole('platform_admin');
+      setResolvedRole('platform_admin');
       return 'platform_admin';
     }
 
@@ -182,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userDataInput.role) {
       await setDoc(doc(db, userDataInput.role + 's', uid), newUser);
       setUserData(newUser as User);
-      setUserRole(userDataInput.role);
+      setResolvedRole(userDataInput.role);
       return userDataInput.role;
     }
 
@@ -219,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setDoc(doc(db, assignedRole + 's', user.uid), newUser);
 
       setUserData(newUser);
-      setUserRole(assignedRole);
+      setResolvedRole(assignedRole);
       return assignedRole;
     } else {
       // User already exists, load their data
@@ -232,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!normalizedRole) throw new Error('Your account profile has an unsupported role. Please contact support.');
       data.role = normalizedRole;
       setUserData(data);
-      setUserRole(normalizedRole);
+      setResolvedRole(normalizedRole);
       return normalizedRole;
     }
   };
@@ -265,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setDoc(doc(db, assignedRole + 's', user.uid), newUser);
 
       setUserData(newUser);
-      setUserRole(assignedRole);
+      setResolvedRole(assignedRole);
       return assignedRole;
     }
 
@@ -273,15 +313,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user.email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
       data.role = 'platform_admin';
     }
+    const normalizedRole = normalizeUserRole(data.role);
+    if (!normalizedRole) throw new Error('Your account profile has an unsupported role. Please contact support.');
+    data.role = normalizedRole;
     setUserData(data);
-    setUserRole(data.role);
-    return data.role;
+    setResolvedRole(normalizedRole);
+    return normalizedRole;
   };
 
   const logout = async () => {
     await signOut(auth);
     setUserData(null);
-    setUserRole(null);
+    setResolvedRole(null);
     setCurrentUser(null);
   };
 
@@ -343,7 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Clear local state
     setUserData(null);
-    setUserRole(null);
+    setResolvedRole(null);
     setCurrentUser(null);
   };
 
