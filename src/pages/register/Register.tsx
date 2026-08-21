@@ -39,6 +39,17 @@ export default function Register() {
 
   // Map legacy database role keys to inclusive public-facing labels.
   const roleLabel = getRoleLabel(role);
+  const organizationTypes = [
+    'Early-childhood centre', 'Primary or secondary school', 'College or university',
+    'TVET or vocational institute', 'Adult or continuing education provider',
+    'Tutoring, language, arts, or sports academy', 'Education ministry or local authority',
+    'Examination, accreditation, or certification body', 'Textbook or academic publisher',
+    'Library, archive, or open-education resource organization', 'EdTech or digital learning provider',
+    'Device, connectivity, or accessibility provider', 'NGO, charity, or community learning organization',
+    'Research centre, think tank, or professional association', 'Funder, foundation, or development partner',
+    'Book supplier, distributor, printer, or equipment maker', 'Employer or apprenticeship provider',
+    'Other education organization',
+  ];
 
   // Get a role-specific dynamic description/tagline for registration
   const getRoleDescription = () => {
@@ -221,12 +232,16 @@ export default function Register() {
               <div className="auth-field relative">
                 <Input
                   type="text"
+                  list="organization-types"
                   placeholder="Organization type (e.g. school, publisher, nonprofit, EdTech provider)"
                   required
                   value={organizationType}
                   onChange={(e) => setOrganizationType(e.target.value)}
                   className="auth-input px-4 py-6 text-base"
                 />
+                <datalist id="organization-types">
+                  {organizationTypes.map((type) => <option key={type} value={type} />)}
+                </datalist>
               </div>
             )}
 

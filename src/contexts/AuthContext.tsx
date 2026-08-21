@@ -86,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profileLoadId = ++profileLoadIdRef.current;
       try {
         setCurrentUser(user);
+        // Firebase has resolved the session. Do not block the entire app while
+        // the optional Firestore profile refresh runs in the background.
+        setLoading(false);
+        setInitialLoadComplete(true);
         
         if (user) {
           // Reuse the last known role immediately. The full Firestore profile

@@ -153,14 +153,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <LogoLoader message="Initializing..." />;
   }
 
-  // Firebase can report the signed-in user a moment before Firestore has
-  // resolved the user's profile. Keep the auth screen stable during that gap;
-  // otherwise a successful login can briefly render the landing page and lose
-  // the intended dashboard navigation.
-  if (isAuthenticated && !userRole) {
-    return <LogoLoader message="Loading your account..." />;
-  }
-
   // Redirect authenticated users: honor a preserved deep-link destination
   // first, otherwise use the shared role dashboard mapping.
   if (isAuthenticated && userRole) {

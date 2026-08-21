@@ -39,3 +39,9 @@ The local Vite app initialized Firebase and rendered the landing page DOM succes
 
 ## Browser verification
 The local `/get-started` route rendered Student, Educator, Organization, and Parent cards. The `/register?role=school_admin` route rendered the new organization description and required organization-type input with examples including school, publisher, nonprofit, and EdTech provider.
+
+## Source 4: East African Community education overview
+
+URL: https://www.eac.int/education
+
+The EAC describes regional education work involving harmonized curricula, examination, certification, and accreditation institutions, as well as scientific and technological research and centres of excellence. It also explicitly covers teacher, adult, vocational, and technical education across partner states. This supports adding regional authorities, qualification and accreditation bodies, research centres, adult-learning providers, and TVET institutions to Liverton’s organization model.
