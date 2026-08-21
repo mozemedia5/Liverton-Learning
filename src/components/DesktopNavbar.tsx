@@ -1,13 +1,13 @@
-import { FileText, useMemo, useState } from 'react';
-import { FileText, useLocation, useNavigate } from 'react-router-dom';
-import { FileText,
+import { useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
   BarChart3, BookOpen, CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign,
   FileText, GraduationCap, Home, LayoutGrid, LogOut, MessageCircle, Plus, Settings,
   ShieldCheck, ShoppingBag, Sparkles, Users, Video, WalletCards,
 } from 'lucide-react';
 import type { UserRole } from '@/types';
-import { FileText, useAuth } from '@/contexts/AuthContext';
-import { FileText, toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 
 interface DesktopNavbarProps {
@@ -50,7 +50,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
     };
     if (userRole === 'parent') return {
       primary: [home, { label: 'My children', path: '/parent/students', icon: Users }, { label: 'Progress', path: '/parent/performance', icon: BarChart3 }],
-      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }],
+      tools: [{ label: 'Documents', path: '/dashboard/documents', icon: FileText }, { label: 'Modules', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }],
     };
     if (userRole === 'school_admin') return {
       primary: [home, { label: 'People', path: '/school-admin/students', icon: Users }, { label: 'Educators', path: '/school-admin/teachers', icon: GraduationCap }],
