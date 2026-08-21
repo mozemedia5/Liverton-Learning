@@ -120,7 +120,7 @@ export default function SideNavbar() {
     // Parent-specific routes
     { label: 'My Children', path: '/parent/students', icon: Users, roles: ['parent'] },
     { label: 'Performance', path: '/parent/performance', icon: BarChart3, roles: ['parent'] },
-    { label: 'School Fees', path: '/parent/fees', icon: CreditCard, roles: ['parent'] },
+    { label: 'Organization fees', path: '/parent/fees', icon: CreditCard, roles: ['parent'] },
     
     // Teacher-specific routes
     { label: 'My Courses', path: '/teacher/courses', icon: BookOpen, roles: ['teacher'] },
@@ -128,9 +128,9 @@ export default function SideNavbar() {
     { label: 'Students', path: '/teacher/students', icon: Users, roles: ['teacher'] },
     { label: 'Earnings', path: '/payments', icon: CreditCard, roles: ['teacher'] },
 
-    // School Admin-specific routes
+    // Organization-specific routes
     { label: 'Students', path: '/school-admin/students', icon: Users, roles: ['school_admin'] },
-    { label: 'Teachers', path: '/school-admin/teachers', icon: GraduationCap, roles: ['school_admin'] },
+    { label: 'Educators', path: '/school-admin/teachers', icon: GraduationCap, roles: ['school_admin'] },
     { label: 'Attendance', path: '/school-admin/attendance', icon: Calendar, roles: ['school_admin'] },
     { label: 'Fees', path: '/school-admin/fees', icon: CreditCard, roles: ['school_admin'] },
 

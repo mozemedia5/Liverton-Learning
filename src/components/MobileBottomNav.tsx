@@ -21,7 +21,7 @@ export function MobileBottomNav({ userRole }: { userRole: UserRole | null }) {
   const moreItems = userRole === 'teacher'
     ? [{ label: 'Assessments', path: '/teacher/quizzes', icon: GraduationCap }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Insights', path: '/features/analytics', icon: BarChart3 }, { label: 'Earnings', path: '/payments', icon: WalletCards }]
     : userRole === 'parent'
-      ? [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'School fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }]
+      ? [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }]
       : [{ label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Short learning', path: '/features/tearn/shorts', icon: Sparkles }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Settings', path: '/settings', icon: Settings }];
 
   const isActive = (path?: string) => Boolean(path && (location.pathname === path || location.pathname.startsWith(`${path}/`)));

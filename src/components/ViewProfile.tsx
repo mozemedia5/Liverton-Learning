@@ -1,7 +1,7 @@
 /**
  * View Profile Component
  * Displays user profile information with non-sensitive data only
- * Shows: Name, Role, Class/School, Avatar
+ * Shows: Name, Role, Class/Organization, Avatar
  * Hides: Email, Phone, Sensitive personal information
  */
 
@@ -111,12 +111,12 @@ export function ViewProfile({ user, onClose }: ViewProfileProps) {
             </div>
           )}
 
-          {/* School/Institution */}
+          {/* Organization / Institution */}
           {user.location && (
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
               <Building2 size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm text-gray-600 font-medium">School/Institution</p>
+                <p className="text-sm text-gray-600 font-medium">Organization / Institution</p>
                 <p className="text-gray-900">{user.location}</p>
               </div>
             </div>

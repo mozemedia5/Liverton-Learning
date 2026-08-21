@@ -296,7 +296,7 @@ export default function PlatformAdminDashboard() {
                   <GraduationCap className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Teachers</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Educators</p>
                   <p className="text-xl font-bold">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats.totalTeachers}
                   </p>
@@ -311,7 +311,7 @@ export default function PlatformAdminDashboard() {
                   <School className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Schools</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Organizations</p>
                   <p className="text-xl font-bold">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats.totalSchools}
                   </p>
@@ -730,7 +730,7 @@ export default function PlatformAdminDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">
-                Pending Teacher Verifications 
+                Pending Educator Verifications
                 {pendingTeachers.length > 0 && (
                   <Badge variant="secondary" className="ml-2">{pendingTeachers.length}</Badge>
                 )}
@@ -740,7 +740,7 @@ export default function PlatformAdminDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {pendingTeachers.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No pending teacher verifications</p>
+                  <p className="text-sm text-gray-500 text-center py-4">No pending educator verifications</p>
                 ) : (
                   pendingTeachers.map((teacher) => (
                     <div key={teacher.uid} className="flex items-center justify-between p-3 border rounded-lg">
@@ -788,7 +788,7 @@ export default function PlatformAdminDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">
-                New School Applications
+                New Organization Applications
                 {pendingSchools.length > 0 && (
                   <Badge variant="secondary" className="ml-2">{pendingSchools.length}</Badge>
                 )}
@@ -798,7 +798,7 @@ export default function PlatformAdminDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {pendingSchools.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No pending school applications</p>
+                  <p className="text-sm text-gray-500 text-center py-4">No pending organization applications</p>
                 ) : (
                   pendingSchools.map((school) => (
                     <div key={school.uid} className="flex items-center justify-between p-3 border rounded-lg">

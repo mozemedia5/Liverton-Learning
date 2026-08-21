@@ -4,6 +4,27 @@ import type { UserRole } from '@/types';
  * Public-facing labels intentionally differ from legacy Firestore role keys.
  * Keep the keys stable for backwards compatibility while presenting inclusive language.
  */
+const roleAliases: Record<string, UserRole> = {
+  educator: 'teacher',
+  educators: 'teacher',
+  organization: 'school_admin',
+  organisations: 'school_admin',
+  organizations: 'school_admin',
+  org_admin: 'school_admin',
+  learner: 'student',
+  learners: 'student',
+};
+
+export function normalizeUserRole(role: string | null | undefined): UserRole | null {
+  if (!role) return null;
+  const normalized = role.trim().toLowerCase();
+  if (normalized in roleAliases) return roleAliases[normalized];
+  if (normalized === 'student' || normalized === 'teacher' || normalized === 'school_admin' || normalized === 'parent' || normalized === 'platform_admin') {
+    return normalized as UserRole;
+  }
+  return null;
+}
+
 export const roleLabels: Record<UserRole, string> = {
   student: 'Student',
   teacher: 'Educator',
@@ -20,12 +41,14 @@ export const dashboardRoutes: Record<UserRole, string> = {
   platform_admin: '/admin/dashboard',
 };
 
-export function getDashboardRoute(role: UserRole | null | undefined): string | null {
-  return role ? dashboardRoutes[role] ?? null : null;
+export function getDashboardRoute(role: UserRole | string | null | undefined): string | null {
+  const normalized = normalizeUserRole(role);
+  return normalized ? dashboardRoutes[normalized] ?? null : null;
 }
 
 export function getRoleLabel(role: string | null | undefined): string {
-  return roleLabels[(role || 'student') as UserRole] || 'Student';
+  const normalized = normalizeUserRole(role) || 'student';
+  return roleLabels[normalized] || 'Student';
 }
 
 export function getAuthErrorMessage(error: unknown, provider: 'Google' | 'Apple' | 'email/password'): string {

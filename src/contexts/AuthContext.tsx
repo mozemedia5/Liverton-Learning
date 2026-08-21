@@ -16,6 +16,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User, UserRole } from '@/types';
+import { normalizeUserRole } from '@/lib/authNavigation';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const profileLoadIdRef = useRef(0);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -67,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Set up auth state listener only once
     unsubscribeRef.current = onAuthStateChanged(auth, async (user) => {
+      const profileLoadId = ++profileLoadIdRef.current;
       try {
         setCurrentUser(user);
         
@@ -79,8 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (user.email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
                 data.role = 'platform_admin';
               }
+              const normalizedRole = normalizeUserRole(data.role);
+              if (!normalizedRole) throw new Error('Your account profile has an unsupported role. Please contact support.');
+              data.role = normalizedRole;
               setUserData(data);
-              setUserRole(data.role);
+              setUserRole(normalizedRole);
             } else if (user.email === 'infoliverton@gmail.com') {
               // Fallback for the admin user if document doesn't exist yet
               const adminData: User = {
@@ -99,8 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             console.error('Error fetching user data:', error);
-            setUserData(null);
-            setUserRole(null);
+            // Do not clear a profile that was just written by register/login while
+            // this listener was still resolving the same Firebase user.
+            if (profileLoadId === profileLoadIdRef.current) {
+              setUserData(prev => prev?.uid === user.uid ? prev : null);
+              setUserRole(prev => prev ?? null);
+            }
           }
         } else {
           setUserData(null);
@@ -181,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async (role?: UserRole): Promise<UserRole> => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     const userCredential = await signInWithPopup(auth, provider);
     const { user } = userCredential;
 
@@ -217,14 +228,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user.email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
         data.role = 'platform_admin';
       }
+      const normalizedRole = normalizeUserRole(data.role);
+      if (!normalizedRole) throw new Error('Your account profile has an unsupported role. Please contact support.');
+      data.role = normalizedRole;
       setUserData(data);
-      setUserRole(data.role);
-      return data.role;
+      setUserRole(normalizedRole);
+      return normalizedRole;
     }
   };
 
   const signInWithApple = async (role?: UserRole): Promise<UserRole> => {
     const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
     const userCredential = await signInWithPopup(auth, provider);
     const { user } = userCredential;
 

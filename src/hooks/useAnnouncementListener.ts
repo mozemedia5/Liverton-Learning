@@ -57,7 +57,7 @@ export const useAnnouncementListener = () => {
             if (senderId === currentUser?.uid) return;
 
             // Check if current user is in the target audience
-            // Audience IDs are: 'students', 'teachers', 'parents', 'school_admins'
+            // Audience IDs retain legacy keys for compatibility: students, teachers, parents, school_admins
             const roleToAudienceMap: Record<string, string> = {
               'student': 'students',
               'teacher': 'teachers',

@@ -47,7 +47,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
     };
     if (userRole === 'parent') return {
       primary: [home, { label: 'My children', path: '/parent/students', icon: Users }, { label: 'Progress', path: '/parent/performance', icon: BarChart3 }],
-      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'School fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }],
+      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }],
     };
     if (userRole === 'school_admin') return {
       primary: [home, { label: 'People', path: '/school-admin/students', icon: Users }, { label: 'Educators', path: '/school-admin/teachers', icon: GraduationCap }],

@@ -136,6 +136,8 @@ export default function Register() {
   };
 
   const handleGoogleSignUp = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const resolvedRole = await signInWithGoogle(role as any);
       toast.success('✅ Signed up with Google successfully!');
@@ -143,10 +145,14 @@ export default function Register() {
       navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err: any) {
       toast.error('❌ ' + getAuthErrorMessage(err, 'Google'));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAppleSignUp = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const resolvedRole = await signInWithApple(role as any);
       toast.success('✅ Signed up with Apple successfully!');
@@ -154,6 +160,8 @@ export default function Register() {
       navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err: any) {
       toast.error('❌ ' + getAuthErrorMessage(err, 'Apple'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -324,6 +332,8 @@ export default function Register() {
           {/* Social Buttons */}
           <div className="w-full grid grid-cols-2 gap-3 mb-8">
             <button
+              type="button"
+              disabled={loading}
               onClick={handleGoogleSignUp}
               className="auth-social flex items-center justify-center gap-2 py-3 px-4 border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors font-semibold text-sm bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200"
             >
@@ -348,6 +358,8 @@ export default function Register() {
               Google
             </button>
             <button
+              type="button"
+              disabled={loading}
               onClick={handleAppleSignUp}
               className="auth-social flex items-center justify-center gap-2 py-3 px-4 transition-colors font-semibold text-sm bg-black dark:bg-zinc-800 hover:bg-gray-900 text-white"
             >
@@ -363,7 +375,7 @@ export default function Register() {
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Already have an account?{' '}
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login', { state: { from: intendedDestination } })}
                 className="auth-link hover:underline font-semibold"
               >
                 Sign In

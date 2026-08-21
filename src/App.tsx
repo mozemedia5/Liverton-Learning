@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
 import LogoLoader from '@/components/LogoLoader';
+import { getDashboardRoute } from '@/lib/authNavigation';
 import RouteMetadata from '@/components/RouteMetadata';
 
 // Pages
@@ -127,7 +128,7 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 
   // Check role-based access control if roles are specified
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getDashboardRoute(userRole) || '/'} replace />;
   }
 
   return <>{children}</>;
@@ -152,21 +153,22 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <LogoLoader message="Initializing..." />;
   }
 
+  // Firebase can report the signed-in user a moment before Firestore has
+  // resolved the user's profile. Keep the auth screen stable during that gap;
+  // otherwise a successful login can briefly render the landing page and lose
+  // the intended dashboard navigation.
+  if (isAuthenticated && !userRole) {
+    return <LogoLoader message="Loading your account..." />;
+  }
+
   // Redirect authenticated users: honor a preserved deep-link destination
-  // first, otherwise fall back to their role dashboard
+  // first, otherwise use the shared role dashboard mapping.
   if (isAuthenticated && userRole) {
     const from = (location.state as { from?: string } | null)?.from;
-    if (from && from !== '/login') {
+    if (from && from !== '/login' && from !== '/register' && from !== '/get-started') {
       return <Navigate to={from} replace />;
     }
-    const dashboardRoutes: Record<string, string> = {
-      student: '/student/dashboard',
-      teacher: '/teacher/dashboard',
-      school_admin: '/school-admin/dashboard',
-      parent: '/parent/dashboard',
-      platform_admin: '/admin/dashboard',
-    };
-    return <Navigate to={dashboardRoutes[userRole] || '/'} replace />;
+    return <Navigate to={getDashboardRoute(userRole) || '/login'} replace />;
   }
 
   return <>{children}</>;

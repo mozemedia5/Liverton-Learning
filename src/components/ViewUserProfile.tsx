@@ -184,7 +184,7 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
                   <School className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">School</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Organization</p>
                   <p className="text-sm font-medium">{profile.school}</p>
                 </div>
               </div>

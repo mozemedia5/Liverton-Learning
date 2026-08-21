@@ -179,7 +179,7 @@ export default function AdminDashboard() {
           </Card>
           <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
             <CardContent className="p-4 text-center">
-              <p className="text-sm text-green-600 dark:text-green-400">Teachers</p>
+              <p className="text-sm text-green-600 dark:text-green-400">Educators</p>
               <p className="text-2xl font-bold text-green-700 dark:text-green-300">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : stats.totalTeachers}
               </p>
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
           </Card>
           <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
             <CardContent className="p-4 text-center">
-              <p className="text-sm text-purple-600 dark:text-purple-400">Schools</p>
+              <p className="text-sm text-purple-600 dark:text-purple-400">Organizations</p>
               <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : stats.totalSchools}
               </p>

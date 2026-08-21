@@ -65,15 +65,15 @@ const SHARE_MESSAGES: Record<string, string> = {
   teacher:
     `Liverton Learning is transforming how educators teach. Create courses, manage students, conduct live lessons, and track progress — all in one powerful platform. Come explore it with me.`,
   school_admin:
-    `Liverton Learning provides schools with a complete digital infrastructure — from student enrolment and class management to analytics and parent communication. Discover how it can elevate your institution.`,
+    `Liverton Learning gives education organizations a complete digital workspace — from learner programs and collaboration to analytics and community communication. Discover how it can elevate your organization.`,
   parent:
     `I've found a great platform to support my child's education. Liverton Learning keeps parents informed and involved in their child's academic journey. See what it's all about.`,
   platform_admin:
-    `Liverton Learning is a comprehensive educational platform connecting students, teachers, schools, and parents for seamless, modern learning. Explore the platform today.`,
+    `Liverton Learning is a comprehensive learning platform connecting students, educators, organizations, and families for seamless, modern learning. Explore the platform today.`,
 };
 
 const DEFAULT_MESSAGE =
-  `Liverton Learning is a comprehensive educational platform connecting students, teachers, schools, and parents for seamless, modern learning. Explore the platform today.`;
+  `Liverton Learning is a comprehensive learning platform connecting students, educators, organizations, and families for seamless, modern learning. Explore the platform today.`;
 
 // Mock High-Fidelity Contacts for simulated sharing
 const MOCK_CONTACTS = [

@@ -61,22 +61,30 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const resolvedRole = await signInWithGoogle();
       toast.success('✅ Signed in with Google successfully!');
       navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err) {
       toast.error('❌ ' + getAuthErrorMessage(err, 'Google'));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const resolvedRole = await signInWithApple();
       toast.success('✅ Signed in with Apple successfully!');
       navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err) {
       toast.error('❌ ' + getAuthErrorMessage(err, 'Apple'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -203,6 +211,8 @@ export default function Login() {
           {/* Social Buttons */}
           <div className="w-full grid grid-cols-2 gap-3 mb-8">
             <button
+              type="button"
+              disabled={loading}
               onClick={handleGoogleSignIn}
               className="auth-social flex items-center justify-center gap-2 py-3 px-4 border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors font-semibold text-sm bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200"
             >
@@ -227,6 +237,8 @@ export default function Login() {
               Google
             </button>
             <button
+              type="button"
+              disabled={loading}
               onClick={handleAppleSignIn}
               className="auth-social flex items-center justify-center gap-2 py-3 px-4 transition-colors font-semibold text-sm bg-black dark:bg-zinc-800 hover:bg-gray-900 text-white"
             >
