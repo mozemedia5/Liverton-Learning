@@ -20,21 +20,21 @@ const PUBLIC_ROUTES: Record<string, RouteDefinition> = {
   '/': { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION, schemaType: 'WebPage' },
   '/get-started': {
     title: 'Get Started',
-    description: 'Choose your Liverton Learning experience and join a modern learning community for students, teachers, parents and schools.',
+    description: 'Choose your Liverton Learning experience and join a modern learning community for students, educators, parents and organizations.',
     schemaType: 'WebPage',
   },
   '/about': {
     title: 'About Liverton Learning',
-    description: 'Learn how Liverton Learning connects students, teachers, parents and schools through practical digital learning tools.',
+    description: 'Learn how Liverton Learning connects students, educators, parents and organizations through practical digital learning tools.',
     schemaType: 'AboutPage',
   },
   '/about/schools': {
-    title: 'Learning Tools for Schools',
-    description: 'Liverton Learning helps schools coordinate courses, communication, assessments and student progress in one place.',
+    title: 'Learning Tools for Organizations',
+    description: 'Liverton Learning helps education organizations coordinate courses, communication, assessments, programs, and learning progress in one place.',
     schemaType: 'AboutPage',
   },
   '/about/teachers': {
-    title: 'Tools for Teachers',
+    title: 'Tools for Educators',
     description: 'Create courses, teach live lessons, manage quizzes and support learners with Liverton Learning.',
     schemaType: 'AboutPage',
   },
@@ -59,7 +59,7 @@ const PUBLIC_ROUTES: Record<string, RouteDefinition> = {
     schemaType: 'PrivacyPolicy',
   },
   '/login': { title: 'Sign In', description: 'Sign in to your Liverton Learning account.', noIndex: true },
-  '/register': { title: 'Create an Account', description: 'Create a Liverton Learning account for your learning or teaching journey.', noIndex: true },
+  '/register': { title: 'Create an Account', description: 'Create a Liverton Learning account for your learning, educating, or organization journey.', noIndex: true },
   '/verify-email': { title: 'Verify Email', description: 'Verify your email address for Liverton Learning.', noIndex: true },
   '/register/verify-student': { title: 'Verify Student Email', description: 'Verify your student email address for Liverton Learning.', noIndex: true },
 };

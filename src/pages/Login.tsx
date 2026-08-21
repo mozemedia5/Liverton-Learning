@@ -6,12 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Mail, Lock, Eye, EyeOff, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { getAuthErrorMessage, getDashboardRoute } from '@/lib/authNavigation';
 import './auth.css';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, signInWithGoogle, signInWithApple, userRole, loading: authLoading } = useAuth();
+  const { login, signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
 
   // Deep-link destination preserved by ProtectedRoute (e.g. shared course/team links)
   const intendedDestination = (location.state as { from?: string } | null)?.from;
@@ -35,7 +36,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const resolvedRole = await login(email, password);
       toast.success('✅ Login successful! Redirecting...', {
         duration: 3000,
       });
@@ -46,21 +47,8 @@ export default function Login() {
           navigate(intendedDestination, { replace: true });
           return;
         }
-        const effectiveRole = (email === 'infoliverton@gmail.com') ? 'platform_admin' : userRole;
-
-        const dashboardRoutes: Record<string, string> = {
-          student: '/student/dashboard',
-          teacher: '/teacher/dashboard',
-          school_admin: '/school-admin/dashboard',
-          platform_admin: '/admin/dashboard',
-          parent: '/student/dashboard',
-        };
-
-        if (effectiveRole && dashboardRoutes[effectiveRole]) {
-          navigate(dashboardRoutes[effectiveRole]);
-        } else {
-          navigate('/');
-        }
+        const effectiveRole = (email === 'infoliverton@gmail.com') ? 'platform_admin' : resolvedRole;
+        navigate(getDashboardRoute(effectiveRole) || '/', { replace: true });
       }, 500);
     } catch (err) {
       const errorMessage = (err instanceof Error ? err.message : '') || 'Invalid email or password';
@@ -74,21 +62,21 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
+      const resolvedRole = await signInWithGoogle();
       toast.success('✅ Signed in with Google successfully!');
-      navigate(intendedDestination || '/', { replace: !!intendedDestination });
+      navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err) {
-      toast.error('❌ Google sign-in failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      toast.error('❌ ' + getAuthErrorMessage(err, 'Google'));
     }
   };
 
   const handleAppleSignIn = async () => {
     try {
-      await signInWithApple();
+      const resolvedRole = await signInWithApple();
       toast.success('✅ Signed in with Apple successfully!');
-      navigate(intendedDestination || '/', { replace: !!intendedDestination });
+      navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err) {
-      toast.error('❌ Apple sign-in failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      toast.error('❌ ' + getAuthErrorMessage(err, 'Apple'));
     }
   };
 

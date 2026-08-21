@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
-  BarChart3,
   BookOpen,
   Check,
   ChevronDown,
@@ -148,6 +147,15 @@ export default function LandingPage() {
         </section>
 
         <section className="trust-strip"><span>Built for the people moving learning forward</span><div><span>LEARNERS</span><span>EDUCATORS</span><span>ORGANIZATIONS</span><span>CREATORS</span></div></section>
+
+        <section className="section-shell organization-scope-section" aria-labelledby="organization-scope-title">
+          <div className="section-heading"><div><span className="section-kicker">Organizations in education</span><h2 id="organization-scope-title">Not only schools.<br /><em>Every organization that helps learning happen.</em></h2></div><p>Liverton is for the wider education ecosystem: the people and organizations that teach, create knowledge, assess learning, provide tools, fund access, and support communities.</p></div>
+          <div className="feature-grid">
+            <article className="feature-card feature-card-lilac"><span className="feature-index">LEARNING PROVIDERS</span><h3>Schools, colleges & training teams</h3><p>Coordinate classrooms, tutoring, vocational learning, adult education, online programs, and community learning spaces.</p></article>
+            <article className="feature-card feature-card-peach"><span className="feature-index">CONTENT & ACCESS</span><h3>Publishers, libraries & nonprofits</h3><p>Share textbooks, open resources, research, libraries, community programs, and initiatives that widen access to learning.</p></article>
+            <article className="feature-card feature-card-lime"><span className="feature-index">TOOLS & SUPPORT</span><h3>EdTech, suppliers & partners</h3><p>Connect technology providers, assessment bodies, book suppliers, equipment makers, funders, researchers, and education services.</p></article>
+          </div>
+        </section>
 
         <section className="section-shell why-section" id="why-liverton">
           <div className="section-heading"><div><span className="section-kicker">A clearer way forward</span><h2>Everything you need<br /><em>to keep going.</em></h2></div><p>From your first lesson to your boldest project, Liverton keeps the right people, tools, and opportunities close at hand.</p></div>

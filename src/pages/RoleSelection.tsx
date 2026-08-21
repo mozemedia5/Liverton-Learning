@@ -21,15 +21,15 @@ const roles: RoleOption[] = [
   },
   {
     id: 'teacher',
-    title: 'Teacher',
-    description: 'Create courses, upload lessons, and earn from your expertise',
+    title: 'Educator',
+    description: 'Create courses, share lessons, and help learners grow from your expertise',
     icon: <Users className="w-8 h-8" />,
     path: '/register?role=teacher',
   },
   {
-    id: 'school-admin',
-    title: 'School Administrator',
-    description: 'Manage your school, students, teachers, and operations',
+    id: 'organization',
+    title: 'Organization',
+    description: 'Coordinate programs, people, resources, and learning opportunities across your organization',
     icon: <School className="w-8 h-8" />,
     path: '/register?role=school_admin',
   },
@@ -73,7 +73,7 @@ export default function RoleSelection() {
           <div className="text-center space-y-3">
             <h1 className="text-3xl md:text-4xl font-bold">Who are you?</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Select your role to create your account
+              Select the path that best describes how you participate in learning
             </p>
           </div>
 

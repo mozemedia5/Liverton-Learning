@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { toast } from 'sonner';
+import { getAuthErrorMessage, getDashboardRoute, getRoleLabel } from '@/lib/authNavigation';
 import '../auth.css';
 
 export default function Register() {
@@ -25,6 +26,7 @@ export default function Register() {
 
   // Form states
   const [fullName, setFullName] = useState('');
+  const [organizationType, setOrganizationType] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -35,22 +37,14 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Map database role to user friendly label
-  const getRoleLabel = () => {
-    switch (role) {
-      case 'student': return 'Student';
-      case 'teacher': return 'Teacher';
-      case 'school_admin': return 'School Administrator';
-      case 'parent': return 'Parent';
-      default: return 'Student';
-    }
-  };
+  // Map legacy database role keys to inclusive public-facing labels.
+  const roleLabel = getRoleLabel(role);
 
   // Get a role-specific dynamic description/tagline for registration
   const getRoleDescription = () => {
     const label = (
       <span className="font-semibold text-gray-800 dark:text-gray-200">
-        {getRoleLabel()}
+        {roleLabel}
       </span>
     );
 
@@ -64,13 +58,13 @@ export default function Register() {
       case 'teacher':
         return (
           <>
-            Share knowledge, inspire minds, and manage courses as a {label}
+            Share knowledge, inspire minds, and manage courses as an {label}
           </>
         );
       case 'school_admin':
         return (
           <>
-            Oversee operations, manage resources, and empower your school as a {label}
+            Represent your organization, manage learning programs, and connect your community as an {label}
           </>
         );
       case 'parent':
@@ -105,8 +99,9 @@ export default function Register() {
 
     try {
       // 1. Register user
-      await register(email, password, {
+      const resolvedRole = await register(email, password, {
         fullName,
+        ...(role === 'school_admin' ? { organizationType } : {}),
         role: role as any,
         sex: 'other',
         age: 18,
@@ -130,7 +125,7 @@ export default function Register() {
       if (intendedDestination) {
         navigate(intendedDestination, { replace: true });
       } else {
-        navigate('/');
+        navigate(getDashboardRoute(resolvedRole) || '/', { replace: true });
       }
     } catch (err: any) {
       console.error(err);
@@ -142,23 +137,23 @@ export default function Register() {
 
   const handleGoogleSignUp = async () => {
     try {
-      await signInWithGoogle(role as any);
+      const resolvedRole = await signInWithGoogle(role as any);
       toast.success('✅ Signed up with Google successfully!');
       localStorage.setItem('show_setup_prompt', 'true');
-      navigate(intendedDestination || '/', { replace: !!intendedDestination });
+      navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err: any) {
-      toast.error('❌ Google signup failed: ' + (err.message || 'Unknown error'));
+      toast.error('❌ ' + getAuthErrorMessage(err, 'Google'));
     }
   };
 
   const handleAppleSignUp = async () => {
     try {
-      await signInWithApple(role as any);
+      const resolvedRole = await signInWithApple(role as any);
       toast.success('✅ Signed up with Apple successfully!');
       localStorage.setItem('show_setup_prompt', 'true');
-      navigate(intendedDestination || '/', { replace: !!intendedDestination });
+      navigate(intendedDestination || getDashboardRoute(resolvedRole) || '/', { replace: true });
     } catch (err: any) {
-      toast.error('❌ Apple signup failed: ' + (err.message || 'Unknown error'));
+      toast.error('❌ ' + getAuthErrorMessage(err, 'Apple'));
     }
   };
 
@@ -213,6 +208,19 @@ export default function Register() {
                 className="auth-input pl-12 py-6 text-base"
               />
             </div>
+
+            {role === 'school_admin' && (
+              <div className="auth-field relative">
+                <Input
+                  type="text"
+                  placeholder="Organization type (e.g. school, publisher, nonprofit, EdTech provider)"
+                  required
+                  value={organizationType}
+                  onChange={(e) => setOrganizationType(e.target.value)}
+                  className="auth-input px-4 py-6 text-base"
+                />
+              </div>
+            )}
 
             {/* Email */}
             <div className="auth-field relative">

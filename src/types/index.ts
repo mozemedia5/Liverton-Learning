@@ -23,6 +23,8 @@ export interface User {
   schoolName?: string;
   schoolRegistrationNumber?: string;
   schoolType?: string;
+  /** Public-facing organization category; schoolType remains for legacy records. */
+  organizationType?: string;
   contactInfo?: {
     phone: string;
     address: string;

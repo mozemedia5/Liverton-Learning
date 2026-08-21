@@ -23,10 +23,10 @@ interface AuthContextType {
   userRole: UserRole | null;
   loading: boolean;
   initialLoadComplete: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, userData: Partial<User>) => Promise<void>;
-  signInWithGoogle: (role?: UserRole) => Promise<void>;
-  signInWithApple: (role?: UserRole) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserRole>;
+  register: (email: string, password: string, userData: Partial<User>) => Promise<UserRole>;
+  signInWithGoogle: (role?: UserRole) => Promise<UserRole>;
+  signInWithApple: (role?: UserRole) => Promise<UserRole>;
   logout: () => Promise<void>;
   updateUserProfile: (data: Partial<User>) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<UserRole> => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
     
@@ -132,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setUserData(data);
       setUserRole(data.role);
+      return data.role;
     } else if (email === 'infoliverton@gmail.com') {
       // Fallback for the admin user if document doesn't exist
       const adminData: User = {
@@ -147,10 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setUserData(adminData);
       setUserRole('platform_admin');
+      return 'platform_admin';
     }
+
+    throw new Error('Your account profile is missing. Please contact support before signing in again.');
   };
 
-  const register = async (email: string, password: string, userDataInput: Partial<User>) => {
+  const register = async (email: string, password: string, userDataInput: Partial<User>): Promise<UserRole> => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const { uid } = userCredential.user;
 
@@ -167,10 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Also create role-specific document
     if (userDataInput.role) {
       await setDoc(doc(db, userDataInput.role + 's', uid), newUser);
+      setUserData(newUser as User);
+      setUserRole(userDataInput.role);
+      return userDataInput.role;
     }
+
+    throw new Error('A valid account role is required to finish registration.');
   };
 
-  const signInWithGoogle = async (role?: UserRole) => {
+  const signInWithGoogle = async (role?: UserRole): Promise<UserRole> => {
     const provider = new GoogleAuthProvider();
     const userCredential = await signInWithPopup(auth, provider);
     const { user } = userCredential;
@@ -200,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUserData(newUser);
       setUserRole(assignedRole);
+      return assignedRole;
     } else {
       // User already exists, load their data
       const data = userDoc.data() as User;
@@ -209,76 +219,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setUserData(data);
       setUserRole(data.role);
+      return data.role;
     }
   };
 
-  const signInWithApple = async (role?: UserRole) => {
-    try {
-      const provider = new OAuthProvider('apple.com');
-      const userCredential = await signInWithPopup(auth, provider);
-      const { user } = userCredential;
+  const signInWithApple = async (role?: UserRole): Promise<UserRole> => {
+    const provider = new OAuthProvider('apple.com');
+    const userCredential = await signInWithPopup(auth, provider);
+    const { user } = userCredential;
 
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists()) {
-        const assignedRole = role || 'student';
-        const newUser: User = {
-          uid: user.uid,
-          email: user.email || '',
-          fullName: user.displayName || 'Apple User',
-          role: assignedRole,
-          sex: 'other',
-          age: 0,
-          country: 'Uganda',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+    if (!userDoc.exists()) {
+      const assignedRole = role || 'student';
+      const newUser: User = {
+        uid: user.uid,
+        email: user.email || '',
+        fullName: user.displayName || 'Apple User',
+        role: assignedRole,
+        sex: 'other',
+        age: 0,
+        country: 'Uganda',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-        await setDoc(userDocRef, newUser);
-        await setDoc(doc(db, assignedRole + 's', user.uid), newUser);
+      await setDoc(userDocRef, newUser);
+      await setDoc(doc(db, assignedRole + 's', user.uid), newUser);
 
-        setUserData(newUser);
-        setUserRole(assignedRole);
-      } else {
-        const data = userDoc.data() as User;
-        if (user.email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
-          data.role = 'platform_admin';
-        }
-        setUserData(data);
-        setUserRole(data.role);
-      }
-    } catch (err: any) {
-      console.warn('Apple Auth failed, using simulated Apple Auth:', err);
-
-      const simulatedUid = 'simulated-apple-uid';
-      const simulatedEmail = 'apple.user@example.com';
-      const userDocRef = doc(db, 'users', simulatedUid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        const assignedRole = role || 'student';
-        const newUser: User = {
-          uid: simulatedUid,
-          email: simulatedEmail,
-          fullName: 'Apple User',
-          role: assignedRole,
-          sex: 'other',
-          age: 0,
-          country: 'Uganda',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        await setDoc(userDocRef, newUser);
-        await setDoc(doc(db, assignedRole + 's', simulatedUid), newUser);
-        setUserData(newUser);
-        setUserRole(assignedRole);
-      } else {
-        const data = userDoc.data() as User;
-        setUserData(data);
-        setUserRole(data.role);
-      }
+      setUserData(newUser);
+      setUserRole(assignedRole);
+      return assignedRole;
     }
+
+    const data = userDoc.data() as User;
+    if (user.email === 'infoliverton@gmail.com' && data.role !== 'platform_admin') {
+      data.role = 'platform_admin';
+    }
+    setUserData(data);
+    setUserRole(data.role);
+    return data.role;
   };
 
   const logout = async () => {
