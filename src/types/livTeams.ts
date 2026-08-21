@@ -388,6 +388,7 @@ export interface MarketplaceItem {
   priceMinor?: number;
   currency?: string;
   category?: string;
+  type?: 'notes' | 'research' | 'software' | 'course' | 'service';
   deliverables?: string[];
   licensingTerms?: string;
   deliveryMethod?: 'digital' | 'service' | 'physical';

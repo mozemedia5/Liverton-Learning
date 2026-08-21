@@ -8,6 +8,7 @@ import type {
   LivFundCampaign,
   LivFundCampaignStatus,
   LivFundContribution,
+  LivMartListingStatus,
   LivMartOrder,
   LivMartOrderStatus,
   MarketplaceItem,

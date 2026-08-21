@@ -39,7 +39,6 @@ export default function LiveMart() {
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(products.map(product => product.category).filter(Boolean) as string[]))], [products]);
   const visibleProducts = products.filter(product => (category === 'All' || product.category === category) && `${product.title} ${product.description} ${product.sellerName || ''}`.toLowerCase().includes(search.toLowerCase()));
-  const eligibleProjects = projects.filter(project => ['Completed', 'Verified', 'Listed'].includes(project.status));
   const selectedProject = projects.find(project => project.id === form.projectId);
 
   const submitVerification = async () => {

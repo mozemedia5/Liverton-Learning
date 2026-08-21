@@ -9,17 +9,6 @@ import { collection, addDoc, getDocs, deleteDoc, doc, query, where, Timestamp } 
 
 export type CloudinaryUploadType = 'image' | 'course_video' | 'short_video' | 'audio' | 'document';
 
-export interface CloudinaryConfig {
-  cloudName: string;
-  presets: {
-    images: string;
-    courses: string;
-    shorts: string;
-    audio: string;
-    documents: string;
-  };
-}
-
 export interface CloudinaryUploadOptions {
   /** Receive upload progress as a 0-100 percentage */
   onProgress?: (percent: number) => void;
@@ -30,18 +19,6 @@ export interface CloudinaryUploadOptions {
   referenceId?: string; // e.g. chatId, courseId, docId, etc.
   purpose?: string;     // e.g. 'chat_video', 'profile_picture', 'course_material', etc.
 }
-
-const CLOUDINARY_CONFIG: CloudinaryConfig = {
-  // Fallback matches the cloud used by the production deployment
-  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'fbciycdw',
-  presets: {
-    images: 'liverton_learning_images',
-    courses: 'liverton_learning_courses',
-    shorts: 'liverton_learning_shorts',
-    audio: 'liverton_learning_audio',
-    documents: 'liverton_learning_documents',
-  }
-};
 
 /**
  * Map a browser File to the correct configured upload classification.
