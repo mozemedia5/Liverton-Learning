@@ -105,3 +105,15 @@ body { background:var(--liv-bg); color:var(--liv-ink); font-family:'DM Sans', sy
 .liv-card { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s cubic-bezier(.23,1,.32,1); }
 .liv-card:hover { box-shadow: 0 18px 38px rgba(30, 34, 29, .08); transform: translateY(-2px); }
 @media (prefers-reduced-motion: reduce) { .liv-card { transition: none; } .liv-card:hover { transform: none; } }
+
+/* Reference-led Liverton theme polish: quiet canvas, ink surfaces, and soft accent blocks. */
+:root { --liv-lavender:#c8b8ff; --liv-peach:#ffb080; --liv-teal:#8de5dc; --liv-canvas:#f7f7fb; --liv-soft-shadow:0 18px 48px rgba(36,32,67,.08); }
+body { background:var(--liv-canvas); }
+.liv-shell { background:radial-gradient(circle at 85% -10%, rgba(200,184,255,.24), transparent 35%), radial-gradient(circle at 10% 20%, rgba(183,243,107,.16), transparent 30%), var(--liv-canvas); }
+.liv-card, .liv-sidebar, .liv-mobile-nav, .liv-mobile-sheet { box-shadow:var(--liv-soft-shadow); }
+.liv-nav-item.is-active { background:var(--liv-ink); color:#fff; }
+.liv-button-green { box-shadow:0 10px 24px rgba(183,243,107,.26); }
+.liv-accent-lavender { background:var(--liv-lavender); }
+.liv-accent-peach { background:var(--liv-peach); }
+.liv-accent-teal { background:var(--liv-teal); }
+@media (prefers-reduced-motion: reduce) { .liv-nav-item, .liv-button, .liv-card { transition:none !important; } }

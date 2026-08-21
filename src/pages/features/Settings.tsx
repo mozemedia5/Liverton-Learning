@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,8 @@ import {
   Edit2,
   Check,
   X,
-  User
+  User,
+  LogOut
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -40,7 +42,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { userData, currentUser } = useAuth();
+  const { userData, currentUser, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Profile editing state
   const [isEditingPhone, setIsEditingPhone] = useState(false);
@@ -134,6 +138,13 @@ export default function Settings() {
 
   const handleSave = () => {
     toast.success('Settings saved successfully!');
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try { await logout(); toast.success('You are signed out'); navigate('/login'); }
+    catch { toast.error('Could not sign out'); }
+    finally { setIsLoggingOut(false); setShowLogoutConfirm(false); }
   };
 
   return (
@@ -378,7 +389,12 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+        <Card className="border-red-200/70 dark:border-red-900/50">
+          <CardHeader><CardTitle>Account access</CardTitle></CardHeader>
+          <CardContent><Button variant="outline" className="w-full rounded-xl border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30" onClick={() => setShowLogoutConfirm(true)}><LogOut className="w-4 h-4 mr-2" /> Log out of Liverton</Button></CardContent>
+        </Card>
       </main>
+      <LogoutConfirmDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm} onConfirm={handleLogout} isLoading={isLoggingOut} />
     </div>
   );
 }

@@ -71,6 +71,7 @@ import Calculator from '@/pages/features/Calculator';
 import ProfileSystem from '@/pages/features/ProfileSystem';
 import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
 import Analytics from '@/pages/features/Analytics';
+import MoreHub from '@/pages/features/MoreHub';
 import LiveFund from '@/pages/features/LiveFund';
 import LiveMart from '@/pages/features/LiveMart';
 import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
@@ -522,6 +523,11 @@ function AppRoutes() {
       <Route path="/features/analytics" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><Analytics /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/more" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><MoreHub /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 

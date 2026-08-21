@@ -6,6 +6,27 @@ import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini';
 const MAX_HISTORY = 20;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT = 30;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimitKey(req: VercelRequest, uid: string) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const address = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
+  return `${uid}:${address || req.socket.remoteAddress || 'unknown'}`;
+}
+
+function isRateLimited(key: string) {
+  const now = Date.now();
+  const current = rateBuckets.get(key);
+  if (!current || current.resetAt <= now) {
+    if (rateBuckets.size > 10_000) rateBuckets.clear();
+    rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  current.count += 1;
+  return current.count > RATE_LIMIT;
+}
 
 type Attachment = { url: string; name?: string; mimeType?: string };
 
@@ -84,6 +105,8 @@ async function recordUsage(uid: string, operation: string, model: string, credit
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
 
@@ -91,6 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let operation = 'chat';
   try {
     identity = await requireIdentity(req);
+    if (isRateLimited(rateLimitKey(req, identity.uid))) return json(res, 429, { error: 'Hanna is receiving many requests. Please try again shortly.' });
     const body = parseBody(req);
     operation = safeString(body.operation || 'chat', 40) || 'chat';
     const message = safeString(body.message, operationPolicy(operation).maxChars);

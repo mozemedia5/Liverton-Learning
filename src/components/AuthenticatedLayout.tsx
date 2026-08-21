@@ -31,7 +31,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
           </div>
           {!isHannaAiFullScreenPage && (
             <div className="lg:hidden">
-              <MobileBottomNav userRole={userRole} />
+              <MobileBottomNav />
             </div>
           )}
         </>

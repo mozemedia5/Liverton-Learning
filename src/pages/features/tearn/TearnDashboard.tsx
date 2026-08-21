@@ -177,24 +177,17 @@ export default function TearnDashboard() {
   const [wallet, setWallet] = useState<EducatorWallet | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
 
-  // Detailed Premium Metrics state
-  const [analyticsMetrics] = useState({
-    watchTimeMinutes: 24500,
-    completionRate: 84.5,
-    engagementScore: 92.1,
-    returningStudents: 38.2,
-    activeStudents: 142,
-    followersCount: 524,
-    monthlyRevenue: 3450,
-    teamContributions: 4,
-    quizParticipation: 96.2,
-    assignmentSubmissions: 128,
-    attendanceRate: 89.4,
-    bookDownloads: 340,
-    coursePopularityFactor: 4.8,
-    shortsEngagementRate: 18.4,
-    teacherGrowthPercent: 12.5,
-  });
+  // Derived metrics: never present invented performance numbers when source data is unavailable.
+  const analyticsMetrics = useMemo(() => {
+    const activeStudents = modules.reduce((total, module) => total + (((module as Course & { students?: number }).students) || 0), 0);
+    const completionValues = modules.map(module => (module as Course & { progress?: number }).progress).filter((value): value is number => typeof value === 'number');
+    const completionRate = completionValues.length ? Math.round((completionValues.reduce((total, value) => total + value, 0) / completionValues.length) * 10) / 10 : null;
+    return {
+      activeStudents,
+      completionRate,
+      teacherGrowthPercent: null,
+    };
+  }, [modules]);
 
   // State for selected active module inside the Workspace Builder
   const [selectedModule, setSelectedModule] = useState<Course | null>(null);
@@ -983,8 +976,8 @@ export default function TearnDashboard() {
                 <CardContent className="p-5 flex flex-col justify-between h-28">
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Gross Payouts</span>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-2xl font-black text-slate-900 dark:text-white">${wallet?.balance || '1,250'}</span>
-                    <span className="text-xs text-emerald-400 font-bold flex items-center">+{analyticsMetrics.teacherGrowthPercent}%</span>
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">${wallet?.balance ?? '—'}</span>
+                    <span className="text-xs text-emerald-400 font-bold flex items-center">{analyticsMetrics.teacherGrowthPercent == null ? '—' : `+${analyticsMetrics.teacherGrowthPercent}%`}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">Total earnings after team splits</span>
                 </CardContent>
@@ -1005,8 +998,8 @@ export default function TearnDashboard() {
                 <CardContent className="p-5 flex flex-col justify-between h-28">
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Module Completion Avg</span>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-2xl font-black text-slate-900 dark:text-white">{analyticsMetrics.completionRate}%</span>
-                    <span className="text-xs text-emerald-400 font-bold">Excellent</span>
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">{analyticsMetrics.completionRate == null ? '—' : `${analyticsMetrics.completionRate}%`}</span>
+                    <span className="text-xs text-emerald-400 font-bold">{analyticsMetrics.completionRate == null ? 'Waiting for data' : 'Live'}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">Completed lessons & assignments</span>
                 </CardContent>
@@ -1765,8 +1758,8 @@ export default function TearnDashboard() {
               <Card className="md:col-span-1 bg-[#030f26]/40 border-white/5 rounded-3xl p-6 flex flex-col justify-between space-y-6">
                 <div>
                   <h4 className="font-extrabold text-sm uppercase tracking-wider text-slate-400">Total Payout Balance</h4>
-                  <p className="text-4xl font-black text-white mt-2">${wallet?.balance || '1,250'}</p>
-                  <p className="text-xs text-slate-400 mt-1">Pending clearance: ${wallet?.pending || '420'}</p>
+                  <p className="text-4xl font-black text-white mt-2">${wallet?.balance ?? '—'}</p>
+                  <p className="text-xs text-slate-400 mt-1">Pending clearance: ${wallet?.pending ?? '—'}</p>
                 </div>
 
                 <div className="space-y-3">

@@ -34,7 +34,8 @@ import {
   ShieldAlert,
   Check,
   RefreshCw,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -43,10 +44,13 @@ import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import { Sparkles } from 'lucide-react';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { SEO } from '@/components/SEO';
+import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { currentUser, userData, userRole, updateUserProfile, changePassword, deleteAccount } = useAuth();
+  const { currentUser, userData, userRole, updateUserProfile, changePassword, deleteAccount, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(userData?.profileImageUrl || '');
@@ -67,6 +71,13 @@ export default function Profile() {
       return () => clearTimeout(timer);
     }
   }, [verificationCooldown]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try { await logout(); toast.success('You are signed out'); navigate('/login'); }
+    catch { toast.error('Could not sign out'); }
+    finally { setIsLoggingOut(false); setShowLogoutConfirm(false); }
+  };
 
   const handleCheckVerification = async () => {
     if (!currentUser) return;
@@ -368,6 +379,7 @@ export default function Profile() {
               <SettingsIcon className="w-4 h-4 mr-1.5" />
               Settings
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowLogoutConfirm(true)} className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300"><LogOut className="w-4 h-4 mr-1.5" /> Log out</Button>
             <Button
               size="sm"
               variant={isEditing ? 'default' : 'outline'}
@@ -804,6 +816,7 @@ export default function Profile() {
         </Card>
       </main>
 
+      <LogoutConfirmDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm} onConfirm={handleLogout} isLoading={isLoggingOut} />
       {/* Delete Account Confirmation Dialog */}
       <AlertDialog open={showDeleteAccount} onOpenChange={setShowDeleteAccount}>
         <AlertDialogContent>
