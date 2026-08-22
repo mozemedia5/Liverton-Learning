@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3, BookOpen, CalendarDays, ChevronLeft, ChevronRight,
   FileText, GraduationCap, HeartHandshake, Home, LayoutGrid, LogOut, MessageCircle, Plus, Settings,
-  ShieldCheck, ShoppingBag, Sparkles, Users, Video, WalletCards,
+  ShieldCheck, ShoppingBag, Sparkles, Users, Video, WalletCards, Briefcase,
 } from 'lucide-react';
 import type { UserRole } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,8 +45,8 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   const sections = useMemo(() => {
     const home: NavItem = { label: 'Overview', path: homeFor(userRole), icon: Home };
     if (userRole === 'teacher') return {
-      primary: [home, { label: 'My modules', path: '/teacher/courses', icon: BookOpen }, { label: 'Learners', path: '/teacher/students', icon: Users }],
-      tools: [{ label: 'Create new', path: '/teacher/courses/create', icon: Plus }, { label: 'Assessments', path: '/teacher/quizzes', icon: GraduationCap }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Video }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Insights', path: '/features/analytics', icon: BarChart3 }, { label: 'Earnings', path: '/payments', icon: WalletCards }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      primary: [home, { label: 'My modules', path: '/teacher/courses', icon: BookOpen }, { label: 'Educators Workhub', path: '/features/tearn', icon: Briefcase }],
+      tools: [{ label: 'Create module', path: '/features/tearn', icon: Plus }, { label: 'Assessments', path: '/teacher/quizzes', icon: GraduationCap }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Video }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Insights', path: '/features/analytics', icon: BarChart3 }, { label: 'Earnings', path: '/payments', icon: WalletCards }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
     if (userRole === 'parent') return {
       primary: [home, { label: 'My children', path: '/parent/students', icon: Users }, { label: 'Progress', path: '/parent/performance', icon: BarChart3 }],

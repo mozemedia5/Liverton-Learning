@@ -309,8 +309,12 @@ export default function TearnDashboard() {
     description: '',
     coverUrl: '',
     price: 19.99,
-    chapters: [] as Array<{ title: string; content: string; drivePdfUrls: string[] }>
+    chapters: [] as Array<{ title: string; content: string; drivePdfUrls: string[] }>,
+    documentUrl: '',
+    documentName: '',
+    documentType: ''
   });
+  const [uploadingBookFile, setUploadingBookFile] = useState(false);
 
   const [showShortModal, setShowShortModal] = useState(false);
   const [newShort, setNewShort] = useState({
@@ -922,10 +926,22 @@ export default function TearnDashboard() {
     }
   };
 
+  const handleBookFileUpload = async (file: File) => {
+    const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowed.includes(file.type)) { toast.error('Resources must be uploaded as PDF, DOC, or DOCX.'); return; }
+    setUploadingBookFile(true);
+    try {
+      const url = await uploadToCloudinary(file, 'document');
+      setNewBook(prev => ({ ...prev, documentUrl: url, documentName: file.name, documentType: file.type }));
+      toast.success('Resource document uploaded.');
+    } catch (err: any) { toast.error('Document upload failed: ' + err.message); }
+    finally { setUploadingBookFile(false); }
+  };
+
   // Educational Book creation handler
   const handleCreateBook = async () => {
-    if (!newBook.title || !newBook.description) {
-      toast.error('Please enter a title and description.');
+    if (!newBook.title || !newBook.description || !newBook.documentUrl) {
+      toast.error('Enter a title, description, and upload a PDF or DOC/DOCX resource.');
       return;
     }
     try {
@@ -935,11 +951,14 @@ export default function TearnDashboard() {
         coverUrl: newBook.coverUrl || undefined,
         price: Number(newBook.price),
         status: 'published',
-        chapters: newBook.chapters
-      });
+        chapters: newBook.chapters,
+        documentUrl: newBook.documentUrl,
+        documentName: newBook.documentName,
+        documentType: newBook.documentType
+      } as any);
       toast.success('Your educational handbook has been published successfully!');
       setShowBookModal(false);
-      setNewBook({ title: '', description: '', coverUrl: '', price: 19.99, chapters: [] });
+      setNewBook({ title: '', description: '', coverUrl: '', price: 19.99, chapters: [], documentUrl: '', documentName: '', documentType: '' });
     } catch (err: any) {
       toast.error('Book creation failed: ' + err.message);
     }
@@ -1007,7 +1026,7 @@ export default function TearnDashboard() {
 
   return (
     <>
-      <SEO title="Teacher Work Hub Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
+      <SEO title="Educators Workhub Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
 
       <div className="space-y-8 pb-12">
         {/* Aesthetic backdrop blobs */}
@@ -1024,7 +1043,7 @@ export default function TearnDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Teacher Work Hub</h1>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Educators Workhub</h1>
                 <Badge className="bg-amber-500/10 text-amber-400 border-none font-bold text-[10px]">PRO EDUCATOR</Badge>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">Advanced Educational Analytics • Module-first learning framework</p>
@@ -1892,7 +1911,7 @@ export default function TearnDashboard() {
       {/* MODULE CREATION DIALOG */}
       {showModuleModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-xl bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl max-h-[90vh] flex flex-col">
+          <Card className="w-full max-w-xl workhub-modal bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl max-h-[90vh] flex flex-col">
             <CardHeader className="p-6 border-b border-white/5 flex-shrink-0">
               <CardTitle className="text-lg font-black text-white flex items-center justify-between">
                 <span>Create Direct Learning Module</span>
@@ -2191,8 +2210,8 @@ export default function TearnDashboard() {
       {/* SEQUENTIAL LESSON CREATION DIALOG */}
       {showLessonModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
-          <Card className="w-full max-w-xl bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
-            <CardHeader className="p-6 border-b border-white/5">
+          <Card className="w-full max-w-xl workhub-modal bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-slate-200 dark:border-white/5">
               <CardTitle className="text-lg font-black text-white">Add Lesson to Module</CardTitle>
               <CardDescription>Setup explanation content, teaching formats, resources, and mandatory homework instructions.</CardDescription>
             </CardHeader>
@@ -2319,10 +2338,10 @@ export default function TearnDashboard() {
       {/* HANDBOOK CREATION DIALOG */}
       {showBookModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
-            <CardHeader className="p-6 border-b border-white/5">
+          <Card className="w-full max-w-lg workhub-modal bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-slate-200 dark:border-white/5">
               <CardTitle className="text-lg font-black text-white">Create Educational handbook</CardTitle>
-              <CardDescription>Publish resources with chapters and linked Drive PDFs.</CardDescription>
+              <CardDescription>Upload a PDF or DOC/DOCX resource. Resources are stored as documents, not typed into the Workhub.</CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="space-y-1.5">
@@ -2341,6 +2360,9 @@ export default function TearnDashboard() {
                   className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
                 />
               </div>
+              <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200"><FileText className="w-5 h-5 text-emerald-600" /><span>{uploadingBookFile ? 'Uploading document…' : newBook.documentName || 'Upload PDF, DOC, or DOCX'}</span><input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={e => e.target.files?.[0] && handleBookFileUpload(e.target.files[0])} disabled={uploadingBookFile} /></label>
+              </div>
               <div className="flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setShowBookModal(false)}>Cancel</Button>
                 <Button className="bg-emerald-500 hover:bg-emerald-600 font-bold" onClick={handleCreateBook}>Publish</Button>
@@ -2353,8 +2375,8 @@ export default function TearnDashboard() {
       {/* PROMOTIONAL SHORT DIALOG */}
       {showShortModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg bg-[#0c0d12] border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
-            <CardHeader className="p-6 border-b border-white/5">
+          <Card className="w-full max-w-lg workhub-modal bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+            <CardHeader className="p-6 border-b border-slate-200 dark:border-white/5">
               <CardTitle className="text-lg font-black text-white">Publish Creator Short</CardTitle>
               <CardDescription>Upload micro lesson teasers linked to your modules.</CardDescription>
             </CardHeader>

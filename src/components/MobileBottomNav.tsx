@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Sparkles, Users, HeartHandshake, ShoppingBag, UserRound, LogOut } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { toast } from 'sonner';
@@ -19,8 +19,8 @@ export const MobileBottomNav: React.FC = () => {
   const mainNavItems = useMemo(() => [
     { name: 'Home', path: homePath, icon: Home },
     { name: 'Modules', path: userRole === 'teacher' ? '/teacher/courses' : userRole === 'parent' ? '/parent/courses' : '/student/courses', icon: BookOpen },
-    { name: 'Hanna', path: '/features/hanna-ai', icon: Sparkles, isPrimary: true },
-    { name: 'Workhub', path: '/features/tearn', icon: Briefcase },
+    ...(userRole === 'teacher' ? [{ name: 'Create', path: '/features/tearn', icon: Plus, isPrimary: true, onClick: () => navigate('/features/tearn') }] : [{ name: 'Workhub', path: '/features/tearn', icon: Briefcase, isPrimary: true }]),
+    ...(userRole === 'teacher' ? [] : [{ name: 'Workhub', path: '/features/tearn', icon: Briefcase }]),
     { name: 'More', path: '#more', icon: MoreHorizontal, onClick: () => setShowMore(true) },
   ], [homePath, userRole]);
 
@@ -52,7 +52,7 @@ export const MobileBottomNav: React.FC = () => {
           {mainNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
-            if (item.isPrimary) return <button key={item.name} onClick={() => navigate(item.path)} className="relative -top-5 flex items-center justify-center w-12 h-12 rounded-full bg-[#151515] text-[#c9f36b] shadow-md hover:scale-105 active:scale-95 transition-all" aria-label={item.name}><Icon className="w-5 h-5" /></button>;
+            if (item.isPrimary) return <button key={item.name} onClick={() => item.onClick ? item.onClick() : navigate(item.path)} className="relative -top-5 flex items-center justify-center w-12 h-12 rounded-full bg-[#151515] text-[#c9f36b] shadow-md hover:scale-105 active:scale-95 transition-all" aria-label={item.name}><Icon className="w-5 h-5" /></button>;
             return <button key={item.name} onClick={() => item.onClick ? item.onClick() : navigate(item.path)} className={`flex flex-col items-center justify-center min-w-12 py-1 text-xs font-medium transition-colors ${active ? 'text-[#151515] dark:text-white font-semibold' : 'text-slate-500 dark:text-slate-400'}`}><Icon className={`w-5 h-5 mb-0.5 ${active ? 'scale-110' : ''} transition-transform`} /><span className="text-[10px] tracking-tight">{item.name}</span></button>;
           })}
         </div>

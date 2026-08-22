@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -58,7 +58,9 @@ import { SEO } from '@/components/SEO';
 export default function Chat() {
   const { currentUser, userData } = useAuth();
   const { chatId: chatIdParam } = useParams<{ chatId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const sharedMessage = searchParams.get('share');
   const [chats, setChats] = useState<ChatType[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatType | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -138,6 +140,13 @@ export default function Chat() {
     }
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
+
+  // Product shares arrive through an exact chat deep link and are placed in the composer.
+  useEffect(() => {
+    if (selectedChat && sharedMessage) {
+      setMessageInput(sharedMessage);
+    }
+  }, [selectedChat?.id, sharedMessage]);
 
   // Listen to messages when a chat is selected (+ keep read receipts fresh)
   useEffect(() => {

@@ -1,5 +1,5 @@
 /**
- * Create Course Page - Teacher Interface
+ * Create Module Page - Teacher Interface
  * Allows teachers to create courses with materials and optional quizzes
  */
 
@@ -274,13 +274,13 @@ export default function CreateCourse() {
   const handleSubmit = async () => {
     // Validation
     if (!title.trim()) {
-      toast.error('Please enter a course title');
+      toast.error('Please enter a module title');
       setActiveTab('details');
       return;
     }
 
     if (!description.trim()) {
-      toast.error('Please enter a course description');
+      toast.error('Please enter a module description');
       setActiveTab('details');
       return;
     }
@@ -304,7 +304,7 @@ export default function CreateCourse() {
     }
 
     if (!currentUser?.uid) {
-      toast.error('You must be logged in to create a course');
+      toast.error('You must be logged in to create a module');
       return;
     }
 
@@ -345,7 +345,7 @@ export default function CreateCourse() {
       // Create quiz if questions exist
       if (questions.length > 0) {
         await createQuiz(courseId, currentUser.uid, userData?.fullName || 'Unknown Teacher', {
-          title: quizTitle || 'Course Quiz',
+          title: quizTitle || 'Module Quiz',
           questions,
           timeLimit: parseInt(quizTimeLimit) || undefined
         });
@@ -380,7 +380,7 @@ export default function CreateCourse() {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <BookOpen className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Create Course</span>
+              <span className="font-semibold">Create Module</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -402,7 +402,7 @@ export default function CreateCourse() {
                   Creating...
                 </>
               ) : (
-                'Create Course'
+                'Create Module'
               )}
             </Button>
           </div>
@@ -413,7 +413,7 @@ export default function CreateCourse() {
       <main className="p-4 lg:p-6 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="details">Course Details</TabsTrigger>
+            <TabsTrigger value="details">Module Details</TabsTrigger>
             <TabsTrigger value="materials">
               Materials
               {uploadedFiles.length > 0 && (
@@ -428,11 +428,11 @@ export default function CreateCourse() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Course Details Tab */}
+          {/* Module Details Tab */}
           <TabsContent value="details" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Information</CardTitle>
+                <CardTitle>Module Information</CardTitle>
                 <CardDescription>
                   Enter the basic details for your course
                 </CardDescription>
@@ -569,7 +569,7 @@ export default function CreateCourse() {
           <TabsContent value="materials" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Materials</CardTitle>
+                <CardTitle>Module Materials</CardTitle>
                 <CardDescription>
                   Upload videos, PDFs, documents, spreadsheets, presentations, and more
                 </CardDescription>
@@ -649,7 +649,7 @@ export default function CreateCourse() {
           <TabsContent value="quiz" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Quiz (Optional)</CardTitle>
+                <CardTitle>Module Quiz (Optional)</CardTitle>
                 <CardDescription>
                   Add a quiz to test student knowledge. Maximum 10 questions.
                 </CardDescription>

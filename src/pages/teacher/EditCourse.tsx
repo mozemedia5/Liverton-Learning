@@ -1,5 +1,5 @@
 /**
- * Edit Course Page - Teacher Interface
+ * Edit Module Page - Teacher Interface
  * Allows teachers to update course information, materials, and settings
  */
 
@@ -370,7 +370,7 @@ export default function EditCourse() {
               <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <span className="font-semibold">Edit Course</span>
+              <span className="font-semibold">Edit Module</span>
             </div>
           </div>
         </header>
@@ -394,7 +394,7 @@ export default function EditCourse() {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <BookOpen className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Edit Course</span>
+              <span className="font-semibold">Edit Module</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -430,7 +430,7 @@ export default function EditCourse() {
       <main className="p-4 lg:p-6 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">Course Details</TabsTrigger>
+            <TabsTrigger value="details">Module Details</TabsTrigger>
             <TabsTrigger value="materials">
               Materials
               {(existingMaterials.length + newFiles.length) > 0 && (
@@ -441,11 +441,11 @@ export default function EditCourse() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Course Details Tab */}
+          {/* Module Details Tab */}
           <TabsContent value="details" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Information</CardTitle>
+                <CardTitle>Module Information</CardTitle>
                 <CardDescription>
                   Update the basic details for your course
                 </CardDescription>
@@ -576,7 +576,7 @@ export default function EditCourse() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="status">Course Status</Label>
+                  <Label htmlFor="status">Module Status</Label>
                   <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -596,7 +596,7 @@ export default function EditCourse() {
           <TabsContent value="materials" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Materials</CardTitle>
+                <CardTitle>Module Materials</CardTitle>
                 <CardDescription>
                   Manage videos, PDFs, documents, spreadsheets, presentations, and more
                 </CardDescription>

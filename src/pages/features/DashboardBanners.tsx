@@ -122,7 +122,7 @@ const inAppRoutes = [
 const audienceOptions: { id: AudienceRole; label: string; icon: string; color: string }[] = [
   { id: 'all', label: 'Everyone (Universal)', icon: '🌍', color: 'bg-gradient-to-br from-violet-500 to-purple-600' },
   { id: 'student', label: 'Student Dashboard', icon: '🎓', color: 'bg-gradient-to-br from-blue-500 to-cyan-600' },
-  { id: 'teacher', label: 'Teacher Work Hub', icon: '👩‍🏫', color: 'bg-gradient-to-br from-green-500 to-emerald-600' },
+  { id: 'teacher', label: 'Educators Workhub', icon: '👩‍🏫', color: 'bg-gradient-to-br from-green-500 to-emerald-600' },
   { id: 'parent', label: 'Parent Dashboard', icon: '👨‍👩‍👧', color: 'bg-gradient-to-br from-orange-500 to-amber-600' },
   { id: 'school_admin', label: 'School Admin', icon: '🏫', color: 'bg-gradient-to-br from-pink-500 to-rose-600' },
   { id: 'liv_teams', label: 'Liv Teams Page', icon: '👥', color: 'bg-gradient-to-br from-teal-500 to-emerald-600' },

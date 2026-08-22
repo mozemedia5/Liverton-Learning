@@ -113,6 +113,20 @@ body { background:var(--liv-canvas); }
 .liv-card, .liv-sidebar, .liv-mobile-nav, .liv-mobile-sheet { box-shadow:var(--liv-soft-shadow); }
 .liv-nav-item.is-active { background:var(--liv-ink); color:#fff; }
 .liv-button-green { box-shadow:0 10px 24px rgba(183,243,107,.26); }
+/* Readable educator creation surfaces in both themes. */
+.workhub-modal { color:#0f172a; }
+.workhub-modal .text-white { color:#0f172a !important; }
+.workhub-modal .text-slate-400 { color:#475569 !important; }
+.workhub-modal .text-slate-500 { color:#64748b !important; }
+.workhub-modal input,.workhub-modal textarea,.workhub-modal select { color:#0f172a !important; background:#fff !important; border-color:#cbd5e1 !important; }
+.workhub-modal input::placeholder,.workhub-modal textarea::placeholder { color:#64748b !important; opacity:1; }
+.dark .workhub-modal { color:#f8fafc; }
+.dark .workhub-modal .text-white { color:#f8fafc !important; }
+.dark .workhub-modal .text-slate-400 { color:#94a3b8 !important; }
+.dark .workhub-modal input,.dark .workhub-modal textarea,.dark .workhub-modal select { color:#f8fafc !important; background:#0f172a !important; border-color:#334155 !important; }
+.dark .workhub-modal input::placeholder,.dark .workhub-modal textarea::placeholder { color:#94a3b8 !important; }
+.workhub-modal [class*="bg-white/5"] { background:#e2e8f0 !important; }
+.dark .workhub-modal [class*="bg-white/5"] { background:rgba(255,255,255,.06) !important; }
 .liv-accent-lavender { background:var(--liv-lavender); }
 .liv-accent-peach { background:var(--liv-peach); }
 .liv-accent-teal { background:var(--liv-teal); }
