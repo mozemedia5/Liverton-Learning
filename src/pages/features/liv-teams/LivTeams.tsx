@@ -478,21 +478,21 @@ export default function LivTeams() {
               <SelectValue placeholder="Select section..." />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-emerald-500/20">
-              <SelectItem value="home">🏠 Home Overview</SelectItem>
-              <SelectItem value="my-teams">👥 My Teams ({myTeams.length})</SelectItem>
-              <SelectItem value="discover">🧭 Discover Teams</SelectItem>
-              <SelectItem value="invitations">✉️ Invitations ({invitations.length})</SelectItem>
-              <SelectItem value="saved">🔖 Saved Teams ({savedTeams.length})</SelectItem>
-              <SelectItem value="marketplace">🏪 Marketplace</SelectItem>
-              <SelectItem value="funding">🏛️ Funding Campaigns</SelectItem>
-              <SelectItem value="settings">⚙️ Settings</SelectItem>
+              <SelectItem value="home"><span className="inline-flex items-center gap-2"><LayoutGrid className="w-3.5 h-3.5" /> Home Overview</span></SelectItem>
+              <SelectItem value="my-teams"><span className="inline-flex items-center gap-2"><Users className="w-3.5 h-3.5" /> My Teams ({myTeams.length})</span></SelectItem>
+              <SelectItem value="discover"><span className="inline-flex items-center gap-2"><Compass className="w-3.5 h-3.5" /> Discover Teams</span></SelectItem>
+              <SelectItem value="invitations"><span className="inline-flex items-center gap-2"><Mail className="w-3.5 h-3.5" /> Invitations ({invitations.length})</span></SelectItem>
+              <SelectItem value="saved"><span className="inline-flex items-center gap-2"><Bookmark className="w-3.5 h-3.5" /> Saved Teams ({savedTeams.length})</span></SelectItem>
+              <SelectItem value="marketplace"><span className="inline-flex items-center gap-2"><Store className="w-3.5 h-3.5" /> Marketplace</span></SelectItem>
+              <SelectItem value="funding"><span className="inline-flex items-center gap-2"><Landmark className="w-3.5 h-3.5" /> Funding Campaigns</span></SelectItem>
+              <SelectItem value="settings"><span className="inline-flex items-center gap-2"><SettingsIcon className="w-3.5 h-3.5" /> Settings</span></SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full justify-start overflow-x-auto gap-1 bg-transparent p-0 h-auto scrollbar-none">
+        <TabsList className="hidden" aria-label="Liv Teams sections">
           {[
             { value: 'home', label: 'Home', icon: <LayoutGrid className="w-4 h-4" /> },
             { value: 'discover', label: 'Discover', icon: <Compass className="w-4 h-4" /> },

@@ -34,7 +34,9 @@ import {
   Sliders,
   Video,
   Sparkles,
-  Loader2
+  Loader2,
+  WalletCards,
+  ClipboardCheck
 } from 'lucide-react';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { enhanceTextWithHanna } from '@/lib/hannaGemini';
@@ -58,6 +60,10 @@ import { getTeacherLessons } from '@/lib/zoomService';
 import { getAllTeams } from '@/services/livTeamsCoreService';
 import { type Team } from '@/types/livTeams';
 import { SEO } from '@/components/SEO';
+import {
+  AreaChart, Area, CartesianGrid, ResponsiveContainer,
+  Tooltip, XAxis, YAxis
+} from 'recharts';
 
 // Declare interfaces locally to avoid type resolve issues in composite builds
 export interface Lesson {
@@ -69,6 +75,10 @@ export interface Lesson {
   scheduledAt?: string;
   drivePdfUrls?: string[];
   notes?: string;
+  thumbnailUrl?: string;
+  learningObjectives?: string[];
+  contentLinks?: string[];
+  popQuiz?: { enabled: boolean; placement: string; editable: boolean };
   assignment: {
     instructions: string;
     requirements: string;
@@ -186,8 +196,26 @@ export default function TearnDashboard() {
       activeStudents,
       completionRate,
       teacherGrowthPercent: null,
+      assignmentSubmissionRate: (() => {
+        const submissions = modules.flatMap(module => ((module as any).lessonsList || []).flatMap((lesson: any) => lesson.assignment?.submissions || []));
+        const lessonsWithAssignments = modules.flatMap(module => ((module as any).lessonsList || [])).filter((lesson: any) => lesson.assignment);
+        if (!lessonsWithAssignments.length) return null;
+        return Math.round((submissions.length / lessonsWithAssignments.length) * 100);
+      })(),
     };
   }, [modules]);
+
+  const workHubSeries = useMemo(() => modules.slice(0, 8).reverse().map((module) => {
+    const lessons = ((module as any).lessonsList || []) as any[];
+    const enrolled = Number((module as any).enrolledStudents?.length || (module as any).students || 0);
+    const progress = typeof (module as any).progress === 'number' ? Number((module as any).progress) : 0;
+    return {
+      name: module.title.length > 14 ? `${module.title.slice(0, 14)}…` : module.title,
+      lessons: lessons.length,
+      learners: enrolled,
+      completion: progress
+    };
+  }), [modules]);
 
   // State for selected active module inside the Workspace Builder
   const [selectedModule, setSelectedModule] = useState<Course | null>(null);
@@ -205,7 +233,16 @@ export default function TearnDashboard() {
     price: 29.99,
     learningObjectives: '',
     status: 'draft' as 'draft' | 'active',
-    promoVideoUrl: ''
+    promoVideoUrl: '',
+    shortDescription: '',
+    category: '',
+    prerequisites: '',
+    learningOutcomes: '',
+    estimatedDuration: 0,
+    language: 'English',
+    tags: '',
+    certificateEligible: false,
+    visibility: 'public' as 'public' | 'unlisted' | 'private'
   });
 
   // State for image/video upload progress/loading
@@ -236,6 +273,10 @@ export default function TearnDashboard() {
     assignmentRequirements: '',
     assignmentDeadline: '',
     assignmentPoints: 100,
+    learningObjectives: '',
+    thumbnailUrl: '',
+    contentLinks: '',
+    addPopQuiz: false,
     addQuiz: false,
     quizTitle: '',
     quizQuestion: '',
@@ -608,18 +649,42 @@ export default function TearnDashboard() {
       const parsedObjectives = newModule.learningObjectives
         ? newModule.learningObjectives.split('\n').filter((o: string) => o.trim() !== '')
         : [];
+      const missing = [
+        !newModule.title.trim() && 'module title',
+        !newModule.coverUrl && 'cover image',
+        !newModule.description.trim() && 'detailed description',
+        parsedObjectives.length === 0 && 'learning objectives',
+        !newModule.estimatedDuration && 'estimated duration',
+        !newModule.learningOutcomes.trim() && 'learning outcomes'
+      ].filter(Boolean) as string[];
+      if (newModule.status === 'active' && missing.length) {
+        toast.error(`Complete required fields before publishing: ${missing.join(', ')}.`);
+        return;
+      }
 
       const savedSubject = newModule.subject === 'Custom' ? newModule.customSubject : newModule.subject;
-
+      const readiness = { complete: missing.length === 0, missing, checkedAt: new Date() };
       await createCourse(currentUser!.uid, userData?.fullName || 'Educator', {
         title: newModule.title,
+        shortDescription: newModule.shortDescription,
         description: newModule.description,
         subject: savedSubject,
+        category: newModule.category,
         level: newModule.level,
+        language: newModule.language,
         coverUrl: newModule.coverUrl,
         price: Number(newModule.price),
+        isFree: Number(newModule.price) === 0,
         status: newModule.status,
         learningObjectives: parsedObjectives,
+        prerequisites: newModule.prerequisites.split('\n').filter(Boolean),
+        learningOutcomes: newModule.learningOutcomes.split('\n').filter(Boolean),
+        estimatedDuration: Number(newModule.estimatedDuration),
+        tags: newModule.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean),
+        certificateEligible: newModule.certificateEligible,
+        visibility: newModule.visibility,
+        readiness,
+        moduleShorts: [],
         lessonsList: [],
         lessons: 0,
         promoVideoUrl: newModule.promoVideoUrl
@@ -637,7 +702,16 @@ export default function TearnDashboard() {
         price: 29.99,
         learningObjectives: '',
         status: 'draft',
-        promoVideoUrl: ''
+        promoVideoUrl: '',
+        shortDescription: '',
+        category: '',
+        prerequisites: '',
+        learningOutcomes: '',
+        estimatedDuration: 0,
+        language: 'English',
+        tags: '',
+        certificateEligible: false,
+        visibility: 'public'
       });
     } catch (err: any) {
       toast.error('Failed to create Module: ' + err.message);
@@ -662,6 +736,9 @@ export default function TearnDashboard() {
         scheduledAt: newLesson.scheduledAt || undefined,
         drivePdfUrls: newLesson.drivePdfUrls ? newLesson.drivePdfUrls.split('\n').filter((u: string) => u.trim() !== '') : [],
         notes: newLesson.notes || undefined,
+        thumbnailUrl: newLesson.thumbnailUrl || undefined,
+        learningObjectives: newLesson.learningObjectives.split('\n').filter(Boolean),
+        contentLinks: newLesson.contentLinks.split('\n').filter(Boolean),
         assignment: {
           instructions: newLesson.assignmentInstructions || 'Please review the lesson materials and submit your solution.',
           requirements: newLesson.assignmentRequirements || 'Submit a PDF document answering the prompt.',
@@ -671,6 +748,10 @@ export default function TearnDashboard() {
         },
         isReleased: true
       };
+
+      if (newLesson.addPopQuiz) {
+        lessonObj.popQuiz = { enabled: true, placement: 'lesson-content', editable: true };
+      }
 
       if (newLesson.addQuiz && newLesson.quizTitle && newLesson.quizQuestion) {
         lessonObj.quiz = {
@@ -710,6 +791,10 @@ export default function TearnDashboard() {
         assignmentRequirements: '',
         assignmentDeadline: '',
         assignmentPoints: 100,
+        learningObjectives: '',
+        thumbnailUrl: '',
+        contentLinks: '',
+        addPopQuiz: false,
         addQuiz: false,
         quizTitle: '',
         quizQuestion: '',
@@ -882,11 +967,43 @@ export default function TearnDashboard() {
     }
   };
 
+  const selectedModuleReadiness = useMemo(() => {
+    if (!selectedModule) return { complete: false, missing: [] as string[] };
+    const moduleAny = selectedModule as any;
+    const lessons = (moduleAny.lessonsList || []) as any[];
+    const missing = [
+      !moduleAny.coverUrl && 'cover image',
+      !moduleAny.description && 'detailed description',
+      !(moduleAny.learningObjectives || []).length && 'learning objectives',
+      !moduleAny.estimatedDuration && 'estimated duration',
+      !(moduleAny.learningOutcomes || []).length && 'learning outcomes',
+      lessons.length === 0 && 'at least one lesson',
+      lessons.some(lesson => !lesson.explanation || !lesson.assignment) && 'complete lesson content and assignments'
+    ].filter(Boolean) as string[];
+    return { complete: missing.length === 0, missing };
+  }, [selectedModule]);
+
+  const handlePublishModule = async () => {
+    if (!selectedModule) return;
+    if (!selectedModuleReadiness.complete) {
+      toast.error(`Module is not ready: ${selectedModuleReadiness.missing.join(', ')}.`);
+      return;
+    }
+    try {
+      const readiness = { complete: true, missing: [], checkedAt: new Date() };
+      await updateCourse(selectedModule.id, { status: 'active', readiness } as any);
+      setSelectedModule({ ...selectedModule, status: 'active', readiness } as any);
+      toast.success('Module published and ready for enrollment.');
+    } catch (err: any) {
+      toast.error('Unable to publish module: ' + err.message);
+    }
+  };
+
   // Revenue sharing calculations for active module
   const currentRevenueDistribution = useMemo(() => {
     if (!selectedModule || !(selectedModule as any).teamConfig) return null;
     return calculateRevenueDistributionLocal(selectedModule.price || 100, (selectedModule as any).teamConfig.revenueShares || []);
-  }, [selectedModule, revenueShares]);
+  }, [selectedModule]);
 
   return (
     <>
@@ -938,11 +1055,11 @@ export default function TearnDashboard() {
                 <SelectValue placeholder="Select workspace section..." />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-emerald-500/20">
-                <SelectItem value="overview">📊 Overview & Analytics</SelectItem>
-                <SelectItem value="modules">📚 Modules Workspace ({modules.length})</SelectItem>
-                <SelectItem value="books">📖 Resource Books ({books.length})</SelectItem>
-                <SelectItem value="shorts">🎬 Creator Shorts ({shorts.length})</SelectItem>
-                <SelectItem value="wallet">💳 Work Hub Wallet & Splits</SelectItem>
+                <SelectItem value="overview"><span className="inline-flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5" /> Overview & Analytics</span></SelectItem>
+                <SelectItem value="modules"><span className="inline-flex items-center gap-2"><BookOpen className="w-3.5 h-3.5" /> Modules Workspace ({modules.length})</span></SelectItem>
+                <SelectItem value="books"><span className="inline-flex items-center gap-2"><FileText className="w-3.5 h-3.5" /> Resource Books ({books.length})</span></SelectItem>
+                <SelectItem value="shorts"><span className="inline-flex items-center gap-2"><Video className="w-3.5 h-3.5" /> Creator Shorts ({shorts.length})</span></SelectItem>
+                <SelectItem value="wallet"><span className="inline-flex items-center gap-2"><WalletCards className="w-3.5 h-3.5" /> Work Hub Wallet & Splits</span></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -950,7 +1067,7 @@ export default function TearnDashboard() {
 
         {/* Global Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-          <TabsList className="flex w-full justify-start overflow-x-auto gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 scrollbar-none">
+          <TabsList className="hidden" aria-label="WorkHub sections">
             <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-xs font-bold px-4 py-2 whitespace-nowrap">
               Overview & Analytics
             </TabsTrigger>
@@ -1009,65 +1126,36 @@ export default function TearnDashboard() {
                 <CardContent className="p-5 flex flex-col justify-between h-28">
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Submission Rate</span>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-2xl font-black text-slate-900 dark:text-white">91.4%</span>
-                    <span className="text-xs text-emerald-400 font-bold">High</span>
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">{analyticsMetrics.assignmentSubmissionRate == null ? '—' : `${analyticsMetrics.assignmentSubmissionRate}%`}</span>
+                    <span className="text-xs text-emerald-400 font-bold">{analyticsMetrics.assignmentSubmissionRate == null ? 'Waiting for data' : 'Live'}</span>
                   </div>
                   <span className="text-[10px] text-slate-400">Required lesson assignments turned in</span>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Simulated Analytical Graph (SVG) - identical to high-fidelity Liv Teams styling */}
+            {/* Live WorkHub analytics using the same chart language as LivTeams */}
             <Card className="bg-slate-100/30 dark:bg-[#030f26]/30 border-slate-200/40 dark:border-white/5 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-lg font-black flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                  Performance & Engagement Trends (Last 30 Days)
-                </CardTitle>
-                <CardDescription>Visualizing Module Sales and active Student Engagement across your workspace</CardDescription>
+                <CardTitle className="text-lg font-black flex items-center gap-2"><TrendingUp className="w-5 h-5 text-emerald-400" /> Module performance</CardTitle>
+                <CardDescription>Live module, learner, and completion metrics from your workspace.</CardDescription>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="relative w-full h-64 bg-slate-900/40 rounded-2xl border border-white/5 flex items-end p-4 overflow-hidden">
-                  {/* Decorative backdrop grid */}
-                  <div className="absolute inset-0 grid grid-rows-5 grid-cols-6 opacity-5 pointer-events-none">
-                    {Array.from({ length: 30 }).map((_, i: number) => (
-                      <div key={i} className="border-t border-l border-white" />
-                    ))}
-                  </div>
-
-                  {/* SVG Chart paths */}
-                  <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 600 200" preserveAspectRatio="none">
-                    {/* Golden Revenue Path */}
-                    <path
-                      d="M 0 160 Q 100 120 200 140 T 400 80 T 600 40"
-                      fill="none"
-                      stroke="#f59e0b"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                    {/* Emerald Engagement Path */}
-                    <path
-                      d="M 0 180 Q 120 140 240 120 T 480 50 T 600 20"
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeDasharray="4 4"
-                    />
-                  </svg>
-
-                  {/* Legends */}
-                  <div className="absolute bottom-4 left-4 flex gap-4 text-xs font-semibold">
-                    <div className="flex items-center gap-1.5 text-amber-400">
-                      <span className="w-3.5 h-3.5 rounded-full bg-amber-400" />
-                      Module Earnings ($)
-                    </div>
-                    <div className="flex items-center gap-1.5 text-emerald-400">
-                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-400" />
-                      Syllabus Engagement (Lessons)
-                    </div>
-                  </div>
-                </div>
+              <CardContent className="p-6 h-72">
+                {workHubSeries.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-sm text-slate-400">Create a module to start building live analytics.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={workHubSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs><linearGradient id="workHubLearners" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.25} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient></defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.2)" />
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="learners" name="Learners" stroke="#10b981" strokeWidth={2} fill="url(#workHubLearners)" />
+                      <Area type="monotone" dataKey="lessons" name="Lessons" stroke="#f59e0b" strokeWidth={2} fill="none" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -1178,15 +1266,15 @@ export default function TearnDashboard() {
                         </div>
                         <p className="text-xs text-slate-400 mt-1 max-w-xl">{selectedModule.description}</p>
                       </div>
-                      <Button
-                        size="sm"
-                        className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold"
-                        onClick={() => {
-                          setShowLessonModal(true);
-                        }}
-                      >
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Sequential Lesson
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" variant="outline" className="border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold" onClick={handlePublishModule}><ClipboardCheck className="w-3.5 h-3.5 mr-1" /> Publish when ready</Button>
+                        <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 rounded-xl text-xs font-bold" onClick={() => setShowLessonModal(true)}><Plus className="w-3.5 h-3.5 mr-1" /> Add Sequential Lesson</Button>
+                      </div>
+                    </div>
+
+                    <div className={`mx-6 mt-4 rounded-xl border p-3 text-xs ${selectedModuleReadiness.complete ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300' : 'border-amber-500/20 bg-amber-500/5 text-amber-300'}`}>
+                      <div className="flex items-center gap-2 font-bold"><ClipboardCheck className="w-4 h-4" /> {selectedModuleReadiness.complete ? 'Ready to publish' : 'Readiness check in progress'}</div>
+                      {!selectedModuleReadiness.complete && <p className="mt-1 text-slate-400">Complete: {selectedModuleReadiness.missing.join(', ')}.</p>}
                     </div>
 
                     {/* Builder Navigation Sub-Tabs */}
@@ -1986,6 +2074,48 @@ export default function TearnDashboard() {
                 />
               </div>
 
+              {/* Module metadata required by the publishing readiness workflow */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Short Description</label>
+                  <Input placeholder="One-line promise for discovery cards" value={newModule.shortDescription} onChange={e => setNewModule(prev => ({ ...prev, shortDescription: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Category</label>
+                  <Input placeholder="e.g. Exam preparation" value={newModule.category} onChange={e => setNewModule(prev => ({ ...prev, category: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Duration (minutes)</label>
+                  <Input type="number" min="1" placeholder="240" value={newModule.estimatedDuration || ''} onChange={e => setNewModule(prev => ({ ...prev, estimatedDuration: Number(e.target.value) }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Language</label>
+                  <Input placeholder="English" value={newModule.language} onChange={e => setNewModule(prev => ({ ...prev, language: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold">Tags</label>
+                  <Input placeholder="algebra, revision, exam" value={newModule.tags} onChange={e => setNewModule(prev => ({ ...prev, tags: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white h-10" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-bold">Prerequisites</label>
+                <Textarea placeholder="One prerequisite per line" value={newModule.prerequisites} onChange={e => setNewModule(prev => ({ ...prev, prerequisites: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white min-h-[56px]" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-bold">What students will learn</label>
+                <Textarea placeholder="One learning outcome per line" value={newModule.learningOutcomes} onChange={e => setNewModule(prev => ({ ...prev, learningOutcomes: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white min-h-[56px]" />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                <label className="inline-flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={newModule.certificateEligible} onChange={e => setNewModule(prev => ({ ...prev, certificateEligible: e.target.checked }))} /> Certificate eligible</label>
+                <label className="inline-flex items-center gap-2 text-xs text-slate-300">Visibility<select value={newModule.visibility} onChange={e => setNewModule(prev => ({ ...prev, visibility: e.target.value as any }))} className="bg-slate-900 border border-white/10 rounded-lg h-8 px-2"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></label>
+              </div>
+
               {/* Learning Objectives & Hanna AI */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
@@ -2135,6 +2265,12 @@ export default function TearnDashboard() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5"><label className="text-xs text-slate-400">Lesson thumbnail URL</label><Input placeholder="https://..." value={newLesson.thumbnailUrl} onChange={e => setNewLesson(prev => ({ ...prev, thumbnailUrl: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white" /></div>
+                <div className="space-y-1.5"><label className="text-xs text-slate-400">Estimated lesson objectives</label><Textarea placeholder="One objective per line" value={newLesson.learningObjectives} onChange={e => setNewLesson(prev => ({ ...prev, learningObjectives: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white min-h-[54px]" /></div>
+              </div>
+              <div className="space-y-1.5"><label className="text-xs text-slate-400">Lesson links and downloadable resources</label><Textarea placeholder="One URL per line" value={newLesson.contentLinks} onChange={e => setNewLesson(prev => ({ ...prev, contentLinks: e.target.value }))} className="bg-white/5 border-white/10 rounded-xl text-xs text-white min-h-[54px]" /></div>
+              <label className="inline-flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={newLesson.addPopQuiz} onChange={e => setNewLesson(prev => ({ ...prev, addPopQuiz: e.target.checked }))} /> Add an in-lesson pop quiz checkpoint</label>
               {/* MANDATORY ASSIGNMENT CONFIGURATION */}
               <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 space-y-3">
                 <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider">Mandatory Homework Assignment</h4>

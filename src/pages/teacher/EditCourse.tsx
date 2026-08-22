@@ -100,7 +100,7 @@ export default function EditCourse() {
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [maxStudents, setMaxStudents] = useState('');
-  const [status, setStatus] = useState<'active' | 'draft' | 'archived'>('active');
+  const [status, setStatus] = useState<'active' | 'draft' | 'ready_for_review' | 'updated' | 'archived'>('active');
 
   // Materials state
   const [existingMaterials, setExistingMaterials] = useState<CourseMaterial[]>([]);
