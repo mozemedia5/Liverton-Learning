@@ -83,6 +83,7 @@ class MockXHR {
 }
 
 let lastXHR: MockXHR;
+let lastUploadRequest: Record<string, unknown>;
 let authSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
@@ -91,7 +92,8 @@ beforeEach(() => {
     getIdToken: vi.fn().mockResolvedValue('test-id-token'),
   } as never);
   vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-    const request = JSON.parse(String(init?.body || '{}')) as { resourceType?: string };
+    const request = JSON.parse(String(init?.body || '{}')) as { resourceType?: string; uploadType?: string };
+    lastUploadRequest = request;
     const resourceType = request.resourceType || 'image';
     return new Response(JSON.stringify({
       cloudName: 'fbciycdw',
@@ -121,6 +123,8 @@ describe('uploadToCloudinary', () => {
 
     await expect(promise).resolves.toBe('https://res.cloudinary.com/x/image/upload/v1/ok.jpg');
     expect(lastXHR.open).toHaveBeenCalledWith('POST', expect.stringContaining('/image/upload'));
+    expect(lastUploadRequest).toMatchObject({ uploadType: 'image', resourceType: 'image', fileName: 'a.png' });
+    expect(lastUploadRequest).not.toHaveProperty('upload_preset');
   });
 
   it('reports progress through the callback', async () => {
@@ -162,5 +166,6 @@ describe('uploadToCloudinary', () => {
     lastXHR.trigger('load');
     await promise;
     expect(lastXHR.open).toHaveBeenCalledWith('POST', expect.stringContaining('/video/upload'));
+    expect(lastUploadRequest).toMatchObject({ uploadType: 'audio', resourceType: 'video', fileName: 'a.mp3' });
   });
 });

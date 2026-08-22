@@ -1,6 +1,6 @@
 /**
  * Cloudinary Upload Service
- * Handles uploading files directly to Cloudinary using secure presets
+ * Handles authenticated, server-signed uploads directly to Cloudinary
  */
 
 import { toast } from 'sonner';
@@ -22,10 +22,10 @@ export interface CloudinaryUploadOptions {
 
 /**
  * Map a browser File to the correct configured upload classification.
- * Images, audio, videos and documents each use their dedicated preset;
- * small videos use the shorts preset while larger ones use the courses preset.
+ * Images, audio, videos and documents each use their dedicated upload category;
+ * small videos use the shorts category while larger ones use the courses category.
  *
- * If isChat is true, any video is forced to use the 'course_video' preset.
+ * If isChat is true, any video is forced to use the 'course_video' upload policy.
  */
 export function mapFileToCloudinaryType(
   file: File | Blob,
@@ -37,7 +37,7 @@ export function mapFileToCloudinaryType(
   if (type.startsWith('image/')) return 'image';
   if (type.startsWith('audio/')) return 'audio';
   if (type.startsWith('video/')) {
-    if (isChat) return 'course_video'; // Force chat videos to Courses/Video preset
+    if (isChat) return 'course_video'; // Force chat videos into the course-video policy
     return file.size > 20 * 1024 * 1024 ? 'course_video' : 'short_video';
   }
 
@@ -62,13 +62,27 @@ async function requestUploadSignature(type: CloudinaryUploadType, file: File | B
   const response = await fetch(`${import.meta.env.VITE_VERCEL_API_BASE_URL || ''}/api/cloudinary/sign`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resourceType: resolveResourceType(type), contentType: file.type, size: file.size }),
+    body: JSON.stringify({
+      uploadType: type,
+      resourceType: resolveResourceType(type),
+      contentType: file.type || 'application/octet-stream',
+      fileName: file instanceof File ? file.name : 'upload',
+      size: file.size,
+    }),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.error || 'Cloudinary upload authorization failed.');
   }
-  return response.json() as Promise<{ cloudName: string; apiKey: string; resourceType: string; folder: string; timestamp: number; signature: string }>;
+  return response.json() as Promise<{
+    cloudName: string;
+    apiKey: string;
+    uploadType: CloudinaryUploadType;
+    resourceType: 'image' | 'video' | 'raw';
+    folder: string;
+    timestamp: number;
+    signature: string;
+  }>;
 }
 
 /**
@@ -194,6 +208,8 @@ export async function uploadToCloudinary(
     formData.append('timestamp', String(signature.timestamp));
     formData.append('signature', signature.signature);
     formData.append('folder', signature.folder);
+    // Do not append upload_preset: the active flow is server-signed and does not
+    // depend on unsigned Cloudinary presets configured in the Console.
 
     const data = await new Promise<{ secure_url: string; public_id: string; resource_type: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();

@@ -10,7 +10,12 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     service: 'liverton-learning-api',
     version: process.env.VERCEL_GIT_COMMIT_SHA || 'local',
     capabilities: {
-      hanna: Boolean(process.env.GEMINI_API_KEY),
+      hanna: Boolean(
+        process.env.GEMINI_API_KEY &&
+        process.env.FIREBASE_PROJECT_ID &&
+        process.env.FIREBASE_CLIENT_EMAIL &&
+        process.env.FIREBASE_PRIVATE_KEY
+      ),
       firebaseAdmin: Boolean(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY),
       cloudinarySigning: Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
     },

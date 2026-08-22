@@ -3,8 +3,8 @@ import { GoogleGenerativeAI, type Content, type Part } from '@google/generative-
 const ALLOWED_MODELS = new Set(['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']);
 
 function getModelName() {
-  const requested = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  return ALLOWED_MODELS.has(requested) ? requested : 'gemini-2.0-flash';
+  const requested = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  return ALLOWED_MODELS.has(requested) ? requested : 'gemini-2.5-flash';
 }
 
 function getClient() {
