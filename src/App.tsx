@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -8,92 +9,92 @@ import { getDashboardRoute } from '@/lib/authNavigation';
 import RouteMetadata from '@/components/RouteMetadata';
 
 // Pages
-import LandingPage from '@/pages/LandingPage';
-import RoleSelection from '@/pages/RoleSelection';
-import Login from '@/pages/Login';
-import Register from '@/pages/register/Register';
-import VerifyEmail from '@/pages/register/VerifyEmail';
-import NotFound from '@/pages/NotFound';
-import CourseView from '@/pages/CourseView';
-import PublicProfile from '@/pages/PublicProfile';
+const LandingPage = lazy(() => import('@/pages/LandingPage'));
+const RoleSelection = lazy(() => import('@/pages/RoleSelection'));
+const Login = lazy(() => import('@/pages/Login'));
+const Register = lazy(() => import('@/pages/register/Register'));
+const VerifyEmail = lazy(() => import('@/pages/register/VerifyEmail'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+const CourseView = lazy(() => import('@/pages/CourseView'));
+const PublicProfile = lazy(() => import('@/pages/PublicProfile'));
 
-import VerifyStudentEmail from '@/pages/register/VerifyStudentEmail';
+const VerifyStudentEmail = lazy(() => import('@/pages/register/VerifyStudentEmail'));
 // Dashboards
-import StudentDashboard from '@/dashboards/StudentDashboard';
-import TeacherDashboard from '@/dashboards/TeacherDashboard';
-import SchoolAdminDashboard from '@/dashboards/SchoolAdminDashboard';
-import ParentDashboard from '@/pages/ParentDashboard';
-import PlatformAdminDashboard from '@/dashboards/PlatformAdminDashboard';
+const StudentDashboard = lazy(() => import('@/dashboards/StudentDashboard'));
+const TeacherDashboard = lazy(() => import('@/dashboards/TeacherDashboard'));
+const SchoolAdminDashboard = lazy(() => import('@/dashboards/SchoolAdminDashboard'));
+const ParentDashboard = lazy(() => import('@/pages/ParentDashboard'));
+const PlatformAdminDashboard = lazy(() => import('@/dashboards/PlatformAdminDashboard'));
 import AdminLayout from '@/components/AdminLayout';
-import UserManagement from '@/pages/admin/UserManagement';
-import SystemAnalytics from '@/pages/admin/SystemAnalytics';
-import ContentModeration from '@/pages/admin/ContentModeration';
-import GlobalMonitoring from '@/pages/admin/GlobalMonitoring';
-import DashboardAnnouncementManagement from '@/pages/admin/DashboardAnnouncementManagement';
+const UserManagement = lazy(() => import('@/pages/admin/UserManagement'));
+const SystemAnalytics = lazy(() => import('@/pages/admin/SystemAnalytics'));
+const ContentModeration = lazy(() => import('@/pages/admin/ContentModeration'));
+const GlobalMonitoring = lazy(() => import('@/pages/admin/GlobalMonitoring'));
+const DashboardAnnouncementManagement = lazy(() => import('@/pages/admin/DashboardAnnouncementManagement'));
 
 // Parent Pages
-import ParentStudents from '@/pages/ParentStudents';
-import ParentPerformance from '@/pages/ParentPerformance';
-import ParentCourses from '@/pages/ParentCourses';
-import ParentFees from '@/pages/ParentFees';
-import ParentQuizzes from '@/pages/ParentQuizzes';
+const ParentStudents = lazy(() => import('@/pages/ParentStudents'));
+const ParentPerformance = lazy(() => import('@/pages/ParentPerformance'));
+const ParentCourses = lazy(() => import('@/pages/ParentCourses'));
+const ParentFees = lazy(() => import('@/pages/ParentFees'));
+const ParentQuizzes = lazy(() => import('@/pages/ParentQuizzes'));
 
 // Feature Pages
-import Courses from '@/pages/features/Courses';
-import Announcements from '@/pages/features/Announcements';
-import CreateAnnouncement from '@/pages/features/CreateAnnouncement';
-import DashboardBanners from '@/pages/features/DashboardBanners';
-import Chat from '@/pages/features/Chat';
-import Payments from '@/pages/features/Payments';
-import Profile from '@/pages/features/Profile';
-import Settings from '@/pages/features/Settings';
-import Quizzes from '@/pages/features/Quizzes';
-import CreateQuiz from '@/pages/teacher/CreateQuiz';
-import TeacherQuizzes from '@/pages/teacher/TeacherQuizzes';
-import MyQuiz from '@/pages/teacher/MyQuiz';
-import QuizAnalytics from '@/pages/teacher/QuizAnalytics';
-import TakeQuiz from '@/pages/student/TakeQuiz';
-import CreateCourse from '@/pages/teacher/CreateCourse';
-import TeacherCourses from '@/pages/teacher/TeacherCourses';
-import ViewCourse from '@/pages/teacher/ViewCourse';
-import EditCourse from '@/pages/teacher/EditCourse';
-import Documents from '@/pages/features/Documents';
-import DocumentEditor from '@/pages/features/DocumentEditor';
-import PublicDocument from '@/pages/features/PublicDocument';
+const Courses = lazy(() => import('@/pages/features/Courses'));
+const Announcements = lazy(() => import('@/pages/features/Announcements'));
+const CreateAnnouncement = lazy(() => import('@/pages/features/CreateAnnouncement'));
+const DashboardBanners = lazy(() => import('@/pages/features/DashboardBanners'));
+const Chat = lazy(() => import('@/pages/features/Chat'));
+const Payments = lazy(() => import('@/pages/features/Payments'));
+const Profile = lazy(() => import('@/pages/features/Profile'));
+const Settings = lazy(() => import('@/pages/features/Settings'));
+const Quizzes = lazy(() => import('@/pages/features/Quizzes'));
+const CreateQuiz = lazy(() => import('@/pages/teacher/CreateQuiz'));
+const TeacherQuizzes = lazy(() => import('@/pages/teacher/TeacherQuizzes'));
+const MyQuiz = lazy(() => import('@/pages/teacher/MyQuiz'));
+const QuizAnalytics = lazy(() => import('@/pages/teacher/QuizAnalytics'));
+const TakeQuiz = lazy(() => import('@/pages/student/TakeQuiz'));
+const CreateCourse = lazy(() => import('@/pages/teacher/CreateCourse'));
+const TeacherCourses = lazy(() => import('@/pages/teacher/TeacherCourses'));
+const ViewCourse = lazy(() => import('@/pages/teacher/ViewCourse'));
+const EditCourse = lazy(() => import('@/pages/teacher/EditCourse'));
+const Documents = lazy(() => import('@/pages/features/Documents'));
+const DocumentEditor = lazy(() => import('@/pages/features/DocumentEditor'));
+const PublicDocument = lazy(() => import('@/pages/features/PublicDocument'));
 
 // New Global Features
-import LivTeams from '@/pages/features/liv-teams/LivTeams';
-import TeamWorkspace from '@/pages/features/liv-teams/TeamWorkspace';
-import CalendarPage from '@/pages/features/CalendarPage';
-import Events from '@/pages/features/Events';
-import CreateEvent from '@/pages/features/CreateEvent';
-import Calculator from '@/pages/features/Calculator';
-import ProfileSystem from '@/pages/features/ProfileSystem';
-import HannaChatIntegrated from '@/pages/features/HannaChatIntegrated';
-import Analytics from '@/pages/features/Analytics';
-import MoreHub from '@/pages/features/MoreHub';
-import LiveFund from '@/pages/features/LiveFund';
-import LiveMart from '@/pages/features/LiveMart';
-import TeacherZoomLessons from '@/components/ZoomLessons/TeacherZoomLessons';
-import StudentZoomLessons from '@/components/ZoomLessons/StudentZoomLessons';
-import ParentZoomLessons from '@/components/ZoomLessons/ParentZoomLessons';
+const LivTeams = lazy(() => import('@/pages/features/liv-teams/LivTeams'));
+const TeamWorkspace = lazy(() => import('@/pages/features/liv-teams/TeamWorkspace'));
+const CalendarPage = lazy(() => import('@/pages/features/CalendarPage'));
+const Events = lazy(() => import('@/pages/features/Events'));
+const CreateEvent = lazy(() => import('@/pages/features/CreateEvent'));
+const Calculator = lazy(() => import('@/pages/features/Calculator'));
+const ProfileSystem = lazy(() => import('@/pages/features/ProfileSystem'));
+const HannaChatIntegrated = lazy(() => import('@/pages/features/HannaChatIntegrated'));
+const Analytics = lazy(() => import('@/pages/features/Analytics'));
+const MoreHub = lazy(() => import('@/pages/features/MoreHub'));
+const LiveFund = lazy(() => import('@/pages/features/LiveFund'));
+const LiveMart = lazy(() => import('@/pages/features/LiveMart'));
+const TeacherZoomLessons = lazy(() => import('@/components/ZoomLessons/TeacherZoomLessons'));
+const StudentZoomLessons = lazy(() => import('@/components/ZoomLessons/StudentZoomLessons'));
+const ParentZoomLessons = lazy(() => import('@/components/ZoomLessons/ParentZoomLessons'));
 
 // TEARN Features
-import TearnDashboard from '@/pages/features/tearn/TearnDashboard';
-import ShortsArena from '@/pages/features/tearn/ShortsArena';
-import BookReader from '@/pages/features/tearn/BookReader';
-import ZoomLessonArena from '@/pages/zoom-lessons/ZoomLessonArena';
+const TearnDashboard = lazy(() => import('@/pages/features/tearn/TearnDashboard'));
+const ShortsArena = lazy(() => import('@/pages/features/tearn/ShortsArena'));
+const BookReader = lazy(() => import('@/pages/features/tearn/BookReader'));
+const ZoomLessonArena = lazy(() => import('@/pages/zoom-lessons/ZoomLessonArena'));
 
 // About Pages
-import About from '@/pages/about/About';
-import AboutSchools from '@/pages/about/AboutSchools';
-import AboutTeachers from '@/pages/about/AboutTeachers';
-import AboutStudents from '@/pages/about/AboutStudents';
-import AboutParents from '@/pages/about/AboutParents';
+const About = lazy(() => import('@/pages/about/About'));
+const AboutSchools = lazy(() => import('@/pages/about/AboutSchools'));
+const AboutTeachers = lazy(() => import('@/pages/about/AboutTeachers'));
+const AboutStudents = lazy(() => import('@/pages/about/AboutStudents'));
+const AboutParents = lazy(() => import('@/pages/about/AboutParents'));
 
 // Support & Legal Pages
-import Support from '@/pages/Support';
-import PrivacyPolicy from '@/pages/PrivacyPolicy';
+const Support = lazy(() => import('@/pages/Support'));
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 
 import './App.css';
 
@@ -197,6 +198,7 @@ function AppRoutes() {
   return (
     <>
       <RouteMetadata />
+      <Suspense fallback={<LogoLoader message="Loading page..." size="md" />} >
       <Routes>
       {/* Public Routes - Accessible to all, but redirect authenticated users to dashboard */}
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
@@ -534,6 +536,7 @@ function AppRoutes() {
       {/* 404 - Page not found */}
       <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
     </>
   );
 }

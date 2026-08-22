@@ -66,12 +66,28 @@ export default defineConfig({
         categories: ['education', 'learning', 'productivity']
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Keep lazy route JavaScript out of the install-time precache. It is cached
+        // on demand below so first visits do not download the entire application.
+        globPatterns: ['**/*.{css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/.*\.js$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'liverton-route-chunks',
+              expiration: {
+                maxEntries: 80,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
