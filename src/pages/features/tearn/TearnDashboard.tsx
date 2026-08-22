@@ -43,7 +43,6 @@ import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import {
   createBook,
   subscribeToTeacherBooks,
-  createShort,
   subscribeToTeacherShorts,
   getEducatorWallet,
   type EducationalBook,
@@ -319,14 +318,6 @@ export default function TearnDashboard() {
   });
   const [uploadingBookFile, setUploadingBookFile] = useState(false);
 
-  const [showShortModal, setShowShortModal] = useState(false);
-  const [newShort, setNewShort] = useState({
-    title: '',
-    description: '',
-    videoUrl: '',
-    courseId: '',
-    lessonId: ''
-  });
 
   // Subscriptions & Fetching
   useEffect(() => {
@@ -964,28 +955,6 @@ export default function TearnDashboard() {
       setNewBook({ title: '', description: '', coverUrl: '', price: 19.99, chapters: [], documentUrl: '', documentName: '', documentType: '' });
     } catch (err: any) {
       toast.error('Book creation failed: ' + err.message);
-    }
-  };
-
-  // Educational Short creation handler
-  const handleCreateShort = async () => {
-    if (!newShort.title || !newShort.videoUrl) {
-      toast.error('Please complete title and video URL.');
-      return;
-    }
-    try {
-      await createShort(currentUser!.uid, userData?.fullName || 'Educator', {
-        title: newShort.title,
-        description: newShort.description || undefined,
-        videoUrl: newShort.videoUrl,
-        courseId: newShort.courseId || undefined,
-        lessonId: newShort.lessonId || undefined
-      });
-      toast.success('Promotional short successfully published in the Arena!');
-      setShowShortModal(false);
-      setNewShort({ title: '', description: '', videoUrl: '', courseId: '', lessonId: '' });
-    } catch (err: any) {
-      toast.error('Short publishing failed: ' + err.message);
     }
   };
 
@@ -1830,7 +1799,7 @@ export default function TearnDashboard() {
               <h3 className="text-xl font-bold text-white font-black">Creator Shorts Arena</h3>
               <Button
                 className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs h-10 px-5"
-                onClick={() => setShowShortModal(true)}
+                onClick={() => navigate('/teacher/shorts/upload')}
               >
                 <Plus className="w-4 h-4 mr-1" /> Publish Short
               </Button>
@@ -2378,39 +2347,6 @@ export default function TearnDashboard() {
         </div>
       )}
 
-      {/* PROMOTIONAL SHORT DIALOG */}
-      {showShortModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg workhub-modal bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
-            <CardHeader className="p-6 border-b border-slate-200 dark:border-white/5">
-              <CardTitle className="text-lg font-black text-white">Publish Creator Short</CardTitle>
-              <CardDescription>Upload micro lesson teasers linked to your modules.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-bold">Video File URL</label>
-                <Input
-                  value={newShort.videoUrl}
-                  onChange={e => setNewShort((prev: any) => ({ ...prev, videoUrl: e.target.value }))}
-                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-slate-400">Title</label>
-                <Input
-                  value={newShort.title}
-                  onChange={e => setNewShort((prev: any) => ({ ...prev, title: e.target.value }))}
-                  className="bg-white/5 border-white/10 rounded-xl text-xs text-white"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <Button variant="ghost" onClick={() => setShowShortModal(false)}>Cancel</Button>
-                <Button className="bg-emerald-500 hover:bg-emerald-600 font-bold" onClick={handleCreateShort}>Publish</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </>
   );
 }

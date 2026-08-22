@@ -270,7 +270,8 @@ export interface Enrollment {
  */
 export function subscribeToTeacherAnalytics(
   teacherId: string,
-  callback: (data: TeacherAnalytics) => void
+  callback: (data: TeacherAnalytics) => void,
+  onError?: (error: Error) => void,
 ): Unsubscribe {
   const coursesQuery = query(
     collection(db, 'courses'),
@@ -306,6 +307,7 @@ export function subscribeToTeacherAnalytics(
     });
   }, (error) => {
     console.error('[Analytics] Error fetching teacher analytics:', error);
+    onError?.(error instanceof Error ? error : new Error('Unable to load teacher analytics.'));
   });
 }
 

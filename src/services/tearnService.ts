@@ -69,13 +69,21 @@ export interface EducationalBook {
   updatedAt: Date;
 }
 
+export type ShortLearningLinkType = 'module' | 'liveLesson';
+
 export interface EducationalShort {
   id: string;
   title: string;
   description?: string;
   videoUrl: string;
+  /** The learning destination selected by the teacher when the Short was published. */
+  learningLinkType?: ShortLearningLinkType;
+  /** ID of the linked module (stored in the existing courseId field). */
   courseId?: string;
+  /** ID of the linked live lesson in zoomLessons. */
   lessonId?: string;
+  /** Snapshot label so learners can understand the CTA without an extra read. */
+  learningLinkTitle?: string;
   teacherId: string;
   teacherName: string;
   likes: number;
@@ -204,9 +212,21 @@ export async function createShort(
   teacherName: string,
   shortData: Omit<EducationalShort, 'id' | 'teacherId' | 'teacherName' | 'likes' | 'views' | 'createdAt'>
 ): Promise<string> {
+  const hasModule = Boolean(shortData.courseId);
+  const hasLiveLesson = Boolean(shortData.lessonId);
+
+  if (hasModule === hasLiveLesson) {
+    throw new Error('A Short must be linked to exactly one module or live lesson.');
+  }
+
+  const learningLinkType = hasLiveLesson ? 'liveLesson' : 'module';
+  const cleanShortData = Object.fromEntries(
+    Object.entries(shortData).filter(([, value]) => value !== undefined),
+  );
   const shortsRef = collection(db, 'shorts');
   const newShort = {
-    ...shortData,
+    ...cleanShortData,
+    learningLinkType,
     teacherId,
     teacherName,
     likes: 0,
@@ -230,7 +250,11 @@ export async function getAllShorts(): Promise<EducationalShort[]> {
   });
 }
 
-export function subscribeToTeacherShorts(teacherId: string, callback: (shorts: EducationalShort[]) => void): Unsubscribe {
+export function subscribeToTeacherShorts(
+  teacherId: string,
+  callback: (shorts: EducationalShort[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
   const q = query(collection(db, 'shorts'), where('teacherId', '==', teacherId));
   return onSnapshot(q, (snapshot) => {
     const shorts = snapshot.docs.map(doc => {
@@ -242,6 +266,9 @@ export function subscribeToTeacherShorts(teacherId: string, callback: (shorts: E
       } as EducationalShort;
     });
     callback(shorts);
+  }, (error) => {
+    console.error('Error subscribing to teacher Shorts:', error);
+    onError?.(error instanceof Error ? error : new Error('Unable to load Shorts analytics.'));
   });
 }
 

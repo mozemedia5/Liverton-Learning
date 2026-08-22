@@ -141,9 +141,19 @@ describe('TEARN Service Tests', () => {
       const shortId = await createShort('teacher_1', 'Prof. Liverton', {
         title: 'Mock Physics in 60s',
         description: 'Mnemonic trick',
-        videoUrl: 'https://...'
+        videoUrl: 'https://...',
+        courseId: 'course_1',
+        learningLinkType: 'module',
+        learningLinkTitle: 'Mock Physics module'
       });
       expect(shortId).toBe('mock_doc_id');
+    });
+
+    it('rejects educational Shorts without exactly one learning destination', async () => {
+      await expect(createShort('teacher_1', 'Prof. Liverton', {
+        title: 'Unlinked Short',
+        videoUrl: 'https://...'
+      })).rejects.toThrow('exactly one module or live lesson');
     });
 
     it('lists educational shorts', async () => {

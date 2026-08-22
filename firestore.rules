@@ -145,6 +145,17 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isPlatformAdmin();
     }
+    match /shorts/{shortId} {
+      allow read: if isAuthenticated();
+      allow create: if isTeacher() &&
+        request.resource.data.teacherId == currentUserId() &&
+        ((request.resource.data.get('courseId', null) != null && request.resource.data.get('lessonId', null) == null) ||
+         (request.resource.data.get('courseId', null) == null && request.resource.data.get('lessonId', null) != null));
+      allow update: if isTeacher() && resource.data.teacherId == currentUserId();
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'views']);
+      allow delete: if isTeacher() && resource.data.teacherId == currentUserId();
+    }
     match /events/{eventId} {
       allow read, write: if isPlatformAdmin();
       allow get, list: if isAuthenticated() &&

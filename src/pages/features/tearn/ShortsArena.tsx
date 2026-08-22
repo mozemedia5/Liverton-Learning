@@ -96,14 +96,23 @@ export default function ShortsArena() {
     }
   };
 
-  const handleGoToCourse = () => {
-    if (currentShort.courseId) {
-      toast.success('Transitioning from Shorts to full Course curriculum!');
+  const handleGoToLearning = () => {
+    if (currentShort.lessonId) {
+      toast.success('Opening the linked live lesson.');
+      navigate(`/zoom-lessons/${currentShort.lessonId}`);
+    } else if (currentShort.courseId) {
+      toast.success('Opening the linked module curriculum.');
       navigate(`/courses/${currentShort.courseId}`);
     } else {
-      toast.info('No full course linked to this promotional short yet.');
+      toast.info('This Short has no linked module or live lesson.');
     }
   };
+
+  const learningCtaLabel = currentShort.lessonId
+    ? 'Open linked live lesson'
+    : currentShort.courseId
+      ? 'Follow linked module'
+      : 'Learning path unavailable';
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col justify-between">
@@ -157,12 +166,13 @@ export default function ShortsArena() {
               <p className="text-xs text-slate-300 line-clamp-2 mt-1">{currentShort.description}</p>
             </div>
 
-            {/* CTA action button linking snippet to Course */}
+            {/* CTA action button linking the Short to its saved learning destination */}
             <Button
               className="bg-gradient-to-r from-emerald-500 to-amber-500 hover:from-emerald-600 hover:to-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 py-2 w-full shadow-lg"
-              onClick={handleGoToCourse}
+              onClick={handleGoToLearning}
+              disabled={!currentShort.courseId && !currentShort.lessonId}
             >
-              <BookOpen className="w-4 h-4 fill-slate-950 text-slate-950" /> Go to Linked Lesson / Course
+              {currentShort.lessonId ? <Tv className="w-4 h-4" /> : <BookOpen className="w-4 h-4 fill-slate-950 text-slate-950" />} {learningCtaLabel}
               <ExternalLink className="w-3.5 h-3.5" />
             </Button>
           </div>

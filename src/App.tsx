@@ -82,6 +82,8 @@ const ParentZoomLessons = lazy(() => import('@/components/ZoomLessons/ParentZoom
 // TEARN Features
 const TearnDashboard = lazy(() => import('@/pages/features/tearn/TearnDashboard'));
 const ShortsArena = lazy(() => import('@/pages/features/tearn/ShortsArena'));
+const ShortUpload = lazy(() => import('@/pages/teacher/ShortUpload'));
+const ShortAnalytics = lazy(() => import('@/pages/teacher/ShortAnalytics'));
 const BookReader = lazy(() => import('@/pages/features/tearn/BookReader'));
 const ZoomLessonArena = lazy(() => import('@/pages/zoom-lessons/ZoomLessonArena'));
 
@@ -336,6 +338,16 @@ function AppRoutes() {
       <Route path="/teacher/zoom-lessons" element={
         <ProtectedRoute allowedRoles={['teacher']}>
           <AuthenticatedLayout><TeacherZoomLessons /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/shorts/upload" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><ShortUpload /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher/shorts/analytics" element={
+        <ProtectedRoute allowedRoles={['teacher']}>
+          <AuthenticatedLayout><ShortAnalytics /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 
