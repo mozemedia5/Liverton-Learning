@@ -38,6 +38,17 @@ export interface BookChapter {
   drivePdfUrls: string[];
 }
 
+export const BOOK_DOCUMENT_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+] as const;
+
+export function isSupportedBookDocument(file: Pick<File, 'name' | 'type'>): boolean {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  return BOOK_DOCUMENT_MIME_TYPES.includes(file.type as (typeof BOOK_DOCUMENT_MIME_TYPES)[number]) || ['pdf', 'doc', 'docx'].includes(extension || '');
+}
+
 export interface EducationalBook {
   id: string;
   title: string;
@@ -46,6 +57,9 @@ export interface EducationalBook {
   teacherId: string;
   teacherName: string;
   chapters: BookChapter[];
+  documentUrl?: string;
+  documentName?: string;
+  documentType?: string;
   status: 'draft' | 'published';
   price: number;
   currency?: string;

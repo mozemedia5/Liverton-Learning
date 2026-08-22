@@ -48,6 +48,7 @@ import {
   getEducatorWallet,
   type EducationalBook,
   type EducationalShort,
+  isSupportedBookDocument,
   type EducatorWallet
 } from '@/services/tearnService';
 import {
@@ -927,8 +928,8 @@ export default function TearnDashboard() {
   };
 
   const handleBookFileUpload = async (file: File) => {
-    const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowed.includes(file.type)) { toast.error('Resources must be uploaded as PDF, DOC, or DOCX.'); return; }
+    if (!isSupportedBookDocument(file)) { toast.error('Resources must be uploaded as PDF, DOC, or DOCX.'); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error('Resource documents must be 50 MB or smaller.'); return; }
     setUploadingBookFile(true);
     try {
       const url = await uploadToCloudinary(file, 'document');

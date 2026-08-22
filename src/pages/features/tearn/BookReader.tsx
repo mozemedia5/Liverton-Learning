@@ -22,30 +22,18 @@ import {
 } from 'lucide-react';
 import { getBook, type EducationalBook } from '@/services/tearnService';
 
-// High-fidelity fallback educational book if none exists in db
-const fallbackBook: EducationalBook = {
+// Empty state used when a persisted book cannot be found; no sample content is shown.
+const emptyBook: EducationalBook = {
   id: 'book_sample_1',
-  title: 'Advanced Theoretical Physics Handbook',
-  description: 'An exhaustive analysis of core paradigms, thermodynamic physics, quantum mechanics, and cosmic formulations.',
-  coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400',
-  teacherId: 'teacher_1',
-  teacherName: 'Prof. Liverton',
-  chapters: [
-    {
-      title: 'Chapter 1: Quantum Electro-dynamics & Paradigms',
-      content: 'In quantum electrodynamics (QED), we study the relativistic quantum field theory of electrodynamics. Essentially, it describes how light and matter interact. It is mathematically complex, modeling the interactions of charged subatomic particles via exchange of virtual photons.',
-      drivePdfUrls: ['https://drive.google.com/file/d/1_dummy_chapter1_pdf/view']
-    },
-    {
-      title: 'Chapter 2: Relativistic Quantum Mechanics',
-      content: 'Relativistic quantum mechanics (RQM) merges quantum mechanics with special relativity, predicting quantum behaviors at relativistic speeds (near speed of light). This chapter establishes Dirac equations, Klein-Gordon formulations, and anti-matter paradigms.',
-      drivePdfUrls: ['https://drive.google.com/file/d/1_dummy_chapter2_pdf/view']
-    }
-  ],
+  title: 'Resource unavailable',
+  description: '',
+  teacherId: '',
+  teacherName: '',
+  chapters: [],
   status: 'published',
-  price: 19.99,
-  ratingsCount: 5,
-  averageRating: 4.8,
+  price: 0,
+  ratingsCount: 0,
+  averageRating: 0,
   createdAt: new Date(),
   updatedAt: new Date()
 };
@@ -65,17 +53,17 @@ export default function BookReader() {
 
   useEffect(() => {
     const loadBookData = async () => {
-      if (!bookId || bookId.startsWith('book_sample')) {
-        setBook(fallbackBook);
+      if (!bookId) {
+        setBook(null);
         setLoading(false);
         return;
       }
       try {
         const data = await getBook(bookId);
-        setBook(data || fallbackBook);
+        setBook(data);
       } catch (err) {
         console.error('Error loading book:', err);
-        setBook(fallbackBook);
+        setBook(null);
       } finally {
         setLoading(false);
       }
@@ -109,7 +97,7 @@ export default function BookReader() {
     );
   }
 
-  const currentBook = book || fallbackBook;
+  const currentBook = book || emptyBook;
   const currentChapter = currentBook.chapters?.[activeChapterIndex] || currentBook.chapters?.[0];
 
   return (
@@ -143,7 +131,7 @@ export default function BookReader() {
         <div className="space-y-4 lg:col-span-1">
           <Card className="bg-[#030f26]/40 border-white/5 overflow-hidden">
             <div className="p-4 border-b border-white/5">
-              <img src={currentBook.coverUrl || fallbackBook.coverUrl} alt="Cover" className="h-44 w-full object-cover rounded-xl" />
+              {currentBook.coverUrl ? <img src={currentBook.coverUrl} alt="Cover" className="h-44 w-full object-cover rounded-xl" /> : <div className="h-44 w-full rounded-xl bg-slate-900 grid place-items-center"><BookOpen className="w-12 h-12 text-slate-600" /></div>}
               <div className="mt-3">
                 <p className="text-xs text-slate-400">By {currentBook.teacherName}</p>
                 <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-300">
@@ -188,10 +176,19 @@ export default function BookReader() {
                   {currentChapter.content}
                 </p>
 
-                {/* Attached drive PDF resources */}
+                {currentBook.documentUrl && (
+                  <div className="pt-6 border-t border-white/5 space-y-2">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">Uploaded Resource Document</span>
+                    <a href={currentBook.documentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5 text-xs text-slate-300 hover:bg-white/10 transition-colors">
+                      <FileText className="w-4 h-4 text-emerald-400" /><span className="truncate">{currentBook.documentName || 'Open resource document'}</span><Download className="w-3.5 h-3.5 ml-auto text-slate-400" />
+                    </a>
+                  </div>
+                )}
+
+                {/* Attached chapter resources */}
                 {currentChapter.drivePdfUrls && currentChapter.drivePdfUrls.length > 0 && (
                   <div className="pt-6 border-t border-white/5 space-y-2">
-                    <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">Chapter Learning Handouts (PDF)</span>
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">Chapter Learning Handouts</span>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {currentChapter.drivePdfUrls.map((url, idx) => (
                         <a

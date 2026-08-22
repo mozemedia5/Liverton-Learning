@@ -12,7 +12,8 @@ import {
   checkIsFollowing,
   getEducatorWallet,
   requestWithdrawal,
-  getTeacherBadges
+  getTeacherBadges,
+  isSupportedBookDocument
 } from './tearnService';
 
 // Mock Firebase Firestore methods
@@ -96,6 +97,15 @@ describe('TEARN Service Tests', () => {
     vi.clearAllMocks();
   });
 
+  describe('Book document validation', () => {
+    it('accepts PDF, DOC, and DOCX by MIME type or extension', () => {
+      expect(isSupportedBookDocument({ name: 'guide.pdf', type: 'application/pdf' })).toBe(true);
+      expect(isSupportedBookDocument({ name: 'guide.doc', type: '' })).toBe(true);
+      expect(isSupportedBookDocument({ name: 'guide.DOCX', type: 'application/octet-stream' })).toBe(true);
+      expect(isSupportedBookDocument({ name: 'guide.txt', type: 'text/plain' })).toBe(false);
+    });
+  });
+
   describe('Book Publishing', () => {
     it('creates and publishes a book draft', async () => {
       const bookId = await createBook('teacher_1', 'Prof. Liverton', {
@@ -103,6 +113,9 @@ describe('TEARN Service Tests', () => {
         description: 'Exhaustive study guide',
         coverUrl: 'https://...',
         chapters: [],
+        documentUrl: 'https://res.cloudinary.com/demo/raw/upload/guide.pdf',
+        documentName: 'guide.pdf',
+        documentType: 'application/pdf',
         status: 'draft',
         price: 15.99,
         currency: 'USD'
