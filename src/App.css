@@ -126,6 +126,18 @@ body { background:var(--liv-canvas); }
 .dark .workhub-modal input,.dark .workhub-modal textarea,.dark .workhub-modal select { color:#f8fafc !important; background:#0f172a !important; border-color:#334155 !important; }
 .dark .workhub-modal input::placeholder,.dark .workhub-modal textarea::placeholder { color:#94a3b8 !important; }
 .workhub-modal [class*="bg-white/5"] { background:#e2e8f0 !important; }
+/* Module wizard follows the Liv Teams creation language: bright surface, compact cards, and emerald progress. */
+.workhub-modal { background: #ffffff !important; color: #0f172a !important; }
+.workhub-modal .text-white { color: #0f172a !important; }
+.workhub-modal .text-slate-400 { color: #64748b !important; }
+.workhub-modal input, .workhub-modal textarea, .workhub-modal select { background: #ffffff !important; color: #0f172a !important; border-color: #e2e8f0 !important; }
+.workhub-modal input::placeholder, .workhub-modal textarea::placeholder { color: #94a3b8 !important; }
+.workhub-modal [class*="bg-white/5"] { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+.dark .workhub-modal { background: #0f172a !important; color: #f8fafc !important; }
+.dark .workhub-modal .text-white { color: #f8fafc !important; }
+.dark .workhub-modal .text-slate-400 { color: #94a3b8 !important; }
+.dark .workhub-modal input, .dark .workhub-modal textarea, .dark .workhub-modal select { background: #111c31 !important; color: #f8fafc !important; border-color: #334155 !important; }
+.dark .workhub-modal [class*="bg-white/5"] { background: rgba(255,255,255,.06) !important; border-color: #334155 !important; }
 /* Five-step module wizard: keep the existing fields, but present them progressively. */
 [data-module-step="1"] > :nth-child(n+4):not([data-wizard-only]),
 [data-module-step="2"] > :nth-child(-n+3):not([data-wizard-only]),

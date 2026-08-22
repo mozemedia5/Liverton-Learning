@@ -1913,12 +1913,12 @@ export default function TearnDashboard() {
 
       {/* MODULE CREATION DIALOG */}
       {showModuleModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-xl workhub-modal bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl max-h-[90vh] flex flex-col">
-            <CardHeader className="p-6 border-b border-white/5 flex-shrink-0">
+        <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <Card className="w-full max-w-2xl workhub-modal bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xl max-h-[92dvh] flex flex-col">
+            <CardHeader className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200 dark:border-white/5 flex-shrink-0 space-y-3">
               <CardTitle className="text-lg font-black text-white flex items-center justify-between">
-                <span>Create Direct Learning Module</span>
-                <Badge className="bg-emerald-500/10 text-emerald-400 border-none">Work Hub Builder</Badge>
+                <span>Create a Liverton Module</span>
+                <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50">Educators Workhub</Badge>
               </CardTitle>
               <CardDescription>Build your module in five focused steps. Your progress stays in this workspace until you publish.</CardDescription>
               <div className="mt-5 grid grid-cols-5 gap-1.5" aria-label="Module creation progress">{moduleSteps.map((step, index) => <button key={step} type="button" onClick={() => setModuleStep(index + 1)} className={`rounded-xl px-2 py-2 text-[10px] font-bold transition-colors ${moduleStep === index + 1 ? 'bg-emerald-600 text-white' : moduleStep > index + 1 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}><span className="block text-[9px] opacity-70">{index + 1}</span>{step}</button>)}</div>

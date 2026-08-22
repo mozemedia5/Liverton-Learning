@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, Plus, BarChart3, ClipboardList } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, BarChart3, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { toast } from 'sonner';
@@ -16,7 +16,7 @@ const homeFor = (role: Role) => ({
   platform_admin: '/admin/dashboard'
 }[role]);
 
-const roleNavigation = (role: Role, navigate: ReturnType<typeof useNavigate>, openMore: () => void): { main: NavItem[]; secondary: NavItem[] } => {
+const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; secondary: NavItem[] } => {
   const common: NavItem[] = [
     { name: 'Messages', path: '/chat', icon: MessageSquare },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
@@ -30,7 +30,7 @@ const roleNavigation = (role: Role, navigate: ReturnType<typeof useNavigate>, op
 
   if (role === 'teacher') {
     return {
-      main: [home, { name: 'Modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Create module', path: '/features/tearn', icon: Plus, primary: true, onClick: () => navigate('/features/tearn') }, { name: 'Teams', path: '/features/liv-teams', icon: Users }, more],
+      main: [home, { name: 'Modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Chats', path: '/chat', icon: MessageSquare, primary: true } , { name: 'Teams', path: '/features/liv-teams', icon: Users }, more],
       secondary: [{ name: 'Educators Workhub', path: '/features/tearn', icon: Briefcase }, { name: 'My modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common]
     };
   }
@@ -63,7 +63,7 @@ export const MobileBottomNav: React.FC = () => {
   const [showMore, setShowMore] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const navigation = useMemo(() => roleNavigation(role, navigate, () => setShowMore(true)), [role, navigate]);
+  const navigation = useMemo(() => roleNavigation(role, () => setShowMore(true)), [role]);
 
   const isActive = (path: string) => path !== '#more' && (location.pathname === path || location.pathname.startsWith(`${path}/`));
   const go = (path: string) => { setShowMore(false); navigate(path); };
