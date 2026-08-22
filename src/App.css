@@ -126,6 +126,17 @@ body { background:var(--liv-canvas); }
 .dark .workhub-modal input,.dark .workhub-modal textarea,.dark .workhub-modal select { color:#f8fafc !important; background:#0f172a !important; border-color:#334155 !important; }
 .dark .workhub-modal input::placeholder,.dark .workhub-modal textarea::placeholder { color:#94a3b8 !important; }
 .workhub-modal [class*="bg-white/5"] { background:#e2e8f0 !important; }
+/* Five-step module wizard: keep the existing fields, but present them progressively. */
+[data-module-step="1"] > :nth-child(n+4):not([data-wizard-only]),
+[data-module-step="2"] > :nth-child(-n+3):not([data-wizard-only]),
+[data-module-step="2"] > :nth-child(n+6):not([data-wizard-only]),
+[data-module-step="3"] > :nth-child(-n+5):not([data-wizard-only]),
+[data-module-step="3"] > :nth-child(n+10):not([data-wizard-only]),
+[data-module-step="4"] > :not([data-wizard-only]),
+[data-module-step="5"] > :not([data-wizard-only]) { display:none !important; }
+[data-module-step="4"] > [data-wizard-only="4"],
+[data-module-step="5"] > [data-wizard-only="5"] { display:block !important; }
+
 .dark .workhub-modal [class*="bg-white/5"] { background:rgba(255,255,255,.06) !important; }
 .liv-accent-lavender { background:var(--liv-lavender); }
 .liv-accent-peach { background:var(--liv-peach); }

@@ -224,6 +224,8 @@ export default function TearnDashboard() {
 
   // Form Modals states
   const [showModuleModal, setShowModuleModal] = useState(false);
+  const [moduleStep, setModuleStep] = useState(1);
+  const moduleSteps = ['Foundations', 'Learning design', 'Access & pricing', 'Structure', 'Review & publish'];
   const [newModule, setNewModule] = useState({
     title: '',
     description: '',
@@ -1053,7 +1055,7 @@ export default function TearnDashboard() {
           <div className="flex gap-3">
             <Button
               className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs h-10 px-5 shadow-lg shadow-emerald-500/10"
-              onClick={() => setShowModuleModal(true)}
+              onClick={() => { setModuleStep(1); setShowModuleModal(true); }}
             >
               <Plus className="w-4 h-4 mr-1.5" /> Create Module
             </Button>
@@ -1233,7 +1235,7 @@ export default function TearnDashboard() {
                   <Button
                     size="sm"
                     className="bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold text-xs"
-                    onClick={() => setShowModuleModal(true)}
+                    onClick={() => { setModuleStep(1); setShowModuleModal(true); }}
                   >
                     <Plus className="w-3.5 h-3.5 mr-1" /> Create New
                   </Button>
@@ -1918,9 +1920,10 @@ export default function TearnDashboard() {
                 <span>Create Direct Learning Module</span>
                 <Badge className="bg-emerald-500/10 text-emerald-400 border-none">Work Hub Builder</Badge>
               </CardTitle>
-              <CardDescription>Configure title, level, subject, objectives, and access model.</CardDescription>
+              <CardDescription>Build your module in five focused steps. Your progress stays in this workspace until you publish.</CardDescription>
+              <div className="mt-5 grid grid-cols-5 gap-1.5" aria-label="Module creation progress">{moduleSteps.map((step, index) => <button key={step} type="button" onClick={() => setModuleStep(index + 1)} className={`rounded-xl px-2 py-2 text-[10px] font-bold transition-colors ${moduleStep === index + 1 ? 'bg-emerald-600 text-white' : moduleStep > index + 1 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}><span className="block text-[9px] opacity-70">{index + 1}</span>{step}</button>)}</div>
             </CardHeader>
-            <CardContent className="p-6 space-y-4 overflow-y-auto flex-1">
+            <CardContent className="p-6 space-y-4 overflow-y-auto flex-1" data-module-step={moduleStep}>
               {/* Cover Image & Promo Video Section */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Cover Image Upload */}
@@ -2185,11 +2188,13 @@ export default function TearnDashboard() {
                     <option value="active">Publish immediately</option>
                   </select>
                 </div>
-              </div>
+                            </div>
+              <div data-wizard-only="4" className="hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-950 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100"><h4 className="font-bold">Structure your learning journey</h4><p className="mt-2 text-xs leading-5 opacity-80">Create the module shell now, then use the Workhub Lessons area to add, reorder, duplicate, edit, and remove lessons. Each lesson can contain content, assignments, quizzes, resources, and a linked Short.</p></div>
+              <div data-wizard-only="5" className="hidden rounded-2xl border border-slate-200 bg-white p-5 text-sm dark:border-slate-800 dark:bg-slate-900"><h4 className="font-bold">Ready to publish?</h4><p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-400">Review your required fields, save the module, add lessons and learning checks, then use the Workhub readiness panel to publish when complete.</p></div>
             </CardContent>
-
-            <div className="flex justify-end gap-3 p-6 border-t border-white/5 flex-shrink-0 bg-slate-950/40">
-              <Button
+            <div className="flex items-center justify-between gap-3 p-6 border-t border-slate-200 dark:border-white/5 flex-shrink-0 bg-slate-100/80 dark:bg-slate-950/40">
+              <div className="flex gap-2"><Button variant="outline" className="rounded-xl font-bold text-xs" onClick={() => setModuleStep(prev => Math.max(1, prev - 1))} disabled={moduleStep === 1}>Back</Button><Button variant="outline" className="rounded-xl font-bold text-xs" onClick={() => setModuleStep(prev => Math.min(5, prev + 1))} disabled={moduleStep === 5}>Next</Button></div>
+              <div className="flex gap-3"><Button
                 variant="ghost"
                 className="rounded-xl font-bold text-xs"
                 onClick={() => setShowModuleModal(false)}
@@ -2198,11 +2203,11 @@ export default function TearnDashboard() {
               </Button>
               <Button
                 className="bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl text-xs"
-                onClick={handleCreateModule}
+                onClick={() => moduleStep < 5 ? setModuleStep(prev => Math.min(5, prev + 1)) : handleCreateModule()}
                 disabled={uploadingCover || uploadingPromoVideo}
               >
-                Create Module
-              </Button>
+                {moduleStep === 5 ? 'Create Module' : 'Save progress'}
+              </Button></div>
             </div>
           </Card>
         </div>
