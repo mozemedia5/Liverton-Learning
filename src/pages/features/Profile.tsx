@@ -17,7 +17,8 @@ import {
 import { 
   BookOpen, 
   ArrowLeft, 
-  User, 
+  User,
+  AtSign,
   Mail, 
   Phone,
   MapPin,
@@ -45,10 +46,13 @@ import { Sparkles } from 'lucide-react';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { SEO } from '@/components/SEO';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
+import { getAccountSetupStatus } from '@/services/accountSetupService';
+import { validateUsername } from '@/services/userProfileService';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { currentUser, userData, userRole, updateUserProfile, changePassword, deleteAccount, logout } = useAuth();
+  const setupStatus = getAccountSetupStatus(userData, currentUser);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -86,7 +90,8 @@ export default function Profile() {
       await currentUser.reload();
       if (currentUser.emailVerified) {
         setIsEmailVerified(true);
-        toast.success('🎉 Your email has been successfully verified!');
+        await updateUserProfile({ emailVerified: true });
+        toast.success('Your email has been successfully verified!');
       } else {
         toast.error('✉️ Email not verified yet. Please check your inbox or spam folder.');
       }
@@ -148,6 +153,7 @@ export default function Profile() {
   
   const [formData, setFormData] = useState({
     fullName: userData?.fullName || '',
+    username: userData?.username || '',
     email: userData?.email || '',
     phone: userData?.phone || '',
     address: userData?.address || '',
@@ -155,6 +161,20 @@ export default function Profile() {
   });
 
   const [enhancingBio, setEnhancingBio] = useState(false);
+
+  useEffect(() => {
+    if (!userData) return;
+    setFormData({
+      fullName: userData.fullName || '',
+      username: userData.username || '',
+      email: userData.email || currentUser?.email || '',
+      phone: userData.phone || '',
+      address: userData.address || '',
+      bio: userData.bio || '',
+    });
+    setProfileImageUrl(userData.profileImageUrl || userData.profilePicture || '');
+    setIsEmailVerified(Boolean(currentUser?.emailVerified || userData.emailVerified));
+  }, [userData, currentUser?.email, currentUser?.emailVerified]);
 
   const handleEnhanceBioWithHanna = async () => {
     if (!formData.bio.trim()) {
@@ -227,9 +247,17 @@ export default function Profile() {
         return;
       }
 
+      const usernameError = validateUsername(formData.username);
+      if (usernameError) {
+        toast.error(usernameError);
+        setIsSaving(false);
+        return;
+      }
+
       // Update user profile in Firebase
       await updateUserProfile({
         fullName: formData.fullName,
+        username: formData.username,
         phone: formData.phone,
         address: formData.address,
         bio: formData.bio,
@@ -443,7 +471,48 @@ export default function Profile() {
               </div>
               <h2 className="text-2xl font-bold mt-4">{userData?.fullName}</h2>
               <p className="text-gray-600 dark:text-gray-400">{getRoleDisplay(userRole)}</p>
+              {userData?.username && (
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">@{userData.username}</p>
+              )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Account setup progress */}
+        <Card className="border-emerald-200 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950/20 dark:via-gray-950 dark:to-teal-950/20 overflow-hidden">
+          <CardContent className="p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] font-bold text-emerald-600 dark:text-emerald-400">Account setup</p>
+                <h3 className="text-xl font-bold mt-1">Make your profile easier to trust</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Complete your setup so people can find the right account and your email stays recoverable.</p>
+              </div>
+              <div className="relative w-16 h-16 flex-shrink-0">
+                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36" aria-label={`${setupStatus.percentage}% complete`}>
+                  <path className="text-emerald-100 dark:text-emerald-950" stroke="currentColor" strokeWidth="3.5" fill="none" d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831a15.9155 15.9155 0 0 1 0-31.831" />
+                  <path className="text-emerald-500" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" strokeDasharray={`${setupStatus.percentage}, 100`} d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831a15.9155 15.9155 0 0 1 0-31.831" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-extrabold text-emerald-700 dark:text-emerald-300">{setupStatus.percentage}%</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {setupStatus.steps.map((step) => (
+                <div key={step.key} className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${step.complete ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 text-emerald-600'}`}>
+                    {step.complete ? <Check className="w-3.5 h-3.5" /> : <span className="w-2 h-2 rounded-full bg-current" />}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${step.complete ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>{step.label}</p>
+                    {!step.complete && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {setupStatus.percentage < 100 && (
+              <Button onClick={() => setIsEditing(true)} variant="outline" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-100/60 dark:border-emerald-900 dark:text-emerald-300">
+                Continue setup
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -526,6 +595,22 @@ export default function Profile() {
                     className="pl-9"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    disabled={!isEditing}
+                    className="pl-9"
+                    placeholder="your-username"
+                    autoComplete="username"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">3–30 characters: letters, numbers, dots, underscores, or hyphens. This is what people use to find you.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

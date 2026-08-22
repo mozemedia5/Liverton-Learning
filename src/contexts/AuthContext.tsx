@@ -17,6 +17,8 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'fire
 import { auth, db } from '@/lib/firebase';
 import type { User, UserRole } from '@/types';
 import { normalizeUserRole } from '@/lib/authNavigation';
+import { clearAccountSetupReminder, createAccountSetupReminder, getAccountSetupStatus, syncAccountIdentity } from '@/services/accountSetupService';
+import { claimUsername, normalizeUsername, validateUsername } from '@/services/userProfileService';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -58,6 +60,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.setTimeout(() => reject(new Error('PROFILE_LOOKUP_TIMEOUT')), 5000);
     });
     return Promise.race([getDoc(doc(db, 'users', uid)), timeout]);
+  };
+
+  const getAuthenticatedEmail = (user: FirebaseUser, fallback = '') =>
+    user.email || user.providerData.find((provider) => provider.email)?.email || fallback;
+
+  const syncAccountOnOpen = (profile: User, user: FirebaseUser) => {
+    if (!profile.uid || user.email === 'mock@liverton.com' || profile.role === 'platform_admin') return;
+
+    const authenticatedEmail = getAuthenticatedEmail(user, profile.email);
+    const setupStatus = getAccountSetupStatus(profile, user);
+    const providerIds = user.providerData.map((provider) => provider.providerId);
+    const userRef = doc(db, 'users', user.uid);
+
+    void updateDoc(userRef, {
+      email: authenticatedEmail,
+      emailVerified: user.emailVerified,
+      providerIds,
+      setupProgress: setupStatus.percentage,
+      updatedAt: serverTimestamp(),
+    }).catch((error) => console.warn('Unable to refresh account setup fields:', error));
+
+    void syncAccountIdentity({
+      ...profile,
+      email: authenticatedEmail,
+      emailVerified: user.emailVerified,
+      providerIds,
+    }, user).catch((error) => console.warn('Unable to sync searchable user identity:', error));
+
+    if (setupStatus.percentage < 100) {
+      void createAccountSetupReminder(profile, user, profile.role)
+        .catch((error) => console.warn('Unable to create account setup reminder:', error));
+    } else {
+      void clearAccountSetupReminder(user.uid)
+        .catch((error) => console.warn('Unable to clear account setup reminder:', error));
+    }
   };
 
   useEffect(() => {
@@ -119,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               data.role = normalizedRole;
               setUserData(data);
               setResolvedRole(normalizedRole);
+              syncAccountOnOpen(data, user);
             } else if (user.email === 'infoliverton@gmail.com') {
               // Fallback for the admin user if document doesn't exist yet
               const adminData: User = {
@@ -186,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.role = normalizedRole;
       setUserData(data);
       setResolvedRole(normalizedRole);
+      syncAccountOnOpen(data, userCredential.user);
       return normalizedRole;
     } else if (email === 'infoliverton@gmail.com') {
       // Fallback for the admin user if document doesn't exist
@@ -215,6 +254,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newUser: Partial<User> = {
       uid,
       email,
+      emailVerified: userCredential.user.emailVerified,
+      providerIds: userCredential.user.providerData.map((provider) => provider.providerId),
       ...userDataInput,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -227,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setDoc(doc(db, userDataInput.role + 's', uid), newUser);
       setUserData(newUser as User);
       setResolvedRole(userDataInput.role);
+      syncAccountOnOpen(newUser as User, userCredential.user);
       return userDataInput.role;
     }
 
@@ -249,12 +291,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const assignedRole = role || 'student';
       const newUser: User = {
         uid: user.uid,
-        email: user.email || '',
+        email: getAuthenticatedEmail(user),
         fullName: user.displayName || 'Google User',
         role: assignedRole,
         sex: 'other',
         age: 0,
         country: 'Uganda',
+        emailVerified: user.emailVerified,
+        providerIds: user.providerData.map((provider) => provider.providerId),
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -264,6 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUserData(newUser);
       setResolvedRole(assignedRole);
+      syncAccountOnOpen(newUser, user);
       return assignedRole;
     } else {
       // User already exists, load their data
@@ -277,6 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.role = normalizedRole;
       setUserData(data);
       setResolvedRole(normalizedRole);
+      syncAccountOnOpen(data, user);
       return normalizedRole;
     }
   };
@@ -295,12 +341,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const assignedRole = role || 'student';
       const newUser: User = {
         uid: user.uid,
-        email: user.email || '',
+        email: getAuthenticatedEmail(user),
         fullName: user.displayName || 'Apple User',
         role: assignedRole,
         sex: 'other',
         age: 0,
         country: 'Uganda',
+        emailVerified: user.emailVerified,
+        providerIds: user.providerData.map((provider) => provider.providerId),
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -310,6 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUserData(newUser);
       setResolvedRole(assignedRole);
+      syncAccountOnOpen(newUser, user);
       return assignedRole;
     }
 
@@ -322,6 +371,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data.role = normalizedRole;
     setUserData(data);
     setResolvedRole(normalizedRole);
+    syncAccountOnOpen(data, user);
     return normalizedRole;
   };
 
@@ -334,22 +384,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUserProfile = async (data: Partial<User>) => {
     if (!currentUser) return;
-    
+
+    let profileUpdate: Partial<User> = { ...data };
+    if (typeof data.username === 'string') {
+      const usernameError = validateUsername(data.username);
+      if (usernameError) throw new Error(usernameError);
+      const username = await claimUsername(normalizeUsername(data.username), currentUser.uid);
+      profileUpdate = {
+        ...profileUpdate,
+        username,
+        usernameLower: username,
+      };
+    }
+
     const userRef = doc(db, 'users', currentUser.uid);
     await updateDoc(userRef, {
-      ...data,
+      ...profileUpdate,
       updatedAt: serverTimestamp(),
     });
 
     if (userData?.role) {
       const roleRef = doc(db, userData.role + 's', currentUser.uid);
       await updateDoc(roleRef, {
-        ...data,
+        ...profileUpdate,
         updatedAt: serverTimestamp(),
       });
     }
 
-    setUserData(prev => prev ? { ...prev, ...data } : null);
+    const nextProfile = userData ? { ...userData, ...profileUpdate } : null;
+    setUserData(nextProfile);
+    if (nextProfile) {
+      syncAccountOnOpen(nextProfile, currentUser);
+    }
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {

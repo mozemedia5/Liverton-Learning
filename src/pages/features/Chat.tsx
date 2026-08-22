@@ -355,6 +355,18 @@ export default function Chat() {
     return otherId ? chat.participantRoles[otherId] : 'student';
   };
 
+  const getOtherParticipantUsername = (chat: ChatType) => {
+    if (!currentUser) return '';
+    const otherId = chat.participants.find(id => id !== currentUser.uid);
+    return otherId ? chat.participantUsernames?.[otherId] || '' : '';
+  };
+
+  const getOtherParticipantEmail = (chat: ChatType) => {
+    if (!currentUser) return '';
+    const otherId = chat.participants.find(id => id !== currentUser.uid);
+    return otherId ? chat.participantEmails?.[otherId] || '' : '';
+  };
+
   const getUnreadCount = (chat: ChatType): number => {
     if (!currentUser) return 0;
     return chat.unreadCounts?.[currentUser.uid] || 0;
@@ -364,7 +376,8 @@ export default function Chat() {
     const q = chatFilter.trim().toLowerCase();
     if (!q) return chats;
     return chats.filter(chat =>
-      getOtherParticipantName(chat).toLowerCase().includes(q) ||
+      (getOtherParticipantUsername(chat) || '').toLowerCase().includes(q) ||
+      (getOtherParticipantEmail(chat) || '').toLowerCase().includes(q) ||
       (chat.title || '').toLowerCase().includes(q) ||
       (chat.lastMessage?.content || '').toLowerCase().includes(q)
     );
@@ -856,7 +869,7 @@ export default function Chat() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input 
                   autoFocus
-                  placeholder="Search by name or email..." 
+                  placeholder="Search by username or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-gray-100 dark:bg-gray-800 border-none rounded-xl"
@@ -880,16 +893,17 @@ export default function Chat() {
                         {getInitials(user.fullName)}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <p className="font-semibold">{user.fullName}</p>
-                      <p className="text-xs text-gray-500 capitalize">{user.role.replace('_', ' ')} • {user.email}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{user.fullName}</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate">{user.username ? `@${user.username}` : 'Username not set'}</p>
+                      <p className="text-xs text-gray-500 capitalize truncate">{user.role.replace('_', ' ')} • {user.email || 'No email on file'}</p>
                     </div>
                   </button>
                 ))
               ) : searchTerm.length >= 2 ? (
                 <p className="text-center py-8 text-gray-500">No users found</p>
               ) : (
-                <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters to search</p>
+                <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters of a username or email to search</p>
               )}
             </div>
           </div>

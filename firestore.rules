@@ -305,6 +305,20 @@ service cloud.firestore {
       allow read: if isPlatformAdmin() || (isAuthenticated() && resource.data.userId == currentUserId());
       allow write: if false;
     }
+    // Authenticated learners and educators can search this deliberately minimal
+    // directory by username or email. Private profile fields stay in /users.
+    match /userDirectory/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && currentUserId() == userId && request.resource.data.uid == userId;
+      allow delete: if isAuthenticated() && currentUserId() == userId;
+    }
+    // Username claims are reserved atomically so two users cannot take one handle.
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == currentUserId() && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if isAuthenticated() && resource.data.uid == currentUserId() && request.resource.data.uid == currentUserId();
+      allow delete: if isAuthenticated() && resource.data.uid == currentUserId();
+    }
     match /uploaded_assets/{assetId} {
       allow read: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
       allow create: if isAuthenticated() && request.resource.data.uploader == currentUserId();

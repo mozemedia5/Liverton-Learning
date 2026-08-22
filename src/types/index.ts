@@ -14,6 +14,15 @@ export interface User {
   country: string;
   profilePicture?: string;
   profileImageUrl?: string; // New field for profile image URL from Firebase Storage
+  /** Safe unique handle used for chat discovery, without exposing private profile fields. */
+  username?: string;
+  usernameLower?: string;
+  /** Provider IDs associated with the Firebase account (password, Google, Apple, etc.). */
+  providerIds?: string[];
+  /** Mirror of Firebase Auth email verification state for profile/setup displays. */
+  emailVerified?: boolean;
+  /** Last calculated account setup completion percentage. */
+  setupProgress?: number;
   phone?: string; // New field for phone number
   address?: string; // New field for address
   bio?: string; // New field for bio/about
@@ -222,6 +231,8 @@ export interface Chat {
   id: string;
   participants: string[];
   participantNames: Record<string, string>;
+  participantUsernames?: Record<string, string>;
+  participantEmails?: Record<string, string>;
   participantRoles: Record<string, UserRole>;
   title?: string;
   type?: 'hanna' | 'direct';

@@ -18,12 +18,15 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
+import { mapDirectoryEntry, normalizeEmail, normalizeUsername, type UserDirectoryEntry } from '@/services/userProfileService';
 
 export interface ChatContact {
   uid: string;
   fullName: string;
   email: string;
   role: UserRole;
+  username?: string;
+  providerIds?: string[];
   profilePicture?: string;
 }
 
@@ -71,32 +74,107 @@ const formatChatDate = (date: Date): string => {
 };
 
 /**
- * Search for users by name or email to start a new chat
+ * Search for users by username or email to start a new chat.
+ * The directory only contains explicitly searchable identity fields; the old
+ * users collection is used as a bounded email-only fallback for legacy profiles.
  */
 export const searchUsers = async (searchTerm: string, currentUserId: string): Promise<ChatContact[]> => {
-  if (!searchTerm || searchTerm.length < 2) return [];
-  
+  const rawTerm = searchTerm.trim();
+  if (!rawTerm || rawTerm.length < 2) return [];
+
+  const usernameTerm = normalizeUsername(rawTerm);
+  const emailTerm = normalizeEmail(rawTerm);
+
+  const toContact = (user: UserDirectoryEntry): ChatContact => ({
+    uid: user.uid,
+    fullName: user.fullName || 'Liverton member',
+    email: user.email || '',
+    role: user.role || 'student',
+    username: user.username,
+    providerIds: user.providerIds,
+    profilePicture: user.profilePicture,
+  });
+
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, limit(20));
-    const snapshot = await getDocs(q);
-    
-    const term = searchTerm.toLowerCase();
-    return snapshot.docs
-      .map(d => ({ uid: d.id, ...d.data() } as ChatContact & { name?: string; profileImageUrl?: string }))
-      .filter(user => 
-        user.uid !== currentUserId && 
-        (user.fullName?.toLowerCase().includes(term) || user.email?.toLowerCase().includes(term))
-      )
-      .map(user => ({
-        uid: user.uid,
-        fullName: user.fullName || user.name || 'Unknown',
-        email: user.email || '',
-        role: user.role || 'student',
-        profilePicture: user.profilePicture || user.profileImageUrl
-      }));
+    const directoryCollection = collection(db, 'userDirectory');
+    const [usernameSnapshot, emailSnapshot] = await Promise.all([
+      getDocs(query(
+        directoryCollection,
+        where('usernameLower', '>=', usernameTerm),
+        where('usernameLower', '<=', `${usernameTerm}\uf8ff`),
+        limit(50),
+      )),
+      getDocs(query(
+        directoryCollection,
+        where('emailLower', '>=', emailTerm),
+        where('emailLower', '<=', `${emailTerm}\uf8ff`),
+        limit(50),
+      )),
+    ]);
+
+    const directoryResults = Array.from(new Map(
+      [...usernameSnapshot.docs, ...emailSnapshot.docs].map((directoryDoc) => [directoryDoc.id, mapDirectoryEntry(directoryDoc)]),
+    ).values())
+      .filter((user) => user.uid !== currentUserId && user.isDiscoverable)
+      .filter((user) => {
+        const username = user.usernameLower || normalizeUsername(user.username);
+        const email = user.emailLower || normalizeEmail(user.email);
+        return username.startsWith(usernameTerm) || email.startsWith(emailTerm);
+      })
+      .sort((a, b) => {
+        const aExact = (a.usernameLower === usernameTerm || a.emailLower === emailTerm) ? 1 : 0;
+        const bExact = (b.usernameLower === usernameTerm || b.emailLower === emailTerm) ? 1 : 0;
+        return bExact - aExact || a.fullName.localeCompare(b.fullName);
+      })
+      .slice(0, 50)
+      .map(toContact);
+
+    if (directoryResults.length > 0) return directoryResults;
+
+    // Legacy profiles may not have opened the app since userDirectory was added.
+    // Keep the fallback email-only so display-name guessing is no longer used.
+    const legacyCollection = collection(db, 'users');
+    const [legacyEmailSnapshot, legacyUsernameSnapshot] = await Promise.all([
+      getDocs(query(
+        legacyCollection,
+        where('email', '>=', emailTerm),
+        where('email', '<=', `${emailTerm}\uf8ff`),
+        limit(50),
+      )),
+      getDocs(query(
+        legacyCollection,
+        where('usernameLower', '>=', usernameTerm),
+        where('usernameLower', '<=', `${usernameTerm}\uf8ff`),
+        limit(50),
+      )),
+    ]);
+    const legacySnapshotDocs = Array.from(new Map(
+      [...legacyEmailSnapshot.docs, ...legacyUsernameSnapshot.docs].map((legacyDoc) => [legacyDoc.id, legacyDoc]),
+    ).values());
+    return legacySnapshotDocs
+      .map((userDoc) => {
+        const data = userDoc.data();
+        const email = data.email || '';
+        const username = data.username || '';
+        return {
+          uid: userDoc.id,
+          fullName: data.fullName || data.name || 'Liverton member',
+          email,
+          role: data.role || 'student',
+          username,
+          usernameLower: data.usernameLower || normalizeUsername(username),
+          emailLower: data.emailLower || normalizeEmail(email),
+          profilePicture: data.profilePicture || data.profileImageUrl,
+          providerIds: Array.isArray(data.providerIds) ? data.providerIds : undefined,
+          isDiscoverable: data.isDiscoverable !== false,
+        } as UserDirectoryEntry;
+      })
+      .filter((user) => user.uid !== currentUserId && user.isDiscoverable)
+      .filter((user) => (user.usernameLower || '').startsWith(usernameTerm) || (user.emailLower || '').startsWith(emailTerm))
+      .slice(0, 50)
+      .map(toContact);
   } catch (error) {
-    console.error('Error searching users:', error);
+    console.error('Error searching the user directory:', error);
     throw error;
   }
 };
@@ -134,8 +212,8 @@ export const togglePinChat = async (chatId: string, userId: string): Promise<boo
 export const getOrCreateChat = async (
   currentUserId: string, 
   targetUserId: string, 
-  currentUserData: { fullName?: string; role?: string },
-  targetUserData: { fullName?: string; role?: string },
+  currentUserData: { fullName?: string; role?: string; username?: string; email?: string },
+  targetUserData: { fullName?: string; role?: string; username?: string; email?: string },
   initialMessage?: string
 ): Promise<string> => {
   try {
@@ -168,6 +246,14 @@ export const getOrCreateChat = async (
       participantNames: {
         [currentUserId]: currentUserData.fullName || 'Me',
         [targetUserId]: targetUserData.fullName || 'User'
+      },
+      participantUsernames: {
+        [currentUserId]: currentUserData.username || '',
+        [targetUserId]: targetUserData.username || ''
+      },
+      participantEmails: {
+        [currentUserId]: currentUserData.email || '',
+        [targetUserId]: targetUserData.email || ''
       },
       participantRoles: {
         [currentUserId]: currentUserData.role || 'student',

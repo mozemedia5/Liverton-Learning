@@ -54,7 +54,9 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
           const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
           if (expiresAt && expiresAt <= now) return;
           const targets: string[] = Array.isArray(data.targetAudience) ? data.targetAudience : [];
+          const targetUsers: string[] = Array.isArray(data.targetUsers) ? data.targetUsers : [];
           const targeted =
+            targetUsers.includes(currentUser.uid) ||
             targets.includes('all') ||
             (audienceKey && targets.includes(audienceKey)) ||
             (userRole && targets.includes(userRole)) ||
