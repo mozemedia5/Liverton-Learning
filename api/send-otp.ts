@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, json, parseBody, safeString } from './_lib/server';
+import { applyCors, json, parseBody, safeString } from './_lib/server.js';
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 15 * 60 * 1000;

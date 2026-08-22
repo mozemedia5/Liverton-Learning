@@ -1,89 +1,108 @@
-# Comprehensive Cloudinary Upload Presets & Asset Architecture Report
+# Cloudinary Upload Integration
 
-This report provides a complete, technical overview of how media uploads and Cloudinary upload presets are configured, invoked, and managed across the Liverton Learning platform.
+This document describes the active file-upload path used by Liverton Learning.
 
----
+## Architecture
 
-## 1. Configured Upload Presets & Classification
+Liverton Learning uses **server-signed Cloudinary uploads**. The browser never receives `CLOUDINARY_API_SECRET` and does not depend on unsigned upload presets.
 
-The application uses five dedicated, unsigned Cloudinary upload presets. Each preset is tailored for specific file types, payload sizes, and storage behaviors:
+1. A signed-in Firebase user selects a file in the browser.
+2. `src/services/cloudinaryService.ts` requests a short-lived signature from `POST /api/cloudinary/sign` with the Firebase ID token.
+3. `api/cloudinary/sign.ts` verifies the Firebase token, validates the file category, MIME type, and size, then signs the `folder` and `timestamp` parameters with the server-only Cloudinary API secret.
+4. The browser uploads the file directly to the matching Cloudinary resource endpoint using the returned cloud name, API key, timestamp, signature, and folder.
+5. The successful asset URL is tracked in Firestore under `uploaded_assets`.
 
-| Preset Identifier | Purpose | File Types Supported | Cloud Name / Target Endpoint |
-| :--- | :--- | :--- | :--- |
-| `liverton_learning_images` | Profile pictures, module covers, event banners, and image attachments | `.png`, `.jpg`, `.jpeg`, `.webp`, `.svg`, `.gif` | `https://api.cloudinary.com/v1_1/fbciycdw/image/upload` |
-| `liverton_learning_courses` | Full course lectures, HD instructional videos (>20MB), and chat videos | `.mp4`, `.mov`, `.webm`, `.avi`, `.mkv` | `https://api.cloudinary.com/v1_1/fbciycdw/video/upload` |
-| `liverton_learning_shorts` | Micro promotional teasers, educational shorts (<=20MB) | `.mp4`, `.mov`, `.webm` | `https://api.cloudinary.com/v1_1/fbciycdw/video/upload` |
-| `liverton_learning_audio` | Voice messages, audio notes, and podcast materials | `.mp3`, `.wav`, `.aac`, `.m4a`, `.ogg` | `https://api.cloudinary.com/v1_1/fbciycdw/video/upload` |
-| `liverton_learning_documents` | PDF documents, assignments, spreadsheets, slides, ZIP archives | `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.zip` | `https://api.cloudinary.com/v1_1/fbciycdw/raw/upload` |
+Cloudinary signatures are valid for one hour. The signature must be generated from exactly the same signed parameters sent in the upload request.
 
----
+## Server configuration
 
-## 2. Automatic Classification Logic (`mapFileToCloudinaryType`)
+Set these variables in the **Vercel project that serves Liverton Learning**. They must not be prefixed with `VITE_` and must never be committed to Git:
 
-When a user selects or drops a file anywhere in the app, `mapFileToCloudinaryType(file, fileName, isChat)` dynamically determines the optimal preset:
-
-1. **Images (`image/*`)** $\rightarrow$ `liverton_learning_images`
-2. **Audio (`audio/*`)** $\rightarrow$ `liverton_learning_audio` (Uploaded under Cloudinary's `video` resource endpoint)
-3. **Videos (`video/*`)**:
-   - If in chat (`isChat = true`) $\rightarrow$ `liverton_learning_courses` (For temporary chat videos)
-   - If size > 20MB $\rightarrow$ `liverton_learning_courses`
-   - If size <= 20MB $\rightarrow$ `liverton_learning_shorts`
-4. **Documents (`application/pdf`, `.doc`, `.zip`, etc.)** $\rightarrow$ `liverton_learning_documents` (Uploaded under Cloudinary's `raw` endpoint)
-
----
-
-## 3. Progress Tracking & Callbacks (`uploadToCloudinary`)
-
-The upload engine in `src/services/cloudinaryService.ts` utilizes `XMLHttpRequest` instead of standard `fetch` to enable real byte-level progress monitoring for large videos and files:
-
-```typescript
-export async function uploadToCloudinary(
-  file: File | Blob,
-  type: CloudinaryUploadType = 'image',
-  options: CloudinaryUploadOptions = {}
-): Promise<string>
+```text
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+FIREBASE_PROJECT_ID=your_firebase_project_id
+FIREBASE_CLIENT_EMAIL=your_firebase_admin_client_email
+FIREBASE_PRIVATE_KEY=your_firebase_private_key_with_escaped_newlines
+ALLOWED_ORIGINS=https://liverton-learning.vercel.app
 ```
 
-### Key Execution Highlights:
-- **Real Progress Callback**: Pass `onProgress: (percent: number) => void` to update UI progress bars (0% to 100%).
-- **Error Handling**: Displays friendly toast notifications (`showErrorToast: true`) on network dropouts or validation failures.
-- **Firestore Tracking**: Automatically writes a tracking record into the `uploaded_assets` collection in Firestore.
+The Cloudinary cloud name and API key are safe to return to the browser as part of a signed upload response. The API secret is server-only. If the API secret has ever been exposed publicly, rotate it in Cloudinary before configuring the new value in Vercel.
 
----
+## Upload categories and limits
 
-## 4. Firestore Asset Tracking & Temporary Cleanup Routine
+| Category | Cloudinary resource endpoint | Accepted content | Maximum size | Default folder suffix |
+| --- | --- | --- | ---: | --- |
+| `image` | `image/upload` | `image/*` | 20 MB | `image` |
+| `course_video` | `video/upload` | `video/*` | 100 MB | `course_video` |
+| `short_video` | `video/upload` | `video/*` | 100 MB | `short_video` |
+| `audio` | `video/upload` | `audio/*` or generic binary audio | 100 MB | `audio` |
+| `document` | `raw/upload` | PDF, office documents, text, CSV, ZIP, and RAR | 25 MB | `document` |
 
-Whenever a file is uploaded, a tracking document is generated inside `uploaded_assets`:
+Each upload is written to a user-specific folder:
+
+```text
+liverton/<firebase_uid>/<upload_type>
+```
+
+The `short_video` client limit is intentionally aligned with the server limit. Files larger than 100 MB require a separate chunked-upload implementation and are rejected by the current signed endpoint.
+
+## Cloudinary Console setup
+
+The active implementation does **not** require the historical unsigned presets named `liverton_learning_images`, `liverton_learning_courses`, `liverton_learning_shorts`, `liverton_learning_audio`, or `liverton_learning_documents`. Those presets can remain disabled or be removed after confirming that no separate application depends on them.
+
+The Cloudinary account must contain the API key whose secret is configured in Vercel. The cloud name, API key, and API secret must all belong to the same Cloudinary product environment. A mismatched cloud name/API key/secret combination produces Cloudinary authorization or signature errors even when the application code is correct.
+
+## Firestore tracking and temporary chat media
+
+Successful uploads are tracked in the `uploaded_assets` collection with the following fields:
 
 ```json
 {
-  "publicId": "liverton-learning/shorts/abc123",
+  "publicId": "liverton/user-id/short_video/example",
   "resourceType": "video",
-  "url": "https://res.cloudinary.com/fbciycdw/video/upload/v1/...",
+  "url": "https://res.cloudinary.com/example/video/upload/example.mp4",
   "uploadedAt": "Timestamp",
-  "uploader": "user_uid",
+  "uploader": "firebase-user-id",
   "contentType": "video/mp4",
-  "referenceId": "module_id_or_chat_id",
+  "referenceId": "course-or-chat-id",
   "purpose": "shorts",
   "isTemporaryChatVideo": false
 }
 ```
 
-### Automatic 7-Day Cleanup Policy:
-For temporary chat videos (`purpose: 'chat_video'`), `isTemporaryChatVideo` is set to `true` and `deleteAfter` is calculated as 7 days from upload. The background cleanup function `cleanupTemporaryChatVideos()` runs on app layout mount to automatically prune expired temporary chat video tracking documents while preserving permanent course lectures, shorts, and documents!
+Chat videos can be marked with `purpose: "chat_video"`. The client cleanup routine removes expired Firestore tracking records after seven days. Removing a Firestore record does not delete the Cloudinary asset itself; server-side deletion or a scheduled reconciliation job should be added if full storage cleanup is required.
 
----
+## Troubleshooting unauthorized uploads
 
-## 5. Summary of Application Workflows Utilizing Cloudinary Presets
+| Symptom | Meaning | Action |
+| --- | --- | --- |
+| `401 Authentication required` from `/api/cloudinary/sign` | Firebase ID token is missing or cannot be verified | Sign in again and confirm the Firebase Admin variables are present in Vercel. |
+| `503 Cloudinary server configuration is incomplete` | One or more server-only variables are missing | Add `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, and the Firebase Admin variables to the correct Vercel environment, then redeploy. |
+| `Could not authorize upload` or a 500 from `/api/cloudinary/sign` | The API function failed before returning a signature | Check the Vercel runtime logs. Relative API imports must use explicit `.js` specifiers for the Node ESM runtime. |
+| Cloudinary HTTP 401 after a signature was returned | The Cloudinary credentials do not match, the signature is stale, or the request parameters differ from the signed parameters | Verify that cloud name, API key, and API secret are from the same Cloudinary environment; redeploy after rotating credentials. |
+| Cloudinary HTTP 400 with a file-policy message | The file type or size is outside the application policy | Use an accepted format and remain within the category limit. |
 
-1. **Work Hub Module Creation (`TearnDashboard.tsx`)**:
-   - Cover Image: Uploaded to `liverton_learning_images`
-   - Promotional Short Video: Uploaded to `liverton_learning_shorts`
-2. **Liv Teams Workspace & Chat (`TeamWorkspaceChat.tsx`)**:
-   - Chat voice notes, documents, and video clips uploaded directly via presets.
-3. **PDF Document Library (`Documents.tsx`)**:
-   - PDFs uploaded to `liverton_learning_documents` with reading progress tracked.
-4. **Dashboard Banners (`DashboardBanners.tsx`)**:
-   - Banners and promo video slides uploaded to `liverton_learning_images` or `liverton_learning_shorts`.
-5. **Hanna AI Attachments (`HannaButton.tsx`, `HannaChatIntegrated.tsx`)**:
-   - User file uploads analyzed by Gemini AI routed via mapped presets.
+## Verification checklist
+
+1. Confirm the Vercel deployment is built from the current `main` branch.
+2. Open `/api/health` and confirm `cloudinarySigning: true` and `firebaseAdmin: true`.
+3. Sign in through the deployed application.
+4. Upload a small PNG first, then test one document, audio file, and video within the stated limits.
+5. Confirm the Cloudinary Media Library contains the asset under the user-specific folder.
+6. Confirm the corresponding `uploaded_assets` document exists in Firestore.
+
+The health endpoint reports only whether required variables exist; it never returns secret values.
+
+## Relevant source files
+
+- `src/services/cloudinaryService.ts` — client signature request and direct upload.
+- `api/cloudinary/sign.ts` — Firebase-authenticated server signer and upload policy.
+- `api/_lib/server.ts` — Firebase Admin token verification and CORS handling.
+- `api/health.ts` — non-secret deployment configuration health check.
+- `src/services/cloudinaryService.test.ts` — signed-upload regression tests.
+
+See also the [official Cloudinary signed-upload documentation](https://cloudinary.com/documentation/authentication_signatures).
+
+See also the [official Cloudinary Upload API reference](https://cloudinary.com/documentation/image_upload_api_reference).

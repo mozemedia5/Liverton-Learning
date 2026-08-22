@@ -1,7 +1,7 @@
 import type { Content, Part } from '@google/generative-ai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminFirestore, applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server';
-import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini';
+import { getAdminFirestore, applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server.js';
+import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini.js';
 
 const MAX_HISTORY = 20;
 const MAX_ATTACHMENTS = 5;

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, json, parseBody, requireIdentity, safeString } from '../_lib/server';
+import { applyCors, json, parseBody, requireIdentity, safeString } from '../_lib/server.js';
 
 const UPLOAD_TYPES = {
   image: { resourceType: 'image', maxBytes: 20 * 1024 * 1024 },

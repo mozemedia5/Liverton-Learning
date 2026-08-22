@@ -15,7 +15,7 @@ import { subscribeToTeacherCourses, type Course } from '@/services/courseService
 import { createShort, type ShortLearningLinkType } from '@/services/tearnService';
 import { getTeacherLessons, type ZoomLesson } from '@/lib/zoomService';
 
-const MAX_SHORT_SIZE = 200 * 1024 * 1024;
+const MAX_SHORT_SIZE = 100 * 1024 * 1024;
 
 type SelectedLink = {
   type: ShortLearningLinkType;
@@ -127,7 +127,7 @@ export default function ShortUpload() {
       return;
     }
     if (file.size > MAX_SHORT_SIZE) {
-      toast.error('Short videos must be 200 MB or smaller.');
+      toast.error('Short videos must be 100 MB or smaller.');
       return;
     }
     setShortFile(file);
