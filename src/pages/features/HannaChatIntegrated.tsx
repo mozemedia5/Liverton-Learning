@@ -618,7 +618,7 @@ export default function HannaChatIntegrated() {
   return (
     <>
       <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
-      <div className="flex h-[100dvh] min-h-0 bg-[#fafafc] dark:bg-[#0c0d12] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+      <div className="liv-hanna-page flex h-[100dvh] min-h-0 bg-[#fafafc] dark:bg-[#0c0d12] text-slate-900 dark:text-slate-100 overflow-hidden relative">
 
         {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
@@ -633,11 +633,11 @@ export default function HannaChatIntegrated() {
               ? 'translate-x-0 w-[min(20rem,calc(100vw-1rem))] opacity-100'
               : '-translate-x-full opacity-0 lg:w-0 lg:opacity-0 lg:overflow-hidden lg:border-r-0 lg:translate-x-0'
             }
-            lg:relative lg:bg-white/40 lg:dark:bg-[#0c0d12]/40
+            liv-hanna-sidebar lg:relative lg:bg-white/40 lg:dark:bg-[#0c0d12]/40
           `}
         >
           {/* ChatGPT-style Sidebar Header with Prominent "+ New Chat" button at the top */}
-          <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex flex-col gap-3 bg-slate-50/50 dark:bg-white/5">
+          <div className="liv-hanna-sidebar-header p-4 border-b border-slate-200/50 dark:border-white/5 flex flex-col gap-3 bg-slate-50/50 dark:bg-white/5">
             <div className="flex items-center justify-between">
               <h1 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
                 Hanna History
@@ -658,7 +658,7 @@ export default function HannaChatIntegrated() {
             {/* ChatGPT-style Big Prominent "+ New Chat" Button */}
             <Button
               onClick={handleNewChat}
-              className="w-full flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl py-5 font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="liv-hanna-new-chat w-full flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl py-5 font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               <Plus className="w-4 h-4" />
               New Conversation
@@ -672,7 +672,7 @@ export default function HannaChatIntegrated() {
                 placeholder="Search chats..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-white/5 border border-transparent focus:border-emerald-500/30 outline-none text-slate-800 dark:text-slate-100"
+                className="liv-hanna-sidebar-search w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-white/5 border border-transparent focus:border-emerald-500/30 outline-none text-slate-800 dark:text-slate-100"
               />
             </div>
           </div>
@@ -714,7 +714,7 @@ export default function HannaChatIntegrated() {
           </div>
 
           {/* Unified Action Bar inside the Sidebar */}
-          <div className="p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
+          <div className="liv-hanna-sidebar-footer p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
             <button
               onClick={() => {
                 setSettingsTab('about');
@@ -759,7 +759,7 @@ export default function HannaChatIntegrated() {
         <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
 
           {/* Custom Overlapping Avatars Header resembling Gemini in Firebase Cloud Console */}
-          <header className="px-2.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
+          <header className="liv-hanna-header px-2.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               {/* Back Button with brand logo */}
               <Button
@@ -838,7 +838,7 @@ export default function HannaChatIntegrated() {
           {currentChatId ? (
             <>
               {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
-              <div ref={scrollContainerRef} onScroll={handleMessageScroll} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 scrollbar-thin overscroll-contain">
+              <div ref={scrollContainerRef} onScroll={handleMessageScroll} className="liv-hanna-thread flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 scrollbar-thin overscroll-contain">
                 <div className="max-w-3xl mx-auto space-y-5 sm:space-y-6">
 
                   {/* Empty state: Suggested prompts for streamlined user guidance */}
@@ -871,7 +871,7 @@ export default function HannaChatIntegrated() {
                               setInputValue(item.prompt);
                               textareaRef.current?.focus();
                             }}
-                            className="group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left animate-in fade-in slide-in-from-bottom-4 duration-500 suggestion-card-animate shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                            className="liv-hanna-suggestion group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left animate-in fade-in slide-in-from-bottom-4 duration-500 suggestion-card-animate shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
                             style={{
                               animationDelay: `${i * 200}ms`,
                               animationFillMode: 'both'
@@ -937,8 +937,8 @@ export default function HannaChatIntegrated() {
                               className={`
                                 px-3.5 sm:px-4 py-3 text-[13px] sm:text-sm leading-relaxed break-words shadow-sm
                                 ${isUser
-                                  ? 'bg-emerald-600 dark:bg-emerald-600 text-white rounded-[24px] rounded-tr-[4px] font-medium'
-                                  : 'bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px]'}
+                                  ? 'liv-hanna-bubble-user bg-emerald-600 dark:bg-emerald-600 text-white rounded-[24px] rounded-tr-[4px] font-medium'
+                                  : 'liv-hanna-bubble-assistant bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px]'}
                               `}
                             >
                               <HannaMarkdown text={message.content} />
@@ -984,7 +984,7 @@ export default function HannaChatIntegrated() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px] px-4 py-3 text-sm leading-relaxed shadow-sm min-w-[100px]">
+                        <div className="liv-hanna-bubble-assistant bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px] px-4 py-3 text-sm leading-relaxed shadow-sm min-w-[100px]">
                           {typewriterText ? (
                             <div>
                               <HannaMarkdown text={typewriterText} />
@@ -1018,7 +1018,7 @@ export default function HannaChatIntegrated() {
               )}
 
               {/* Composer Box (Clean modern layout position at bottom centered) */}
-              <footer className="sticky bottom-0 p-2 sm:p-4 bg-[#fafafc]/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-t border-slate-200/50 dark:border-white/5 relative z-20 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:pb-4">
+              <footer className="liv-hanna-composer sticky bottom-0 p-2 sm:p-4 bg-[#fafafc]/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-t border-slate-200/50 dark:border-white/5 relative z-20 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:pb-4">
                 <div className="max-w-2xl mx-auto space-y-3">
 
                   {/* Subtle Animated Suggestion Action Pills */}
@@ -1069,7 +1069,7 @@ export default function HannaChatIntegrated() {
                   {/* Input Form with modern floating focus borders */}
                   <form
                     onSubmit={handleSend}
-                    className="flex items-end gap-1.5 sm:gap-2.5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-2.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200"
+                    className="liv-hanna-composer-form flex items-end gap-1.5 sm:gap-2.5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-2.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200"
                   >
                     <input
                       ref={fileInputRef}

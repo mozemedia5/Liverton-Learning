@@ -443,7 +443,7 @@ export default function Chat() {
   return (
     <>
       <SEO title="Chats" description="Chat with teachers, students and school teams on Liverton Learning." noIndex />
-    <div className="flex h-full bg-white dark:bg-[#07070a] overflow-hidden relative">
+    <div className="liv-chat-page flex h-full bg-white dark:bg-[#07070a] overflow-hidden relative">
       {/* Background decoration */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
@@ -452,13 +452,13 @@ export default function Chat() {
       <aside 
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          fixed inset-y-0 left-0 z-30 w-80 lg:relative lg:translate-x-0
+          liv-chat-sidebar fixed inset-y-0 left-0 z-30 w-80 lg:relative lg:translate-x-0
           bg-white/95 dark:bg-[#0d0d12]/95 border-r border-gray-200 dark:border-white/5 backdrop-blur-md
           transition-all duration-300 ease-in-out flex flex-col z-20
         `}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
+        <div className="liv-chat-sidebar-header p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
           <h1 className="text-xl font-bold">Messages</h1>
           <div className="flex gap-2">
             <Button 
@@ -616,7 +616,7 @@ export default function Chat() {
         {selectedChat ? (
           <>
             {/* Chat Header */}
-            <header className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white/80 dark:bg-[#07070a]/80 backdrop-blur-md sticky top-0 z-20">
+            <header className="liv-chat-header p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white/80 dark:bg-[#07070a]/80 backdrop-blur-md sticky top-0 z-20">
               <div className="flex items-center gap-3">
                 <Button 
                   variant="ghost" 
@@ -652,7 +652,7 @@ export default function Chat() {
 
             {/* Messages Area with Wallpaper */}
             <div 
-              className="flex-1 overflow-y-auto p-4 space-y-1" 
+              className="liv-chat-thread flex-1 overflow-y-auto p-4 space-y-1"
               style={getWallpaperStyle()}
             >
               {messageGroups.map((group, groupIdx) => (
@@ -673,8 +673,8 @@ export default function Chat() {
                         <div className={`
                           max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
                           ${isMe 
-                            ? `bg-emerald-600 text-white rounded-tr-none`
-                            : 'bg-white dark:bg-[#111115] text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-white/5'}
+                            ? `liv-chat-bubble-sent bg-emerald-600 text-white rounded-tr-none`
+                            : 'liv-chat-bubble-received bg-white dark:bg-[#111115] text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-white/5'}
                         `}
                         style={{
                           fontSize: `${chatSettings.fontSize}px`,
@@ -750,10 +750,10 @@ export default function Chat() {
             )}
 
             {/* Elegant Premium Message Input Composer Unified with Hanna AI */}
-            <footer className="p-4 bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5">
+            <footer className="liv-chat-composer p-4 bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5">
               <form 
                 onSubmit={handleSendMessage}
-                className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
+                className="liv-chat-composer-form flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
               >
                 <input
                   ref={fileInputRef}
@@ -828,7 +828,7 @@ export default function Chat() {
             </footer>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50 dark:bg-black">
+          <div className="liv-chat-empty flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50 dark:bg-black">
             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
               <MessageSquare className="w-10 h-10 text-emerald-600" />
             </div>

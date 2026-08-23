@@ -729,3 +729,451 @@ body {
 .dark [class~="dark:border-slate-800"] {
   border-color: rgba(255, 255, 255, .10) !important;
 }
+
+
+/* Chat and Hanna contrast calibration: reference-led white surfaces with measured charcoal dark mode. */
+.liv-chat-page {
+  --chat-paper: #f6f6f2;
+  --chat-surface: #ffffff;
+  --chat-raised: #fbfbf8;
+  --chat-ink: #111214;
+  --chat-muted: #6f756f;
+  --chat-line: #e2e4df;
+}
+
+.liv-chat-page,
+.liv-hanna-page {
+  color: var(--chat-ink, #111214);
+}
+
+.liv-chat-page {
+  background: var(--chat-paper) !important;
+}
+
+.liv-chat-page .liv-chat-sidebar,
+.liv-chat-page .liv-chat-header,
+.liv-chat-page .liv-chat-composer {
+  background: rgba(255, 255, 253, .96) !important;
+  border-color: var(--chat-line) !important;
+}
+
+.liv-chat-page .liv-chat-sidebar-header {
+  background: #ffffff;
+  border-color: var(--chat-line);
+}
+
+.liv-chat-page .liv-chat-thread,
+.liv-chat-page .liv-chat-empty {
+  background-color: var(--chat-paper);
+}
+
+.liv-chat-page .liv-chat-thread {
+  color: var(--chat-ink);
+}
+
+.liv-chat-page .liv-chat-bubble-received {
+  background: var(--chat-surface) !important;
+  border-color: #dedfda !important;
+  color: var(--chat-ink) !important;
+  box-shadow: 0 4px 14px rgba(25, 28, 24, .045);
+}
+
+.liv-chat-page .liv-chat-bubble-sent {
+  background: var(--chat-ink) !important;
+  color: #ffffff !important;
+  box-shadow: 0 5px 16px rgba(17, 18, 20, .14);
+}
+
+.liv-chat-page .liv-chat-bubble-received p,
+.liv-chat-page .liv-chat-bubble-received span,
+.liv-chat-page .liv-chat-bubble-received h1,
+.liv-chat-page .liv-chat-bubble-received h2,
+.liv-chat-page .liv-chat-bubble-received h3,
+.liv-chat-page .liv-chat-bubble-received h4,
+.liv-chat-page .liv-chat-bubble-received h5,
+.liv-chat-page .liv-chat-bubble-received h6 {
+  color: var(--chat-ink);
+}
+
+.liv-chat-page .liv-chat-bubble-sent [class~="text-emerald-100"],
+.liv-chat-page .liv-chat-bubble-sent [class~="text-emerald-200/60"] {
+  color: #d9f776 !important;
+}
+
+.liv-chat-page .liv-chat-composer-form {
+  background: rgba(255, 255, 255, .98) !important;
+  border-color: #dfe1dc !important;
+  box-shadow: 0 12px 30px rgba(25, 28, 24, .08);
+}
+
+.liv-chat-page .liv-chat-composer input,
+.liv-chat-page .liv-chat-composer textarea {
+  color: var(--chat-ink) !important;
+}
+
+.liv-chat-page .liv-chat-composer input::placeholder,
+.liv-chat-page .liv-chat-composer textarea::placeholder {
+  color: #858b84 !important;
+  opacity: 1;
+}
+
+.liv-chat-page .liv-chat-empty {
+  color: var(--chat-ink);
+}
+
+.liv-chat-page .liv-chat-empty p,
+.liv-chat-page .liv-chat-sidebar .text-gray-500,
+.liv-chat-page .liv-chat-sidebar .text-slate-500 {
+  color: var(--chat-muted) !important;
+}
+
+.liv-chat-page .liv-chat-sidebar [class~="bg-gray-100"] {
+  background: #eef0eb !important;
+}
+
+.liv-chat-page .liv-chat-sidebar button:hover {
+  background: #eef0eb;
+}
+
+.liv-chat-page .liv-chat-sidebar [class~="bg-emerald-500/10"] {
+  background: #edf7d4 !important;
+}
+
+.liv-chat-page .liv-chat-sidebar [class~="text-gray-900"] {
+  color: var(--chat-ink) !important;
+}
+
+.liv-chat-page .liv-chat-thread [class~="bg-gray-100"] {
+  background: #eceee9 !important;
+  color: #4b514c !important;
+}
+
+.liv-chat-page .liv-chat-thread [class~="border-gray-200"] {
+  border-color: #dfe1dc !important;
+}
+
+.liv-hanna-page {
+  --hanna-paper: #f6f6f2;
+  --hanna-surface: #ffffff;
+  --hanna-raised: #fbfbf8;
+  --hanna-ink: #111214;
+  --hanna-muted: #737a74;
+  --hanna-line: #e1e3de;
+  background: var(--hanna-paper) !important;
+  color: var(--hanna-ink) !important;
+}
+
+.liv-hanna-page .liv-hanna-sidebar {
+  background: rgba(255, 255, 253, .96) !important;
+  border-color: var(--hanna-line) !important;
+}
+
+.liv-hanna-page .liv-hanna-sidebar-header,
+.liv-hanna-page .liv-hanna-sidebar-footer {
+  background: #fbfbf8 !important;
+  border-color: var(--hanna-line) !important;
+}
+
+.liv-hanna-page .liv-hanna-header {
+  background: #ffffff !important;
+  color: var(--hanna-ink) !important;
+  border-color: var(--hanna-line) !important;
+  box-shadow: 0 3px 14px rgba(25, 28, 24, .04);
+}
+
+.liv-hanna-page .liv-hanna-header .text-slate-100,
+.liv-hanna-page .liv-hanna-header .text-white {
+  color: var(--hanna-ink) !important;
+}
+
+.liv-hanna-page .liv-hanna-header .text-slate-300,
+.liv-hanna-page .liv-hanna-header .text-slate-400 {
+  color: #646b65 !important;
+}
+
+.liv-hanna-page .liv-hanna-header button:hover {
+  background: #eef0eb !important;
+}
+
+.liv-hanna-page .liv-hanna-thread {
+  background: var(--hanna-paper);
+  color: var(--hanna-ink);
+}
+
+.liv-hanna-page .liv-hanna-new-chat {
+  background: #edf7d4 !important;
+  border-color: #d7e7a7 !important;
+  color: #304215 !important;
+}
+
+.liv-hanna-page .liv-hanna-sidebar-search {
+  background: #eef0eb !important;
+  border-color: #eef0eb !important;
+  color: var(--hanna-ink) !important;
+}
+
+.liv-hanna-page .liv-hanna-sidebar-search::placeholder {
+  color: #858b84 !important;
+  opacity: 1;
+}
+
+.liv-hanna-page .liv-hanna-suggestion {
+  background: rgba(255, 255, 255, .92) !important;
+  border-color: #e0e2dd !important;
+  color: var(--hanna-ink) !important;
+  box-shadow: 0 4px 14px rgba(25, 28, 24, .04);
+}
+
+.liv-hanna-page .liv-hanna-suggestion:hover {
+  background: #ffffff !important;
+  border-color: #b9d477 !important;
+}
+
+.liv-hanna-page .liv-hanna-suggestion [class~="text-slate-800"],
+.liv-hanna-page .liv-hanna-suggestion [class~="text-slate-900"] {
+  color: var(--hanna-ink) !important;
+}
+
+.liv-hanna-page .liv-hanna-suggestion [class~="text-slate-400"],
+.liv-hanna-page .liv-hanna-suggestion [class~="text-slate-500"] {
+  color: var(--hanna-muted) !important;
+}
+
+.liv-hanna-page .liv-hanna-bubble-assistant {
+  background: var(--hanna-surface) !important;
+  border-color: #dedfda !important;
+  color: var(--hanna-ink) !important;
+  box-shadow: 0 4px 14px rgba(25, 28, 24, .045);
+}
+
+.liv-hanna-page .liv-hanna-bubble-assistant p,
+.liv-hanna-page .liv-hanna-bubble-assistant span,
+.liv-hanna-page .liv-hanna-bubble-assistant h2,
+.liv-hanna-page .liv-hanna-bubble-assistant h3,
+.liv-hanna-page .liv-hanna-bubble-assistant h4,
+.liv-hanna-page .liv-hanna-bubble-assistant h5,
+.liv-hanna-page .liv-hanna-bubble-assistant h6,
+.liv-hanna-page .liv-hanna-bubble-assistant [class~="text-slate-900"],
+.liv-hanna-page .liv-hanna-bubble-assistant [class~="text-slate-800"],
+.liv-hanna-page .liv-hanna-bubble-assistant [class~="text-slate-700"] {
+  color: var(--hanna-ink) !important;
+}
+
+.liv-hanna-page .liv-hanna-bubble-user {
+  background: var(--hanna-ink) !important;
+  color: #ffffff !important;
+  box-shadow: 0 5px 16px rgba(17, 18, 20, .14);
+}
+
+.liv-hanna-page .liv-hanna-composer {
+  background: rgba(246, 246, 242, .96) !important;
+  border-color: var(--hanna-line) !important;
+}
+
+.liv-hanna-page .liv-hanna-composer-form {
+  background: rgba(255, 255, 255, .98) !important;
+  border-color: #dfe1dc !important;
+  box-shadow: 0 12px 30px rgba(25, 28, 24, .08);
+}
+
+.liv-hanna-page .liv-hanna-composer textarea {
+  color: var(--hanna-ink) !important;
+}
+
+.liv-hanna-page .liv-hanna-composer textarea::placeholder {
+  color: #858b84 !important;
+  opacity: 1;
+}
+
+.liv-hanna-page .liv-hanna-composer > div > p {
+  color: #737a74 !important;
+}
+
+.liv-hanna-page .liv-hanna-sidebar-footer button,
+.liv-hanna-page .liv-hanna-sidebar [class*="text-slate-700"] {
+  color: #303631;
+}
+
+/* Keep the dark mode charcoal rather than black, with an almost-white foreground. */
+.dark .liv-chat-page,
+.dark .liv-hanna-page {
+  --chat-paper: #171a20;
+  --chat-surface: #20252d;
+  --chat-raised: #282e38;
+  --chat-ink: #f7f8f5;
+  --chat-muted: #b7bdc3;
+  --chat-line: rgba(255, 255, 255, .11);
+  --hanna-paper: #171a20;
+  --hanna-surface: #20252d;
+  --hanna-raised: #282e38;
+  --hanna-ink: #f7f8f5;
+  --hanna-muted: #b7bdc3;
+  --hanna-line: rgba(255, 255, 255, .11);
+  background: var(--chat-paper) !important;
+  color: var(--chat-ink) !important;
+}
+
+.dark .liv-chat-page .liv-chat-sidebar,
+.dark .liv-chat-page .liv-chat-header,
+.dark .liv-chat-page .liv-chat-composer,
+.dark .liv-hanna-page .liv-hanna-sidebar,
+.dark .liv-hanna-page .liv-hanna-sidebar-header,
+.dark .liv-hanna-page .liv-hanna-sidebar-footer {
+  background: rgba(32, 37, 45, .97) !important;
+  border-color: var(--chat-line) !important;
+}
+
+.dark .liv-chat-page .liv-chat-sidebar-header,
+.dark .liv-hanna-page .liv-hanna-sidebar-header,
+.dark .liv-hanna-page .liv-hanna-sidebar-footer {
+  background: #20252d !important;
+}
+
+.dark .liv-chat-page .liv-chat-thread,
+.dark .liv-chat-page .liv-chat-empty,
+.dark .liv-hanna-page .liv-hanna-thread {
+  background: var(--chat-paper) !important;
+  color: var(--chat-ink) !important;
+}
+
+.dark .liv-chat-page .liv-chat-bubble-received,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant {
+  background: var(--chat-surface) !important;
+  border-color: rgba(255, 255, 255, .11) !important;
+  color: var(--chat-ink) !important;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .13);
+}
+
+.dark .liv-chat-page .liv-chat-bubble-received p,
+.dark .liv-chat-page .liv-chat-bubble-received span,
+.dark .liv-chat-page .liv-chat-bubble-received h1,
+.dark .liv-chat-page .liv-chat-bubble-received h2,
+.dark .liv-chat-page .liv-chat-bubble-received h3,
+.dark .liv-chat-page .liv-chat-bubble-received h4,
+.dark .liv-chat-page .liv-chat-bubble-received h5,
+.dark .liv-chat-page .liv-chat-bubble-received h6,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant p,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant span,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant h2,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant h3,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant h4,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant h5,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant h6,
+.dark .liv-hanna-page .liv-hanna-bubble-assistant [class~="text-slate-900"],
+.dark .liv-hanna-page .liv-hanna-bubble-assistant [class~="text-slate-800"],
+.dark .liv-hanna-page .liv-hanna-bubble-assistant [class~="text-slate-700"] {
+  color: #f7f8f5 !important;
+}
+
+.dark .liv-chat-page .liv-chat-bubble-sent,
+.dark .liv-hanna-page .liv-hanna-bubble-user {
+  background: #d9f776 !important;
+  color: #171a20 !important;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .18);
+}
+
+.dark .liv-chat-page .liv-chat-bubble-sent [class~="text-emerald-100"],
+.dark .liv-chat-page .liv-chat-bubble-sent [class~="text-emerald-200/60"] {
+  color: #596e25 !important;
+}
+
+.dark .liv-chat-page .liv-chat-composer-form,
+.dark .liv-hanna-page .liv-hanna-composer-form {
+  background: #20252d !important;
+  border-color: rgba(255, 255, 255, .14) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+.dark .liv-chat-page .liv-chat-composer input,
+.dark .liv-chat-page .liv-chat-composer textarea,
+.dark .liv-hanna-page .liv-hanna-composer textarea {
+  color: #f7f8f5 !important;
+}
+
+.dark .liv-chat-page .liv-chat-composer input::placeholder,
+.dark .liv-chat-page .liv-chat-composer textarea::placeholder,
+.dark .liv-hanna-page .liv-hanna-composer textarea::placeholder {
+  color: #aeb5bd !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-header {
+  background: #20252d !important;
+  color: #f7f8f5 !important;
+  border-color: var(--hanna-line) !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-header .text-slate-100,
+.dark .liv-hanna-page .liv-hanna-header .text-white {
+  color: #f7f8f5 !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-header .text-slate-300,
+.dark .liv-hanna-page .liv-hanna-header .text-slate-400 {
+  color: #b7bdc3 !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-header button:hover,
+.dark .liv-chat-page .liv-chat-sidebar button:hover {
+  background: #282e38 !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-new-chat {
+  background: rgba(217, 247, 118, .14) !important;
+  border-color: rgba(217, 247, 118, .30) !important;
+  color: #e4fa9d !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-sidebar-search {
+  background: #282e38 !important;
+  border-color: #282e38 !important;
+  color: #f7f8f5 !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-sidebar-search::placeholder {
+  color: #aeb5bd !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-suggestion {
+  background: #20252d !important;
+  border-color: rgba(255, 255, 255, .11) !important;
+  color: #f7f8f5 !important;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .12);
+}
+
+.dark .liv-hanna-page .liv-hanna-suggestion:hover {
+  background: #282e38 !important;
+  border-color: rgba(217, 247, 118, .38) !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-suggestion [class~="text-slate-800"],
+.dark .liv-hanna-page .liv-hanna-suggestion [class~="text-slate-900"] {
+  color: #f7f8f5 !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-suggestion [class~="text-slate-400"],
+.dark .liv-hanna-page .liv-hanna-suggestion [class~="text-slate-500"] {
+  color: #b7bdc3 !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-sidebar-footer button,
+.dark .liv-hanna-page .liv-hanna-sidebar [class*="text-slate-700"] {
+  color: #d5d9dd !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-composer {
+  background: rgba(23, 26, 32, .96) !important;
+  border-color: var(--hanna-line) !important;
+}
+
+.dark .liv-hanna-page .liv-hanna-composer > div > p {
+  color: #aeb5bd !important;
+}
+
+@media (max-width: 767px) {
+  .liv-chat-page .liv-chat-bubble-received,
+  .liv-chat-page .liv-chat-bubble-sent,
+  .liv-hanna-page .liv-hanna-bubble-assistant,
+  .liv-hanna-page .liv-hanna-bubble-user {
+    box-shadow: 0 3px 10px rgba(17, 18, 20, .08);
+  }
+}
