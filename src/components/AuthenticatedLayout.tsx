@@ -21,6 +21,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
 
   const isFullScreenPage = location.pathname.startsWith('/chat') || location.pathname === '/features/hanna-ai';
   const isHannaAiFullScreenPage = location.pathname === '/features/hanna-ai';
+  const isDashboardPage = /^\/(?:dashboard|student\/dashboard|teacher\/dashboard|parent\/dashboard|school-admin\/dashboard|admin\/dashboard)\/?$/.test(location.pathname);
 
   return (
     <div className="liv-shell">
@@ -41,7 +42,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
         {props.children ?? <Outlet />}
       </main>
 
-      {isAuthenticated && !isFullScreenPage && <HannaButton />}
+      {isAuthenticated && isDashboardPage && !isFullScreenPage && <HannaButton />}
     </div>
   );
 }

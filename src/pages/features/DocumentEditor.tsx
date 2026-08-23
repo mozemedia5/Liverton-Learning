@@ -487,7 +487,7 @@ export default function DocumentEditor() {
   };
 
   // Interactive Hanna AI query streaming inside PDF Reader
-  const handleSendHanna = async (prePromptText?: string) => {
+  const handleSendHanna = async (prePromptText?: string, scope: 'page' | 'document' = 'page') => {
     const queryText = (prePromptText || hannaInput).trim();
     if (!queryText || isHannaGenerating) return;
 
@@ -502,14 +502,22 @@ export default function DocumentEditor() {
 
     let pageContextPrompt = queryText;
 
-    // Auto-generate contextual details about active page text
+    // Send extracted PDF text as bounded context so Hanna can review the whole document
+    // without exceeding the gateway message limit.
     const activePageText = allPagesText[currentPage]
       ?.map((item) => item.str)
       ?.join(' ')
       ?.slice(0, 1500) || '';
+    const fullDocumentText = Object.keys(allPagesText)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((page) => `Page ${page}: ${(allPagesText[Number(page)] || []).map((item) => item.str).join(' ')}`)
+      .join('\\n')
+      .slice(0, 4200);
 
-    if (activePageText) {
-      pageContextPrompt = `[Currently Opened PDF Page Text (Page ${currentPage} of ${numPages}):\n"${activePageText}"]\n\nUser Question: ${queryText}`;
+    if (scope === 'document' && fullDocumentText) {
+      pageContextPrompt = `[Whole PDF review context (${numPages} pages; extracted text may be truncated):\\n${fullDocumentText}]\\n\\nUser Question: ${queryText}`;
+    } else if (activePageText) {
+      pageContextPrompt = `[Currently Opened PDF Page Text (Page ${currentPage} of ${numPages}):\\n"${activePageText}"]\\n\\nUser Question: ${queryText}`;
     }
 
     try {
@@ -989,8 +997,14 @@ export default function DocumentEditor() {
               {/* Study helper buttons panel */}
               <div className="p-3 bg-slate-100/50 dark:bg-white/[0.01] border-b border-slate-200/30 dark:border-white/5 flex flex-wrap gap-1.5 justify-start">
                 <button
-                  onClick={() => handleSendHanna('Can you write a concise, highly readable summary of this PDF page? Highlight 3 key lessons.')}
+                  onClick={() => handleSendHanna('Create concise study notes for the whole PDF. Use a short overview, 5 key points, important terms, and 2 follow-up questions.', 'document')}
                   className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 border border-emerald-500/15"
+                >
+                  Make Short Notes
+                </button>
+                <button
+                  onClick={() => handleSendHanna('Can you write a concise, highly readable summary of this PDF page? Highlight 3 key lessons.')}
+                  className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-300 hover:bg-slate-500/15 border border-slate-500/15"
                 >
                   Summarize Page
                 </button>
