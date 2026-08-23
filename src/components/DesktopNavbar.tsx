@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
+import { useUnreadChatsCount } from '@/hooks/useUnreadChats';
+import { useUnreadNotificationsCount } from '@/hooks/useUnreadNotifications';
 
 interface DesktopNavbarProps {
   userRole: UserRole | null;
@@ -42,31 +44,33 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   const { theme, toggleTheme } = useTheme();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const unreadChats = useUnreadChatsCount();
+  const unreadNotifications = useUnreadNotificationsCount();
   const copy = roleCopy(userRole);
 
   const sections = useMemo(() => {
     const home: NavItem = { label: 'Overview', path: homeFor(userRole), icon: Home };
     if (userRole === 'teacher') return {
       primary: [home, { label: 'My modules', path: '/teacher/courses', icon: BookOpen }, { label: 'Educators Workhub', path: '/features/tearn', icon: Briefcase }],
-      tools: [{ label: 'Create module', path: '/features/tearn', icon: Plus }, { label: 'Assessments', path: '/teacher/quizzes', icon: GraduationCap }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Video }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Insights', path: '/features/analytics', icon: BarChart3 }, { label: 'Earnings', path: '/payments', icon: WalletCards }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      tools: [{ label: 'Create module', path: '/features/tearn', icon: Plus }, { label: 'Assessments', path: '/teacher/quizzes', icon: GraduationCap }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Video }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Insights', path: '/features/analytics', icon: BarChart3 }, { label: 'Earnings', path: '/payments', icon: WalletCards }, { label: 'Chat', path: '/chat', icon: MessageCircle, badge: unreadChats > 0 ? String(unreadChats) : undefined }, { label: 'Announcements', path: '/announcements', icon: MessageCircle, badge: unreadNotifications > 0 ? String(unreadNotifications) : undefined }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
     if (userRole === 'parent') return {
       primary: [home, { label: 'My children', path: '/parent/students', icon: Users }, { label: 'Progress', path: '/parent/performance', icon: BarChart3 }],
-      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Chat', path: '/chat', icon: MessageCircle, badge: unreadChats > 0 ? String(unreadChats) : undefined }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
     if (userRole === 'platform_admin') return {
       primary: [home, { label: 'Users', path: '/admin/users', icon: Users }, { label: 'Reports', path: '/admin/analytics', icon: BarChart3 }],
-      tools: [{ label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Announcements', path: '/announcements', icon: MessageCircle }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      tools: [{ label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Chat', path: '/chat', icon: MessageCircle, badge: unreadChats > 0 ? String(unreadChats) : undefined }, { label: 'Announcements', path: '/announcements', icon: MessageCircle, badge: unreadNotifications > 0 ? String(unreadNotifications) : undefined }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
     if (userRole === 'school_admin') return {
       primary: [home, { label: 'People', path: '/school-admin/students', icon: Users }, { label: 'Educators', path: '/school-admin/teachers', icon: GraduationCap }],
-      tools: [{ label: 'Projects', path: '/features/liv-teams', icon: LayoutGrid }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Reports', path: '/admin/analytics', icon: BarChart3 }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      tools: [{ label: 'Projects', path: '/features/liv-teams', icon: LayoutGrid }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Reports', path: '/admin/analytics', icon: BarChart3 }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Chat', path: '/chat', icon: MessageCircle, badge: unreadChats > 0 ? String(unreadChats) : undefined }, { label: 'Announcements', path: '/announcements', icon: MessageCircle, badge: unreadNotifications > 0 ? String(unreadNotifications) : undefined }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
     return {
       primary: [home, { label: 'Learn', path: '/student/courses', icon: BookOpen }, { label: 'Progress', path: '/student/quizzes', icon: BarChart3 }],
-      tools: [{ label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Shorts', path: '/features/tearn/shorts', icon: Sparkles }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Documents', path: '/dashboard/documents', icon: FileText }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      tools: [{ label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Shorts', path: '/features/tearn/shorts', icon: Sparkles }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Documents', path: '/dashboard/documents', icon: FileText }, { label: 'Marketplace', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles }, { label: 'Chat', path: '/chat', icon: MessageCircle, badge: unreadChats > 0 ? String(unreadChats) : undefined }, { label: 'Announcements', path: '/announcements', icon: MessageCircle, badge: unreadNotifications > 0 ? String(unreadNotifications) : undefined }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
-  }, [userRole]);
+  }, [userRole, unreadChats, unreadNotifications]);
 
   const isActive = (path: string) => location.pathname === path || (path !== '/' && location.pathname.startsWith(`${path}/`));
   const go = (item: NavItem) => navigate(item.path);

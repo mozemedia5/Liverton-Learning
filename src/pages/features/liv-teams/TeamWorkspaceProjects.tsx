@@ -28,6 +28,7 @@ import {
   updateTeamMilestone
 } from '@/services/livTeamsProjectService';
 import type { TeamProject, TeamTask, TeamRole, TeamMember, ProjectStatus, TeamMilestone } from '@/types/livTeams';
+import { getNextProjectStatuses } from '@/services/livTeamsGovernanceService';
 import { LivEmptyState, LivSectionHeader } from './livTeamsUi';
 import { formatUGX } from './livTeamsUtils';
 
@@ -145,7 +146,7 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
         category: 'General',
         budget: projBudget || 0,
         timeline: projTimeline.trim(),
-        status: 'Planning',
+        status: 'Idea',
         progress: 0,
         members: []
       }, currentUser.uid, userData?.fullName || 'Anonymous');
@@ -335,6 +336,11 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
     return map;
   }, [members]);
 
+  const selectableStatuses = useMemo(() => {
+    if (!activeProject) return projectStatuses;
+    return Array.from(new Set([activeProject.status, ...getNextProjectStatuses(activeProject.status)]));
+  }, [activeProject]);
+
   const isGuest = teamRole === 'guest';
   const isPMOrAbove = ['owner', 'admin', 'project_manager'].includes(teamRole);
 
@@ -430,8 +436,8 @@ export default function TeamWorkspaceProjects({ teamId, teamRole, members }: Pro
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {projectStatuses.map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        {selectableStatuses.map(s => (
+                          <SelectItem key={s} value={s}>{s === activeProject.status ? `${s} (current)` : s}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

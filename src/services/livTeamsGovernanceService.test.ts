@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveTreasuryBalance,
   getOverdueTeamTasks,
+  getNextProjectStatuses,
   isValidProjectTransition,
 } from './livTeamsGovernanceService';
 
@@ -17,6 +18,15 @@ describe('Liv Teams governance helpers', () => {
     expect(isValidProjectTransition('Idea', 'Verified')).toBe(false);
     expect(isValidProjectTransition('Completed', 'Submitted for Verification')).toBe(false);
     expect(isValidProjectTransition('Active', 'Near Completion')).toBe(false);
+  });
+
+  it('exposes only the next sequential lifecycle stages', () => {
+    expect(getNextProjectStatuses('Idea')).toEqual(['Planning', 'Archived']);
+    expect(getNextProjectStatuses('Active')).toEqual(['Testing']);
+    expect(getNextProjectStatuses('Near Completion')).toEqual(['Completed']);
+    expect(getNextProjectStatuses('Completed')).toEqual(['Listed', 'Archived']);
+    expect(isValidProjectTransition('Idea', 'Active')).toBe(false);
+    expect(isValidProjectTransition('Planning', 'Review')).toBe(false);
   });
 
   it('derives treasury balance only from settled entries', () => {

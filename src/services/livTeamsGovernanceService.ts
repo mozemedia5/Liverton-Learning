@@ -7,7 +7,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { TeamAICreditLedgerEntry, TeamTreasuryLedgerEntry } from '@/types/livTeams';
+import type { ProjectStatus, TeamAICreditLedgerEntry, TeamTreasuryLedgerEntry } from '@/types/livTeams';
 import { getTeamById, logTeamActivity } from './livTeamsCoreService';
 
 const FINANCE_ROLES = new Set(['owner', 'admin', 'treasurer']);
@@ -114,25 +114,30 @@ export function isTeamAIManagerRole(role: string): boolean {
   return AI_MANAGER_ROLES.has(role);
 }
 
+const PROJECT_TRANSITIONS: Record<string, ProjectStatus[]> = {
+  Idea: ['Planning', 'Archived'],
+  Planning: ['Active', 'Archived'],
+  Active: ['Testing'],
+  Testing: ['Review'],
+  Review: ['Near Completion'],
+  'Near Completion': ['Completed'],
+  // Completed is the final delivery milestone. Listing is a separate,
+  // optional economic action rather than another project work stage.
+  Completed: ['Listed', 'Archived'],
+  Listed: ['Archived'],
+  Archived: [],
+  // Keep old records readable and recoverable, but do not expose these
+  // verification stages for newly created projects.
+  'Submitted for Verification': ['Completed'],
+  Verified: ['Listed', 'Completed'],
+};
+
+export function getNextProjectStatuses(from: string): ProjectStatus[] {
+  return [...(PROJECT_TRANSITIONS[from] || [])];
+}
+
 export function isValidProjectTransition(from: string, to: string): boolean {
-  const transitions: Record<string, string[]> = {
-    Idea: ['Planning', 'Archived'],
-    Planning: ['Active', 'Archived'],
-    Active: ['Testing'],
-    Testing: ['Review'],
-    Review: ['Near Completion'],
-    'Near Completion': ['Completed'],
-    // Completed is the final delivery milestone. Listing is a separate,
-    // optional economic action rather than another project work stage.
-    Completed: ['Listed', 'Archived'],
-    Listed: ['Archived'],
-    Archived: [],
-    // Keep old records readable and recoverable, but do not expose these
-    // verification stages for newly created projects.
-    'Submitted for Verification': ['Completed'],
-    Verified: ['Listed', 'Completed'],
-  };
-  return from === to || transitions[from]?.includes(to) === true;
+  return from === to || PROJECT_TRANSITIONS[from]?.includes(to as ProjectStatus) === true;
 }
 
 export function getOverdueTeamTasks(tasks: Array<{ deadline?: string; isCompleted?: boolean }>, now = new Date()): number {

@@ -24,7 +24,8 @@ export async function createTeamProject(teamId: string, project: Partial<TeamPro
     const finalProject = {
       ...project,
       teamId,
-      status: project.status || 'Idea',
+      // Every new project starts at the first lifecycle stage; callers cannot skip Idea.
+      status: 'Idea',
       ownerId: project.ownerId || userId,
       members: project.members && project.members.length > 0 ? project.members : [userId],
       memberRoles: project.memberRoles || { [userId]: 'Project Owner' },
@@ -64,6 +65,11 @@ export async function updateTeamProject(teamId: string, projectId: string, updat
     const currentProject = current.data() as TeamProject;
     if (updates.status && !isValidProjectTransition(currentProject.status, updates.status)) {
       throw new Error(`Invalid project transition from ${currentProject.status} to ${updates.status}`);
+    }
+    if (updates.status === 'Completed' && currentProject.status !== 'Completed') {
+      const milestones = await getTeamMilestones(teamId, projectId);
+      if (milestones.length === 0) throw new Error('Add and complete at least one milestone before completing this project');
+      if (milestones.some(milestone => !milestone.isCompleted)) throw new Error('Complete every project milestone before moving to Completed');
     }
     await updateDoc(docRef, {
       ...updates,

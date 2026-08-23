@@ -1325,3 +1325,42 @@ body {
     border-radius: 1.25rem !important;
   }
 }
+
+/* Live unread indicators: compact red counts for Chat and Announcements. */
+.liv-nav-badge {
+  min-width: 19px;
+  height: 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  background: #dc2626;
+  border: 2px solid var(--liv-surface, #fff);
+  box-shadow: 0 3px 8px rgba(220, 38, 38, .24);
+  font-size: 10px !important;
+  line-height: 1;
+  font-weight: 800;
+}
+.liv-nav-item.is-active .liv-nav-badge { border-color: var(--liv-ink); }
+.dark .liv-nav-badge { border-color: var(--liv-surface, #26282a); }
+@media (max-width: 1099px) and (min-width: 768px) {
+  .liv-nav-item.is-collapsed .liv-nav-badge { position: absolute; top: 5px; right: 5px; min-width: 16px; height: 16px; padding: 0 3px; border-width: 1px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .liv-nav-badge { animation: liv-badge-pop .2s ease-out; }
+}
+@keyframes liv-badge-pop { from { transform: scale(.75); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+
+.liv-activity-summary { margin-top: 14px; padding: 18px; }
+.liv-activity-summary h2 { margin: 5px 0 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; letter-spacing: -.04em; }
+.liv-activity-total { min-width: 26px; height: 26px; display: grid; place-items: center; border-radius: 999px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 800; box-shadow: 0 4px 10px rgba(220,38,38,.22); }
+.liv-activity-grid { display: grid; gap: 8px; margin-top: 14px; }
+.liv-activity-summary .liv-list-row { padding: 10px; background: var(--liv-surface, #fff); }
+.liv-activity-summary .liv-list-row > span:nth-child(2) { flex: 1; min-width: 0; text-align: left; }
+.liv-activity-summary .liv-list-row strong, .liv-activity-summary .liv-list-row small { display: block; }
+.liv-activity-summary .liv-list-row strong { font-size: 12px; }
+.liv-activity-summary .liv-list-row small { margin-top: 3px; color: var(--liv-muted); font-size: 10px; }
+.dark .liv-activity-summary .liv-list-row { background: var(--workspace-surface, #2a2c2e); border-color: var(--workspace-line, rgba(255,255,255,.12)); }
