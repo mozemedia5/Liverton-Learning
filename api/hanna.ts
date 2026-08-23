@@ -1,6 +1,7 @@
 import type { Content, Part } from '@google/generative-ai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminFirestore, applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server.js';
+import { getApplicationKnowledgeParts } from './_lib/appKnowledge.js';
 import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini.js';
 
 const MAX_HISTORY = 20;
@@ -122,7 +123,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const chatId = safeString(body.chatId, 160);
     const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
-    const parts: Part[] = [...await loadCloudinaryParts(body.attachments, identity.uid), { text: message }];
+    const applicationKnowledge = await getApplicationKnowledgeParts(operation === 'chat' && !chatId);
+    const parts: Part[] = [
+      ...applicationKnowledge,
+      ...await loadCloudinaryParts(body.attachments, identity.uid),
+      { text: message },
+    ];
     const prompt = systemPrompt(identity, operation);
     const policy = operationPolicy(operation);
 
