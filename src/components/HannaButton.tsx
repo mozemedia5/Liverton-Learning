@@ -17,7 +17,7 @@ import { db } from '@/lib/firebase';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
 import { HannaMarkdown } from '@/components/HannaMarkdown';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
-import { streamHannaReply, generateSmartTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
 import {
@@ -539,10 +539,10 @@ export function HannaButton() {
         chatId ?? undefined
       );
 
-      // 6. Smart title generation in background if first message
+      // 6. Generate the title locally so the main Hanna response uses only one AI request.
       let smartTitle = '';
       if (isFirstExchange) {
-        smartTitle = await generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
+        smartTitle = deriveChatTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
       }
 
       const reply = await replyPromise;
