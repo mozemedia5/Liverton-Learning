@@ -209,6 +209,7 @@ export default function HannaChatIntegrated() {
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
     setIsNearBottom(true);
+    setShowScrollTop(false);
   }, []);
 
   const handleMessageScroll = useCallback(() => {
@@ -230,6 +231,7 @@ export default function HannaChatIntegrated() {
       scrollToBottom('auto');
       prevChatIdRef.current = currentChatId;
       userJustSentRef.current = false;
+      setShowScrollTop(false);
       return;
     }
 
