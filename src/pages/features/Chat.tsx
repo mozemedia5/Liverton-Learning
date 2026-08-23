@@ -171,11 +171,13 @@ export default function Chat() {
   // Handle user search
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      if (searchTerm.length >= 2 && currentUser) {
+      const normalizedTerm = searchTerm.trim();
+      if (normalizedTerm.length >= 2 && currentUser) {
         setIsSearching(true);
         setSearchError(null);
+        setSearchResults([]);
         try {
-          const results = await searchUsers(searchTerm, currentUser.uid);
+          const results = await searchUsers(normalizedTerm, currentUser.uid);
           setSearchResults(results);
         } catch (error) {
           console.error('Failed to search users:', error);
@@ -186,7 +188,9 @@ export default function Chat() {
               ? 'Your account cannot access the user directory. Please sign in again.'
               : code === 'unavailable'
                 ? 'The user directory could not be reached. Check your connection and try again.'
-                : 'The real user directory could not be loaded. Try again in a moment.',
+                : code === 'failed-precondition'
+                  ? 'The user directory needs a Firestore index update. Please try again after deployment.'
+                  : 'The real user directory could not be loaded. Try again in a moment.',
           );
         } finally {
           setIsSearching(false);
@@ -873,7 +877,7 @@ export default function Chat() {
           <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <h3 className="text-lg font-bold">New Chat</h3>
-              <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(false)} className="rounded-full">
+              <Button variant="ghost" size="icon" onClick={() => { setIsSearchOpen(false); setSearchTerm(''); setSearchResults([]); setSearchError(null); }} className="rounded-full">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -918,7 +922,7 @@ export default function Chat() {
                   <p>{searchError}</p>
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => setSearchRetry(prev => prev + 1)}>Try again</Button>
                 </div>
-              ) : searchTerm.length >= 2 ? (
+              ) : searchTerm.trim().length >= 2 ? (
                 <p className="text-center py-8 text-gray-500">No real users found for “{searchTerm.trim()}”. Try the full name, username, or email.</p>
               ) : (
                 <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters of a name, username, or email to search</p>

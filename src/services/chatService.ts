@@ -30,6 +30,16 @@ export interface ChatContact {
   profilePicture?: string;
 }
 
+export class UserDirectorySearchError extends Error {
+  code: string;
+
+  constructor(message: string, code = 'directory-unavailable') {
+    super(message);
+    this.name = 'UserDirectorySearchError';
+    this.code = code;
+  }
+}
+
 /**
  * Generate a chat title based on message content (gist)
  * Uses the first message or a summary to create a meaningful title
@@ -128,9 +138,20 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
     ];
     const queryResults = await Promise.allSettled(queryPromises);
     const successfulSnapshots = queryResults.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
+    const failedQueries = queryResults.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (failedQueries.length > 0) {
+      const failureCodes = failedQueries.map(({ reason }) => {
+        if (reason && typeof reason === 'object' && 'code' in reason) return String((reason as { code: unknown }).code);
+        return reason instanceof Error ? reason.name : 'unknown';
+      });
+      console.warn('Some user-directory search queries failed; using available results.', { failureCodes });
+    }
     if (successfulSnapshots.length === 0) {
-      const firstFailure = queryResults.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-      throw firstFailure?.reason || new Error('User directory is unavailable.');
+      const firstFailure = failedQueries[0]?.reason;
+      const code = firstFailure && typeof firstFailure === 'object' && 'code' in firstFailure
+        ? String((firstFailure as { code: unknown }).code)
+        : 'directory-unavailable';
+      throw new UserDirectorySearchError('The user directory is unavailable. Please try again.', code);
     }
 
     const directoryResults = Array.from(new Map(

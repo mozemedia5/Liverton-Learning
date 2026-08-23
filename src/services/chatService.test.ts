@@ -21,7 +21,7 @@ const firestoreMock = vi.hoisted(() => ({
 vi.mock('@/lib/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => firestoreMock);
 
-import { searchUsers } from './chatService';
+import { searchUsers, UserDirectorySearchError } from './chatService';
 
 const legacyUser = {
   id: 'legacy-user',
@@ -84,6 +84,16 @@ describe('searchUsers', () => {
     expect(results).toEqual([
       expect.objectContaining({ uid: 'legacy-user', fullName: 'Legacy User' }),
     ]);
+  });
+
+  it('reports a coded error when every directory query fails', async () => {
+    firestoreMock.getDocs.mockRejectedValue(Object.assign(new Error('Directory unavailable'), { code: 'unavailable' }));
+
+    await expect(searchUsers('Legacy User', 'current-user')).rejects.toMatchObject({
+      name: 'UserDirectorySearchError',
+      code: 'unavailable',
+    });
+    await expect(searchUsers('Legacy User', 'current-user')).rejects.toBeInstanceOf(UserDirectorySearchError);
   });
 
   it('keeps real legacy results when an optional normalized lookup fails', async () => {
