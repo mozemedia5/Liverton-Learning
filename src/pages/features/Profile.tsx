@@ -218,16 +218,20 @@ export default function Profile() {
       // Upload file to Cloudinary with 'image' preset
       const downloadUrl = await uploadToCloudinary(file, 'image');
       
-      // Update user profile with image URL
-      await updateUserProfile({
-        profileImageUrl: downloadUrl,
-      });
-
+      // Cloudinary has completed the upload at this point. Confirm that
+      // success immediately, then synchronize the profile metadata separately
+      // so a Firestore/indexing issue cannot report a false upload failure.
       setProfileImageUrl(downloadUrl);
-      toast.success('Profile picture updated successfully!');
+      toast.success('Profile image uploaded successfully!');
+      try {
+        await updateUserProfile({ profileImageUrl: downloadUrl });
+      } catch (profileError) {
+        console.error('Profile image metadata sync failed:', profileError);
+        toast.warning('Image uploaded, but your profile record could not be refreshed. Please save your profile again.');
+      }
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload profile picture');
+      toast.error('Failed to upload profile image. Please try again.');
     } finally {
       setIsUploadingImage(false);
     }

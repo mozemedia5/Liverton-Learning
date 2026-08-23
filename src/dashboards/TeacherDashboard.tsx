@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, BarChart3, BookOpen, CheckCircle2, ChevronRight, Clock3, FilePlus2, Plus, Star, Users, Video, WalletCards } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
+import ActivitySummaryCard from '@/components/ActivitySummaryCard';
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -56,7 +57,8 @@ export default function TeacherDashboard() {
       <button className="liv-button liv-button-green" onClick={() => navigate('/features/tearn')}><Plus size={16} /> Create module</button>
     </header>
 
-    <section className="liv-hero-card"><div><span className="liv-eyebrow">Your educator workspace</span><h2>Turn your best ideas into learning people remember.</h2><p>Create structured modules, invite co-creators, and publish lessons with outcomes your learners can see.</p><div style={{ display: 'flex', gap: 8, marginTop: 20 }}><button className="liv-button liv-button-green" onClick={() => navigate('/features/tearn')}>Open Educators Workhub <ArrowUpRight size={15} /></button><button className="liv-button liv-button-light" onClick={() => navigate('/features/liv-teams')}><Users size={15} /> Invite a creator</button></div></div></section>
+    <section className="liv-hero-card"><div><span className="liv-eyebrow">Your educator workspace</span><h2>Turn your best ideas into learning people remember.</h2><p>Create structured modules, invite co-creators, and publish lessons with outcomes your learners can see.</p><div style={{ display: 'flex', gap: 8, marginTop: 20 }}><button className="liv-button liv-button-green" onClick={() => navigate('/features/tearn')}>Open Educators Workhub <ArrowUpRight size={15} /></button><button className="liv-button liv-button-light" onClick={() => navigate('/features/liv-teams')}><Users size={15} /> Invite a creator</button></div></div>    </section>
+    <ActivitySummaryCard />
 
     <div className="liv-grid-4" style={{ marginTop: 14 }}>
       {statCards.map(([label, value, note, Icon]) => <div className="liv-card liv-stat" key={String(label)}><div className="liv-stat-top"><span>{label}</span><span className="liv-stat-icon"><Icon size={16} /></span></div><strong className="liv-stat-value">{value}</strong><span className="liv-stat-note">{note}</span></div>)}

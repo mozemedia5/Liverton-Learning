@@ -98,7 +98,7 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
   try {
     const directoryCollection = collection(db, 'userDirectory');
-    const [usernameSnapshot, emailSnapshot] = await Promise.all([
+    const [usernameSnapshot, emailSnapshot, legacyUsernameSnapshot, legacyEmailSnapshot] = await Promise.all([
       getDocs(query(
         directoryCollection,
         where('usernameLower', '>=', usernameTerm),
@@ -111,16 +111,22 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
         where('emailLower', '<=', `${emailTerm}\uf8ff`),
         limit(50),
       )),
+      // Older directory records may not have the lowercase index fields yet.
+      // Exact legacy lookups keep email/username chat creation working without
+      // requiring an insecure collection-wide read.
+      getDocs(query(directoryCollection, where('username', '==', usernameTerm), limit(50))),
+      getDocs(query(directoryCollection, where('email', '==', rawTerm), limit(50))),
     ]);
 
     const directoryResults = Array.from(new Map(
-      [...usernameSnapshot.docs, ...emailSnapshot.docs].map((directoryDoc) => [directoryDoc.id, mapDirectoryEntry(directoryDoc)]),
+      [...usernameSnapshot.docs, ...emailSnapshot.docs, ...legacyUsernameSnapshot.docs, ...legacyEmailSnapshot.docs]
+        .map((directoryDoc) => [directoryDoc.id, mapDirectoryEntry(directoryDoc)]),
     ).values())
       .filter((user) => user.uid !== currentUserId && user.isDiscoverable)
       .filter((user) => {
         const username = user.usernameLower || normalizeUsername(user.username);
         const email = user.emailLower || normalizeEmail(user.email);
-        return username.startsWith(usernameTerm) || email.startsWith(emailTerm);
+        return username.startsWith(usernameTerm) || email.startsWith(emailTerm) || user.username === usernameTerm || user.email === rawTerm;
       })
       .sort((a, b) => {
         const aExact = (a.usernameLower === usernameTerm || a.emailLower === emailTerm) ? 1 : 0;

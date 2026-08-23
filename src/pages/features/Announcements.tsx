@@ -31,6 +31,7 @@ import {
   deleteDoc, 
   doc, 
   updateDoc,
+  arrayUnion,
   Timestamp
 } from 'firebase/firestore';
 import {
@@ -68,6 +69,7 @@ interface NotificationItem {
   hiddenAt?: Date | Timestamp;
   hideReason?: string;
   isRead?: boolean;
+  readBy?: string[];
 }
 
 type TabCategory = 'all' | 'updates' | 'opportunities' | 'insights';
@@ -130,7 +132,8 @@ export default function Announcements() {
           hiddenBy: d.hiddenBy || undefined,
           hiddenAt: d.hiddenAt?.toDate() || undefined,
           hideReason: d.hideReason || undefined,
-          isRead: d.isRead || false,
+          isRead: Boolean(d.isRead || (currentUser?.uid && Array.isArray(d.readBy) && d.readBy.includes(currentUser.uid))),
+          readBy: Array.isArray(d.readBy) ? d.readBy : [],
         } as NotificationItem;
       });
 
@@ -229,6 +232,16 @@ export default function Announcements() {
       toast.success('Notification restored');
     } catch (error) {
       toast.error('Failed to restore notification');
+    }
+  };
+
+  const markNotificationAsRead = async (notification: NotificationItem) => {
+    if (!notification.id || !currentUser?.uid || notification.isRead) return;
+    try {
+      await updateDoc(doc(db, 'notifications', notification.id), { readBy: arrayUnion(currentUser.uid) });
+      setNotifications((current) => current.map(item => item.id === notification.id ? { ...item, isRead: true } : item));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -360,7 +373,9 @@ export default function Announcements() {
                     group overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-md
                     ${notif.isHidden
                       ? 'opacity-60 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800'
-                      : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800'
+                      : notif.isRead
+                        ? 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800'
+                        : 'bg-white dark:bg-slate-900/80 border-red-200 dark:border-red-900/70 shadow-sm shadow-red-100/60 dark:shadow-red-950/20'
                     }
                   `}
                 >
@@ -375,7 +390,8 @@ export default function Announcements() {
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white leading-snug">
+                            <h4 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white leading-snug flex items-center gap-2">
+                              {!notif.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" aria-label="Unread" />}
                               {notif.title}
                             </h4>
                             <Badge variant={cfg.badge} className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
@@ -410,6 +426,7 @@ export default function Announcements() {
                               size="sm"
                               variant="ghost"
                               onClick={() => {
+                                void markNotificationAsRead(notif);
                                 if (notif.link?.startsWith('http')) {
                                   window.open(notif.link, '_blank', 'noopener,noreferrer');
                                 } else {

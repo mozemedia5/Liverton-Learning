@@ -22,9 +22,17 @@ async function getGatewayHeaders() {
 
 async function parseGatewayError(response: Response): Promise<never> {
   let message = 'Hanna could not complete this request.';
+  const contentType = response.headers.get('content-type') || '';
   try {
-    const body = await response.json();
-    if (typeof body.error === 'string') message = body.error;
+    if (contentType.includes('application/json')) {
+      const body = await response.json();
+      if (typeof body.error === 'string') message = body.error;
+    } else {
+      const body = await response.text();
+      if (body.includes('<!doctype') || body.includes('<html')) {
+        message = 'Hanna’s API route is not available in this environment. Configure VITE_VERCEL_API_BASE_URL for local development.';
+      }
+    }
   } catch { /* keep safe generic message */ }
   throw new Error(message);
 }
@@ -94,7 +102,9 @@ export async function streamHannaReply(
     }),
   });
   if (!response.ok) return parseGatewayError(response);
-  return readSseStream(response, onChunk, signal);
+  const reply = await readSseStream(response, onChunk, signal);
+  if (!reply.trim()) throw new Error('Hanna returned an empty response. Please try again.');
+  return reply;
 }
 
 export function deriveChatTitle(firstMessage: string): string {

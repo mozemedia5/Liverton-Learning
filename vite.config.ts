@@ -4,6 +4,8 @@ import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const vercelApiBaseUrl = process.env.VITE_VERCEL_API_BASE_URL?.replace(/\/$/, '')
+
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
@@ -18,7 +20,16 @@ export default defineConfig({
       '.lindy.site',
       '.e2b.app',
       '.manus.computer'
-    ]
+    ],
+    ...(vercelApiBaseUrl ? {
+      proxy: {
+        '/api': {
+          target: vercelApiBaseUrl,
+          changeOrigin: true,
+          secure: true,
+        },
+      },
+    } : {})
   },
   plugins: [
     ...(process.env.NODE_ENV === 'development' ? [inspectAttr()] : []),

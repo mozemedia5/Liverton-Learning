@@ -10,7 +10,7 @@ const items = [
   { title: 'Liv Mart', description: 'Find useful products, services, and creator offers.', path: '/features/liv-mart', icon: ShoppingBag, tone: 'orange' },
   { title: 'Hanna AI', description: 'Ask a secure, contextual study assistant for help.', path: '/features/hanna-ai', icon: Sparkles, tone: 'dark' },
   { title: 'Documents', description: 'Create, organize, and share your working documents.', path: '/dashboard/documents', icon: FileText, tone: 'soft' },
-  { title: 'Messages', description: 'Keep conversations and collaboration in one place.', path: '/chat', icon: MessageCircle, tone: 'soft' },
+  { title: 'Chat', description: 'Keep conversations and collaboration in one place.', path: '/chat', icon: MessageCircle, tone: 'soft' },
   { title: 'Calendar', description: 'Stay ahead of lessons, events, and deadlines.', path: '/calendar', icon: CalendarDays, tone: 'soft' },
   { title: 'Profile', description: 'Update your identity, preferences, and account details.', path: '/profile', icon: UserRound, tone: 'soft' },
   { title: 'Settings', description: 'Manage appearance, notifications, privacy, and security.', path: '/settings', icon: Settings, tone: 'soft' },

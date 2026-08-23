@@ -70,6 +70,8 @@ export default function Chat() {
   const [searchTerm, setSearchTerm] = useState('');
   const [chatFilter, setChatFilter] = useState('');
   const [searchResults, setSearchResults] = useState<ChatContact[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchRetry, setSearchRetry] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   
@@ -171,21 +173,25 @@ export default function Chat() {
     const delayDebounceFn = setTimeout(async () => {
       if (searchTerm.length >= 2 && currentUser) {
         setIsSearching(true);
+        setSearchError(null);
         try {
           const results = await searchUsers(searchTerm, currentUser.uid);
           setSearchResults(results);
-        } catch {
-          toast.error('Failed to search users');
+        } catch (error) {
+          console.error('Failed to search users:', error);
+          setSearchResults([]);
+          setSearchError('User search is temporarily unavailable. Check your connection and try again.');
         } finally {
           setIsSearching(false);
         }
       } else {
         setSearchResults([]);
+        setSearchError(null);
       }
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, currentUser]);
+  }, [searchTerm, currentUser, searchRetry]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -900,8 +906,13 @@ export default function Chat() {
                     </div>
                   </button>
                 ))
+              ) : searchError ? (
+                <div className="text-center py-8 px-5 text-gray-500">
+                  <p>{searchError}</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setSearchRetry(prev => prev + 1)}>Try again</Button>
+                </div>
               ) : searchTerm.length >= 2 ? (
-                <p className="text-center py-8 text-gray-500">No users found</p>
+                <p className="text-center py-8 text-gray-500">No users found for “{searchTerm.trim()}”. Try the full username or email.</p>
               ) : (
                 <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters of a username or email to search</p>
               )}
