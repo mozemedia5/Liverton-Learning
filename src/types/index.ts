@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'teacher' | 'school_admin' | 'parent' | 'platform_admin';
 
-export type DocumentType = 'doc' | 'sheet' | 'presentation' | 'pdf' | 'folder';
+export type DocumentType = 'doc' | 'sheet' | 'presentation' | 'pdf' | 'image' | 'video' | 'audio' | 'file' | 'folder';
 export type DocumentVisibility = 'private' | 'internal' | 'public';
 export type DocumentSharePermission = 'view' | 'edit';
 
@@ -314,6 +314,11 @@ export interface DocumentMeta {
   updatedAt: Date;
   version: number;
   isFavorite?: boolean;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  pageCount?: number;
 }
 
 export type DocumentContent =

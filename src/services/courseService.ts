@@ -38,6 +38,9 @@ export interface CourseMaterial {
   url: string;
   size: number;
   uploadedAt: Date;
+  documentId?: string;
+  fileName?: string;
+  mimeType?: string;
 }
 
 export interface QuizQuestion {
@@ -782,6 +785,44 @@ export async function addCourseMaterial(
   await updateDoc(courseRef, {
     materials: arrayUnion(material),
     updatedAt: serverTimestamp()
+  });
+}
+
+export async function shareDocumentToCourse(params: {
+  courseId: string;
+  documentId: string;
+  title: string;
+  type: CourseMaterial['type'];
+  fileUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+  viewerUrl: string;
+}): Promise<void> {
+  const courseRef = doc(db, 'courses', params.courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) throw new Error('Module not found');
+  const course = courseSnap.data() as Course;
+  if ((course.materials || []).some((material) => material.documentId === params.documentId)) return;
+
+  const documentRef = doc(db, 'documents', params.documentId);
+  const documentSnap = await getDoc(documentRef);
+  if (!documentSnap.exists()) throw new Error('Document not found');
+  if (documentSnap.data().ownerId !== course.teacherId) {
+    throw new Error('Only the document owner can add this document to the module.');
+  }
+  await updateDoc(documentRef, { visibility: 'internal', updatedAt: serverTimestamp() });
+
+  await addCourseMaterial(params.courseId, {
+    id: `document_${params.documentId}`,
+    name: params.fileName || params.title,
+    type: params.type,
+    url: params.fileUrl || params.viewerUrl,
+    size: params.size || 0,
+    uploadedAt: new Date(),
+    documentId: params.documentId,
+    fileName: params.fileName,
+    mimeType: params.mimeType,
   });
 }
 

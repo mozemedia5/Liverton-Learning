@@ -55,7 +55,8 @@ beforeEach(() => {
     const filters = reference.parts.filter((part): part is { field: string; operator: string; value: unknown } => Boolean(part && typeof part === 'object' && 'field' in part));
     const exactUsername = filters.find((filter) => filter.field === 'username' && filter.operator === '==')?.value;
     const exactEmail = filters.find((filter) => filter.field === 'email' && filter.operator === '==')?.value;
-    if (exactUsername === 'legacy.user' || exactEmail === 'legacy@example.com') return snapshotFor(legacyUser, currentUser);
+    const fullNameLower = filters.find((filter) => filter.field === 'fullNameLower' && filter.operator === '>=')?.value;
+    if (exactUsername === 'legacy.user' || exactEmail === 'legacy@example.com' || fullNameLower === 'legacy user') return snapshotFor(legacyUser, currentUser);
     return snapshotFor();
   });
 });
@@ -74,6 +75,33 @@ describe('searchUsers', () => {
 
     expect(results).toEqual([
       expect.objectContaining({ uid: 'legacy-user', email: 'legacy@example.com' }),
+    ]);
+  });
+
+  it('finds real records by normalized display name', async () => {
+    const results = await searchUsers('Legacy User', 'current-user');
+
+    expect(results).toEqual([
+      expect.objectContaining({ uid: 'legacy-user', fullName: 'Legacy User' }),
+    ]);
+  });
+
+  it('keeps real legacy results when an optional normalized lookup fails', async () => {
+    firestoreMock.getDocs.mockImplementation(async (reference: { parts: unknown[] }) => {
+      const filters = reference.parts.filter((part): part is { field: string; operator: string; value: unknown } => Boolean(part && typeof part === 'object' && 'field' in part));
+      if (filters.some((filter) => filter.field === 'usernameLower' || filter.field === 'emailLower')) {
+        throw Object.assign(new Error('Missing optional index'), { code: 'failed-precondition' });
+      }
+      const exactUsername = filters.find((filter) => filter.field === 'username' && filter.operator === '==')?.value;
+      const exactEmail = filters.find((filter) => filter.field === 'email' && filter.operator === '==')?.value;
+      if (exactUsername === 'legacy.user' || exactEmail === 'legacy@example.com') return snapshotFor(legacyUser, currentUser);
+      return snapshotFor();
+    });
+
+    const results = await searchUsers('Legacy.User', 'current-user');
+
+    expect(results).toEqual([
+      expect.objectContaining({ uid: 'legacy-user', username: 'legacy.user', email: 'legacy@example.com' }),
     ]);
   });
 });

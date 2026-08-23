@@ -21,6 +21,7 @@ export interface Notification {
   link?: string;
   isRead?: boolean;
   targetAudience: string[]; // students, teachers, parents, school_admins, platform_admin
+  targetUsers?: string[];
   sender: string;
   senderId: string;
   senderRole: string;
@@ -64,6 +65,7 @@ const convertDocToNotification = (doc: QueryDocumentSnapshot<DocumentData>): Not
     senderId: data.senderId || '',
     senderRole: data.senderRole || '',
     targetAudience: data.targetAudience || [],
+    targetUsers: Array.isArray(data.targetUsers) ? data.targetUsers : [],
     createdAt: data.createdAt?.toDate() || new Date(),
     isHidden: data.isHidden || false,
     hiddenBy: data.hiddenBy || undefined,
@@ -115,9 +117,10 @@ export const getNotifications = async (role?: string, userId?: string) => {
       }
       const isNotHidden = !n.isHidden;
       const isNotExpired = !n.expiresAt || n.expiresAt > now;
+      const isTargetUser = Boolean(userId && n.targetUsers?.includes(userId));
       const isTargetAudience = n.targetAudience.includes('all') ||
-                               (role && n.targetAudience.includes(role + 's'));
-      return isNotHidden && isNotExpired && isTargetAudience;
+                               Boolean(role && n.targetAudience.includes(role + 's'));
+      return isNotHidden && isNotExpired && (isTargetUser || isTargetAudience);
     });
   } catch (error) {
     console.error('Error fetching notifications:', error);

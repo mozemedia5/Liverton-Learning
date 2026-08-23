@@ -279,6 +279,17 @@ export function HannaButton() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Accept real document context from the document share dialog.
+  useEffect(() => {
+    const handleOpenHanna = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: string }>).detail;
+      setWidgetState('compact');
+      if (detail?.prompt) setInputValue(detail.prompt);
+    };
+    window.addEventListener('open-hanna', handleOpenHanna);
+    return () => window.removeEventListener('open-hanna', handleOpenHanna);
+  }, []);
+
   // Handle route session query sync
   const sessionParam = searchParams.get('session');
   useEffect(() => {

@@ -37,6 +37,71 @@ import type {
 const DOCUMENTS_COLLECTION = 'documents';
 const HANNA_QUEUE_COLLECTION = 'hanna_queue';
 
+const EXTENSION_TYPE_MAP: Record<string, DocumentType> = {
+  pdf: 'pdf',
+  doc: 'file',
+  docx: 'file',
+  xls: 'file',
+  xlsx: 'file',
+  ppt: 'file',
+  pptx: 'file',
+  txt: 'file',
+  csv: 'file',
+  zip: 'file',
+  rar: 'file',
+  jpg: 'image',
+  jpeg: 'image',
+  png: 'image',
+  gif: 'image',
+  webp: 'image',
+  svg: 'image',
+  mp4: 'video',
+  webm: 'video',
+  mov: 'video',
+  m4v: 'video',
+  mp3: 'audio',
+  wav: 'audio',
+  ogg: 'audio',
+  m4a: 'audio',
+};
+
+export function inferDocumentType(file: Pick<File, 'name' | 'type'>): DocumentType {
+  const mime = file.type.toLowerCase();
+  if (mime === 'application/pdf') return 'pdf';
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  const extension = file.name.toLowerCase().split('.').pop() || '';
+  return EXTENSION_TYPE_MAP[extension] || 'file';
+}
+
+export function documentTypeLabel(type: DocumentType, fileName = ''): string {
+  if (type === 'folder') return 'Folder';
+  if (type === 'pdf') return 'PDF document';
+  if (type === 'image') return 'Image';
+  if (type === 'video') return 'Video';
+  if (type === 'audio') return 'Audio';
+  if (type === 'doc') return 'Text document';
+  if (type === 'sheet') return 'Spreadsheet';
+  if (type === 'presentation') return 'Presentation';
+  const extension = fileName.toLowerCase().split('.').pop();
+  return extension ? `${extension.toUpperCase()} file` : 'File';
+}
+
+export function getDocumentDownloadName(document: Pick<DocumentMeta, 'title' | 'type' | 'fileName'>): string {
+  if (document.fileName) return document.fileName;
+  const extensionByType: Partial<Record<DocumentType, string>> = {
+    pdf: 'pdf',
+    image: 'jpg',
+    video: 'mp4',
+    audio: 'mp3',
+  };
+  const extension = extensionByType[document.type];
+  return extension && !document.title.toLowerCase().endsWith(`.${extension}`)
+    ? `${document.title}.${extension}`
+    : document.title;
+}
+
 export function getDefaultContent(type: DocumentType): DocumentContent {
   if (type === 'doc') {
     return {
@@ -370,11 +435,39 @@ export async function shareInternally(docId: string, userIds: string[]): Promise
   if (!snap.exists()) throw new Error('Document not found');
   const current = snap.data() as DocumentMeta;
   const existing = new Set([...(current.sharedWith || [])]);
-  userIds.forEach((id) => existing.add(id));
+  userIds.filter(Boolean).forEach((id) => existing.add(id));
   await updateDoc(refDoc, {
     sharedWith: Array.from(existing),
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function shareDocumentWithUsers(params: {
+  docId: string;
+  title: string;
+  userIds: string[];
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+}): Promise<void> {
+  const userIds = Array.from(new Set(params.userIds.filter((id) => id && id !== params.senderId)));
+  if (userIds.length === 0) throw new Error('Choose at least one other user.');
+
+  await shareInternally(params.docId, userIds);
+  await Promise.all(userIds.map((userId) => addDoc(collection(db, 'notifications'), {
+    title: `Document shared with you: ${params.title}`,
+    body: `${params.senderName} shared “${params.title}” with you. Open it from Documents or use the link below.`,
+    content: `${params.senderName} shared “${params.title}” with you.`,
+    type: 'announcement',
+    targetAudience: [],
+    targetUsers: [userId],
+    link: `/dashboard/documents/${params.docId}`,
+    sender: params.senderName,
+    senderId: params.senderId,
+    senderRole: params.senderRole,
+    createdAt: serverTimestamp(),
+    isRead: false,
+  })));
 }
 
 export async function uploadFileToDocument(params: {

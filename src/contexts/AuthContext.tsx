@@ -65,8 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getAuthenticatedEmail = (user: FirebaseUser, fallback = '') =>
     user.email || user.providerData.find((provider) => provider.email)?.email || fallback;
 
-  const syncAccountOnOpen = (profile: User, user: FirebaseUser) => {
-    if (!profile.uid || user.email === 'mock@liverton.com' || profile.role === 'platform_admin') return;
+  const syncAccountOnOpen = async (profile: User, user: FirebaseUser): Promise<void> => {
+    if (!profile.uid || user.email === 'mock@liverton.com') return;
 
     const authenticatedEmail = getAuthenticatedEmail(user, profile.email);
     const setupStatus = getAccountSetupStatus(profile, user);
@@ -81,12 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatedAt: serverTimestamp(),
     }).catch((error) => console.warn('Unable to refresh account setup fields:', error));
 
-    void syncAccountIdentity({
-      ...profile,
-      email: authenticatedEmail,
-      emailVerified: user.emailVerified,
-      providerIds,
-    }, user).catch((error) => console.warn('Unable to sync searchable user identity:', error));
+    try {
+      await syncAccountIdentity({
+        ...profile,
+        email: authenticatedEmail,
+        emailVerified: user.emailVerified,
+        providerIds,
+      }, user);
+    } catch (error) {
+      console.warn('Unable to sync searchable user identity:', error);
+    }
 
     if (setupStatus.percentage < 100) {
       void createAccountSetupReminder(profile, user, profile.role)
@@ -156,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               data.role = normalizedRole;
               setUserData(data);
               setResolvedRole(normalizedRole);
-              syncAccountOnOpen(data, user);
+              await syncAccountOnOpen(data, user);
             } else if (user.email === 'infoliverton@gmail.com') {
               // Fallback for the admin user if document doesn't exist yet
               const adminData: User = {
@@ -224,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.role = normalizedRole;
       setUserData(data);
       setResolvedRole(normalizedRole);
-      syncAccountOnOpen(data, userCredential.user);
+      await syncAccountOnOpen(data, userCredential.user);
       return normalizedRole;
     } else if (email === 'infoliverton@gmail.com') {
       // Fallback for the admin user if document doesn't exist
@@ -268,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setDoc(doc(db, userDataInput.role + 's', uid), newUser);
       setUserData(newUser as User);
       setResolvedRole(userDataInput.role);
-      syncAccountOnOpen(newUser as User, userCredential.user);
+      await syncAccountOnOpen(newUser as User, userCredential.user);
       return userDataInput.role;
     }
 
@@ -308,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUserData(newUser);
       setResolvedRole(assignedRole);
-      syncAccountOnOpen(newUser, user);
+      await syncAccountOnOpen(newUser, user);
       return assignedRole;
     } else {
       // User already exists, load their data
@@ -322,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.role = normalizedRole;
       setUserData(data);
       setResolvedRole(normalizedRole);
-      syncAccountOnOpen(data, user);
+      await syncAccountOnOpen(data, user);
       return normalizedRole;
     }
   };
@@ -358,7 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUserData(newUser);
       setResolvedRole(assignedRole);
-      syncAccountOnOpen(newUser, user);
+      await syncAccountOnOpen(newUser, user);
       return assignedRole;
     }
 
@@ -371,7 +375,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data.role = normalizedRole;
     setUserData(data);
     setResolvedRole(normalizedRole);
-    syncAccountOnOpen(data, user);
+    await syncAccountOnOpen(data, user);
     return normalizedRole;
   };
 
@@ -422,7 +426,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof data.username === 'string' && previousUsername && previousUsername !== nextProfile.username) {
         await releaseUsername(previousUsername, currentUser.uid);
       }
-      syncAccountOnOpen(nextProfile, currentUser);
+      await syncAccountOnOpen(nextProfile, currentUser);
     }
   };
 

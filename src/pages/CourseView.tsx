@@ -330,12 +330,17 @@ export default function CourseView() {
                   );
                 }
 
+                const materialUrl = material.documentId
+                  ? `/dashboard/documents/${material.documentId}`
+                  : material.url;
+
                 return (
                   <a
                     key={material.id || idx}
-                    href={material.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={materialUrl}
+                    target={material.documentId ? undefined : '_blank'}
+                    rel={material.documentId ? undefined : 'noopener noreferrer'}
+                    download={material.documentId ? undefined : material.name}
                     className="flex items-center gap-3 p-4 hover:bg-slate-50/60 dark:hover:bg-slate-900/30 transition-colors"
                   >
                     {itemContent}

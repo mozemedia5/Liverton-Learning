@@ -32,20 +32,24 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { DashboardShell } from '@/components/DashboardShell';
 import { useDocuments } from '@/hooks/useDocuments';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import { serverTimestamp, addDoc, collection } from 'firebase/firestore';
 import type { DocumentMeta } from '@/types';
 import {
   createFolder,
+  documentTypeLabel,
+  getDocumentDownloadName,
+  inferDocumentType,
+
   moveDocument,
   toggleDocumentFavorite,
   renameDocument,
   deleteDocument,
 } from '@/lib/documents';
-import { uploadToCloudinary } from '@/services/cloudinaryService';
+import { mapFileToCloudinaryType, uploadToCloudinary } from '@/services/cloudinaryService';
 import { SEO } from '@/components/SEO';
+import ShareDocumentDialog from '@/components/ShareDocumentDialog';
 
 export default function Documents() {
   const navigate = useNavigate();
@@ -81,9 +85,7 @@ export default function Documents() {
   const [targetFolderId, setTargetFolderId] = useState<string | 'root'>('root');
   const [isMoving, setIsMoving] = useState(false);
 
-  const [shareOpen, setShareOpen] = useState(false);
-  const [shareEmail, setShareEmail] = useState('');
-  const [isSharing, setIsSharing] = useState(false);
+  const [shareDocumentOpen, setShareDocumentOpen] = useState(false);
 
   // Upload Management State
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -221,20 +223,21 @@ export default function Documents() {
     }
   };
 
-  // Direct PDF Upload Processor
+  // Upload a supported document or media file
   const processUpload = async (file: File) => {
     if (!currentUser || !userRole) return;
 
-    // Strict validation: Reject non-PDFs
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Only PDF files are supported. Please select a valid PDF.');
+    const fileType = inferDocumentType(file);
+    const extension = file.name.toLowerCase().split('.').pop() || '';
+    const supportedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip', 'rar', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'mov', 'm4v', 'mp3', 'wav', 'ogg', 'm4a'];
+    if (fileType === 'file' && !supportedExtensions.includes(extension)) {
+      toast.error('This file type is not supported in Documents yet.');
       return;
     }
 
-    // Size limit check: 50MB
-    const maxSize = 50 * 1024 * 1024;
+    const maxSize = fileType === 'image' ? 20 * 1024 * 1024 : fileType === 'video' || fileType === 'audio' ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error('File size exceeds the 50MB maximum limit.');
+      toast.error(`File size exceeds the ${Math.round(maxSize / (1024 * 1024))}MB limit for this file type.`);
       return;
     }
 
@@ -243,15 +246,15 @@ export default function Documents() {
 
     try {
       // 1. Upload to Cloudinary using progress monitoring callback
-      const fileUrl = await uploadToCloudinary(file, 'document', {
+      const fileUrl = await uploadToCloudinary(file, mapFileToCloudinaryType(file), {
         onProgress: (percent) => setUploadProgress(percent),
         showErrorToast: false,
       });
 
       // 2. Create high-fidelity document meta entry in Firestore
       await addDoc(collection(db, 'documents'), {
-        title: file.name.replace(/\.[^/.]+$/, ''), // Strip PDF extension
-        type: 'pdf',
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        type: fileType,
         ownerId: currentUser.uid,
         role: userRole,
         schoolId: (userData as any)?.schoolId ?? null,
@@ -259,8 +262,10 @@ export default function Documents() {
         sharedWith: [],
         visibility: 'private',
         fileUrl,
+        fileName: file.name,
         fileSize: file.size,
-        pageCount: 0, // Will be computed in the reader upon first render
+        mimeType: file.type || 'application/octet-stream',
+        pageCount: fileType === 'pdf' ? 0 : null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         version: 1,
@@ -271,7 +276,7 @@ export default function Documents() {
       setUploadingName('');
     } catch (err) {
       console.error('File upload failed:', err);
-      toast.error('Upload failed. Please check your network and retry.');
+      toast.error(err instanceof Error ? err.message : 'Upload failed. Please check your network and retry.');
       setUploadProgress(null);
       setUploadingName('');
     }
@@ -359,28 +364,7 @@ export default function Documents() {
     }
   };
 
-  // Sharing handling simulation / direct hook
-  const handleShare = async () => {
-    if (!selectedDoc || !shareEmail.trim()) return;
-    setIsSharing(true);
-    try {
-      // Simulate/Trigger Internal sharing
-      // (in existing library, standard internal sharing updates sharedWith list)
-      const refDoc = doc(db, 'documents', selectedDoc.id);
-      await updateDoc(refDoc, {
-        sharedWith: [...(selectedDoc.sharedWith || []), shareEmail.trim()],
-        updatedAt: serverTimestamp(),
-      });
-      toast.success(`Shared document with ${shareEmail}`);
-      setShareEmail('');
-      setShareOpen(false);
-      setSelectedDoc(null);
-    } catch (err) {
-      toast.error('Failed to share document');
-    } finally {
-      setIsSharing(false);
-    }
-  };
+
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return '—';
@@ -409,7 +393,7 @@ export default function Documents() {
         onClick={() => fileInputRef.current?.click()}
         disabled={uploadProgress !== null}
         className="glass-card border-amber-500/10 hover:border-amber-500/30 text-amber-500 hover:bg-amber-500/5"
-        title="Upload PDF Document"
+        title="Upload document or media"
       >
         {uploadProgress !== null ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <Upload className="w-4 h-4" />}
       </Button>
@@ -417,7 +401,7 @@ export default function Documents() {
         ref={fileInputRef}
         type="file"
         className="hidden"
-        accept="application/pdf"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,image/*,video/*,audio/*"
         onChange={handleFileChange}
       />
       <Button
@@ -433,8 +417,17 @@ export default function Documents() {
   return (
     <>
       <SEO title="Liverton Documents & PDF Reader" description="Professional PDF reader and document cloud on Liverton Learning." noIndex />
-      <DashboardShell title="Documents Library" userRole={userRole} headerRight={headerRight}>
-        <div className="px-4 lg:px-6 py-6 space-y-8 max-w-7xl mx-auto relative z-10">
+      <div className="min-h-screen bg-slate-50 pb-20 text-slate-900 dark:bg-[#17181d] dark:text-slate-100 lg:pb-6">
+        <header className="border-b border-slate-200/80 bg-white/90 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-[#17181d]/90 lg:px-6">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Liverton workspace</p>
+              <h1 className="truncate text-xl font-black tracking-tight text-slate-900 dark:text-white">Documents</h1>
+            </div>
+            {headerRight}
+          </div>
+        </header>
+        <div className="px-3 py-4 space-y-5 max-w-7xl mx-auto relative z-10 sm:px-4 lg:px-6 lg:py-5">
 
 
           {/* Upload Progress Status Card */}
@@ -505,7 +498,7 @@ export default function Documents() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search PDF files..."
+                placeholder="Search documents and media..."
                 className="pl-10 glass-card bg-white/50 border-slate-200/50 dark:border-white/5 dark:bg-[#07070a]/50 text-slate-800 dark:text-white"
               />
             </div>
@@ -575,8 +568,8 @@ export default function Documents() {
                 <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 animate-bounce">
                   <Upload className="w-8 h-8" />
                 </div>
-                <span className="font-extrabold text-lg text-emerald-600 dark:text-emerald-400">Drop PDF to Upload</span>
-                <span className="text-xs text-slate-400">Supports up to 50MB</span>
+                <span className="font-extrabold text-lg text-emerald-600 dark:text-emerald-400">Drop file to upload</span>
+                <span className="text-xs text-slate-400">Documents, images, audio, and video supported</span>
               </div>
             )}
 
@@ -628,25 +621,21 @@ export default function Documents() {
                             navigate(`/dashboard/documents/${d.id}`);
                           }
                         }}
-                        className="p-5 space-y-4 cursor-pointer"
+                        className="p-4 space-y-3 cursor-pointer"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 ${
-                            isFolder
-                              ? 'bg-amber-500/15 text-amber-500 dark:bg-amber-500/10'
-                              : 'bg-emerald-500/15 text-emerald-500 dark:bg-emerald-500/10'
-                          }`}>
-                            {isFolder ? <Folder className="w-6 h-6 fill-amber-500/10" /> : <FileText className="w-6 h-6" />}
+                        <div className="relative">
+                          <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200/70 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-900/70">
+                            {isFolder ? <Folder className="h-9 w-9 fill-amber-500/10 text-amber-500" /> : d.type === 'image' && d.fileUrl ? <img src={d.fileUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : d.type === 'video' && d.fileUrl ? <video src={d.fileUrl} muted preload="metadata" className="h-full w-full object-cover" /> : <FileText className="h-9 w-9 text-emerald-500" />}
                           </div>
-
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleToggleFavorite(d);
                             }}
-                            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-amber-500 transition-colors"
+                            className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-slate-400 shadow-sm hover:bg-white hover:text-amber-500 dark:bg-slate-950/80 dark:hover:bg-slate-900"
+                            aria-label={d.isFavorite ? 'Remove favorite' : 'Add favorite'}
                           >
-                            <Star className={`w-4 h-4 ${d.isFavorite ? 'text-amber-500 fill-amber-500' : ''}`} />
+                            <Star className={`h-4 w-4 ${d.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
                           </button>
                         </div>
 
@@ -659,9 +648,9 @@ export default function Documents() {
                               <span>Folder Directory</span>
                             ) : (
                               <>
-                                <span>PDF Document</span>
+                                <span>{documentTypeLabel(d.type, d.fileName || d.title)}</span>
                                 <span>•</span>
-                                <span>{formatFileSize((d as any).fileSize)}</span>
+                                <span>{formatFileSize(d.fileSize)}</span>
                               </>
                             )}
                           </div>
@@ -710,8 +699,7 @@ export default function Documents() {
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedDoc(d);
-                                  setShareEmail('');
-                                  setShareOpen(true);
+                                  setShareDocumentOpen(true);
                                 }}
                               >
                                 <Share2 className="w-3.5 h-3.5 mr-2" /> Share Link
@@ -719,7 +707,7 @@ export default function Documents() {
                             )}
                             {!isFolder && (d as any).fileUrl && (
                               <DropdownMenuItem asChild>
-                                <a href={(d as any).fileUrl} download={d.title + '.pdf'} target="_blank" rel="noreferrer">
+                                <a href={(d as any).fileUrl} download={getDocumentDownloadName(d)} target="_blank" rel="noreferrer">
                                   <Download className="w-3.5 h-3.5 mr-2" /> Download File
                                 </a>
                               </DropdownMenuItem>
@@ -773,9 +761,9 @@ export default function Documents() {
                                 <span>Folder Directory</span>
                               ) : (
                                 <>
-                                  <span>PDF Document</span>
+                                  <span>{documentTypeLabel(d.type, d.fileName || d.title)}</span>
                                   <span>•</span>
-                                  <span>{formatFileSize((d as any).fileSize)}</span>
+                                  <span>{formatFileSize(d.fileSize)}</span>
                                   <span>•</span>
                                   <span>{d.updatedAt instanceof Date ? d.updatedAt.toLocaleDateString() : '—'}</span>
                                 </>
@@ -832,8 +820,7 @@ export default function Documents() {
                                 <DropdownMenuItem
                                   onClick={() => {
                                     setSelectedDoc(d);
-                                    setShareEmail('');
-                                    setShareOpen(true);
+                                  setShareDocumentOpen(true);
                                   }}
                                 >
                                   <Share2 className="w-3.5 h-3.5 mr-2" /> Share Link
@@ -841,7 +828,7 @@ export default function Documents() {
                               )}
                               {!isFolder && (d as any).fileUrl && (
                                 <DropdownMenuItem asChild>
-                                  <a href={(d as any).fileUrl} download={d.title + '.pdf'} target="_blank" rel="noreferrer">
+                                  <a href={(d as any).fileUrl} download={getDocumentDownloadName(d)} target="_blank" rel="noreferrer">
                                     <Download className="w-3.5 h-3.5 mr-2" /> Download File
                                   </a>
                                 </DropdownMenuItem>
@@ -973,41 +960,9 @@ export default function Documents() {
           </DialogContent>
         </Dialog>
 
-        {/* Share Modal */}
-        <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-          <DialogContent className="glass-card sm:max-w-md border-slate-200/80 dark:border-white/10">
-            <DialogHeader>
-              <DialogTitle className="font-extrabold text-slate-800 dark:text-white">Share Document</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-3">
-              <div className="space-y-2">
-                <Label htmlFor="share-email" className="font-bold text-xs text-slate-500 uppercase tracking-widest">Collaborator Email</Label>
-                <Input
-                  id="share-email"
-                  type="email"
-                  value={shareEmail}
-                  onChange={(e) => setShareEmail(e.target.value)}
-                  placeholder="student@example.com"
-                  className="glass-card"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleShare();
-                  }}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShareOpen(false)} className="glass-card">
-                Cancel
-              </Button>
-              <Button onClick={handleShare} disabled={isSharing || !shareEmail.trim()} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
-                {isSharing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Share Link
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ShareDocumentDialog open={shareDocumentOpen} onOpenChange={setShareDocumentOpen} document={selectedDoc} />
 
-      </DashboardShell>
+      </div>
     </>
   );
 }

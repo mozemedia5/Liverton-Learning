@@ -180,7 +180,14 @@ export default function Chat() {
         } catch (error) {
           console.error('Failed to search users:', error);
           setSearchResults([]);
-          setSearchError('User search is temporarily unavailable. Check your connection and try again.');
+          const code = typeof error === 'object' && error !== null && 'code' in error ? String((error as { code?: unknown }).code) : '';
+          setSearchError(
+            code === 'permission-denied'
+              ? 'Your account cannot access the user directory. Please sign in again.'
+              : code === 'unavailable'
+                ? 'The user directory could not be reached. Check your connection and try again.'
+                : 'The real user directory could not be loaded. Try again in a moment.',
+          );
         } finally {
           setIsSearching(false);
         }
@@ -875,7 +882,7 @@ export default function Chat() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input 
                   autoFocus
-                  placeholder="Search by username or email..."
+                  placeholder="Search by name, username, or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-gray-100 dark:bg-gray-800 border-none rounded-xl"
@@ -912,9 +919,9 @@ export default function Chat() {
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => setSearchRetry(prev => prev + 1)}>Try again</Button>
                 </div>
               ) : searchTerm.length >= 2 ? (
-                <p className="text-center py-8 text-gray-500">No users found for “{searchTerm.trim()}”. Try the full username or email.</p>
+                <p className="text-center py-8 text-gray-500">No real users found for “{searchTerm.trim()}”. Try the full name, username, or email.</p>
               ) : (
-                <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters of a username or email to search</p>
+                <p className="text-center py-8 text-gray-500 text-sm">Type at least 2 characters of a name, username, or email to search</p>
               )}
             </div>
           </div>

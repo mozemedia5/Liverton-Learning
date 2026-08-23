@@ -14,6 +14,7 @@ import {
   Minimize2,
   RotateCw,
   Search,
+  Share2,
   Download,
   Sparkles,
   Info,
@@ -31,10 +32,19 @@ import { getDocument, updateReadingProgress, getReadingProgress, toggleDocumentF
 import { streamHannaReply, isGeminiConfigured } from '@/lib/hannaGemini';
 import { toast } from 'sonner';
 import { SEO } from '@/components/SEO';
+import DocumentFileViewer from '@/components/DocumentFileViewer';
+import ShareDocumentDialog from '@/components/ShareDocumentDialog';
+import { getDocumentDownloadName } from '@/lib/documents';
 
 // CDN Paths for PDF.js
 const PDFJS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function isPdfDocumentRecord(record: any): boolean {
+  const mime = String(record?.mimeType || '').toLowerCase();
+  const name = String(record?.fileName || record?.title || '').toLowerCase();
+  return record?.type === 'pdf' || mime === 'application/pdf' || name.endsWith('.pdf');
+}
 
 interface SearchResult {
   pageNumber: number;
@@ -68,6 +78,7 @@ export default function DocumentEditor() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [shareDocumentOpen, setShareDocumentOpen] = useState(false);
   const [pageAspectRatio, setPageAspectRatio] = useState<number>(0.75); // Width / Height aspect ratio
 
   // Page bookmarks / favorites inside the document
@@ -136,6 +147,7 @@ export default function DocumentEditor() {
   useEffect(() => {
     const initPDFJS = async () => {
       try {
+        if (docMeta && !isPdfDocumentRecord(docMeta)) return;
         if ((window as any).pdfjsLib) {
           setPdfjs((window as any).pdfjsLib);
           return;
@@ -159,7 +171,7 @@ export default function DocumentEditor() {
   // 3. Load PDF Document once Metadata and PDF.js are loaded
   useEffect(() => {
     const loadPdfDoc = async () => {
-      if (!pdfjs || !docMeta?.fileUrl) return;
+      if (!pdfjs || !docMeta?.fileUrl || !isPdfDocumentRecord(docMeta)) return;
       setLoadingPdf(true);
       setPdfError(null);
       try {
@@ -552,13 +564,17 @@ export default function DocumentEditor() {
     );
   }
 
+  if (docMeta && !isPdfDocumentRecord(docMeta)) {
+    return <DocumentFileViewer doc={docMeta} onBack={() => navigate('/dashboard/documents')} />;
+  }
+
   return (
     <>
-      <SEO title={`${docMeta?.title || 'PDF Reader'} | Liverton Learning`} description="Comfortable high-fidelity reading workspace." noIndex />
+      <SEO title={`${docMeta?.title || 'Document'} | Liverton Learning`} description="Open and share documents, media, and course files in Liverton Learning." noIndex />
 
       <div
         ref={containerRef}
-        className="h-screen w-screen bg-slate-100 dark:bg-[#07070a] flex flex-col overflow-hidden select-none relative"
+        className="h-[calc(100vh-4rem)] w-full bg-slate-100 dark:bg-[#07070a] flex flex-col overflow-hidden select-none relative lg:h-screen"
       >
 
         {/* TOP READER TOOLBAR */}
@@ -728,11 +744,22 @@ export default function DocumentEditor() {
             {/* Download */}
             {docMeta?.fileUrl && (
               <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-slate-500 rounded-lg">
-                <a href={docMeta.fileUrl} download={docMeta.title + '.pdf'} target="_blank" rel="noreferrer">
+                <a href={docMeta.fileUrl} download={getDocumentDownloadName(docMeta)} target="_blank" rel="noreferrer">
                   <Download className="w-4.5 h-4.5" />
                 </a>
               </Button>
             )}
+
+            {/* Share */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShareDocumentOpen(true)}
+              className="h-8 w-8 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg"
+              title="Share document"
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
 
             {/* Info Drawer */}
             <Button
@@ -1128,6 +1155,7 @@ export default function DocumentEditor() {
 
         </div>
       </div>
+      <ShareDocumentDialog open={shareDocumentOpen} onOpenChange={setShareDocumentOpen} document={docMeta} />
     </>
   );
 }

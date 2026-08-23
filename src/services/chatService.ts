@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
-import { mapDirectoryEntry, normalizeEmail, normalizeUsername, type UserDirectoryEntry } from '@/services/userProfileService';
+import { mapDirectoryEntry, normalizeDisplayName, normalizeEmail, normalizeUsername, type UserDirectoryEntry } from '@/services/userProfileService';
 
 export interface ChatContact {
   uid: string;
@@ -85,6 +85,7 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
   const usernameTerm = normalizeUsername(rawTerm);
   const emailTerm = normalizeEmail(rawTerm);
+  const displayNameTerm = normalizeDisplayName(rawTerm);
   const legacyUsernameTerms = Array.from(new Set([rawTerm.replace(/^@+/, ''), usernameTerm])).filter(Boolean);
   const legacyEmailTerms = Array.from(new Set([rawTerm, emailTerm])).filter(Boolean);
 
@@ -100,7 +101,7 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
   try {
     const directoryCollection = collection(db, 'userDirectory');
-    const [usernameSnapshot, emailSnapshot, ...legacySnapshots] = await Promise.all([
+    const queryPromises = [
       getDocs(query(
         directoryCollection,
         where('usernameLower', '>=', usernameTerm),
@@ -113,26 +114,39 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
         where('emailLower', '<=', `${emailTerm}\uf8ff`),
         limit(50),
       )),
+      getDocs(query(
+        directoryCollection,
+        where('fullNameLower', '>=', displayNameTerm),
+        where('fullNameLower', '<=', `${displayNameTerm}\uf8ff`),
+        limit(50),
+      )),
       // Older directory records may not have the lowercase index fields yet.
       // Query original and normalized forms without requiring an insecure
       // collection-wide read.
       ...legacyUsernameTerms.map((term) => getDocs(query(directoryCollection, where('username', '==', term), limit(50)))),
       ...legacyEmailTerms.map((term) => getDocs(query(directoryCollection, where('email', '==', term), limit(50)))),
-    ]);
+    ];
+    const queryResults = await Promise.allSettled(queryPromises);
+    const successfulSnapshots = queryResults.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
+    if (successfulSnapshots.length === 0) {
+      const firstFailure = queryResults.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+      throw firstFailure?.reason || new Error('User directory is unavailable.');
+    }
 
     const directoryResults = Array.from(new Map(
-      [usernameSnapshot.docs, emailSnapshot.docs, ...legacySnapshots.map((snapshot) => snapshot.docs)].flat()
+      successfulSnapshots.flatMap((snapshot) => snapshot.docs)
         .map((directoryDoc) => [directoryDoc.id, mapDirectoryEntry(directoryDoc)]),
     ).values())
       .filter((user) => user.uid !== currentUserId && user.isDiscoverable)
       .filter((user) => {
         const username = user.usernameLower || normalizeUsername(user.username);
         const email = user.emailLower || normalizeEmail(user.email);
-        return username.startsWith(usernameTerm) || email.startsWith(emailTerm);
+        const fullName = user.fullNameLower || normalizeDisplayName(user.fullName);
+        return username.startsWith(usernameTerm) || email.startsWith(emailTerm) || fullName.startsWith(displayNameTerm);
       })
       .sort((a, b) => {
-        const aExact = (a.usernameLower === usernameTerm || a.emailLower === emailTerm) ? 1 : 0;
-        const bExact = (b.usernameLower === usernameTerm || b.emailLower === emailTerm) ? 1 : 0;
+        const aExact = (a.usernameLower === usernameTerm || a.emailLower === emailTerm || a.fullNameLower === displayNameTerm) ? 1 : 0;
+        const bExact = (b.usernameLower === usernameTerm || b.emailLower === emailTerm || b.fullNameLower === displayNameTerm) ? 1 : 0;
         return bExact - aExact || a.fullName.localeCompare(b.fullName);
       })
       .slice(0, 50)

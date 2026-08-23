@@ -27,6 +27,7 @@ export interface UserDirectoryEntry {
   email: string;
   emailLower: string;
   fullName: string;
+  fullNameLower: string;
   role: UserRole;
   username?: string;
   usernameLower?: string;
@@ -40,6 +41,9 @@ export const normalizeEmail = (email: string | undefined | null): string =>
 
 export const normalizeUsername = (username: string | undefined | null): string =>
   (username || '').trim().replace(/^@+/, '').toLowerCase();
+
+export const normalizeDisplayName = (name: string | undefined | null): string =>
+  (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 export const validateUsername = (username: string): string | null => {
   const normalized = normalizeUsername(username);
@@ -56,11 +60,13 @@ export const validateUsername = (username: string): string | null => {
 const cleanDirectoryFields = (input: UserDirectoryInput): UserDirectoryEntry => {
   const username = normalizeUsername(input.username);
   const email = (input.email || '').trim();
+  const fullName = (input.fullName || '').trim() || 'Liverton member';
   const directory: UserDirectoryEntry = {
     uid: input.uid,
     email,
     emailLower: normalizeEmail(email),
-    fullName: (input.fullName || '').trim() || 'Liverton member',
+    fullName,
+    fullNameLower: normalizeDisplayName(fullName),
     role: (input.role || 'student') as UserRole,
     isDiscoverable: true,
   };
@@ -133,6 +139,7 @@ export function mapDirectoryEntry(directoryDoc: { id: string; data: () => Docume
     email: data.email || '',
     emailLower: data.emailLower || normalizeEmail(data.email),
     fullName: data.fullName || 'Liverton member',
+    fullNameLower: data.fullNameLower || normalizeDisplayName(data.fullName || 'Liverton member'),
     role: data.role || 'student',
     username: data.username || undefined,
     usernameLower: data.usernameLower || undefined,
