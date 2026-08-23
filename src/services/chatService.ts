@@ -16,7 +16,7 @@ import {
   arrayUnion,
   type FieldValue
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import type { Chat, Message, UserRole } from '@/types';
 import { mapDirectoryEntry, normalizeDisplayName, normalizeEmail, normalizeUsername, type UserDirectoryEntry } from '@/services/userProfileService';
 
@@ -89,6 +89,22 @@ const formatChatDate = (date: Date): string => {
  * discovery safe for normal users because the private /users collection is not
  * list-readable under Firestore rules.
  */
+const searchUsersViaApi = async (searchTerm: string): Promise<ChatContact[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new UserDirectorySearchError('Please sign in to search for users.', 'auth-required');
+  const baseUrl = (import.meta.env.VITE_VERCEL_API_BASE_URL || '').replace(/\/$/, '');
+  const token = await currentUser.getIdToken();
+  const response = await fetch(`${baseUrl}/api/search-users?q=${encodeURIComponent(searchTerm)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const error = Object.assign(new Error('The user search service is unavailable.'), { code: response.status === 403 ? 'permission-denied' : response.status === 503 ? 'unavailable' : 'search-api-error' });
+    throw error;
+  }
+  const body = await response.json() as { users?: ChatContact[] };
+  return Array.isArray(body.users) ? body.users : [];
+};
+
 export const searchUsers = async (searchTerm: string, currentUserId: string): Promise<ChatContact[]> => {
   const rawTerm = searchTerm.trim();
   if (!rawTerm || rawTerm.length < 2) return [];
@@ -173,10 +189,19 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
       .slice(0, 50)
       .map(toContact);
 
-    return directoryResults;
+    if (directoryResults.length > 0) return directoryResults;
+
+    // Existing accounts may predate userDirectory. Use the authenticated Admin
+    // search endpoint as a repair-safe fallback until the directory is backfilled.
+    return await searchUsersViaApi(rawTerm);
   } catch (error) {
     console.error('Error searching the user directory:', error);
-    throw error;
+    try {
+      return await searchUsersViaApi(rawTerm);
+    } catch (fallbackError) {
+      console.error('Authenticated user search fallback failed:', fallbackError);
+      throw error;
+    }
   }
 };
 

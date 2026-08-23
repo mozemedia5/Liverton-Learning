@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const authMock = vi.hoisted(() => ({ currentUser: null as { getIdToken: () => Promise<string> } | null }));
 
 const firestoreMock = vi.hoisted(() => ({
   getDocs: vi.fn(),
@@ -18,7 +20,7 @@ const firestoreMock = vi.hoisted(() => ({
   arrayUnion: vi.fn(),
 }));
 
-vi.mock('@/lib/firebase', () => ({ db: {} }));
+vi.mock('@/lib/firebase', () => ({ db: {}, auth: authMock }));
 vi.mock('firebase/firestore', () => firestoreMock);
 
 import { searchUsers, UserDirectorySearchError } from './chatService';
@@ -51,6 +53,7 @@ function snapshotFor(...docs: typeof legacyUser[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authMock.currentUser = null;
   firestoreMock.getDocs.mockImplementation(async (reference: { parts: unknown[] }) => {
     const filters = reference.parts.filter((part): part is { field: string; operator: string; value: unknown } => Boolean(part && typeof part === 'object' && 'field' in part));
     const exactUsername = filters.find((filter) => filter.field === 'username' && filter.operator === '==')?.value;
@@ -59,6 +62,11 @@ beforeEach(() => {
     if (exactUsername === 'legacy.user' || exactEmail === 'legacy@example.com' || fullNameLower === 'legacy user') return snapshotFor(legacyUser, currentUser);
     return snapshotFor();
   });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  authMock.currentUser = null;
 });
 
 describe('searchUsers', () => {
@@ -84,6 +92,17 @@ describe('searchUsers', () => {
     expect(results).toEqual([
       expect.objectContaining({ uid: 'legacy-user', fullName: 'Legacy User' }),
     ]);
+  });
+
+  it('falls back to the authenticated API when the directory has no matching records', async () => {
+    firestoreMock.getDocs.mockResolvedValue(snapshotFor());
+    authMock.currentUser = { getIdToken: vi.fn().mockResolvedValue('test-token') };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ users: [{ uid: 'legacy-user', fullName: 'Legacy User', email: 'legacy@example.com', role: 'student' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    const results = await searchUsers('Legacy User', 'current-user');
+
+    expect(results).toEqual([expect.objectContaining({ uid: 'legacy-user', fullName: 'Legacy User' })]);
+    expect(fetch).toHaveBeenCalledWith('/api/search-users?q=Legacy%20User', expect.objectContaining({ headers: { Authorization: 'Bearer test-token' } }));
   });
 
   it('reports a coded error when every directory query fails', async () => {
