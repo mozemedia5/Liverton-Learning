@@ -56,6 +56,7 @@ export interface Team {
   updatedAt: Date | any;
   members: TeamMember[];
   memberIds?: string[]; // flat list of member userIds (used by security rules & queries)
+  adminIds?: string[]; // team administrators allowed to approve join requests
   savedByUsers?: string[]; // userIds of users who saved this team
   savingsBalance?: number; // team wallet balance in UGX
   status?: 'active' | 'suspended';

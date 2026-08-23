@@ -202,6 +202,12 @@ service cloud.firestore {
       return isAuthenticated() &&
         currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('memberIds', []);
     }
+    function isTeamManager(teamId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('adminIds', [])
+      );
+    }
     function isTeamFinanceManager(teamId) {
       return isTeamMember(teamId) && (
         get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
@@ -241,8 +247,23 @@ service cloud.firestore {
         isJoiningSelf() &&
         (resource.data.visibility == 'public' || hasPendingTeamInvite(teamId));
       allow delete: if isAuthenticated() && resource.data.ownerId == currentUserId();
-      match /{document=**} {
-        allow read, write: if isPlatformAdmin() || isTeamMember(teamId);
+      match /join_requests/{requesterId} {
+        allow read: if isPlatformAdmin() || isTeamManager(teamId) || (isAuthenticated() && requesterId == currentUserId());
+        allow create: if isAuthenticated() &&
+          requesterId == currentUserId() &&
+          request.resource.data.userId == currentUserId() &&
+          request.resource.data.status == 'pending' &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.visibility == 'public' &&
+          !isTeamMember(teamId);
+        allow update: if isTeamManager(teamId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          request.resource.data.status in ['accepted', 'declined'];
+        allow delete: if isTeamManager(teamId) ||
+          (isAuthenticated() && requesterId == currentUserId() && resource.data.status != 'accepted');
+      }
+      match /{subCollection}/{documentId} {
+        allow read, write: if isPlatformAdmin() ||
+          (subCollection != 'join_requests' && isTeamMember(teamId));
       }
     }
     match /team_invitations/{inviteId} {

@@ -115,6 +115,7 @@ export async function createTeam(teamData: Partial<Team>, ownerId: string, owner
       updatedAt: Timestamp.now(),
       members: [ownerMember],
       memberIds: [ownerId],
+      adminIds: [ownerId],
       savedByUsers: [],
       savingsBalance: 0
     };
@@ -527,6 +528,12 @@ export interface TeamJoinRequest {
  */
 export async function requestToJoinTeam(teamId: string, userId: string, fullName: string, email: string): Promise<void> {
   try {
+    const team = await getTeamById(teamId);
+    if (!team) throw new Error('Team not found');
+    if (team.visibility !== 'public') throw new Error('This team is not open for public join requests');
+    if (team.members.some(member => member.userId === userId)) throw new Error('You are already a member of this team');
+    if (team.members.length >= (team.maxMembers || 50)) throw new Error('This team has reached its maximum member capacity');
+
     const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
     const snap = await getDoc(requestRef);
     if (snap.exists() && snap.data().status === 'pending') {
@@ -540,12 +547,16 @@ export async function requestToJoinTeam(teamId: string, userId: string, fullName
       status: 'pending',
       createdAt: Timestamp.now()
     });
-    // Log initial join request in activity and notify the team owner.
+    // Log the request and notify both the owner and every administrator.
     await logTeamActivity(teamId, userId, fullName, 'requested to join the team');
-    const team = await getTeamById(teamId);
-    if (team?.ownerId) {
+    const approverIds = Array.from(new Set([
+      team.ownerId,
+      ...(team.adminIds || []),
+      ...team.members.filter(member => member.role === 'admin').map(member => member.userId),
+    ].filter(Boolean)));
+    if (approverIds.length > 0) {
       await createTeamNotification({
-        targetUsers: [team.ownerId],
+        targetUsers: approverIds,
         title: `New join request for "${team.name}"`,
         body: `${fullName} requested to join your team. Review the request in the team workspace.`,
         link: `/features/liv-teams/workspace/${teamId}?tab=members`,
@@ -588,7 +599,22 @@ export async function respondToJoinRequest(
   actorName: string
 ): Promise<void> {
   try {
+    const team = await getTeamById(teamId);
+    if (!team) throw new Error('Team not found');
+    const actor = team.members.find(member => member.userId === actorId);
+    const isApprover = team.ownerId === actorId || team.adminIds?.includes(actorId) || actor?.role === 'admin';
+    if (!isApprover) throw new Error('Only the team owner or an administrator can approve join requests');
+    if (actor?.role === 'admin' && !team.adminIds?.includes(actorId)) {
+      await updateDoc(doc(db, 'teams', teamId), { adminIds: arrayUnion(actorId) });
+    }
+    if (team.members.some(member => member.userId === userId)) throw new Error('This user is already a team member');
+    if (approve && team.members.length >= (team.maxMembers || 50)) throw new Error('This team has reached its maximum member capacity');
+
     const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
+    const requestSnapshot = await getDoc(requestRef);
+    if (!requestSnapshot.exists() || requestSnapshot.data().status !== 'pending') {
+      throw new Error('This join request is no longer pending');
+    }
     if (approve) {
       await updateDoc(requestRef, { status: 'accepted' });
       // Add member to the team
@@ -602,7 +628,7 @@ export async function respondToJoinRequest(
       await logTeamActivity(teamId, actorId, actorName, `approved ${fullName}'s join request`);
       await createTeamNotification({
         targetUsers: [userId],
-        title: `You joined "${(await getTeamById(teamId))?.name || 'the team'}"`,
+        title: `You joined "${team.name}"`,
         body: `Your request was approved. Open the team workspace to get started.`,
         link: `/features/liv-teams/workspace/${teamId}`,
         senderId: actorId,
@@ -771,6 +797,7 @@ export async function updateMemberRole(teamId: string, userId: string, newRole: 
     const docRef = doc(db, 'teams', teamId);
     await updateDoc(docRef, {
       members: updatedMembers,
+      ...(newRole === 'admin' ? { adminIds: arrayUnion(userId) } : { adminIds: arrayRemove(userId) }),
       updatedAt: Timestamp.now()
     });
 
