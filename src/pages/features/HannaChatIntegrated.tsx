@@ -6,7 +6,7 @@ import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
   BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw, Pin, Search,
-  History
+  History, Globe2, ExternalLink, Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase';
 import { SEO } from '@/components/SEO';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
 import { streamHannaReply, generateSmartTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { researchWithHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
 import {
@@ -43,6 +44,8 @@ interface Message {
   content: string;
   attachments?: { url: string; name: string; mimeType: string }[];
   createdAt: TimestampLike;
+  sources?: HannaSource[];
+  images?: HannaImageResult[];
 }
 
 interface ChatSession {
@@ -96,6 +99,7 @@ export default function HannaChatIntegrated() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [useWebResearch, setUseWebResearch] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024); // Default true on desktop for premium left sidebar
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -441,6 +445,30 @@ export default function HannaChatIntegrated() {
       });
 
       // 2. Stream Hanna's reply from Gemini (passing name, role & custom instructions)
+      if (useWebResearch) {
+        const result = await researchWithHanna(text || 'Find relevant information about the attached material.');
+        const researchText = result.answer || 'I could not find a grounded answer for that research request.';
+        await addDoc(collection(db, 'hanna_messages'), {
+          chatId: currentChatId,
+          senderId: 'hanna-ai',
+          senderName: 'Hanna',
+          senderRole: 'hanna',
+          content: researchText,
+          sources: result.sources,
+          images: result.images,
+          createdAt: serverTimestamp(),
+        });
+        const researchSessionUpdates: Record<string, unknown> = {
+          updatedAt: serverTimestamp(),
+          messageCount: increment(2),
+        };
+        if (isFirstExchange) researchSessionUpdates.title = text.slice(0, 50) || 'Web research';
+        await updateDoc(doc(db, 'hanna_chats', currentChatId), researchSessionUpdates);
+        setIsGenerating(false);
+        setUseWebResearch(false);
+        return;
+      }
+
       const history = messages.slice(-12).map(m => ({
         role: (m.senderRole === 'user' ? 'user' : 'hanna') as 'user' | 'hanna',
         content: m.content,
@@ -933,6 +961,20 @@ export default function HannaChatIntegrated() {
                             )}
 
                             {/* Asymmetric Corners */}
+                            {message.images && message.images.length > 0 && (
+                              <div className="mb-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                                <div className="mb-2 flex items-center gap-2 text-[11px] font-bold text-emerald-700 dark:text-emerald-300"><ImageIcon className="h-3.5 w-3.5" /> Images from the web</div>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                  {message.images.map((image) => (
+                                    <a key={image.sourceUrl} href={image.sourceUrl} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-white/10 dark:bg-[#111115]">
+                                      <img src={image.thumbnailUrl} alt={image.title} loading="lazy" className="h-24 w-full object-cover transition-transform group-hover:scale-105" />
+                                      <span className="block truncate px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300">{image.title}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             <div
                               className={`
                                 px-3.5 sm:px-4 py-3 text-[13px] sm:text-sm leading-relaxed break-words shadow-sm
@@ -943,6 +985,20 @@ export default function HannaChatIntegrated() {
                             >
                               <HannaMarkdown text={message.content} />
                             </div>
+
+                            {message.sources && message.sources.length > 0 && (
+                              <div className="mt-2 border-t border-slate-200/60 pt-2 dark:border-white/10">
+                                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Sources</p>
+                                <div className="space-y-1">
+                                  {message.sources.map((source) => (
+                                    <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[11px] text-emerald-700 hover:underline dark:text-emerald-300">
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">{source.title}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
 
                             {/* Actions and Timestamp */}
                             <div className={`flex items-center gap-2.5 text-[10px] text-slate-400 dark:text-slate-500 mt-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -1065,6 +1121,14 @@ export default function HannaChatIntegrated() {
                       )}
                     </div>
                   )}
+
+                  <div className="flex items-center justify-between gap-3 text-[11px]">
+                    <button type="button" onClick={() => setUseWebResearch(value => !value)} disabled={isGenerating} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition-colors ${useWebResearch ? 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-300' : 'border-slate-200 bg-white/70 text-slate-500 hover:border-blue-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'}`}>
+                      <Globe2 className="h-3.5 w-3.5" />
+                      {useWebResearch ? 'Web research on' : 'Search the web'}
+                    </button>
+                    {useWebResearch && <span className="text-slate-400">Hanna will cite sources below her answer.</span>}
+                  </div>
 
                   {/* Input Form with modern floating focus borders */}
                   <form
