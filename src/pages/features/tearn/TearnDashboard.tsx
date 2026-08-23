@@ -1000,13 +1000,13 @@ export default function TearnDashboard() {
     <>
       <SEO title="Educators Workhub Dashboard" description="Unified high-fidelity teacher operating workspace with analytics, module-first curriculum builders and Liv Teams finance splits." />
 
-      <div className="space-y-8 pb-12">
+      <div className="liv-tearn-page space-y-8 pb-12">
         {/* Aesthetic backdrop blobs */}
         <div className="absolute top-[-5%] right-[-5%] w-[40vw] h-[40vw] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
         <div className="absolute bottom-[10%] left-[-5%] w-[40vw] h-[40vw] bg-amber-500/5 dark:bg-amber-500/10 blur-[130px] rounded-full pointer-events-none -z-10" />
 
         {/* Workspace Top Header Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-100/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-glass">
+        <div className="liv-tearn-header flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-100/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-glass">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 via-emerald-600 to-amber-500 p-0.5 shadow-lg shadow-emerald-500/10">
               <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">

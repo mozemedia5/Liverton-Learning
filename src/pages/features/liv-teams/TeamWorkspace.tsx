@@ -608,10 +608,10 @@ export default function TeamWorkspace() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="liv-livteams-workspace space-y-6">
 
       {/* Workspace header */}
-      <Card className="overflow-hidden py-0 gap-0">
+      <Card className="liv-livteams-workspace-header overflow-hidden py-0 gap-0">
         <div className="relative">
           <CloudinaryImage
             src={team.coverUrl}
@@ -731,7 +731,7 @@ export default function TeamWorkspace() {
             <LivStatCard icon={<Wallet className="w-5 h-5" />} label="Savings Balance" value={formatUGX(team.savingsBalance || 0)} color="orange" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="liv-livteams-workspace-content grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader className="pb-3 border-b border-gray-100 dark:border-white/5">

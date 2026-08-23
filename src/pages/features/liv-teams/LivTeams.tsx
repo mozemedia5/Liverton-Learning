@@ -288,7 +288,7 @@ export default function LivTeams() {
 
     if (mode === 'discover') {
       return (
-        <Card key={team.id} className="overflow-hidden flex flex-col justify-between border border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0a0a0f]/40 backdrop-blur-md hover:shadow-md transition-all duration-200">
+        <Card key={team.id} className="liv-team-card liv-team-card-discover overflow-hidden flex flex-col justify-between border border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0a0a0f]/40 backdrop-blur-md hover:shadow-md transition-all duration-200">
           <div className="p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize border-0 text-[10px] py-0 px-2 rounded-md">
@@ -344,7 +344,7 @@ export default function LivTeams() {
     }
 
     return (
-      <Card key={team.id} className="overflow-hidden flex flex-col justify-between">
+      <Card key={team.id} className="liv-team-card overflow-hidden flex flex-col justify-between">
         <div>
           <div className="relative">
             <CloudinaryImage
@@ -439,12 +439,12 @@ export default function LivTeams() {
   /* ------------------------------ Render ------------------------------ */
 
   return (
-    <div className="space-y-6">
+    <div className="liv-livteams-page space-y-6">
       <SEO title="Liv Teams" description="Collaborative workspaces for revision groups, clubs, projects, savings and innovation on Liverton Learning." noIndex />
 
       {/* Page header */}
-      <Card>
-        <CardContent className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <Card className="liv-livteams-header">
+            <CardContent className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-glow flex-shrink-0">
               <Users className="w-6 h-6" />

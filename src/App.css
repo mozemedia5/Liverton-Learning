@@ -1177,3 +1177,151 @@ body {
     box-shadow: 0 3px 10px rgba(17, 18, 20, .08);
   }
 }
+
+
+/* Educator Workshop and LivTeams alignment with the compact shared app system. */
+.liv-tearn-page,
+.liv-livteams-page,
+.liv-livteams-workspace {
+  --workspace-paper: #f6f6f2;
+  --workspace-surface: #ffffff;
+  --workspace-ink: #111214;
+  --workspace-muted: #737a74;
+  --workspace-line: #e1e3de;
+  color: var(--workspace-ink);
+}
+
+.liv-tearn-page > * + *,
+.liv-livteams-page > * + *,
+.liv-livteams-workspace > * + * {
+  margin-top: 1.5rem !important;
+}
+
+.liv-tearn-page .liv-tearn-header,
+.liv-livteams-page .liv-livteams-header,
+.liv-livteams-workspace .liv-livteams-workspace-header {
+  background: rgba(255, 255, 253, .92) !important;
+  border-color: var(--workspace-line) !important;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 8px 24px rgba(25, 28, 24, .045);
+}
+
+.liv-tearn-page [class~="p-6"],
+.liv-livteams-page [class~="p-6"],
+.liv-livteams-workspace [class~="p-6"] {
+  padding: 1.25rem !important;
+}
+
+.liv-tearn-page [class~="rounded-3xl"],
+.liv-livteams-page [class~="rounded-3xl"],
+.liv-livteams-workspace [class~="rounded-3xl"] {
+  border-radius: 1.25rem !important;
+}
+
+.liv-tearn-page [class~="gap-6"],
+.liv-livteams-page [class~="gap-6"],
+.liv-livteams-workspace [class~="gap-6"] {
+  gap: 1.25rem !important;
+}
+
+.liv-tearn-page [class~="h-72"] {
+  height: 16rem !important;
+}
+
+.liv-tearn-page [class~="bg-slate-100/30"],
+.liv-tearn-page [class~="bg-slate-100/40"],
+.liv-livteams-page .liv-livteams-header,
+.liv-livteams-page .liv-team-card,
+.liv-livteams-workspace .liv-livteams-workspace-header {
+  background-color: var(--workspace-surface) !important;
+}
+
+.liv-tearn-page [class~="text-slate-900"],
+.liv-livteams-page [class~="text-slate-900"],
+.liv-livteams-workspace [class~="text-slate-900"] {
+  color: var(--workspace-ink) !important;
+}
+
+.liv-tearn-page [class~="text-slate-400"],
+.liv-tearn-page [class~="text-slate-500"],
+.liv-livteams-page [class~="text-slate-400"],
+.liv-livteams-page [class~="text-slate-500"],
+.liv-livteams-workspace [class~="text-slate-400"],
+.liv-livteams-workspace [class~="text-slate-500"] {
+  color: var(--workspace-muted) !important;
+}
+
+.liv-livteams-page .liv-team-card,
+.liv-livteams-workspace .liv-livteams-workspace-header {
+  border-radius: 1.25rem !important;
+  border-color: var(--workspace-line) !important;
+  box-shadow: 0 5px 16px rgba(25, 28, 24, .035);
+}
+
+.liv-livteams-page .liv-team-card [class~="p-5"] {
+  padding: 1.125rem !important;
+}
+
+.liv-livteams-page .liv-team-card [class~="p-4"],
+.liv-livteams-workspace [class~="p-4"] {
+  padding: 1rem !important;
+}
+
+.liv-livteams-page .liv-team-card [class~="border-gray-100"],
+.liv-livteams-workspace [class~="border-gray-100"] {
+  border-color: var(--workspace-line) !important;
+}
+
+.liv-livteams-workspace .liv-livteams-workspace-content {
+  gap: 1.25rem !important;
+}
+
+.dark .liv-tearn-page,
+.dark .liv-livteams-page,
+.dark .liv-livteams-workspace {
+  --workspace-paper: #171a20;
+  --workspace-surface: #20252d;
+  --workspace-ink: #f7f8f5;
+  --workspace-muted: #b7bdc3;
+  --workspace-line: rgba(255, 255, 255, .11);
+  color: var(--workspace-ink);
+}
+
+.dark .liv-tearn-page .liv-tearn-header,
+.dark .liv-livteams-page .liv-livteams-header,
+.dark .liv-livteams-workspace .liv-livteams-workspace-header,
+.dark .liv-tearn-page [class~="bg-slate-100/30"],
+.dark .liv-tearn-page [class~="bg-slate-100/40"],
+.dark .liv-livteams-page .liv-team-card {
+  background: var(--workspace-surface) !important;
+  border-color: var(--workspace-line) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+}
+
+.dark .liv-tearn-page [class~="text-slate-900"],
+.dark .liv-livteams-page [class~="text-slate-900"],
+.dark .liv-livteams-workspace [class~="text-slate-900"] {
+  color: var(--workspace-ink) !important;
+}
+
+.dark .liv-tearn-page [class~="text-slate-400"],
+.dark .liv-tearn-page [class~="text-slate-500"],
+.dark .liv-livteams-page [class~="text-slate-400"],
+.dark .liv-livteams-page [class~="text-slate-500"],
+.dark .liv-livteams-workspace [class~="text-slate-400"],
+.dark .liv-livteams-workspace [class~="text-slate-500"] {
+  color: var(--workspace-muted) !important;
+}
+
+.dark .liv-livteams-page .liv-team-card [class~="border-gray-100"],
+.dark .liv-livteams-workspace [class~="border-gray-100"] {
+  border-color: var(--workspace-line) !important;
+}
+
+@media (max-width: 640px) {
+  .liv-tearn-page .liv-tearn-header,
+  .liv-livteams-page .liv-livteams-header,
+  .liv-livteams-workspace .liv-livteams-workspace-header {
+    border-radius: 1.25rem !important;
+  }
+}
