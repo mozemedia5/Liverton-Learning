@@ -34,7 +34,12 @@ export async function requireIdentity(req: VercelRequest) {
 }
 
 function allowedOrigins() {
-  return (process.env.ALLOWED_ORIGINS || 'https://liverton-learning.vercel.app')
+  return (process.env.ALLOWED_ORIGINS || [
+    'https://liverton-learning.vercel.app',
+    'https://liverton-learning.lindy.site',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ].join(','))
     .split(',').map(value => value.trim()).filter(Boolean);
 }
 

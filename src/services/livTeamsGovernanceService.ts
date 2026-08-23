@@ -118,15 +118,19 @@ export function isValidProjectTransition(from: string, to: string): boolean {
   const transitions: Record<string, string[]> = {
     Idea: ['Planning', 'Archived'],
     Planning: ['Active', 'Archived'],
-    Active: ['Testing', 'Near Completion', 'Archived'],
-    Testing: ['Review', 'Active'],
-    Review: ['Completed', 'Active'],
-    'Near Completion': ['Completed', 'Review'],
-    Completed: ['Submitted for Verification', 'Archived'],
-    'Submitted for Verification': ['Verified', 'Completed'],
-    Verified: ['Listed', 'Archived'],
+    Active: ['Testing'],
+    Testing: ['Review'],
+    Review: ['Near Completion'],
+    'Near Completion': ['Completed'],
+    // Completed is the final delivery milestone. Listing is a separate,
+    // optional economic action rather than another project work stage.
+    Completed: ['Listed', 'Archived'],
     Listed: ['Archived'],
     Archived: [],
+    // Keep old records readable and recoverable, but do not expose these
+    // verification stages for newly created projects.
+    'Submitted for Verification': ['Completed'],
+    Verified: ['Listed', 'Completed'],
   };
   return from === to || transitions[from]?.includes(to) === true;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import {
-  getAllTeams,
+  getTeamsForUser,
   getInvitationsForUser,
   respondToInvitation,
   toggleSaveTeam,
@@ -47,6 +47,7 @@ type FundingWithTeam = ProjectFundingRequest & { teamName: string };
 
 export default function LivTeams() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentUser, userData, userRole } = useAuth();
 
   const [activeTab, setActiveTab] = useState('home');
@@ -95,7 +96,7 @@ export default function LivTeams() {
     setLoading(true);
     try {
       const [allTeams, invites, mItems] = await Promise.all([
-        getAllTeams(),
+        getTeamsForUser(currentUser.uid),
         getInvitationsForUser(currentUser.email || ''),
         getMarketplaceItems()
       ]);
@@ -128,6 +129,10 @@ export default function LivTeams() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (searchParams.get('tab') === 'invitations') setActiveTab('invitations');
+  }, [searchParams]);
+
   /* ------------------------------ Actions ------------------------------ */
 
   const handleTeamCreated = (teamId: string) => {
@@ -153,9 +158,11 @@ export default function LivTeams() {
   const handleAcceptInvite = async (inviteId: string) => {
     if (!currentUser) return;
     try {
+      const invitation = invitations.find((invite) => invite.id === inviteId);
       await respondToInvitation(inviteId, true, currentUser.uid, userData?.fullName || 'Anonymous');
       toast.success('Joined team successfully!');
-      loadData();
+      await loadData();
+      if (invitation?.teamId) navigate(`/features/liv-teams/workspace/${invitation.teamId}`);
     } catch {
       toast.error('Error joining team');
     }

@@ -18,7 +18,7 @@ import { auth, db } from '@/lib/firebase';
 import type { User, UserRole } from '@/types';
 import { normalizeUserRole } from '@/lib/authNavigation';
 import { clearAccountSetupReminder, createAccountSetupReminder, getAccountSetupStatus, syncAccountIdentity } from '@/services/accountSetupService';
-import { claimUsername, normalizeUsername, validateUsername } from '@/services/userProfileService';
+import { claimUsername, normalizeUsername, releaseUsername, validateUsername } from '@/services/userProfileService';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -386,6 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser) return;
 
     let profileUpdate: Partial<User> = { ...data };
+    const previousUsername = userData?.username;
     if (typeof data.username === 'string') {
       const usernameError = validateUsername(data.username);
       if (usernameError) throw new Error(usernameError);
@@ -397,23 +398,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    const profileTimestamp = serverTimestamp();
     const userRef = doc(db, 'users', currentUser.uid);
-    await updateDoc(userRef, {
+    await setDoc(userRef, {
       ...profileUpdate,
-      updatedAt: serverTimestamp(),
-    });
+      updatedAt: profileTimestamp,
+    }, { merge: true });
 
     if (userData?.role) {
       const roleRef = doc(db, userData.role + 's', currentUser.uid);
-      await updateDoc(roleRef, {
+      await setDoc(roleRef, {
         ...profileUpdate,
-        updatedAt: serverTimestamp(),
-      });
+        updatedAt: profileTimestamp,
+      }, { merge: true });
     }
 
     const nextProfile = userData ? { ...userData, ...profileUpdate } : null;
     setUserData(nextProfile);
     if (nextProfile) {
+      // Refresh the public directory before resolving the save so new usernames
+      // and email addresses are searchable immediately in Chat.
+      await syncAccountIdentity(nextProfile, currentUser);
+      if (typeof data.username === 'string' && previousUsername && previousUsername !== nextProfile.username) {
+        await releaseUsername(previousUsername, currentUser.uid);
+      }
       syncAccountOnOpen(nextProfile, currentUser);
     }
   };

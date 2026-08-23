@@ -39,20 +39,20 @@ const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; se
   if (role === 'parent') {
     return {
       main: [home, { name: 'Learners', path: '/parent/students', icon: Users }, { name: 'Messages', path: '/chat', icon: MessageSquare }, { name: 'Progress', path: '/parent/performance', icon: BarChart3 }, more],
-      secondary: [{ name: 'Learners', path: '/parent/students', icon: Users }, { name: 'Progress', path: '/parent/performance', icon: BarChart3 }, { name: 'My modules', path: '/parent/courses', icon: BookOpen }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Messages')]
+      secondary: [{ name: 'Learners', path: '/parent/students', icon: Users }, { name: 'Progress', path: '/parent/performance', icon: BarChart3 }, { name: 'My modules', path: '/parent/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Messages')]
     };
   }
 
   if (role === 'school_admin' || role === 'platform_admin') {
     return {
       main: [home, { name: 'Reports', path: '/features/analytics', icon: BarChart3 }, { name: 'People', path: role === 'school_admin' ? '/school-admin/teachers' : '/admin/users', icon: Users }, { name: 'Approvals', path: '/announcements', icon: ClipboardList }, more],
-      secondary: [{ name: 'Reports', path: '/features/analytics', icon: BarChart3 }, { name: 'People', path: role === 'school_admin' ? '/school-admin/teachers' : '/admin/users', icon: Users }, ...common]
+      secondary: [{ name: 'Reports', path: '/features/analytics', icon: BarChart3 }, { name: 'People', path: role === 'school_admin' ? '/school-admin/teachers' : '/admin/users', icon: Users }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common]
     };
   }
 
   return {
     main: [home, { name: 'Modules', path: '/student/courses', icon: BookOpen }, { name: 'Messages', path: '/chat', icon: MessageSquare }, { name: 'Explore', path: '/features/liv-mart', icon: ShoppingBag }, more],
-    secondary: [{ name: 'My modules', path: '/student/courses', icon: BookOpen }, { name: 'Messages', path: '/chat', icon: MessageSquare }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Messages')]
+    secondary: [{ name: 'My modules', path: '/student/courses', icon: BookOpen }, { name: 'Messages', path: '/chat', icon: MessageSquare }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Messages')]
   };
 };
 

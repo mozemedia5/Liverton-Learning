@@ -168,8 +168,12 @@ export async function confirmLivFundContributionServerResult(contributionId: str
 
 export async function createProjectVerification(project: TeamProject, actorId: string): Promise<string> {
   if (!isTeamManager(project, actorId)) throw new Error('You are not authorized to submit this project for verification.');
+  if (project.status !== 'Completed' && project.status !== 'Listed') {
+    throw new Error('Finish the project lifecycle through Completed before submitting it for review.');
+  }
   const ref = await addDoc(collection(db, VERIFICATIONS), { projectId: project.id, teamId: project.teamId, status: 'Pending Review', createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
-  await updateDoc(doc(db, 'teams', project.teamId, 'projects', project.id), { status: 'Submitted for Verification', submittedForVerificationAt: Timestamp.now() });
+  // Verification is tracked separately; it must not move the project back into
+  // a deprecated workflow stage or make the project disappear from Completed.
   return ref.id;
 }
 
@@ -203,7 +207,7 @@ export async function createLivMartListing(input: {
   supportTerms?: string;
 }): Promise<string> {
   if (!isTeamManager(input.project, input.sellerId)) throw new Error('You are not authorized to list this project.');
-  if (!['Completed', 'Verified', 'Listed'].includes(input.project.status)) throw new Error('Only completed or verified projects can be submitted to LivMart.');
+  if (!['Completed', 'Listed'].includes(input.project.status)) throw new Error('Only completed projects can be submitted to LivMart.');
   if (!input.title.trim() || !input.description.trim() || input.deliverables.filter(Boolean).length === 0) throw new Error('A listing needs a clear description and deliverables.');
   if (!Number.isSafeInteger(input.priceMinor) || input.priceMinor < 0) throw new Error('Price must be an integer in minor currency units.');
   const ref = await addDoc(collection(db, LISTINGS), {

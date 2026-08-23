@@ -8,8 +8,15 @@ import {
 describe('Liv Teams governance helpers', () => {
   it('allows only valid project lifecycle transitions', () => {
     expect(isValidProjectTransition('Idea', 'Planning')).toBe(true);
+    expect(isValidProjectTransition('Planning', 'Active')).toBe(true);
+    expect(isValidProjectTransition('Active', 'Testing')).toBe(true);
+    expect(isValidProjectTransition('Testing', 'Review')).toBe(true);
+    expect(isValidProjectTransition('Review', 'Near Completion')).toBe(true);
+    expect(isValidProjectTransition('Near Completion', 'Completed')).toBe(true);
+    expect(isValidProjectTransition('Completed', 'Listed')).toBe(true);
     expect(isValidProjectTransition('Idea', 'Verified')).toBe(false);
-    expect(isValidProjectTransition('Completed', 'Submitted for Verification')).toBe(true);
+    expect(isValidProjectTransition('Completed', 'Submitted for Verification')).toBe(false);
+    expect(isValidProjectTransition('Active', 'Near Completion')).toBe(false);
   });
 
   it('derives treasury balance only from settled entries', () => {

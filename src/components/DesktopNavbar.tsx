@@ -52,7 +52,11 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
     };
     if (userRole === 'parent') return {
       primary: [home, { label: 'My children', path: '/parent/students', icon: Users }, { label: 'Progress', path: '/parent/performance', icon: BarChart3 }],
-      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }, { label: 'More', path: '/more', icon: LayoutGrid }],
+      tools: [{ label: 'Courses', path: '/parent/courses', icon: BookOpen }, { label: 'Organization fees', path: '/parent/fees', icon: WalletCards }, { label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Calendar', path: '/calendar', icon: CalendarDays }, { label: 'Messages', path: '/chat', icon: MessageCircle }, { label: 'More', path: '/more', icon: LayoutGrid }],
+    };
+    if (userRole === 'platform_admin') return {
+      primary: [home, { label: 'Users', path: '/admin/users', icon: Users }, { label: 'Reports', path: '/admin/analytics', icon: BarChart3 }],
+      tools: [{ label: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { label: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { label: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, { label: 'Announcements', path: '/announcements', icon: MessageCircle }, { label: 'More', path: '/more', icon: LayoutGrid }],
     };
     if (userRole === 'school_admin') return {
       primary: [home, { label: 'People', path: '/school-admin/students', icon: Users }, { label: 'Educators', path: '/school-admin/teachers', icon: GraduationCap }],

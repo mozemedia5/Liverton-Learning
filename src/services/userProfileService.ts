@@ -100,6 +100,16 @@ export async function claimUsername(username: string, uid: string): Promise<stri
   return normalized;
 }
 
+export async function releaseUsername(username: string, uid: string): Promise<void> {
+  const normalized = normalizeUsername(username);
+  if (!normalized) return;
+  const usernameRef = doc(db, 'usernames', normalized);
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(usernameRef);
+    if (existing.exists() && existing.data().uid === uid) transaction.delete(usernameRef);
+  });
+}
+
 export async function isUsernameAvailable(username: string, currentUserId?: string): Promise<boolean> {
   const normalized = normalizeUsername(username);
   const usernameError = validateUsername(normalized);

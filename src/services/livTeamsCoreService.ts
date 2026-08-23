@@ -25,6 +25,33 @@ export const teamCategories = [
   'Debate', 'Entrepreneurship', 'School Club', 'Savings', 'Other'
 ];
 
+async function createTeamNotification(input: {
+  targetUsers: string[];
+  targetEmail?: string;
+  title: string;
+  body: string;
+  link?: string;
+  senderId?: string;
+  sender?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  await addDoc(collection(db, 'notifications'), {
+    title: input.title,
+    body: input.body,
+    // Keep the legacy field for older inbox readers.
+    content: input.body,
+    type: 'announcement',
+    targetAudience: [],
+    targetUsers: input.targetUsers,
+    ...(input.targetEmail ? { targetEmail: input.targetEmail } : {}),
+    link: input.link || '',
+    sender: input.sender || 'LivTeams',
+    senderId: input.senderId || '',
+    createdAt: Timestamp.now(),
+    ...input.metadata,
+  });
+}
+
 /**
  * Log a team activity feed item
  */
@@ -137,6 +164,43 @@ export async function getAllTeams(): Promise<Team[]> {
     console.error('Error fetching all teams:', error);
     return [];
   }
+}
+
+/**
+ * Load the teams a signed-in user is allowed to see. Querying every team from
+ * the client is rejected by Firestore because private teams are not readable
+ * unless the request is constrained by ownership or membership.
+ */
+export async function getTeamsForUser(userId: string): Promise<Team[]> {
+  if (!userId) return [];
+  const teamsRef = collection(db, 'teams');
+  const queries = [
+    query(teamsRef, where('visibility', '==', 'public')),
+    query(teamsRef, where('ownerId', '==', userId)),
+    query(teamsRef, where('memberIds', 'array-contains', userId)),
+  ];
+
+  const snapshots = await Promise.all(queries.map(async (teamQuery) => {
+    try {
+      return await getDocs(teamQuery);
+    } catch (error) {
+      console.warn('Unable to load one team visibility bucket:', error);
+      return null;
+    }
+  }));
+
+  const teams = new Map<string, Team>();
+  snapshots.forEach((snapshot) => {
+    snapshot?.docs.forEach((teamDoc) => {
+      teams.set(teamDoc.id, { id: teamDoc.id, ...teamDoc.data() } as Team);
+    });
+  });
+
+  return Array.from(teams.values()).sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() ?? new Date(a.createdAt || 0).getTime();
+    const bTime = b.createdAt?.toMillis?.() ?? new Date(b.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
 }
 
 /**
@@ -476,8 +540,20 @@ export async function requestToJoinTeam(teamId: string, userId: string, fullName
       status: 'pending',
       createdAt: Timestamp.now()
     });
-    // Log initial join request in activity
+    // Log initial join request in activity and notify the team owner.
     await logTeamActivity(teamId, userId, fullName, 'requested to join the team');
+    const team = await getTeamById(teamId);
+    if (team?.ownerId) {
+      await createTeamNotification({
+        targetUsers: [team.ownerId],
+        title: `New join request for "${team.name}"`,
+        body: `${fullName} requested to join your team. Review the request in the team workspace.`,
+        link: `/features/liv-teams/workspace/${teamId}?tab=members`,
+        senderId: userId,
+        sender: fullName,
+        metadata: { notificationType: 'team_join_request', teamId, joinRequestUserId: userId },
+      });
+    }
   } catch (error) {
     console.error('Error requesting to join team:', error);
     throw error;
@@ -524,9 +600,27 @@ export async function respondToJoinRequest(
         joinedAt: new Date()
       });
       await logTeamActivity(teamId, actorId, actorName, `approved ${fullName}'s join request`);
+      await createTeamNotification({
+        targetUsers: [userId],
+        title: `You joined "${(await getTeamById(teamId))?.name || 'the team'}"`,
+        body: `Your request was approved. Open the team workspace to get started.`,
+        link: `/features/liv-teams/workspace/${teamId}`,
+        senderId: actorId,
+        sender: actorName,
+        metadata: { notificationType: 'team_join_approved', teamId },
+      });
     } else {
       await updateDoc(requestRef, { status: 'declined' });
       await logTeamActivity(teamId, actorId, actorName, `declined ${fullName}'s join request`);
+      await createTeamNotification({
+        targetUsers: [userId],
+        title: `Join request declined`,
+        body: `Your request to join the team was declined by ${actorName}.`,
+        link: `/features/liv-teams/workspace/${teamId}`,
+        senderId: actorId,
+        sender: actorName,
+        metadata: { notificationType: 'team_join_declined', teamId },
+      });
     }
   } catch (error) {
     console.error('Error responding to join request:', error);
@@ -705,11 +799,27 @@ export async function sendTeamInvitation(invitation: Partial<TeamInvitation>): P
     }
     const inviteId = `${invitation.teamId}_${invitedEmail}`;
     const inviteRef = doc(db, 'team_invitations', inviteId);
+    const directorySnapshot = await getDocs(query(
+      collection(db, 'userDirectory'),
+      where('emailLower', '==', invitedEmail),
+    ));
+    const invitedUserId = invitation.invitedUserId || directorySnapshot.docs[0]?.id;
     await setDoc(inviteRef, {
       ...invitation,
       invitedEmail,
+      ...(invitedUserId ? { invitedUserId } : {}),
       status: 'pending',
       createdAt: Timestamp.now()
+    });
+    await createTeamNotification({
+      targetUsers: invitedUserId ? [invitedUserId] : [],
+      targetEmail: invitedEmail,
+      title: `Invitation to join ${invitation.teamName || 'a LivTeam'}`,
+      body: `${invitation.senderName || 'A team member'} invited you to join "${invitation.teamName || 'a LivTeam'}". Tap to review and join.`,
+      link: `/features/liv-teams?tab=invitations&invite=${encodeURIComponent(inviteId)}`,
+      senderId: invitation.senderId,
+      sender: invitation.senderName,
+      metadata: { notificationType: 'team_invitation', teamId: invitation.teamId, invitationId: inviteId },
     });
     return inviteId;
   } catch (error) {
@@ -747,6 +857,15 @@ export async function respondToInvitation(inviteId: string, accept: boolean, use
         email: inviteData.invitedEmail,
         role: inviteData.role,
         joinedAt: new Date()
+      });
+      await createTeamNotification({
+        targetUsers: [userId],
+        title: `You joined "${inviteData.teamName}"`,
+        body: `You are now a ${inviteData.role.replace('_', ' ')} in this team.`,
+        link: `/features/liv-teams/workspace/${inviteData.teamId}`,
+        senderId: inviteData.senderId,
+        sender: inviteData.senderName,
+        metadata: { notificationType: 'team_invitation_accepted', teamId: inviteData.teamId, invitationId: inviteId },
       });
     }
   } catch (error) {

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Send, Smile, Paperclip, Edit2, Trash, CornerDownRight, Pin,
-  FileText, CheckCheck, MessageSquare, Download,
+  CheckCheck, MessageSquare,
   Search, X, Loader2, Mic
 } from 'lucide-react';
 import {
@@ -21,6 +21,7 @@ import {
 import { uploadToCloudinary, type CloudinaryUploadType } from '@/services/cloudinaryService';
 import type { TeamMessage, TeamMessageReply, TeamRole } from '@/types/livTeams';
 import { LivLoader } from './livTeamsUi';
+import TeamAttachmentViewer from '@/components/TeamAttachmentViewer';
 
 interface ChatProps {
   teamId: string;
@@ -387,41 +388,14 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           )}
 
-                          {msg.type === 'image' && (
-                            <div className="space-y-1">
-                              <a href={msg.fileUrl} target="_blank" rel="noreferrer">
-                                <img src={msg.fileUrl} className="max-w-xs max-h-56 rounded-lg object-cover" alt={msg.fileName || 'image'} />
-                              </a>
-                              <p className="text-xs opacity-80">{msg.content}</p>
-                            </div>
-                          )}
-
-                          {msg.type === 'video' && (
-                            <div className="space-y-1">
-                              <video src={msg.fileUrl} controls className="max-w-xs max-h-56 rounded-lg" />
-                              <p className="text-xs opacity-80">{msg.content}</p>
-                            </div>
-                          )}
-
-                          {(msg.type === 'document' || msg.type === 'zip') && (
-                            <div className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
-                              isMe ? 'bg-white/15 text-white' : 'bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200'
-                            }`}>
-                              <FileText className={`w-5 h-5 flex-shrink-0 ${isMe ? 'text-white' : 'text-emerald-500'}`} />
-                              <div className="min-w-0">
-                                <p className="font-semibold truncate max-w-[160px]">{msg.fileName}</p>
-                                <p className="text-[10px] opacity-70">{msg.fileSize || 'File'}</p>
-                              </div>
-                              <a href={msg.fileUrl} target="_blank" rel="noreferrer" className={`ml-auto ${isMe ? 'text-white' : 'text-emerald-500 hover:text-emerald-600'}`}>
-                                <Download className="w-4 h-4" />
-                              </a>
-                            </div>
-                          )}
-
-                          {msg.type === 'audio' && (
-                            <div className="min-w-[220px]">
-                              <audio src={msg.fileUrl} controls className="w-full h-9" />
-                            </div>
+                          {(['image', 'video', 'audio', 'document', 'zip'] as const).includes(msg.type) && (
+                            <TeamAttachmentViewer
+                              url={msg.fileUrl}
+                              name={msg.fileName || msg.content}
+                              type={msg.type}
+                              size={msg.fileSize}
+                              isMine={isMe}
+                            />
                           )}
                         </div>
                       )}

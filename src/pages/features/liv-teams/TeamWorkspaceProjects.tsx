@@ -37,7 +37,7 @@ interface ProjectsProps {
   members: TeamMember[];
 }
 
-const projectStatuses: ProjectStatus[] = ['Idea', 'Planning', 'Active', 'Testing', 'Review', 'Near Completion', 'Completed', 'Submitted for Verification', 'Verified', 'Listed', 'Archived'];
+const projectStatuses: ProjectStatus[] = ['Idea', 'Planning', 'Active', 'Testing', 'Review', 'Near Completion', 'Completed', 'Listed'];
 
 const statusStyles: Record<ProjectStatus, string> = {
   Idea: 'bg-slate-500/10 text-slate-500 border-0',

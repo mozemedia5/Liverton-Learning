@@ -75,8 +75,9 @@ const formatChatDate = (date: Date): string => {
 
 /**
  * Search for users by username or email to start a new chat.
- * The directory only contains explicitly searchable identity fields; the old
- * users collection is used as a bounded email-only fallback for legacy profiles.
+ * The directory only contains explicitly searchable identity fields. This keeps
+ * discovery safe for normal users because the private /users collection is not
+ * list-readable under Firestore rules.
  */
 export const searchUsers = async (searchTerm: string, currentUserId: string): Promise<ChatContact[]> => {
   const rawTerm = searchTerm.trim();
@@ -129,50 +130,7 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
       .slice(0, 50)
       .map(toContact);
 
-    if (directoryResults.length > 0) return directoryResults;
-
-    // Legacy profiles may not have opened the app since userDirectory was added.
-    // Keep the fallback email-only so display-name guessing is no longer used.
-    const legacyCollection = collection(db, 'users');
-    const [legacyEmailSnapshot, legacyUsernameSnapshot] = await Promise.all([
-      getDocs(query(
-        legacyCollection,
-        where('email', '>=', emailTerm),
-        where('email', '<=', `${emailTerm}\uf8ff`),
-        limit(50),
-      )),
-      getDocs(query(
-        legacyCollection,
-        where('usernameLower', '>=', usernameTerm),
-        where('usernameLower', '<=', `${usernameTerm}\uf8ff`),
-        limit(50),
-      )),
-    ]);
-    const legacySnapshotDocs = Array.from(new Map(
-      [...legacyEmailSnapshot.docs, ...legacyUsernameSnapshot.docs].map((legacyDoc) => [legacyDoc.id, legacyDoc]),
-    ).values());
-    return legacySnapshotDocs
-      .map((userDoc) => {
-        const data = userDoc.data();
-        const email = data.email || '';
-        const username = data.username || '';
-        return {
-          uid: userDoc.id,
-          fullName: data.fullName || data.name || 'Liverton member',
-          email,
-          role: data.role || 'student',
-          username,
-          usernameLower: data.usernameLower || normalizeUsername(username),
-          emailLower: data.emailLower || normalizeEmail(email),
-          profilePicture: data.profilePicture || data.profileImageUrl,
-          providerIds: Array.isArray(data.providerIds) ? data.providerIds : undefined,
-          isDiscoverable: data.isDiscoverable !== false,
-        } as UserDirectoryEntry;
-      })
-      .filter((user) => user.uid !== currentUserId && user.isDiscoverable)
-      .filter((user) => (user.usernameLower || '').startsWith(usernameTerm) || (user.emailLower || '').startsWith(emailTerm))
-      .slice(0, 50)
-      .map(toContact);
+    return directoryResults;
   } catch (error) {
     console.error('Error searching the user directory:', error);
     throw error;

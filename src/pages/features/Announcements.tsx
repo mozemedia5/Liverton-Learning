@@ -57,6 +57,7 @@ interface NotificationItem {
   link?: string;
   targetAudience: string[];
   targetUsers?: string[];
+  targetEmail?: string;
   sender: string;
   senderId: string;
   senderRole: string;
@@ -119,6 +120,7 @@ export default function Announcements() {
           link: d.link || d.redirectUrl || '',
           targetAudience: d.targetAudience || [],
           targetUsers: d.targetUsers || [],
+          targetEmail: d.targetEmail || '',
           sender: d.sender || 'Unknown',
           senderId: d.senderId || '',
           senderRole: d.senderRole || '',
@@ -144,6 +146,9 @@ export default function Announcements() {
 
           if (a.targetUsers && a.targetUsers.length > 0) {
             return notHidden && notExpired && currentUser?.uid && a.targetUsers.includes(currentUser.uid);
+          }
+          if (a.targetEmail) {
+            return notHidden && notExpired && currentUser?.email && a.targetEmail === currentUser.email.toLowerCase();
           }
 
           const targeted = a.targetAudience?.includes('all') || 
