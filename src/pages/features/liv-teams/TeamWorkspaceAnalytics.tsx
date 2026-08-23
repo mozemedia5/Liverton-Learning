@@ -161,7 +161,7 @@ export default function TeamWorkspaceAnalytics({ teamId }: AnalyticsProps) {
       <LivSectionHeader title="Team Analytics" subtitle="Live metrics computed from real workspace activity." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <LivStatCard icon={<MessageSquare className="w-5 h-5" />} label="Messages" value={messages.length} color="emerald" hint={`${last7Days.reduce((s, d) => s + d.messages, 0)} this week`} />
+        <LivStatCard icon={<MessageSquare className="w-5 h-5" />} label="Chat" value={messages.length} color="emerald" hint={`${last7Days.reduce((s, d) => s + d.messages, 0)} this week`} />
         <LivStatCard icon={<ListTodo className="w-5 h-5" />} label="Tasks Completed" value={`${taskStats.completed}/${taskStats.total}`} color="blue" hint={`${taskStats.rate}% completion rate`} />
         <LivStatCard icon={<Wallet className="w-5 h-5" />} label="Approved Savings" value={formatUGX(savingsBalance)} color="orange" />
         <LivStatCard icon={<FileText className="w-5 h-5" />} label="Files Shared" value={files.length} color="purple" />
@@ -169,11 +169,11 @@ export default function TeamWorkspaceAnalytics({ teamId }: AnalyticsProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Messages activity */}
+        {/* Chat activity */}
         <Card>
           <CardHeader className="p-4 border-b border-gray-100 dark:border-white/5">
             <CardTitle className="text-sm font-semibold">Chat Activity</CardTitle>
-            <CardDescription className="text-xs">Messages sent over the last 7 days</CardDescription>
+            <CardDescription className="text-xs">Chat activity over the last 7 days</CardDescription>
           </CardHeader>
           <CardContent className="p-4 h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -188,7 +188,7 @@ export default function TeamWorkspaceAnalytics({ teamId }: AnalyticsProps) {
                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip />
-                <Area type="monotone" dataKey="messages" name="Messages" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorTeamChat)" />
+                <Area type="monotone" dataKey="messages" name="Chat" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorTeamChat)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>

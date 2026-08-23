@@ -732,7 +732,7 @@ export default function HannaChatIntegrated() {
                   className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
                 >
                   <RefreshCw className="w-4 h-4 text-blue-500" />
-                  Clear Messages
+                  Clear chat history
                 </button>
                 <hr className="my-1 border-slate-200/50 dark:border-white/5" />
                 <button

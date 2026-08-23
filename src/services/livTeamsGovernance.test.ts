@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDoc, setDoc, addDoc, updateDoc, doc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getDoc, setDoc, addDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { requestToJoinTeam, respondToJoinRequest } from './livTeamsCoreService';
 
 const team = {

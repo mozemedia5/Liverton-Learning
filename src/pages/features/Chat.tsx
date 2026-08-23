@@ -465,7 +465,7 @@ export default function Chat() {
       >
         {/* Sidebar Header */}
         <div className="liv-chat-sidebar-header p-4 border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Messages</h1>
+          <h1 className="text-xl font-bold">Chat</h1>
           <div className="flex gap-2">
             <Button 
               variant="ghost" 
@@ -838,7 +838,7 @@ export default function Chat() {
             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
               <MessageSquare className="w-10 h-10 text-emerald-600" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Your Messages</h2>
+            <h2 className="text-2xl font-bold mb-2">Your Chat</h2>
             <p className="text-gray-500 max-w-xs mb-8">
               Select a conversation from the sidebar or start a new one to begin chatting.
             </p>
@@ -865,7 +865,7 @@ export default function Chat() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">New Message</h3>
+              <h3 className="text-lg font-bold">New Chat</h3>
               <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(false)} className="rounded-full">
                 <X className="w-5 h-5" />
               </Button>

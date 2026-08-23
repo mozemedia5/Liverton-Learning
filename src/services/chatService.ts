@@ -85,6 +85,8 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
   const usernameTerm = normalizeUsername(rawTerm);
   const emailTerm = normalizeEmail(rawTerm);
+  const legacyUsernameTerms = Array.from(new Set([rawTerm.replace(/^@+/, ''), usernameTerm])).filter(Boolean);
+  const legacyEmailTerms = Array.from(new Set([rawTerm, emailTerm])).filter(Boolean);
 
   const toContact = (user: UserDirectoryEntry): ChatContact => ({
     uid: user.uid,
@@ -98,7 +100,7 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
   try {
     const directoryCollection = collection(db, 'userDirectory');
-    const [usernameSnapshot, emailSnapshot, legacyUsernameSnapshot, legacyEmailSnapshot] = await Promise.all([
+    const [usernameSnapshot, emailSnapshot, ...legacySnapshots] = await Promise.all([
       getDocs(query(
         directoryCollection,
         where('usernameLower', '>=', usernameTerm),
@@ -112,21 +114,21 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
         limit(50),
       )),
       // Older directory records may not have the lowercase index fields yet.
-      // Exact legacy lookups keep email/username chat creation working without
-      // requiring an insecure collection-wide read.
-      getDocs(query(directoryCollection, where('username', '==', usernameTerm), limit(50))),
-      getDocs(query(directoryCollection, where('email', '==', rawTerm), limit(50))),
+      // Query original and normalized forms without requiring an insecure
+      // collection-wide read.
+      ...legacyUsernameTerms.map((term) => getDocs(query(directoryCollection, where('username', '==', term), limit(50)))),
+      ...legacyEmailTerms.map((term) => getDocs(query(directoryCollection, where('email', '==', term), limit(50)))),
     ]);
 
     const directoryResults = Array.from(new Map(
-      [...usernameSnapshot.docs, ...emailSnapshot.docs, ...legacyUsernameSnapshot.docs, ...legacyEmailSnapshot.docs]
+      [usernameSnapshot.docs, emailSnapshot.docs, ...legacySnapshots.map((snapshot) => snapshot.docs)].flat()
         .map((directoryDoc) => [directoryDoc.id, mapDirectoryEntry(directoryDoc)]),
     ).values())
       .filter((user) => user.uid !== currentUserId && user.isDiscoverable)
       .filter((user) => {
         const username = user.usernameLower || normalizeUsername(user.username);
         const email = user.emailLower || normalizeEmail(user.email);
-        return username.startsWith(usernameTerm) || email.startsWith(emailTerm) || user.username === usernameTerm || user.email === rawTerm;
+        return username.startsWith(usernameTerm) || email.startsWith(emailTerm);
       })
       .sort((a, b) => {
         const aExact = (a.usernameLower === usernameTerm || a.emailLower === emailTerm) ? 1 : 0;

@@ -30,9 +30,9 @@ export default function ActivitySummaryCard() {
           <span><strong>{unreadNotifications || 'No new'} announcement{unreadNotifications === 1 ? '' : 's'}</strong><small>Review updates, reminders, and approvals</small></span>
           <ChevronRight size={16} />
         </button>
-        {setup.progress < 100 && <button className="liv-list-row" onClick={() => navigate('/profile')}>
+        {setup.percentage < 100 && <button className="liv-list-row" onClick={() => navigate('/profile')}>
           <span className="liv-row-icon"><UserRound size={17} /></span>
-          <span><strong>Complete your profile</strong><small>{setup.progress}% complete · {setup.missingSteps[0] || 'one step'} remaining</small></span>
+          <span><strong>Complete your profile</strong><small>{setup.percentage}% complete · {setup.missingSteps[0]?.label || 'one step'} remaining</small></span>
           <ChevronRight size={16} />
         </button>}
       </div>

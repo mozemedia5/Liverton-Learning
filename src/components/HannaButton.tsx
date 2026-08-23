@@ -525,7 +525,7 @@ export function HannaButton() {
           userRole: userRole || 'student',
           customInstructions: savedInstructions
         },
-        currentChatId ?? undefined
+        chatId ?? undefined
       );
 
       // 6. Smart title generation in background if first message
@@ -560,7 +560,10 @@ export function HannaButton() {
       console.error('Hanna reply failed:', error);
       const errName = error instanceof Error ? error.name : '';
       if (errName !== 'AbortError') {
-        toast.error('Hanna is experiencing high response demand. Please try again.');
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Hanna could not complete this request. Please try again.';
+        toast.error(message);
       }
     } finally {
       setIsGenerating(false);
@@ -1009,7 +1012,7 @@ export function HannaButton() {
                       className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200"
                     >
                       <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
-                      Clear Messages
+                      Clear chat history
                     </button>
                     <hr className="my-1 border-slate-200/50 dark:border-white/5" />
                     <button

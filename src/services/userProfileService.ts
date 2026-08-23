@@ -19,6 +19,7 @@ export interface UserDirectoryInput {
   username?: string;
   profilePicture?: string;
   profileImageUrl?: string;
+  providerIds?: string[];
 }
 
 export interface UserDirectoryEntry {
@@ -30,6 +31,7 @@ export interface UserDirectoryEntry {
   username?: string;
   usernameLower?: string;
   profilePicture?: string;
+  providerIds?: string[];
   isDiscoverable: boolean;
 }
 
@@ -69,6 +71,7 @@ const cleanDirectoryFields = (input: UserDirectoryInput): UserDirectoryEntry => 
   }
   const profilePicture = input.profilePicture || input.profileImageUrl;
   if (profilePicture) directory.profilePicture = profilePicture;
+  if (input.providerIds?.length) directory.providerIds = input.providerIds.slice(0, 10);
   return directory;
 };
 
@@ -134,6 +137,7 @@ export function mapDirectoryEntry(directoryDoc: { id: string; data: () => Docume
     username: data.username || undefined,
     usernameLower: data.usernameLower || undefined,
     profilePicture: data.profilePicture || undefined,
+    providerIds: Array.isArray(data.providerIds) ? data.providerIds.filter((value: unknown): value is string => typeof value === 'string').slice(0, 10) : undefined,
     isDiscoverable: data.isDiscoverable !== false,
   };
 }

@@ -347,6 +347,9 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
               const label = msgDate ? dayLabel(msgDate) : '';
               const showDaySeparator = label && label !== lastDayLabel;
               if (showDaySeparator) lastDayLabel = label;
+              const attachmentType = ['image', 'video', 'audio', 'document', 'zip'].includes(msg.type)
+                ? msg.type as 'image' | 'video' | 'audio' | 'document' | 'zip'
+                : null;
 
               return (
                 <div key={msg.id} className="space-y-3">
@@ -388,11 +391,11 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           )}
 
-                          {(['image', 'video', 'audio', 'document', 'zip'] as const).includes(msg.type) && (
+                          {attachmentType && (
                             <TeamAttachmentViewer
                               url={msg.fileUrl}
                               name={msg.fileName || msg.content}
-                              type={msg.type}
+                              type={attachmentType}
                               size={msg.fileSize}
                               isMine={isMe}
                             />

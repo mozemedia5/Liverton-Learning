@@ -140,5 +140,6 @@ export async function syncAccountIdentity(profile: User, authUser: Pick<Firebase
     username: profile.username,
     profilePicture: profile.profilePicture,
     profileImageUrl: profile.profileImageUrl,
+    providerIds: profile.providerIds,
   });
 }

@@ -33,7 +33,7 @@ const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; se
 
   if (role === 'teacher') {
     return {
-      main: [home, { name: 'Modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Chats', path: '/chat', icon: MessageSquare, primary: true } , { name: 'Teams', path: '/features/liv-teams', icon: Users }, more],
+      main: [home, { name: 'Modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Chat', path: '/chat', icon: MessageSquare, primary: true } , { name: 'Teams', path: '/features/liv-teams', icon: Users }, more],
       secondary: [{ name: 'Educators Workhub', path: '/features/tearn', icon: Briefcase }, { name: 'My modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common]
     };
   }
@@ -41,7 +41,7 @@ const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; se
   if (role === 'parent') {
     return {
       main: [home, { name: 'Learners', path: '/parent/students', icon: Users }, { name: 'Chat', path: '/chat', icon: MessageSquare }, { name: 'Progress', path: '/parent/performance', icon: BarChart3 }, more],
-      secondary: [{ name: 'Learners', path: '/parent/students', icon: Users }, { name: 'Progress', path: '/parent/performance', icon: BarChart3 }, { name: 'My modules', path: '/parent/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Messages')]
+      secondary: [{ name: 'Learners', path: '/parent/students', icon: Users }, { name: 'Progress', path: '/parent/performance', icon: BarChart3 }, { name: 'My modules', path: '/parent/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Chat')]
     };
   }
 
