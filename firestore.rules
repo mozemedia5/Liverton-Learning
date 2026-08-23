@@ -82,16 +82,36 @@ service cloud.firestore {
       allow write: if isPlatformAdmin() || isSchoolAdmin();
     }
     match /chats/{chatId} {
+      function isChatParticipant(chatData) {
+        return isAuthenticated() && currentUserId() in chatData.participants;
+      }
+
       allow read: if isPlatformAdmin();
-      allow read: if isAuthenticated() &&
-        currentUserId() in resource.data.participants;
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() &&
-        currentUserId() in resource.data.participants;
+      allow read: if isChatParticipant(resource.data);
+      allow create: if isAuthenticated() &&
+        currentUserId() in request.resource.data.participants &&
+        request.resource.data.participants.size() >= 2 &&
+        request.resource.data.participants.size() <= 50;
+      allow update: if isChatParticipant(resource.data) &&
+        request.resource.data.participants == resource.data.participants;
+      allow delete: if isChatParticipant(resource.data);
+
       match /messages/{messageId} {
-        allow read: if isAuthenticated() &&
-          currentUserId() in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-        allow create: if isAuthenticated();
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId));
+        }
+        function isMessageParticipant() {
+          return isAuthenticated() && currentUserId() in parentChat().data.participants;
+        }
+
+        allow read: if isMessageParticipant();
+        allow create: if isMessageParticipant() &&
+          request.resource.data.chatId == chatId &&
+          request.resource.data.senderId == currentUserId();
+        allow update: if isMessageParticipant() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+          currentUserId() in request.resource.data.readBy;
+        allow delete: if isMessageParticipant();
       }
     }
     match /documents/{documentId} {
