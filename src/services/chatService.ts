@@ -353,33 +353,60 @@ export const listenToUserChats = (
   onError?: (error: Error) => void
 ) => {
   const chatsRef = collection(db, 'chats');
-  const q = query(
+  const orderedQuery = query(
     chatsRef,
     where('participants', 'array-contains', userId),
     orderBy('updatedAt', 'desc')
   );
+  const unorderedQuery = query(chatsRef, where('participants', 'array-contains', userId));
+  let fallbackUnsubscribe: (() => void) | undefined;
 
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const chats = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-        lastMessage: doc.data().lastMessage ? {
-          ...doc.data().lastMessage,
-          createdAt: doc.data().lastMessage.createdAt?.toDate()
-        } : undefined
-      })) as Chat[];
-      callback(chats);
-    },
-    (error) => {
-      console.error('Error listening to user chats:', error);
-      callback([]);
-      if (onError) onError(error);
+  const handleSnapshot = (snapshot: { docs: Array<{ id: string; data: () => Record<string, any> }> }, shouldSort = false) => {
+    const chats = snapshot.docs.map(chatDoc => ({
+      id: chatDoc.id,
+      ...chatDoc.data(),
+      createdAt: chatDoc.data().createdAt?.toDate(),
+      updatedAt: chatDoc.data().updatedAt?.toDate(),
+      lastMessage: chatDoc.data().lastMessage ? {
+        ...chatDoc.data().lastMessage,
+        createdAt: chatDoc.data().lastMessage.createdAt?.toDate()
+      } : undefined
+    })) as Chat[];
+    if (shouldSort) {
+      chats.sort((a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0));
     }
+    callback(chats);
+  };
+
+  const unsubscribe = onSnapshot(
+    orderedQuery,
+    (snapshot) => handleSnapshot(snapshot),
+    (error) => {
+      console.error('Error listening to ordered user chats:', error);
+      // Firestore requires a composite index for array-contains + orderBy.
+      // Keep chats usable while an index is being deployed by retrying without
+      // orderBy and sorting the small per-user result set in memory.
+      if ((error as { code?: string }).code === 'failed-precondition') {
+        fallbackUnsubscribe = onSnapshot(
+          unorderedQuery,
+          (snapshot) => handleSnapshot(snapshot, true),
+          (fallbackError) => {
+            console.error('Error listening to fallback user chats:', fallbackError);
+            callback([]);
+            onError?.(fallbackError);
+          },
+        );
+        return;
+      }
+      callback([]);
+      onError?.(error);
+    },
   );
+
+  return () => {
+    unsubscribe();
+    fallbackUnsubscribe?.();
+  };
 };
 
 /**
