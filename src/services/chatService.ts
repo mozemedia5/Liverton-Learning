@@ -111,6 +111,17 @@ export const searchUsers = async (searchTerm: string, currentUserId: string): Pr
 
   const usernameTerm = normalizeUsername(rawTerm);
   const emailTerm = normalizeEmail(rawTerm);
+
+  // Prefer the authenticated server search so legacy accounts are found even
+  // when their userDirectory document has not been backfilled yet.
+  if (auth.currentUser) {
+    try {
+      const serverResults = await searchUsersViaApi(rawTerm);
+      if (serverResults.length > 0) return serverResults;
+    } catch (error) {
+      console.warn('Authenticated user search unavailable; using directory fallback.', error);
+    }
+  }
   const displayNameTerm = normalizeDisplayName(rawTerm);
   const legacyUsernameTerms = Array.from(new Set([rawTerm.replace(/^@+/, ''), usernameTerm])).filter(Boolean);
   const legacyEmailTerms = Array.from(new Set([rawTerm, emailTerm])).filter(Boolean);

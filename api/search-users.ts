@@ -11,8 +11,8 @@ function normalizeUsername(value: unknown): string {
 
 function toSearchableUser(id: string, data: Record<string, unknown>) {
   const email = safeString(data.email, 320);
-  const fullName = safeString(data.fullName || data.displayName, 160) || 'Liverton member';
-  const username = normalizeUsername(data.username);
+  const fullName = safeString(data.fullName || data.name || data.displayName, 160) || 'Liverton member';
+  const username = normalizeUsername(data.username || data.userName || data.handle);
   return {
     uid: id,
     email,
@@ -23,6 +23,7 @@ function toSearchableUser(id: string, data: Record<string, unknown>) {
     ...(username ? { username, usernameLower: username } : {}),
     ...(typeof data.profilePicture === 'string' ? { profilePicture: data.profilePicture } : {}),
     ...(typeof data.profileImageUrl === 'string' ? { profilePicture: data.profileImageUrl } : {}),
+    ...(typeof data.photoURL === 'string' ? { profilePicture: data.photoURL } : {}),
     isDiscoverable: data.isDiscoverable !== false,
   };
 }
