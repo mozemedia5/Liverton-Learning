@@ -14,7 +14,7 @@ import { HannaMarkdown } from '@/components/HannaMarkdown';
 import { db } from '@/lib/firebase';
 import { SEO } from '@/components/SEO';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
-import { streamHannaReply, generateSmartTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
 import { researchWithHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
@@ -528,16 +528,11 @@ export default function HannaChatIntegrated() {
         currentChatId
       );
 
-      // 3. Smart title generation in background if first message
+      // Keep title generation local so every user message gets its full AI quota.
       if (isFirstExchange) {
-        generateSmartTitle(text || currentAttachments[0]?.name || 'Chat with Hanna').then(async (title) => {
-          smartTitle = title;
-          await updateDoc(doc(db, 'hanna_chats', currentChatId), {
-            title: title
-          });
-          toast.success(`Hanna renamed this chat to: "${title}"`);
-        }).catch(err => {
-          console.warn('Background smart title failed:', err);
+        smartTitle = deriveChatTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
+        void updateDoc(doc(db, 'hanna_chats', currentChatId), { title: smartTitle }).catch(err => {
+          console.warn('Local chat title update failed:', err);
         });
       }
 

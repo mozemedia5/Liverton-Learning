@@ -39,6 +39,25 @@ function getClient() {
   return new GoogleGenerativeAI(key);
 }
 
+function modelCandidates() {
+  const selected = getModelName();
+  const alternate = selected === 'gemini-3.6-flash' ? 'gemini-3.7-flash' : 'gemini-3.6-flash';
+  return [selected, alternate];
+}
+
+function isRetryableProviderError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('429') || message.includes('404') || message.includes('RESOURCE_EXHAUSTED') || message.includes('model not found');
+}
+
+function providerError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (isRetryableProviderError(error)) {
+    return Object.assign(new Error(message.includes('429') || message.includes('RESOURCE_EXHAUSTED') ? 'AI_QUOTA_EXCEEDED' : 'AI_MODEL_UNAVAILABLE'), { statusCode: 429 });
+  }
+  return error;
+}
+
 export function operationPolicy(operation: string) {
   const policies: Record<string, { model: string; maxChars: number; credits: number }> = {
     chat: { model: getModelName(), maxChars: 5000, credits: 1 },
@@ -56,13 +75,22 @@ export async function* streamGemini(
   history: Content[],
   parts: Part[],
 ) {
-  const policy = operationPolicy(operation);
-  const chat = getClient().getGenerativeModel({ model: policy.model }).startChat({ history });
-  const result = await chat.sendMessageStream([{ text: `${systemPrompt}\n\nUser request:` }, ...parts]);
-  for await (const chunk of result.stream) {
-    const text = chunk.text();
-    if (text) yield text;
+  let lastError: unknown;
+  for (const model of modelCandidates()) {
+    try {
+      const chat = getClient().getGenerativeModel({ model }).startChat({ history });
+      const result = await chat.sendMessageStream([{ text: `${systemPrompt}\n\nUser request:` }, ...parts]);
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) yield text;
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableProviderError(error) || model === modelCandidates().at(-1)) throw providerError(error);
+    }
   }
+  throw providerError(lastError);
 }
 
 export async function generateGemini(
@@ -72,7 +100,16 @@ export async function generateGemini(
   parts: Part[],
 ) {
   const policy = operationPolicy(operation);
-  const chat = getClient().getGenerativeModel({ model: policy.model }).startChat({ history });
-  const result = await chat.sendMessage([{ text: `${systemPrompt}\n\nUser request:` }, ...parts]);
-  return { text: result.response.text(), model: policy.model, credits: policy.credits };
+  let lastError: unknown;
+  for (const model of modelCandidates()) {
+    try {
+      const chat = getClient().getGenerativeModel({ model }).startChat({ history });
+      const result = await chat.sendMessage([{ text: `${systemPrompt}\n\nUser request:` }, ...parts]);
+      return { text: result.response.text(), model, credits: policy.credits };
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableProviderError(error) || model === modelCandidates().at(-1)) throw providerError(error);
+    }
+  }
+  throw providerError(lastError);
 }

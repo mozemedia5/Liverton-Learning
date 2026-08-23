@@ -174,7 +174,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const code = error instanceof Error ? error.message : 'unknown';
     const status = typeof (error as { statusCode?: unknown })?.statusCode === 'number' ? Number((error as { statusCode: number }).statusCode) : 500;
     if (res.headersSent) {
-      sse(res, { type: 'error', error: code === 'AI_NOT_CONFIGURED' ? 'Hanna is not configured.' : 'Hanna could not complete this request.' });
+      const streamError = code === 'AI_QUOTA_EXCEEDED'
+        ? 'Hanna has reached the current AI quota. Please try again later or ask an administrator to review the Gemini plan.'
+        : code === 'AI_MODEL_UNAVAILABLE'
+          ? 'Hanna’s configured AI model is temporarily unavailable. Please try again shortly.'
+          : code === 'AI_NOT_CONFIGURED'
+            ? 'Hanna is not configured.'
+            : 'Hanna could not complete this request.';
+      sse(res, { type: 'error', error: streamError });
       return res.end();
     }
     if (identity) await recordUsage(identity.uid, operation, operationPolicy(operation).model, operationPolicy(operation).credits, false);
@@ -182,6 +189,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (code === 'CHAT_FORBIDDEN') return json(res, 403, { error: 'You are not authorized to access this conversation' });
     if (code.startsWith('SERVER_CONFIG_MISSING')) return json(res, 503, { error: 'Server configuration is incomplete' });
     if (code === 'AI_NOT_CONFIGURED') return json(res, 503, { error: 'Hanna is temporarily unavailable' });
+    if (code === 'AI_QUOTA_EXCEEDED') return json(res, 429, { error: 'Hanna has reached the current AI quota. Please try again later.' });
+    if (code === 'AI_MODEL_UNAVAILABLE') return json(res, 503, { error: 'Hanna’s configured AI model is temporarily unavailable.' });
     if (code === 'ATTACHMENTS_UNAVAILABLE') return json(res, 422, { error: 'Hanna could not access the attached media. Please re-upload the file and try again.' });
     console.error('Vercel Hanna API error', { code, operation });
     return json(res, status >= 400 && status < 600 ? status : 500, { error: 'Hanna could not complete this request' });
