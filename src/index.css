@@ -35,32 +35,33 @@
   }
 
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 40% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 40% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 40% 98%;
+    /* Charcoal surfaces keep the dark theme calm and readable, like the Manus mobile app. */
+    --background: 220 16% 12%;
+    --foreground: 210 20% 98%;
+    --card: 220 16% 15%;
+    --card-foreground: 210 20% 98%;
+    --popover: 220 16% 15%;
+    --popover-foreground: 210 20% 98%;
     --primary: 142.1 70.6% 45.3%;
     --primary-foreground: 144.9 80.4% 10%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --secondary: 215 16% 21%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 16% 21%;
+    --muted-foreground: 215 12% 72%;
+    --accent: 215 16% 21%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 38%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 216 14% 28%;
+    --input: 216 14% 28%;
     --ring: 142.1 70.6% 45.3%;
-    --sidebar-background: 224 71.4% 4.1%;
-    --sidebar-foreground: 215 20.2% 65.1%;
+    --sidebar-background: 220 16% 12%;
+    --sidebar-foreground: 215 12% 72%;
     --sidebar-primary: 142.1 70.6% 45.3%;
-    --sidebar-primary-foreground: 224 71.4% 4.1%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-primary-foreground: 220 16% 12%;
+    --sidebar-accent: 215 16% 21%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 216 14% 28%;
     --sidebar-ring: 142.1 70.6% 45.3%;
   }
 }

@@ -11,13 +11,16 @@ import {
   Lightbulb,
   Menu,
   MessageCircle,
+  Moon,
   Play,
   Sparkles,
   Store,
+  Sun,
   Users,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import './landing.css';
 import './auth.css';
 
@@ -65,6 +68,7 @@ function Logo() {
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [role, setRole] = useState<Role>('student');
   const [showVideo, setShowVideo] = useState(false);
@@ -119,6 +123,9 @@ export default function LandingPage() {
           <button onClick={() => scrollTo('why-liverton')}>Why Liverton</button>
           <button onClick={() => scrollTo('ecosystem')}>Explore</button>
           <button onClick={() => scrollTo('stories')}>Stories</button>
+          <button className="nav-theme" onClick={toggleTheme} aria-pressed={theme === 'dark'} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
           <button className="nav-login" onClick={() => navigate('/login')}>Log in</button>
           <button className="nav-cta" onClick={() => navigate('/get-started')}>Get started <ArrowRight size={16} /></button>
         </div>

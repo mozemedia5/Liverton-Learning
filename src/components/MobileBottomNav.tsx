@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, BarChart3, ClipboardList } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, BarChart3, ClipboardList, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { toast } from 'sonner';
 
@@ -59,6 +60,7 @@ export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { userRole, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const role = (userRole || 'student') as Role;
   const [showMore, setShowMore] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -85,7 +87,8 @@ export const MobileBottomNav: React.FC = () => {
       <div className="w-full rounded-t-[28px] border-t border-slate-200 bg-[#f7f7fb] p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900" onClick={event => event.stopPropagation()}>
         <div className="flex items-start justify-between border-b border-slate-200/80 pb-4 mb-3 dark:border-slate-800"><div><span className="text-[10px] uppercase tracking-[.16em] text-slate-400">{role.replace('_', ' ')} space</span><h3 className="text-xl font-semibold tracking-tight">More tools</h3></div><button onClick={() => setShowMore(false)} className="rounded-full bg-white p-2 text-slate-500 dark:bg-slate-800" aria-label="Close menu"><X className="h-5 w-5" /></button></div>
         <div className="grid grid-cols-3 gap-2 py-2">{navigation.secondary.map(item => { const Icon = item.icon; return <button key={item.name} onClick={() => go(item.path)} className={`flex flex-col items-center gap-2 rounded-2xl p-3 transition-all ${isActive(item.path) ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}><span className="rounded-xl bg-slate-100 p-2 dark:bg-slate-700"><Icon className="h-5 w-5" /></span><span className="text-center text-[11px] font-medium">{item.name}</span></button>; })}</div>
-        <button onClick={() => { setShowMore(false); setShowLogoutConfirm(true); }} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"><LogOut className="h-4 w-4" /> Log out</button>
+        <button onClick={toggleTheme} aria-pressed={theme === 'dark'} className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"><span className="rounded-lg bg-slate-100 p-1.5 dark:bg-slate-700">{theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</button>
+        <button onClick={() => { setShowMore(false); setShowLogoutConfirm(true); }} className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"><LogOut className="h-4 w-4" /> Log out</button>
       </div>
     </div>}
     <LogoutConfirmDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm} onConfirm={handleLogout} isLoading={isLoggingOut} />

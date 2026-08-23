@@ -65,3 +65,129 @@
 .faq-intro { color:#666; font-size:14px; line-height:1.6; margin-top:21px; max-width:360px; }.role-doc-links { display:grid; gap:8px; margin-top:24px; max-width:360px; }.role-doc-links button { align-items:center; background:#fff; border:1px solid var(--line); border-radius:14px; display:flex; font-size:12px; font-weight:700; gap:9px; justify-content:flex-start; padding:13px 14px; text-align:left; transition:transform .18s var(--ease), box-shadow .18s var(--ease); }.role-doc-links button svg:last-child { margin-left:auto; }.role-doc-links button:hover { box-shadow:0 12px 25px rgba(0,0,0,.08); transform:translateX(4px); }.role-doc-links button>svg:first-child { color:#a71df4; }
 @media (max-width:900px){.hero-flying-note{display:none}.mosaic-grid{grid-template-rows:160px 160px}.mosaic-large{grid-row:1 / span 2}}
 @media (prefers-reduced-motion:reduce){.hero-word-write,.hero-flying-note{animation:none}.hero-word{transition:none}}
+
+
+/* Public theme control and calm charcoal mode. */
+.nav-theme {
+  align-items: center;
+  background: rgba(255, 255, 255, .64) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 999px;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 !important;
+}
+
+.nav-theme:hover {
+  background: #fff !important;
+  color: var(--ink) !important;
+}
+
+.dark .liverton-home {
+  --ink: #f5f6f3;
+  --muted: #b7bdc3;
+  --paper: #171a20;
+  --line: rgba(255, 255, 255, .11);
+  --lilac: #37324b;
+  --peach: #46362f;
+}
+
+.dark .home-nav {
+  background: rgba(23, 26, 32, .90);
+}
+
+.dark .home-nav-links {
+  background: #20252d;
+}
+
+.dark .home-nav-links button {
+  color: #c2c7cc;
+}
+
+.dark .home-nav-links .nav-login,
+.dark .home-brand,
+.dark .nav-menu {
+  color: #f5f6f3;
+}
+
+.dark .nav-theme {
+  background: #282e38 !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+  color: #f5f6f3 !important;
+}
+
+.dark .nav-theme:hover {
+  background: #343b46 !important;
+}
+
+.dark .hero-float-card,
+.dark .role-tabs button.active,
+.dark .mini-profile-card,
+.dark .hanna-chat,
+.dark .mosaic-grid figcaption {
+  background: #20252d;
+  color: #f5f6f3;
+}
+
+.dark .hero-float-card span,
+.dark .hero-proof small,
+.dark .trust-strip > span,
+.dark .trust-strip > div span,
+.dark .role-showcase p,
+.dark .role-stat span,
+.dark .ecosystem-card p,
+.dark .hanna-chat small,
+.dark .faq-item p {
+  color: #b7bdc3;
+}
+
+.dark .role-showcase {
+  background: #282e38;
+}
+
+.dark .home-quote,
+.dark .home-footer {
+  background: #20252d;
+}
+
+.dark .footer-brand > span,
+.dark .footer-links button,
+.dark .footer-copy {
+  color: #b7bdc3;
+}
+
+.dark .feature-card p,
+.dark .section-heading > p,
+.dark .faq-intro {
+  color: #c2c7cc;
+}
+
+.dark .play-chip {
+  border-color: rgba(255, 255, 255, .16);
+}
+
+.dark .final-cta {
+  background: #6940d9;
+}
+
+@media (max-width: 900px) {
+  .home-nav-links .nav-theme {
+    align-self: flex-start;
+  }
+}
+
+
+.dark .nav-cta,
+.dark .primary-cta,
+.dark .dark-cta {
+  background: #0f1216 !important;
+  color: #ffffff !important;
+}
+
+.dark .nav-cta:hover,
+.dark .primary-cta:hover,
+.dark .dark-cta:hover {
+  background: #343b46 !important;
+}

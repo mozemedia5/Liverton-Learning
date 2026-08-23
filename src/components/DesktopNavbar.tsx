@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3, BookOpen, CalendarDays, ChevronLeft, ChevronRight,
-  FileText, GraduationCap, HeartHandshake, Home, LayoutGrid, LogOut, MessageCircle, Plus, Settings,
-  ShieldCheck, ShoppingBag, Sparkles, Users, Video, WalletCards, Briefcase,
+  FileText, GraduationCap, HeartHandshake, Home, LayoutGrid, LogOut, MessageCircle, Moon, Plus, Settings,
+  ShieldCheck, ShoppingBag, Sparkles, Sun, Users, Video, WalletCards, Briefcase,
 } from 'lucide-react';
 import type { UserRole } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 
@@ -38,6 +39,7 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const copy = roleCopy(userRole);
@@ -113,6 +115,16 @@ export function DesktopNavbar({ userRole, isCollapsed, setIsCollapsed }: Desktop
       </div>
 
       <div className={`liv-sidebar-footer ${isCollapsed ? 'is-collapsed' : ''}`}>
+        <button
+          className="liv-theme-toggle"
+          onClick={toggleTheme}
+          aria-pressed={theme === 'dark'}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          {!isCollapsed && <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
+        </button>
         <button className="liv-user-card" onClick={() => navigate('/profile')} title={isCollapsed ? 'Open profile' : undefined}>
           <div className="liv-avatar">{copy.mark}</div>
           {!isCollapsed && <div><strong>{copy.title.replace(' space', '').replace(' studio', '')}</strong><span>{userRole === 'teacher' ? 'Educator account' : 'Liverton member'}</span></div>}
