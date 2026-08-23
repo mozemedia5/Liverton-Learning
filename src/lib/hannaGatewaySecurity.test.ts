@@ -30,7 +30,8 @@ describe('Hanna gateway security boundary', () => {
   });
 
   it('restricts server-side attachment retrieval to Cloudinary media hosts', () => {
-    expect(gateway).toContain("['res.cloudinary.com', 'cloudinary.com']");
+    expect(gateway).toContain("url.hostname.endsWith('.cloudinary.com')");
+    expect(gateway).toContain("mimeType.startsWith('audio/')");
     expect(gateway).toContain('MAX_ATTACHMENT_BYTES');
   });
 });

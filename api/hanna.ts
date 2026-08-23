@@ -6,7 +6,8 @@ import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini.js'
 
 const MAX_HISTORY = 20;
 const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 18 * 1024 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 30;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -57,12 +58,15 @@ async function loadAuthorizedHistory(chatId: string, uid: string): Promise<Gatew
 async function loadCloudinaryParts(input: unknown, uid: string): Promise<Part[]> {
   if (!Array.isArray(input)) return [];
   const parts: Part[] = [];
+  let totalBytes = 0;
   for (const item of input.slice(0, MAX_ATTACHMENTS) as Attachment[]) {
     try {
       const url = new URL(item.url);
       const mimeType = safeString(item.mimeType, 100);
-      if (!['res.cloudinary.com', 'cloudinary.com'].includes(url.hostname)) continue;
-      if (!['image/', 'application/pdf'].some(prefix => mimeType.startsWith(prefix))) continue;
+      const isCloudinaryHost = url.hostname === 'cloudinary.com' || url.hostname.endsWith('.cloudinary.com');
+      if (!isCloudinaryHost) continue;
+      const supportedMime = mimeType.startsWith('image/') || mimeType === 'application/pdf' || mimeType.startsWith('audio/') || mimeType.startsWith('video/');
+      if (!supportedMime) continue;
       const assets = await getAdminFirestore().collection('uploaded_assets').where('url', '==', item.url).limit(1).get();
       const asset = assets.docs[0]?.data();
       if (!asset || asset.uploader !== uid) continue;
@@ -71,8 +75,12 @@ async function loadCloudinaryParts(input: unknown, uid: string): Promise<Part[]>
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
       if (!response.ok) continue;
+      const responseType = response.headers.get('content-type') || '';
+      const expectedType = mimeType.split(';')[0];
+      if (responseType && responseType !== 'application/octet-stream' && !responseType.startsWith(expectedType)) continue;
       const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.byteLength > MAX_ATTACHMENT_BYTES) continue;
+      if (buffer.byteLength > MAX_ATTACHMENT_BYTES || totalBytes + buffer.byteLength > MAX_TOTAL_ATTACHMENT_BYTES) continue;
+      totalBytes += buffer.byteLength;
       parts.push({ inlineData: { mimeType, data: buffer.toString('base64') } });
     } catch {
       // Do not allow one inaccessible attachment to fail the complete request.
@@ -124,12 +132,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chatId = safeString(body.chatId, 160);
     const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
     const applicationKnowledge = await getApplicationKnowledgeParts(operation === 'chat' && !chatId);
+    const uploadedParts = await loadCloudinaryParts(body.attachments, identity.uid);
+    const requestedAttachments = Array.isArray(body.attachments) ? body.attachments.length : 0;
+    if (requestedAttachments > 0 && uploadedParts.length === 0) {
+      throw Object.assign(new Error('ATTACHMENTS_UNAVAILABLE'), { statusCode: 422 });
+    }
     const parts: Part[] = [
       ...applicationKnowledge,
-      ...await loadCloudinaryParts(body.attachments, identity.uid),
+      ...uploadedParts,
       { text: message },
     ];
-    const prompt = systemPrompt(identity, operation);
+    const attachmentTypes = Array.isArray(body.attachments)
+      ? body.attachments.map((item: any) => safeString(item?.mimeType, 100)).filter(Boolean)
+      : [];
+    const mediaInstruction = attachmentTypes.length > 0
+      ? `\nAttached media types: ${attachmentTypes.join(', ')}. Analyze the attached content directly. For audio, provide a transcript when requested or when no more specific task is given. For PDFs, use both visible layout and text. For images, describe uncertainty and distinguish visible facts from inference.`
+      : '';
+    const prompt = `${systemPrompt(identity, operation)}${mediaInstruction}`;
     const policy = operationPolicy(operation);
 
     if (operation !== 'chat') {
@@ -163,6 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (code === 'CHAT_FORBIDDEN') return json(res, 403, { error: 'You are not authorized to access this conversation' });
     if (code.startsWith('SERVER_CONFIG_MISSING')) return json(res, 503, { error: 'Server configuration is incomplete' });
     if (code === 'AI_NOT_CONFIGURED') return json(res, 503, { error: 'Hanna is temporarily unavailable' });
+    if (code === 'ATTACHMENTS_UNAVAILABLE') return json(res, 422, { error: 'Hanna could not access the attached media. Please re-upload the file and try again.' });
     console.error('Vercel Hanna API error', { code, operation });
     return json(res, status >= 400 && status < 600 ? status : 500, { error: 'Hanna could not complete this request' });
   }

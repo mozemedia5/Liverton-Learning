@@ -6,7 +6,7 @@ import {
   Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, X,
   Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
   BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw, Pin, Search,
-  History, Globe2, ExternalLink, Image as ImageIcon
+  History, Globe2, ExternalLink, Image as ImageIcon, ArrowUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
@@ -100,6 +100,7 @@ export default function HannaChatIntegrated() {
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [useWebResearch, setUseWebResearch] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024); // Default true on desktop for premium left sidebar
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -213,7 +214,9 @@ export default function HannaChatIntegrated() {
   const handleMessageScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    setIsNearBottom(container.scrollHeight - container.scrollTop - container.clientHeight < 160);
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setIsNearBottom(distanceFromBottom < 160);
+    setShowScrollTop(container.scrollTop > 320);
   }, []);
 
   // Handle scrolling dynamically based on context to ensure zero jitter and no slow glides on switch
@@ -787,7 +790,7 @@ export default function HannaChatIntegrated() {
         <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
 
           {/* Custom Overlapping Avatars Header resembling Gemini in Firebase Cloud Console */}
-          <header className="liv-hanna-header px-2.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
+          <header className="liv-hanna-header sticky top-0 z-30 px-2.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               {/* Back Button with brand logo */}
               <Button
@@ -1062,6 +1065,18 @@ export default function HannaChatIntegrated() {
                 </div>
               </div>
 
+              {showScrollTop && messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="absolute top-3 right-3 sm:right-5 z-30 inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5 dark:border-white/10 dark:bg-[#111115]/95 dark:text-slate-300"
+                  title="Scroll to first message"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                  Top
+                </button>
+              )}
+
               {!isNearBottom && messages.length > 0 && (
                 <button
                   type="button"
@@ -1139,7 +1154,7 @@ export default function HannaChatIntegrated() {
                       ref={fileInputRef}
                       type="file"
                       multiple
-                      accept="image/*,.pdf,.txt,.csv,.doc,.docx"
+                      accept="image/*,audio/*,video/*,.pdf,.txt,.csv,.doc,.docx"
                       className="hidden"
                       onChange={handleFilePick}
                     />
