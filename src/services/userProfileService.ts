@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   runTransaction,
@@ -124,12 +125,14 @@ export async function isUsernameAvailable(username: string, currentUserId?: stri
   const usernameError = validateUsername(normalized);
   if (usernameError) return false;
 
-  const snapshot = await getDocs(query(
-    collection(db, 'userDirectory'),
-    where('usernameLower', '==', normalized),
-  ));
+  const [directorySnapshot, usernameSnapshot] = await Promise.all([
+    getDocs(query(collection(db, 'userDirectory'), where('usernameLower', '==', normalized))),
+    getDoc(doc(db, 'usernames', normalized)),
+  ]);
 
-  return snapshot.docs.every((directoryDoc) => directoryDoc.id === currentUserId);
+  const directoryAvailable = directorySnapshot.docs.every((directoryDoc) => directoryDoc.id === currentUserId);
+  const registryAvailable = !usernameSnapshot.exists() || usernameSnapshot.data()?.uid === currentUserId;
+  return directoryAvailable && registryAvailable;
 }
 
 export function mapDirectoryEntry(directoryDoc: { id: string; data: () => DocumentData }): UserDirectoryEntry {

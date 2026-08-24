@@ -17,6 +17,7 @@ const VerifyEmail = lazy(() => import('@/pages/register/VerifyEmail'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 const CourseView = lazy(() => import('@/pages/CourseView'));
 const PublicProfile = lazy(() => import('@/pages/PublicProfile'));
+const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 
 const VerifyStudentEmail = lazy(() => import('@/pages/register/VerifyStudentEmail'));
 // Dashboards
@@ -225,6 +226,7 @@ function AppRoutes() {
       {/* Support & Legal Pages - Accessible to all users (both authenticated and unauthenticated) */}
       <Route path="/support" element={<PublicAccessibleRoute><Support /></PublicAccessibleRoute>} />
       <Route path="/privacy-policy" element={<PublicAccessibleRoute><PrivacyPolicy /></PublicAccessibleRoute>} />
+      <Route path="/terms" element={<PublicAccessibleRoute><TermsOfService /></PublicAccessibleRoute>} />
 
       {/* Student Routes - Protected, accessible only to students and parents */}
       <Route path="/student/dashboard" element={

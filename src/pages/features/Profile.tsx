@@ -33,10 +33,9 @@ import {
   Lock,
   Trash2,
   ShieldAlert,
+  LogOut,
   Check,
   RefreshCw,
-  Settings as SettingsIcon,
-  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -47,7 +46,7 @@ import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { SEO } from '@/components/SEO';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { getAccountSetupStatus } from '@/services/accountSetupService';
-import { validateUsername } from '@/services/userProfileService';
+import { isUsernameAvailable, normalizeUsername, validateUsername } from '@/services/userProfileService';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -60,6 +59,8 @@ export default function Profile() {
   const [profileImageUrl, setProfileImageUrl] = useState(userData?.profileImageUrl || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [profileError, setProfileError] = useState('');
 
   // Email verification state
   const isMockUser = currentUser?.email === 'mock@liverton.com';
@@ -134,23 +135,6 @@ export default function Profile() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // Hanna Custom Instructions State
-  const [hannaInstructions, setHannaInstructions] = useState('');
-
-  useEffect(() => {
-    if (currentUser?.uid) {
-      const saved = localStorage.getItem(`hanna_instructions_${currentUser.uid}`) || '';
-      setHannaInstructions(saved);
-    }
-  }, [currentUser]);
-
-  const handleSaveHannaInstructions = () => {
-    if (currentUser?.uid) {
-      localStorage.setItem(`hanna_instructions_${currentUser.uid}`, hannaInstructions.trim());
-      toast.success('🎉 Hanna AI custom instructions updated successfully!');
-    }
-  };
-  
   const [formData, setFormData] = useState({
     fullName: userData?.fullName || '',
     username: userData?.username || '',
@@ -158,9 +142,24 @@ export default function Profile() {
     phone: userData?.phone || '',
     address: userData?.address || '',
     bio: userData?.bio || '',
+    educationLevel: userData?.educationLevel || userData?.levelOfEducation || '',
+    schoolName: userData?.schoolName || '',
+    subjects: (userData?.subjects || userData?.subjectsTaught || []).join(', '),
+    experience: userData?.experience ? String(userData.experience) : '',
   });
 
   const [enhancingBio, setEnhancingBio] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) { setUsernameStatus('idle'); return; }
+    const normalized = normalizeUsername(formData.username);
+    const validationError = validateUsername(normalized);
+    if (validationError) { setUsernameStatus(normalized ? 'invalid' : 'idle'); return; }
+    if (normalized === normalizeUsername(userData?.username)) { setUsernameStatus('available'); return; }
+    setUsernameStatus('checking');
+    const timer = window.setTimeout(() => { void isUsernameAvailable(normalized, currentUser?.uid).then(available => setUsernameStatus(available ? 'available' : 'taken')).catch(() => setUsernameStatus('idle')); }, 350);
+    return () => window.clearTimeout(timer);
+  }, [formData.username, isEditing, userData?.username, currentUser?.uid]);
 
   useEffect(() => {
     if (!userData) return;
@@ -171,6 +170,10 @@ export default function Profile() {
       phone: userData.phone || '',
       address: userData.address || '',
       bio: userData.bio || '',
+      educationLevel: userData.educationLevel || userData.levelOfEducation || '',
+      schoolName: userData.schoolName || '',
+      subjects: (userData.subjects || userData.subjectsTaught || []).join(', '),
+      experience: userData.experience ? String(userData.experience) : '',
     });
     setProfileImageUrl(userData.profileImageUrl || userData.profilePicture || '');
     setIsEmailVerified(Boolean(currentUser?.emailVerified || userData.emailVerified));
@@ -243,6 +246,7 @@ export default function Profile() {
    */
   const handleSave = async () => {
     setIsSaving(true);
+    setProfileError('');
     try {
       // Validate required fields
       if (!formData.fullName.trim()) {
@@ -253,7 +257,13 @@ export default function Profile() {
 
       const usernameError = validateUsername(formData.username);
       if (usernameError) {
+        setProfileError(usernameError);
         toast.error(usernameError);
+        setIsSaving(false);
+        return;
+      }
+      if (usernameStatus === 'taken' || usernameStatus === 'checking') {
+        setProfileError(usernameStatus === 'taken' ? 'That username is already taken.' : 'Please wait for username availability to finish checking.');
         setIsSaving(false);
         return;
       }
@@ -265,13 +275,22 @@ export default function Profile() {
         phone: formData.phone,
         address: formData.address,
         bio: formData.bio,
+        educationLevel: formData.educationLevel,
+        levelOfEducation: formData.educationLevel,
+        schoolName: formData.schoolName,
+        subjects: formData.subjects.split(',').map(value => value.trim()).filter(Boolean),
+        subjectsTaught: formData.subjects.split(',').map(value => value.trim()).filter(Boolean),
+        experience: formData.experience ? Number(formData.experience) : 0,
       });
 
+      setProfileError('');
       toast.success('Profile updated successfully!');
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      const message = error instanceof Error ? error.message : 'Failed to update profile';
+      setProfileError(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -402,16 +421,6 @@ export default function Profile() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/settings')}
-              className="rounded-xl border-gray-200 dark:border-gray-700"
-            >
-              <SettingsIcon className="w-4 h-4 mr-1.5" />
-              Settings
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowLogoutConfirm(true)} className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300"><LogOut className="w-4 h-4 mr-1.5" /> Log out</Button>
             <Button
               size="sm"
               variant={isEditing ? 'default' : 'outline'}
@@ -609,12 +618,17 @@ export default function Profile() {
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     disabled={!isEditing}
-                    className="pl-9"
                     placeholder="your-username"
                     autoComplete="username"
+                    aria-invalid={usernameStatus === 'invalid' || usernameStatus === 'taken'}
+                    className={`pl-9 ${usernameStatus === 'available' ? 'border-emerald-500 focus-visible:ring-emerald-500' : usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                   />
                 </div>
                 <p className="text-xs text-gray-500">3–30 characters: letters, numbers, dots, underscores, or hyphens. This is what people use to find you.</p>
+                {isEditing && usernameStatus === 'checking' && <p className="text-xs text-slate-500">Checking availability…</p>}
+                {isEditing && usernameStatus === 'available' && <p className="text-xs font-medium text-emerald-600">Username available.</p>}
+                {isEditing && usernameStatus === 'taken' && <p className="text-xs font-medium text-red-600">Username already exists. Choose another.</p>}
+                {isEditing && usernameStatus === 'invalid' && <p className="text-xs font-medium text-red-600">Use 3–30 letters, numbers, dots, underscores, or hyphens; no spaces.</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -659,6 +673,7 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+            {profileError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">{profileError}</p>}
 
             {/* Bio Section */}
             <div className="space-y-2">
@@ -698,52 +713,18 @@ export default function Profile() {
         {/* Role-Specific Information */}
         {userRole === 'student' && (
           <Card>
-            <CardHeader>
-              <CardTitle>Academic Information</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Academic Information</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <School className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">School</p>
-                    <p className="font-medium">{userData?.schoolName || 'Not specified'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <GraduationCap className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Education Level</p>
-                    <p className="font-medium">{userData?.levelOfEducation || 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
+              {isEditing ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="space-y-2"><Label htmlFor="schoolName">School</Label><Input id="schoolName" value={formData.schoolName} onChange={e => setFormData({ ...formData, schoolName: e.target.value })} placeholder="School or institution" /></div><div className="space-y-2"><Label htmlFor="educationLevel">Education level</Label><Input id="educationLevel" value={formData.educationLevel} onChange={e => setFormData({ ...formData, educationLevel: e.target.value })} placeholder="e.g. Senior Two, university" /></div></div> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-900"><School className="h-5 w-5 text-gray-500" /><div><p className="text-sm text-muted-foreground">School</p><p className="font-medium">{userData?.schoolName || 'Not specified'}</p></div></div><div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-900"><GraduationCap className="h-5 w-5 text-gray-500" /><div><p className="text-sm text-muted-foreground">Education level</p><p className="font-medium">{userData?.levelOfEducation || userData?.educationLevel || 'Not specified'}</p></div></div></div>}
             </CardContent>
           </Card>
         )}
 
         {userRole === 'teacher' && (
           <Card>
-            <CardHeader>
-              <CardTitle>Teaching Information</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Teaching Information</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <BookOpen className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Subjects</p>
-                    <p className="font-medium">{userData?.subjects?.join(', ') || 'Not specified'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <GraduationCap className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Experience</p>
-                    <p className="font-medium">{userData?.experience || 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
+              {isEditing ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="space-y-2"><Label htmlFor="teacherSchoolName">School or institution</Label><Input id="teacherSchoolName" value={formData.schoolName} onChange={e => setFormData({ ...formData, schoolName: e.target.value })} placeholder="School where you teach" /></div><div className="space-y-2"><Label htmlFor="teacherEducationLevel">Education level taught</Label><Input id="teacherEducationLevel" value={formData.educationLevel} onChange={e => setFormData({ ...formData, educationLevel: e.target.value })} placeholder="e.g. Lower Secondary" /></div><div className="space-y-2"><Label htmlFor="subjects">Subjects taught</Label><Input id="subjects" value={formData.subjects} onChange={e => setFormData({ ...formData, subjects: e.target.value })} placeholder="Biology, Chemistry" /><p className="text-xs text-muted-foreground">Separate subjects with commas.</p></div><div className="space-y-2"><Label htmlFor="experience">Years of experience</Label><Input id="experience" type="number" min="0" value={formData.experience} onChange={e => setFormData({ ...formData, experience: e.target.value })} placeholder="e.g. 5" /></div></div> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-900"><BookOpen className="h-5 w-5 text-gray-500" /><div><p className="text-sm text-muted-foreground">Subjects</p><p className="font-medium">{(userData?.subjects || userData?.subjectsTaught || []).join(', ') || 'Not specified'}</p></div></div><div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-900"><GraduationCap className="h-5 w-5 text-gray-500" /><div><p className="text-sm text-muted-foreground">Experience</p><p className="font-medium">{userData?.experience ? `${userData.experience} years` : 'Not specified'}</p></div></div></div>}
             </CardContent>
           </Card>
         )}
@@ -854,34 +835,6 @@ export default function Profile() {
 
             <div className="border-t border-gray-200 dark:border-gray-800 pt-4" />
 
-            {/* Hanna AI Custom Instructions Section */}
-            <div className="space-y-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-500" />
-                <h3 className="font-bold text-sm text-slate-800 dark:text-white">Hanna AI Personalization</h3>
-              </div>
-              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                Provide custom instructions to guide how Hanna AI answers your prompts (e.g. your preparation goals, local Uganda syllabus references, or formatting preferences).
-              </p>
-              <textarea
-                placeholder="e.g. Explain concepts with simple Uganda syllabus analogies and end with a quick 1-sentence hint."
-                value={hannaInstructions}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setHannaInstructions(e.target.value)}
-                className="w-full p-4 bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-800 dark:text-slate-100 mt-2 focus:border-emerald-500/50 outline-none transition-all"
-                rows={4}
-              />
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSaveHannaInstructions}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs h-9 px-4"
-                >
-                  Save Personalization
-                </Button>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-800 pt-4" />
-
             {/* Delete Account Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -902,6 +855,11 @@ export default function Profile() {
               </div>
             </div>
           </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Account and legal</CardTitle><p className="text-sm text-muted-foreground">Manage your account from one place.</p></CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap"><Button variant="outline" className="rounded-xl" onClick={() => navigate('/settings')}><User className="mr-2 h-4 w-4" /> Hanna and Settings</Button><Button variant="outline" className="rounded-xl" onClick={() => navigate('/privacy-policy')}><ShieldAlert className="mr-2 h-4 w-4" /> Privacy policy</Button><Button variant="outline" className="rounded-xl" onClick={() => navigate('/terms')}><BookOpen className="mr-2 h-4 w-4" /> Terms of service</Button><Button variant="outline" className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300" onClick={() => setShowLogoutConfirm(true)}><LogOut className="mr-2 h-4 w-4" /> Log out</Button></CardContent>
         </Card>
       </main>
 
