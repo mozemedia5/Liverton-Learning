@@ -130,8 +130,11 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
 }
 
 export function HannaMarkdown({ text }: { text: string }) {
+  // Models can occasionally emit malformed decoration runs. Remove only invalid
+  // dollar-based marker noise; valid Markdown is still rendered structurally below.
+  const cleanText = text.replace(/[#$*]*\$\$[#$*]*/g, '').replace(/(^|\n)\s*#{4,}\s*/g, '$1');
   // Split into code fences vs regular content
-  const segments = text.split(/(```[\s\S]*?```)/g);
+  const segments = cleanText.split(/(```[\s\S]*?```)/g);
 
   return (
     <div className="space-y-2 text-[15px] leading-relaxed break-words">
