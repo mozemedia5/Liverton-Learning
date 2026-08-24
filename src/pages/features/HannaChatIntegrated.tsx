@@ -1,70 +1,42 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
-import {
-  Send, Loader2, MessageCircle, Plus, Trash2, MessageSquare, X,
-  Paperclip, StopCircle, Copy, Check, FileText, GraduationCap,
-  BookOpen, Lightbulb, ClipboardList, ChevronLeft, Sparkles, Settings, Info, RefreshCw, Pin, Search,
-  History, Globe2, ExternalLink, Image as ImageIcon, ArrowUp
-} from 'lucide-react';
-import { toast } from 'sonner';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
 import { HannaMarkdown } from '@/components/HannaMarkdown';
-import { db } from '@/lib/firebase';
 import { SEO } from '@/components/SEO';
+import { streamHannaReply, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
+import { researchWithHanna, searchImagesForHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
-import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
-import { researchWithHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
-import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
-import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
 import {
-  collection,
-  addDoc,
-  query,
-  where,
-  onSnapshot,
-  serverTimestamp,
-  updateDoc,
-  doc,
-  deleteDoc,
-  increment,
-  writeBatch,
-  getDocs,
-  arrayUnion,
-  arrayRemove,
+  addDoc, collection, deleteDoc, doc, getDocs, increment, onSnapshot, query, serverTimestamp,
+  updateDoc, where, writeBatch,
 } from 'firebase/firestore';
-
-interface Message {
-  id: string;
-  chatId: string;
-  senderId: string;
-  senderName: string;
-  senderRole: 'user' | 'hanna';
-  content: string;
-  attachments?: { url: string; name: string; mimeType: string }[];
-  createdAt: TimestampLike;
-  sources?: HannaSource[];
-  images?: HannaImageResult[];
-}
-
-interface ChatSession {
-  id: string;
-  userId: string;
-  title: string;
-  createdAt: TimestampLike;
-  updatedAt: TimestampLike;
-  messageCount: number;
-  pinnedBy?: string[];
-}
-
-interface PendingAttachment extends HannaAttachment {
-  progress?: number;
-}
+import {
+  ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardList, Copy, ExternalLink, FileText,
+  Globe2, Image as ImageIcon, Library, Loader2, Menu, MessageSquare, Paperclip, Pin, Plus,
+  RefreshCw, Search, Send, Sparkles, StopCircle, Trash2, X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 type TimestampLike = { toMillis?: () => number; toDate?: () => Date } | Date | null | undefined;
+interface Message {
+  id: string; chatId: string; senderId: string; senderName: string; senderRole: 'user' | 'hanna';
+  content: string; attachments?: HannaAttachment[]; createdAt: TimestampLike; sources?: HannaSource[]; images?: HannaImageResult[];
+}
+interface ChatSession { id: string; userId: string; title: string; createdAt: TimestampLike; updatedAt: TimestampLike; messageCount: number; pinnedBy?: string[] }
 
-function tsToMillis(ts: TimestampLike): number {
+type ResearchStage = 'idle' | 'planning' | 'searching' | 'synthesizing' | 'ready' | 'partial';
+
+const PROMPTS = [
+  { icon: BookOpen, label: 'Explain a topic', prompt: 'Explain a difficult topic using a simple example and a short practice activity.' },
+  { icon: ClipboardList, label: 'Build an assessment', prompt: 'Create a competency-based assessment with a marking rubric for my class.' },
+  { icon: Library, label: 'Research the web', prompt: 'Research this topic using authoritative sources and show me the links: ' },
+  { icon: Sparkles, label: 'Create a learning aid', prompt: 'Turn this topic into revision notes, flashcards, and three exam-style questions: ' },
+];
+
+function millis(ts: TimestampLike) {
   if (!ts) return 0;
   if (ts instanceof Date) return ts.getTime();
   if (typeof ts.toMillis === 'function') return ts.toMillis();
@@ -72,1197 +44,168 @@ function tsToMillis(ts: TimestampLike): number {
   return 0;
 }
 
-const SUGGESTED_PROMPTS = [
-  { icon: GraduationCap, title: 'Explain a topic', prompt: 'Explain photosynthesis in simple terms with an example.' },
-  { icon: BookOpen, title: 'Make a revision plan', prompt: 'Create a 2-week revision plan for my biology exam.' },
-  { icon: ClipboardList, title: 'Practice questions', prompt: 'Give me 5 practice questions on quadratic equations with answers.' },
-  { icon: Lightbulb, title: 'Project ideas', prompt: 'Suggest 3 science fair project ideas I can build with local materials.' },
-];
+function domain(url: string) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'web source'; }
+}
 
-const SUGGESTIONS = [
-  { id: 'explain', label: 'Explain Concept', icon: GraduationCap, prompt: 'Explain a difficult concept: ' },
-  { id: 'summarize', label: 'Summarize Notes', icon: BookOpen, prompt: 'Summarize this educational text: ' },
-  { id: 'quiz', label: 'Build Quiz', icon: ClipboardList, prompt: 'Build a practice quiz on: ' },
-  { id: 'study', label: 'Study Plan', icon: RefreshCw, prompt: 'Create a highly effective study routine for: ' },
-  { id: 'ideas', label: 'Brainstorm Ideas', icon: Lightbulb, prompt: 'Give me creative ideas for my project: ' },
-  { id: 'continue', label: 'Continue Task', icon: Plus, prompt: 'Help me continue with this learning task: ' },
-];
+function SourceCard({ source, index, onOpen }: { source: HannaSource; index: number; onOpen: (source: HannaSource) => void }) {
+  return (
+    <button onClick={() => onOpen(source)} className="group w-full rounded-2xl border border-slate-200/80 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400/60 hover:shadow-md dark:border-white/10 dark:bg-white/[0.04]">
+      <div className="flex items-start gap-2.5">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-[11px] font-black text-emerald-600 dark:text-emerald-300">{index + 1}</span>
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-2 text-xs font-bold text-slate-800 dark:text-slate-100">{source.title || 'Untitled source'}</span>
+          <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300"><Globe2 className="h-3 w-3" />{domain(source.url)}</span>
+        </span>
+        <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-slate-400 transition group-hover:text-emerald-500" />
+      </div>
+      {source.citedText && <p className="mt-2 line-clamp-2 border-t border-slate-100 pt-2 text-[10px] leading-relaxed text-slate-500 dark:border-white/10 dark:text-slate-400">{source.citedText}</p>}
+    </button>
+  );
+}
+
+function ImageStrip({ images }: { images: HannaImageResult[] }) {
+  if (!images.length) return null;
+  return <section className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 to-white p-3 dark:border-amber-300/10 dark:from-amber-300/[0.08] dark:to-white/[0.03]">
+    <div className="mb-2 flex items-center justify-between"><div className="flex items-center gap-2 text-xs font-black text-amber-700 dark:text-amber-200"><ImageIcon className="h-4 w-4" /> Visual references</div><span className="text-[10px] text-slate-400">Attribution included</span></div>
+    <div className="grid grid-cols-3 gap-2">
+      {images.slice(0, 6).map(image => <a key={`${image.sourceUrl}-${image.url}`} href={image.sourceUrl} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-2xl border border-slate-200/70 bg-white dark:border-white/10 dark:bg-[#111115]"><img src={image.thumbnailUrl || image.url} alt={image.title} loading="lazy" className="h-20 w-full object-cover transition duration-300 group-hover:scale-105" /><span className="block truncate px-2 py-1.5 text-[9px] text-slate-600 dark:text-slate-300">{image.title}</span></a>)}
+    </div>
+  </section>;
+}
 
 export default function HannaChatIntegrated() {
   const navigate = useNavigate();
-  const { userData, currentUser, userRole } = useAuth();
+  const { currentUser, userData, userRole } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const sessionParam = searchParams.get('session');
-
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(searchParams.get('session'));
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [useWebResearch, setUseWebResearch] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024); // Default true on desktop for premium left sidebar
-  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState('');
+  const [researchStage, setResearchStage] = useState<ResearchStage>('idle');
+  const [researchEnabled, setResearchEnabled] = useState(true);
+  const [sources, setSources] = useState<HannaSource[]>([]);
+  const [images, setImages] = useState<HannaImageResult[]>([]);
+  const [selectedSource, setSelectedSource] = useState<HannaSource | null>(null);
+  const [isSourceDrawerOpen, setIsSourceDrawerOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isNearBottom, setIsNearBottom] = useState(true);
-
-  // Modals / Dialogs state
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'about' | 'instructions'>('about');
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [targetDeleteChatId, setTargetDeleteChatId] = useState<string | null>(null);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<HannaAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isImageSearching, setIsImageSearching] = useState(false);
+  const [showPromptMenu, setShowPromptMenu] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-
-  const prevChatIdRef = useRef<string | null>(null);
-  const userJustSentRef = useRef<boolean>(false);
-
-  const [typewriterText, setTypewriterText] = useState('');
-  const fullStreamedTextRef = useRef('');
-  const displayedTextRef = useRef('');
-  const isStreamActiveRef = useRef(false);
-  const typewriterIntervalRef = useRef<any>(null);
-  const onTypewriterCompleteRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (typewriterIntervalRef.current) {
-        clearInterval(typewriterIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const startTypewriter = (onComplete: () => void) => {
-    setTypewriterText('');
-    fullStreamedTextRef.current = '';
-    displayedTextRef.current = '';
-    isStreamActiveRef.current = true;
-    onTypewriterCompleteRef.current = onComplete;
-
-    if (typewriterIntervalRef.current) {
-      clearInterval(typewriterIntervalRef.current);
-    }
-
-    typewriterIntervalRef.current = setInterval(() => {
-      const target = fullStreamedTextRef.current;
-      const current = displayedTextRef.current;
-
-      if (current === target && !isStreamActiveRef.current) {
-        if (typewriterIntervalRef.current) {
-          clearInterval(typewriterIntervalRef.current);
-          typewriterIntervalRef.current = null;
-        }
-        if (onTypewriterCompleteRef.current) {
-          onTypewriterCompleteRef.current();
-          onTypewriterCompleteRef.current = null;
-        }
-        return;
-      }
-
-      // Append next words or catch up
-      const targetWords = target.split(' ');
-      const currentWords = current ? current.split(' ') : [];
-
-      const lag = targetWords.length - currentWords.length;
-      if (lag > 0) {
-        let increment = 1;
-        if (lag > 12) increment = 4;
-        else if (lag > 6) increment = 2;
-
-        const nextWordsCount = Math.min(currentWords.length + increment, targetWords.length);
-        const nextText = targetWords.slice(0, nextWordsCount).join(' ');
-
-        displayedTextRef.current = nextText;
-        setTypewriterText(nextText);
-      } else if (!isStreamActiveRef.current && target.length > current.length) {
-        displayedTextRef.current = target;
-        setTypewriterText(target);
-      }
-    }, 45);
-  };
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const geminiReady = isGeminiConfigured();
-
-  const handleTogglePinChat = async (chatId: string, isCurrentlyPinned: boolean) => {
-    if (!currentUser) return;
-    try {
-      const chatRef = doc(db, 'hanna_chats', chatId);
-      if (isCurrentlyPinned) {
-        await updateDoc(chatRef, { pinnedBy: arrayRemove(currentUser.uid) });
-        toast.success('Chat unpinned');
-      } else {
-        await updateDoc(chatRef, { pinnedBy: arrayUnion(currentUser.uid) });
-        toast.success('Chat pinned to top');
-      }
-    } catch (error) {
-      console.error('Error toggling pin:', error);
-      toast.error('Failed to pin/unpin chat');
-    }
-  };
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
-    setIsNearBottom(true);
-    setShowScrollTop(false);
-  }, []);
-
-  const handleMessageScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    setIsNearBottom(distanceFromBottom < 160);
-    setShowScrollTop(container.scrollTop > 320);
-  }, []);
-
-  // Handle scrolling dynamically based on context to ensure zero jitter and no slow glides on switch
-  useEffect(() => {
-    if (!currentChatId) return;
-
-    const container = scrollContainerRef.current;
-
-    if (currentChatId !== prevChatIdRef.current) {
-      // Switched chat session: instantly scroll to bottom so there's no gliding animation
-      scrollToBottom('auto');
-      prevChatIdRef.current = currentChatId;
-      userJustSentRef.current = false;
-      setShowScrollTop(false);
-      return;
-    }
-
-    if (userJustSentRef.current) {
-      // User sent a message: do a smooth scroll to bottom once
-      scrollToBottom('smooth');
-      userJustSentRef.current = false; // Reset
-      return;
-    }
-
-    // AI streaming or normal update: scroll ONLY if user is already near the bottom
-    if (container) {
-      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-      if (isAtBottom) {
-        scrollToBottom('auto');
-      }
-    } else {
-      scrollToBottom('auto');
-    }
-  }, [messages, typewriterText, currentChatId, scrollToBottom]);
-
-
-  // Auto-grow textarea
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
-  }, [inputValue]);
-
-  /* ------------------------------ Sessions ------------------------------ */
+  const filteredSessions = useMemo(() => sessions.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())), [sessions, searchQuery]);
+  const latestHannaMessage = [...messages].reverse().find(m => m.senderRole === 'hanna');
 
   useEffect(() => {
     if (!currentUser) return;
     const q = query(collection(db, 'hanna_chats'), where('userId', '==', currentUser.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as ChatSession[];
-      const sorted = sessions.sort((a, b) => {
-        const aPinned = a.pinnedBy?.includes(currentUser.uid) ? 1 : 0;
-        const bPinned = b.pinnedBy?.includes(currentUser.uid) ? 1 : 0;
-        if (aPinned !== bPinned) return bPinned - aPinned;
-        return tsToMillis(b.updatedAt) - tsToMillis(a.updatedAt);
-      });
-      setChatSessions(sorted);
-      if (sessionParam) {
-        setCurrentChatId(sessionParam);
-      } else if (sorted.length > 0 && !currentChatId) {
-        setCurrentChatId(sorted[0].id);
-      }
-    }, (error) => console.error('Error loading Hanna chats:', error));
-    return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return onSnapshot(q, snap => setSessions(snap.docs.map(item => ({ id: item.id, ...item.data() }) as ChatSession).sort((a, b) => millis(b.updatedAt) - millis(a.updatedAt))));
   }, [currentUser]);
 
   useEffect(() => {
-    if (!currentChatId) return;
+    if (!currentChatId) { setMessages([]); return; }
     const q = query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Message[];
-      const sorted = msgs.sort((a, b) => tsToMillis(a.createdAt) - tsToMillis(b.createdAt));
-      setMessages(sorted);
-    }, (error) => console.error('Error loading messages:', error));
-    return () => unsubscribe();
+    return onSnapshot(q, snap => {
+      const next = snap.docs.map(item => ({ id: item.id, ...item.data() }) as Message).sort((a, b) => millis(a.createdAt) - millis(b.createdAt));
+      setMessages(next);
+      const last = [...next].reverse().find(m => m.senderRole === 'hanna');
+      if (last) { setSources(last.sources || []); setImages(last.images || []); }
+    });
   }, [currentChatId]);
 
-  /* ------------------------------ Actions ------------------------------ */
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, streamingText]);
 
-  const handleNewChat = async () => {
-    if (!currentUser) return;
+  const createSession = async () => {
+    if (!currentUser) throw new Error('Please sign in to use Hanna.');
+    const ref = await addDoc(collection(db, 'hanna_chats'), { userId: currentUser.uid, title: 'New research conversation', createdAt: serverTimestamp(), updatedAt: serverTimestamp(), messageCount: 0 });
+    setCurrentChatId(ref.id); setSearchParams({ session: ref.id }); return ref.id;
+  };
+
+  const newChat = async () => { setMessages([]); setSources([]); setImages([]); setInputValue(''); setIsSourceDrawerOpen(false); await createSession(); };
+
+  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []); event.target.value = ''; if (!currentUser) return;
+    setUploading(true);
+    try { for (const file of files) { const url = await uploadToCloudinary(file, mapFileToCloudinaryType(file, file.name), { showErrorToast: false, userId: currentUser.uid, referenceId: currentChatId || 'hanna', purpose: file.type.startsWith('image/') ? 'hanna_image' : 'hanna_document' }); setAttachments(prev => [...prev, { url, name: file.name, mimeType: file.type || 'application/octet-stream' }]); } }
+    catch { toast.error('Could not attach that file.'); } finally { setUploading(false); }
+  };
+
+  const send = async (preset?: string) => {
+    const text = (preset || inputValue).trim();
+    if ((!text && attachments.length === 0) || isGenerating || !currentUser) return;
+    if (!geminiReady) { toast.error('Hanna is not configured for this environment.'); return; }
+    setInputValue(''); setIsGenerating(true); setStreamingText(''); setResearchStage(researchEnabled ? 'planning' : 'idle');
+    const activeAttachments = attachments; setAttachments([]);
+    let chatId = currentChatId;
     try {
-      const chatRef = await addDoc(collection(db, 'hanna_chats'), {
-        userId: currentUser.uid,
-        title: 'New conversation',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        messageCount: 0,
-      });
-      setCurrentChatId(chatRef.id);
-      setSearchParams({ session: chatRef.id });
-      setMessages([]);
-      setInputValue('');
-      setIsSidebarOpen(false);
-    } catch (error) {
-      console.error('Error creating chat:', error);
-      toast.error('Failed to create new chat');
-    }
-  };
-
-  const triggerDeleteChat = (chatId: string) => {
-    setTargetDeleteChatId(chatId);
-    setIsDeleteOpen(true);
-  };
-
-  const handleDeleteChatConfirm = async () => {
-    if (!targetDeleteChatId) return;
-    try {
-      await deleteDoc(doc(db, 'hanna_chats', targetDeleteChatId));
-      if (currentChatId === targetDeleteChatId) {
-        setCurrentChatId(null);
-        setSearchParams({});
-        setMessages([]);
+      if (!chatId) chatId = await createSession();
+      await addDoc(collection(db, 'hanna_messages'), { chatId, senderId: currentUser.uid, senderName: userData?.fullName || 'You', senderRole: 'user', content: text || '(shared files)', attachments: activeAttachments, createdAt: serverTimestamp() });
+      const history = messages.slice(-16).map(m => ({ role: m.senderRole, content: m.content }));
+      let researchBrief = '';
+      let resultSources: HannaSource[] = [];
+      let resultImages: HannaImageResult[] = [];
+      if (researchEnabled && text) {
+        setResearchStage('searching');
+        try { const result = await researchWithHanna(text); researchBrief = result.answer; resultSources = result.sources || []; resultImages = result.images || []; setSources(resultSources); setImages(resultImages); setResearchStage('synthesizing'); }
+        catch { setResearchStage('partial'); }
       }
-      toast.success('Conversation deleted');
-    } catch (error) {
-      console.error('Error deleting chat:', error);
-      toast.error('Failed to delete conversation');
-    } finally {
-      setIsDeleteOpen(false);
-      setTargetDeleteChatId(null);
-    }
+      const groundedPrompt = researchBrief ? `${text}\n\nResearch brief gathered for this request:\n${researchBrief}\n\nUse the research as evidence, cite the provided sources when relevant, and clearly state uncertainty.` : text;
+      const controller = new AbortController(); abortRef.current = controller;
+      const reply = await streamHannaReply(history, groundedPrompt || 'Please describe the attached files.', activeAttachments, partial => setStreamingText(partial), controller.signal, { userName: userData?.fullName || 'User', userRole: userRole || 'student' }, chatId);
+      const finalText = reply.trim();
+      await addDoc(collection(db, 'hanna_messages'), { chatId, senderId: 'hanna-ai', senderName: 'Hanna', senderRole: 'hanna', content: finalText, sources: resultSources, images: resultImages, createdAt: serverTimestamp() });
+      await updateDoc(doc(db, 'hanna_chats', chatId), { updatedAt: serverTimestamp(), messageCount: increment(2), title: sessions.find(s => s.id === chatId)?.title === 'New research conversation' ? text.slice(0, 54) : undefined });
+      setResearchStage(resultSources.length ? 'ready' : researchStage === 'partial' ? 'partial' : 'idle');
+    } catch (error) { if ((error as Error)?.name !== 'AbortError') toast.error(error instanceof Error ? error.message : 'Hanna could not complete this request.'); }
+    finally { setIsGenerating(false); setStreamingText(''); abortRef.current = null; }
   };
 
-  const handleClearCurrentMessages = async () => {
-    if (!currentChatId || !currentUser) return;
-    try {
-      const q = query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId));
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-
-      await updateDoc(doc(db, 'hanna_chats', currentChatId), {
-        messageCount: 0,
-        updatedAt: serverTimestamp()
-      });
-      toast.success('Conversation messages cleared');
-    } catch (error) {
-      console.error('Error clearing messages:', error);
-      toast.error('Could not clear messages');
-    }
-  };
-
-  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = '';
-    if (files.length === 0 || !currentUser) return;
-
-    setUploadingFiles(true);
-    for (const file of files) {
-      try {
-        const cType = mapFileToCloudinaryType(file, file.name);
-        let purpose = 'hanna_document';
-        if (file.type.startsWith('image/')) purpose = 'hanna_image';
-        else if (file.type.startsWith('audio/')) purpose = 'hanna_audio';
-        else if (file.type.startsWith('video/')) purpose = 'hanna_video';
-
-        const url = await uploadToCloudinary(file, cType, {
-          showErrorToast: false,
-          userId: currentUser.uid,
-          referenceId: currentChatId || 'hanna',
-          purpose
-        });
-        setAttachments(prev => [...prev, { url, name: file.name, mimeType: file.type || 'application/octet-stream' }]);
-      } catch (error) {
-        console.error('Attachment upload failed:', error);
-        toast.error(`Could not attach ${file.name}`);
-      }
-    }
-    setUploadingFiles(false);
-  };
-
-  const removeAttachment = (url: string) => {
-    setAttachments(prev => prev.filter(a => a.url !== url));
-  };
-
-  const handleStop = () => {
-    abortRef.current?.abort();
-    isStreamActiveRef.current = false;
-    if (typewriterIntervalRef.current) {
-      clearInterval(typewriterIntervalRef.current);
-      typewriterIntervalRef.current = null;
-    }
-    const finalContent = fullStreamedTextRef.current.trim() || displayedTextRef.current.trim() || 'I was stopped.';
-    displayedTextRef.current = finalContent;
-    setTypewriterText(finalContent);
-    if (onTypewriterCompleteRef.current) {
-      onTypewriterCompleteRef.current();
-      onTypewriterCompleteRef.current = null;
-    }
-  };
-
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const text = inputValue.trim();
-    if ((!text && attachments.length === 0) || !currentChatId || !currentUser || isGenerating) return;
-
-    if (!geminiReady) {
-      toast.error('Hanna is not configured yet. The Gemini API key is missing from the environment.');
-      return;
-    }
-
-    const currentAttachments = attachments;
-    setInputValue('');
-    setAttachments([]);
-    setIsGenerating(true);
-    setTypewriterText('');
-    userJustSentRef.current = true; // Mark that user just sent a message for smooth scrolling
-
-    const isFirstExchange = messages.length === 0;
-
-    // Load custom instructions from localStorage
-    const savedInstructions = localStorage.getItem(`hanna_instructions_${currentUser.uid}`) || '';
-
-    let smartTitle = '';
-
-    try {
-      // 1. Persist the user message
-      await addDoc(collection(db, 'hanna_messages'), {
-        chatId: currentChatId,
-        senderId: currentUser.uid,
-        senderName: userData?.fullName || 'You',
-        senderRole: 'user',
-        content: text || '(shared files)',
-        attachments: currentAttachments.map(a => ({ url: a.url, name: a.name, mimeType: a.mimeType })),
-        createdAt: serverTimestamp(),
-      });
-
-      // 2. Stream Hanna's reply from Gemini (passing name, role & custom instructions)
-      if (useWebResearch) {
-        const result = await researchWithHanna(text || 'Find relevant information about the attached material.');
-        const researchText = result.answer || 'I could not find a grounded answer for that research request.';
-        await addDoc(collection(db, 'hanna_messages'), {
-          chatId: currentChatId,
-          senderId: 'hanna-ai',
-          senderName: 'Hanna',
-          senderRole: 'hanna',
-          content: researchText,
-          sources: result.sources,
-          images: result.images,
-          createdAt: serverTimestamp(),
-        });
-        const researchSessionUpdates: Record<string, unknown> = {
-          updatedAt: serverTimestamp(),
-          messageCount: increment(2),
-        };
-        if (isFirstExchange) researchSessionUpdates.title = text.slice(0, 50) || 'Web research';
-        await updateDoc(doc(db, 'hanna_chats', currentChatId), researchSessionUpdates);
-        setIsGenerating(false);
-        setUseWebResearch(false);
-        return;
-      }
-
-      const history = messages.slice(-12).map(m => ({
-        role: (m.senderRole === 'user' ? 'user' : 'hanna') as 'user' | 'hanna',
-        content: m.content,
-      }));
-
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      // Start the typewriter loop immediately!
-      startTypewriter(async () => {
-        try {
-          const finalText = displayedTextRef.current.trim() || 'I was interrupted — please ask me again.';
-          await addDoc(collection(db, 'hanna_messages'), {
-            chatId: currentChatId,
-            senderId: 'hanna-ai',
-            senderName: 'Hanna',
-            senderRole: 'hanna',
-            content: finalText,
-            createdAt: serverTimestamp(),
-          });
-
-          const sessionUpdates: Record<string, unknown> = {
-            updatedAt: serverTimestamp(),
-            messageCount: increment(2),
-          };
-          if (isFirstExchange && smartTitle) {
-            sessionUpdates.title = smartTitle;
-          }
-          await updateDoc(doc(db, 'hanna_chats', currentChatId), sessionUpdates);
-        } catch (err) {
-          console.error('Error saving typewriter text:', err);
-        } finally {
-          setIsGenerating(false);
-          setTypewriterText('');
-          abortRef.current = null;
-        }
-      });
-
-      const replyPromise = streamHannaReply(
-        history,
-        text || 'Please describe the attached file(s).',
-        currentAttachments,
-        (partial) => {
-          fullStreamedTextRef.current = partial;
-        },
-        controller.signal,
-        {
-          userName: userData?.fullName || 'User',
-          userRole: userRole || 'student',
-          customInstructions: savedInstructions
-        },
-        currentChatId
-      );
-
-      // Keep title generation local so every user message gets its full AI quota.
-      if (isFirstExchange) {
-        smartTitle = deriveChatTitle(text || currentAttachments[0]?.name || 'Chat with Hanna');
-        void updateDoc(doc(db, 'hanna_chats', currentChatId), { title: smartTitle }).catch(err => {
-          console.warn('Local chat title update failed:', err);
-        });
-      }
-
-      await replyPromise;
-      isStreamActiveRef.current = false;
-
-    } catch (error) {
-      console.error('Hanna reply failed:', error);
-      isStreamActiveRef.current = false;
-      if (typewriterIntervalRef.current) {
-        clearInterval(typewriterIntervalRef.current);
-        typewriterIntervalRef.current = null;
-      }
-      setIsGenerating(false);
-      setTypewriterText('');
-      abortRef.current = null;
-
-      const errName = error instanceof Error ? error.name : '';
-      if (errName !== 'AbortError') {
-        const friendly = String(error instanceof Error ? error.message : '').includes('API key')
-          ? 'The Gemini API key looks invalid. Please check the environment configuration.'
-          : 'Hanna could not respond right now. Please try again.';
-        toast.error(friendly);
-      }
-    }
-  };
-
-  const handleCopyMessage = async (message: Message) => {
-    try {
-      await navigator.clipboard.writeText(message.content);
-      setCopiedId(message.id);
-      setTimeout(() => setCopiedId(null), 1500);
-    } catch { /* clipboard unavailable */ }
-  };
-
-  const formatTime = (timestamp: TimestampLike) => {
-    if (!timestamp) return '';
-    const date = timestamp instanceof Date
-      ? timestamp
-      : typeof timestamp.toDate === 'function'
-        ? timestamp.toDate()
-        : new Date(tsToMillis(timestamp));
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const filteredSessions = chatSessions.filter(session => {
-    return session.title.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
-  const getDashboardRedirect = () => {
-    if (!userRole) return '/';
-    if (userRole === 'platform_admin') return '/admin/dashboard';
-    if (userRole === 'school_admin') return '/school-admin/dashboard';
-    if (userRole === 'teacher') return '/teacher/dashboard';
-    if (userRole === 'parent') return '/parent/dashboard';
-    return '/student/dashboard';
-  };
-
-  const renderSessionCard = (session: ChatSession) => {
-    const isActive = currentChatId === session.id;
-    const isPinned = session.pinnedBy?.includes(currentUser?.uid || '') || false;
-    return (
-      <div
-        key={session.id}
-        className={`
-          w-full p-2.5 flex items-center gap-2.5 rounded-xl transition-all cursor-pointer group relative border text-left
-          ${isActive
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold'
-            : 'border-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
-        `}
-        onClick={() => {
-          setCurrentChatId(session.id);
-          setSearchParams({ session: session.id });
-          if (window.innerWidth < 1024) setIsSidebarOpen(false);
-        }}
-      >
-        <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-emerald-500' : 'text-slate-400'}`} />
-        <span className="flex-1 text-xs truncate pr-12">{session.title}</span>
-
-        {/* Hover/Action Buttons (Pin & Delete) */}
-        <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`w-5 h-5 rounded-md ${isPinned ? 'text-emerald-500' : 'text-slate-400 hover:text-emerald-500'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTogglePinChat(session.id, isPinned);
-            }}
-            title={isPinned ? "Unpin chat" : "Pin chat to top"}
-          >
-            <Pin className={`w-3 h-3 ${isPinned ? 'fill-current rotate-45' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-5 h-5 text-slate-400 hover:text-red-500 rounded-md"
-            onClick={(e) => {
-              e.stopPropagation();
-              triggerDeleteChat(session.id);
-            }}
-            title="Delete conversation"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <SEO title="Hanna AI Chat" description="Interactive, lightning-fast chatbot companion on Liverton Learning." noIndex />
-      <div className="liv-hanna-page flex h-[100dvh] min-h-0 bg-[#fafafc] dark:bg-[#0c0d12] text-slate-900 dark:text-slate-100 overflow-hidden relative">
-
-        {/* Background Decorative Blobs for high-fidelity glassmorphism depth */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-500/5 dark:bg-yellow-500/5 blur-[120px] rounded-full pointer-events-none z-0" />
-
-        {/* Dynamic Slide-out Sidebar for Conversation History resembling ChatGPT app */}
-        <div
-          className={`
-            fixed inset-y-0 left-0 z-40 bg-white/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5
-            transition-all duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
-            ${isSidebarOpen
-              ? 'translate-x-0 w-[min(20rem,calc(100vw-1rem))] opacity-100'
-              : '-translate-x-full opacity-0 lg:w-0 lg:opacity-0 lg:overflow-hidden lg:border-r-0 lg:translate-x-0'
-            }
-            liv-hanna-sidebar lg:relative lg:bg-white/40 lg:dark:bg-[#0c0d12]/40
-          `}
-        >
-          {/* ChatGPT-style Sidebar Header with Prominent "+ New Chat" button at the top */}
-          <div className="liv-hanna-sidebar-header p-4 border-b border-slate-200/50 dark:border-white/5 flex flex-col gap-3 bg-slate-50/50 dark:bg-white/5">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                Hanna History
-              </h1>
-              {isSidebarOpen && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden rounded-full w-8 h-8 hover:bg-slate-200 dark:hover:bg-white/10"
-                  onClick={() => setIsSidebarOpen(false)}
-                  title="Close sidebar"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-
-            {/* ChatGPT-style Big Prominent "+ New Chat" Button */}
-            <Button
-              onClick={handleNewChat}
-              className="liv-hanna-new-chat w-full flex items-center justify-center gap-2 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl py-5 font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <Plus className="w-4 h-4" />
-              New Conversation
-            </Button>
-
-            {/* Search conversations */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search chats..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="liv-hanna-sidebar-search w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-white/5 border border-transparent focus:border-emerald-500/30 outline-none text-slate-800 dark:text-slate-100"
-              />
-            </div>
-          </div>
-
-          {/* Sessions List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {filteredSessions.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 dark:text-slate-600 text-xs">
-                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p>No conversations found</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* Pinned Group */}
-                {filteredSessions.some(s => s.pinnedBy?.includes(currentUser?.uid || '')) && (
-                  <div className="space-y-1">
-                    <p className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <Pin className="w-3 h-3 fill-current text-emerald-500 rotate-45" /> Pinned
-                    </p>
-                    {filteredSessions
-                      .filter(s => s.pinnedBy?.includes(currentUser?.uid || ''))
-                      .map(session => renderSessionCard(session))}
-                  </div>
-                )}
-
-                {/* Recent Group */}
-                <div className="space-y-1">
-                  {filteredSessions.some(s => s.pinnedBy?.includes(currentUser?.uid || '')) && (
-                    <p className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      Recent
-                    </p>
-                  )}
-                  {filteredSessions
-                    .filter(s => !s.pinnedBy?.includes(currentUser?.uid || ''))
-                    .map(session => renderSessionCard(session))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Unified Action Bar inside the Sidebar */}
-          <div className="liv-hanna-sidebar-footer p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-1 text-xs">
-            <button
-              onClick={() => {
-                setSettingsTab('about');
-                setIsSettingsOpen(true);
-              }}
-              className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
-            >
-              <Info className="w-4 h-4 text-amber-500" />
-              About Hanna AI
-            </button>
-            {currentChatId && (
-              <>
-                <button
-                  onClick={handleClearCurrentMessages}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-xl flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4 text-blue-500" />
-                  Clear chat history
-                </button>
-                <hr className="my-1 border-slate-200/50 dark:border-white/5" />
-                <button
-                  onClick={() => triggerDeleteChat(currentChatId)}
-                  className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 rounded-xl flex items-center gap-2 font-medium transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Conversation
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Sidebar Overlay for Mobile */}
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main Take.app-style Focus Area */}
-        <main className="flex-1 flex flex-col min-w-0 h-full relative z-10">
-
-          {/* Custom Overlapping Avatars Header resembling Gemini in Firebase Cloud Console */}
-          <header className="liv-hanna-header sticky top-0 z-30 px-2.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-[#111115] text-white">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              {/* Back Button with brand logo */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-8 h-8 hover:bg-white/10"
-                title="Back to Dashboard"
-              >
-                <ChevronLeft className="w-4 h-4 text-slate-300" />
-              </Button>
-
-              {/* Overlapping Brand + AskHanna Avatars */}
-              <div className="relative flex items-center">
-                <div className="w-8 h-8 rounded-full bg-slate-900 border border-white/20 flex items-center justify-center overflow-hidden z-10">
-                  <img src="/logo.png" alt="Liverton" className="w-[85%] h-[85%] object-contain" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-black border border-white/20 flex items-center justify-center overflow-hidden -ml-3 z-20 shadow-md">
-                  <div className="scale-[1.6]">
-                    <AskHannaIcon size={20} showText={false} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Title & Brand Typography */}
-              <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-bold text-sm text-slate-100">Hanna</span>
-                <span className="hidden sm:inline text-[11px] text-slate-400 font-medium truncate">in Liverton</span>
-              </div>
-            </div>
-
-            {/* Responsive Actions resembling the Firebase Cloud Console header (+, history, settings, X) */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNewChat}
-                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
-                title="New Chat"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen(prev => !prev)}
-                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
-                title="Conversation History"
-              >
-                <History className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  navigate('/profile');
-                }}
-                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
-                title="Personalization Settings"
-              >
-                <Settings className="w-4 h-4 text-emerald-400" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(getDashboardRedirect())}
-                className="rounded-full w-9 h-9 text-slate-300 hover:text-white hover:bg-white/10"
-                title="Close"
-              >
-                <X className="w-4.5 h-4.5" />
-              </Button>
-            </div>
-          </header>
-
-
-          {currentChatId ? (
-            <>
-              {/* Conversation Area (Take.app interactively centered max-w-2xl viewport) */}
-              <div ref={scrollContainerRef} onScroll={handleMessageScroll} className="liv-hanna-thread flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 scrollbar-thin overscroll-contain">
-                <div className="max-w-3xl mx-auto space-y-5 sm:space-y-6">
-
-                  {/* Empty state: Suggested prompts for streamlined user guidance */}
-                  {messages.length === 0 && !typewriterText && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="w-20 h-20 bg-slate-950 dark:bg-black rounded-[28px] flex items-center justify-center shadow-xl border border-white/5 relative">
-                        <div className="scale-[2.4]">
-                          <AskHannaIcon size={32} showText={false} />
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-slate-950 p-1.5 rounded-xl shadow-lg border border-white/10">
-                          <Sparkles className="w-4 h-4 fill-slate-950" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-2xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
-                          Meet Hanna AI
-                        </h2>
-                        <p className="text-slate-400 dark:text-slate-500 text-xs max-w-md mx-auto">
-                          Ask questions, revise syllabus modules, co-draft summaries, and get helper breakdowns on homework instantly.
-                        </p>
-                      </div>
-
-                      {/* Suggested prompts in a high-fidelity minimalist Jumia grid with smooth wavy staggered animations */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
-                        {SUGGESTED_PROMPTS.map((item, i) => (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              setInputValue(item.prompt);
-                              textareaRef.current?.focus();
-                            }}
-                            className="liv-hanna-suggestion group flex items-start gap-3.5 p-4 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all text-left animate-in fade-in slide-in-from-bottom-4 duration-500 suggestion-card-animate shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                            style={{
-                              animationDelay: `${i * 200}ms`,
-                              animationFillMode: 'both'
-                            }}
-                          >
-                            <span className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                              <item.icon className="w-4 h-4" />
-                            </span>
-                            <div>
-                              <p className="text-xs font-bold text-slate-800 dark:text-white group-hover:text-emerald-500 transition-colors">
-                                {item.title}
-                              </p>
-                              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-2">
-                                {item.prompt}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Message Bubbles - Asymmetric 3D Glassmorphic Experience */}
-                  {messages.map((message) => {
-                    const isUser = message.senderRole === 'user';
-                    return (
-                      <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
-                        <div className={`flex gap-2.5 sm:gap-3 max-w-[92%] sm:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-
-                          {/* Avatar */}
-                          <div className="flex-shrink-0 mt-1">
-                            {isUser ? (
-                              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white font-extrabold text-[10px] shadow-sm">
-                                {userData?.fullName?.charAt(0).toUpperCase() || 'U'}
-                              </div>
-                            ) : (
-                              <div className="w-7 h-7 rounded-xl bg-slate-950 dark:bg-black flex items-center justify-center overflow-hidden border border-white/5 shadow-md">
-                                <div className="scale-[1.6]">
-                                  <AskHannaIcon size={24} showText={false} />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Content Bubble with Asymmetric take.app corners */}
-                          <div className="space-y-1">
-                            {message.attachments && message.attachments.length > 0 && (
-                              <div className={`flex flex-wrap gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                                {message.attachments.map((att, i) => (
-                                  att.mimeType.startsWith('image/') ? (
-                                    <img key={i} src={att.url} alt={att.name} className="max-w-[min(200px,78vw)] max-h-40 rounded-2xl object-cover border border-slate-200/50 dark:border-white/10 shadow-sm" />
-                                  ) : (
-                                    <span key={i} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-[11px]">
-                                      <FileText className="w-3.5 h-3.5 text-emerald-500" /> {att.name}
-                                    </span>
-                                  )
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Asymmetric Corners */}
-                            {message.images && message.images.length > 0 && (
-                              <div className="mb-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                                <div className="mb-2 flex items-center gap-2 text-[11px] font-bold text-emerald-700 dark:text-emerald-300"><ImageIcon className="h-3.5 w-3.5" /> Images from the web</div>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                  {message.images.map((image) => (
-                                    <a key={image.sourceUrl} href={image.sourceUrl} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-white/10 dark:bg-[#111115]">
-                                      <img src={image.thumbnailUrl} alt={image.title} loading="lazy" className="h-24 w-full object-cover transition-transform group-hover:scale-105" />
-                                      <span className="block truncate px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300">{image.title}</span>
-                                    </a>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            <div
-                              className={`
-                                px-3.5 sm:px-4 py-3 text-[13px] sm:text-sm leading-relaxed break-words shadow-sm
-                                ${isUser
-                                  ? 'liv-hanna-bubble-user bg-emerald-600 dark:bg-emerald-600 text-white rounded-[24px] rounded-tr-[4px] font-medium'
-                                  : 'liv-hanna-bubble-assistant bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px]'}
-                              `}
-                            >
-                              <HannaMarkdown text={message.content} />
-                            </div>
-
-                            {message.sources && message.sources.length > 0 && (
-                              <div className="mt-2 border-t border-slate-200/60 pt-2 dark:border-white/10">
-                                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Sources</p>
-                                <div className="space-y-1">
-                                  {message.sources.map((source) => (
-                                    <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[11px] text-emerald-700 hover:underline dark:text-emerald-300">
-                                      <ExternalLink className="h-3 w-3 shrink-0" />
-                                      <span className="truncate">{source.title}</span>
-                                    </a>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Actions and Timestamp */}
-                            <div className={`flex items-center gap-2.5 text-[10px] text-slate-400 dark:text-slate-500 mt-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                              <span>{formatTime(message.createdAt)}</span>
-                              {!isUser && (
-                                <button
-                                  onClick={() => handleCopyMessage(message)}
-                                  className="hover:text-emerald-500 flex items-center gap-0.5 transition-colors"
-                                >
-                                  {copiedId === message.id ? (
-                                    <>
-                                      <Check className="w-3 h-3 text-emerald-500" />
-                                      <span className="text-emerald-500">Copied</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy className="w-3 h-3" />
-                                      <span>Copy</span>
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </div>
-
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Streaming Response Bubble */}
-                  {isGenerating && (
-                    <div className="flex gap-3 max-w-[85%] justify-start animate-in fade-in duration-150">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="w-7 h-7 rounded-xl bg-slate-950 dark:bg-black flex items-center justify-center overflow-hidden border border-white/5 shadow-md">
-                          <div className="scale-[1.6]">
-                            <AskHannaIcon size={24} showText={false} />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="liv-hanna-bubble-assistant bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[24px] rounded-tl-[4px] px-4 py-3 text-sm leading-relaxed shadow-sm min-w-[100px]">
-                          {typewriterText ? (
-                            <div>
-                              <HannaMarkdown text={typewriterText} />
-                              <span className="inline-block w-2.5 h-4 bg-emerald-500 animate-pulse rounded-sm ml-0.5 align-text-bottom" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 py-1.5">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div ref={messagesEndRef} />
-                </div>
-              </div>
-
-              {showScrollTop && messages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className="absolute top-3 right-3 sm:right-5 z-30 inline-flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5 dark:border-white/10 dark:bg-[#111115]/95 dark:text-slate-300"
-                  title="Scroll to first message"
-                >
-                  <ArrowUp className="h-3.5 w-3.5" />
-                  Top
-                </button>
-              )}
-
-              {!isNearBottom && messages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => scrollToBottom('smooth')}
-                  className="absolute bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-white/95 dark:bg-[#111115]/95 px-3.5 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5 -rotate-90" />
-                  Jump to latest
-                </button>
-              )}
-
-              {/* Composer Box (Clean modern layout position at bottom centered) */}
-              <footer className="liv-hanna-composer sticky bottom-0 p-2 sm:p-4 bg-[#fafafc]/95 dark:bg-[#0c0d12]/95 backdrop-blur-md border-t border-slate-200/50 dark:border-white/5 relative z-20 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:pb-4">
-                <div className="max-w-2xl mx-auto space-y-3">
-
-                  {/* Subtle Animated Suggestion Action Pills */}
-                  {messages.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none py-1 select-none animate-in fade-in duration-300">
-                      {SUGGESTIONS.map(s => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => {
-                            setInputValue(s.prompt);
-                            textareaRef.current?.focus();
-                          }}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 hover:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 active:scale-95 transition-all whitespace-nowrap shadow-sm hover:shadow-glow"
-                        >
-                          <s.icon className="w-3.5 h-3.5" />
-                          {s.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Attachments preview list */}
-                  {(attachments.length > 0 || uploadingFiles) && (
-                    <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      {attachments.map(att => (
-                        <span key={att.url} className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1.5 rounded-2xl bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-xs shadow-sm">
-                          {att.mimeType.startsWith('image/') ? (
-                            <img src={att.url} alt="" className="w-7 h-7 rounded-lg object-cover" />
-                          ) : (
-                            <FileText className="w-4 h-4 text-emerald-500" />
-                          )}
-                          <span className="max-w-[140px] truncate text-slate-700 dark:text-slate-300">{att.name}</span>
-                          <button onClick={() => removeAttachment(att.url)} className="text-slate-400 hover:text-red-500 ml-1" aria-label={`Remove ${att.name}`}>
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </span>
-                      ))}
-                      {uploadingFiles && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-xs text-slate-400 shadow-sm">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Uploading...</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between gap-3 text-[11px]">
-                    <button type="button" onClick={() => setUseWebResearch(value => !value)} disabled={isGenerating} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition-colors ${useWebResearch ? 'border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-300' : 'border-slate-200 bg-white/70 text-slate-500 hover:border-blue-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'}`}>
-                      <Globe2 className="h-3.5 w-3.5" />
-                      {useWebResearch ? 'Web research on' : 'Search the web'}
-                    </button>
-                    {useWebResearch && <span className="text-slate-400">Hanna will cite sources below her answer.</span>}
-                  </div>
-
-                  {/* Input Form with modern floating focus borders */}
-                  <form
-                    onSubmit={handleSend}
-                    className="liv-hanna-composer-form flex items-end gap-1.5 sm:gap-2.5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-2.5 focus-within:border-emerald-500/60 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept="image/*,audio/*,video/*,.pdf,.txt,.csv,.doc,.docx"
-                      className="hidden"
-                      onChange={handleFilePick}
-                    />
-
-                    {/* Attach Trigger */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingFiles || isGenerating}
-                      title="Attach file"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                    </Button>
-
-                    {/* Text Composer */}
-                    <textarea
-                      ref={textareaRef}
-                      value={inputValue}
-                      onChange={e => setInputValue(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                      placeholder="Message Hanna..."
-                      rows={1}
-                      className="flex-1 min-w-0 bg-transparent border-0 outline-none resize-none text-[16px] sm:text-[14px] leading-relaxed py-2 px-1 max-h-40 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-100"
-                      disabled={isGenerating}
-                    />
-
-                    {/* Action button */}
-                    {isGenerating ? (
-                      <Button
-                        type="button"
-                        size="icon"
-                        className="rounded-full w-9 h-9 sm:w-10 sm:h-10 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 flex-shrink-0 transition-transform"
-                        onClick={handleStop}
-                        title="Stop generating"
-                      >
-                        <StopCircle className="w-5 h-5 animate-pulse" />
-                      </Button>
-                    ) : (
-                      <Button
-                        type="submit"
-                        size="icon"
-                        className="rounded-full w-9 h-9 sm:w-10 sm:h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-md shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-transform"
-                        disabled={(!inputValue.trim() && attachments.length === 0) || uploadingFiles}
-                        title="Send message"
-                      >
-                        <Send className="w-4.5 h-4.5" />
-                      </Button>
-                    )}
-                  </form>
-
-                  <p className="text-[10px] text-center text-slate-400 dark:text-slate-600 leading-normal">
-                    Hanna AI is built on safe learning models. Check key facts before quoting.
-                  </p>
-                </div>
-              </footer>
-            </>
-          ) : (
-            // No selected chat view: welcome dashboard
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
-              <div className="w-24 h-24 bg-slate-950 dark:bg-black rounded-[36px] flex items-center justify-center mb-8 shadow-2xl relative border border-white/5">
-                <div className="scale-[2.6]">
-                  <AskHannaIcon size={32} showText={false} />
-                </div>
-                <div className="absolute -bottom-1 -right-1 bg-gradient-to-tr from-yellow-500 to-amber-400 text-slate-950 p-2 rounded-2xl shadow-lg border border-white/10">
-                  <Sparkles className="w-4.5 h-4.5 fill-slate-950" />
-                </div>
-              </div>
-              <h2 className="text-3xl font-black mb-2.5 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
-                Hanna AI Companion
-              </h2>
-              <p className="text-slate-400 dark:text-slate-500 max-w-sm mb-8 text-xs leading-relaxed">
-                Unlock rapid concept summaries, practice test builders, notes translation, and study routines personalized for you.
-              </p>
-              <Button
-                onClick={handleNewChat}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 h-12 rounded-3xl shadow-xl shadow-emerald-500/10 hover:scale-105 active:scale-95 transition-all font-bold"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Start a New Conversation
-              </Button>
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      <DeleteChatConfirmation
-        isOpen={isDeleteOpen}
-        chatTitle={chatSessions.find(s => s.id === targetDeleteChatId)?.title || ''}
-        onConfirm={handleDeleteChatConfirm}
-        onCancel={() => {
-          setIsDeleteOpen(false);
-          setTargetDeleteChatId(null);
-        }}
-      />
-
-      {/* Hanna Settings & Instructions Dialogue */}
-      <HannaSettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        userId={currentUser?.uid || ''}
-        defaultTab={settingsTab}
-      />
-    </>
-  );
+  const copyMessage = async (message: Message) => { await navigator.clipboard.writeText(message.content); setCopiedId(message.id); setTimeout(() => setCopiedId(null), 1600); };
+  const stop = () => abortRef.current?.abort();
+  const openSource = (source: HannaSource) => { setSelectedSource(source); setIsSourceDrawerOpen(true); };
+  const searchImages = async () => { if (!inputValue.trim() || isImageSearching) return; setIsImageSearching(true); try { const result = await searchImagesForHanna(inputValue.trim()); setImages(result.images || []); toast.success(`${result.images?.length || 0} visual references found`); } catch { toast.error('Image search is unavailable right now.'); } finally { setIsImageSearching(false); } };
+  const clearChat = async () => { if (!currentChatId) return; const snap = await getDocs(query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId))); const batch = writeBatch(db); snap.docs.forEach(item => batch.delete(item.ref)); await batch.commit(); setMessages([]); setSources([]); setImages([]); };
+  const deleteChat = async (id: string) => { await deleteDoc(doc(db, 'hanna_chats', id)); if (id === currentChatId) { setCurrentChatId(null); setSearchParams({}); setMessages([]); setSources([]); setImages([]); } };
+
+  return <>
+    <SEO title="Hanna AI Research Workspace" description="Research, learn, and create with Hanna AI in Liverton Learning." noIndex />
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-[#f7f8fb] text-slate-900 dark:bg-[#080a0f] dark:text-slate-100">
+      <aside className={`${isHistoryOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} fixed inset-y-0 left-0 z-50 flex w-[min(20rem,calc(100vw-1rem))] flex-col border-r border-slate-200/80 bg-white/95 shadow-2xl backdrop-blur-xl transition-transform duration-200 dark:border-white/10 dark:bg-[#0c1018]/95 lg:relative lg:z-20 lg:shadow-none`}>
+        <div className="border-b border-slate-200/80 p-4 dark:border-white/10"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="grid h-9 w-9 place-items-center rounded-2xl bg-slate-950 shadow-lg"><AskHannaIcon size={24} showText={false} /></div><div><p className="text-sm font-black">Hanna AI</p><p className="text-[10px] text-slate-400">Learning research studio</p></div></div><button onClick={() => setIsHistoryOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 lg:hidden dark:hover:bg-white/10" aria-label="Close history"><X className="h-4 w-4" /></button></div><button onClick={newChat} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 active:scale-[.98]"><Plus className="h-4 w-4" /> New research chat</button><div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search conversations" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/[.04]" /></div></div>
+        <div className="flex-1 overflow-y-auto p-3">{filteredSessions.length ? filteredSessions.map(session => <div key={session.id} className={`group mb-1 flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs transition ${session.id === currentChatId ? 'bg-emerald-500/10 font-bold text-emerald-700 dark:text-emerald-300' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5'}`}><button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => { setCurrentChatId(session.id); setSearchParams({ session: session.id }); setIsHistoryOpen(false); }}><MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400" /><span className="truncate">{session.title}</span></button><button onClick={() => deleteChat(session.id)} className="rounded-lg p-1 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100" aria-label={`Delete ${session.title}`}><Trash2 className="h-3 w-3" /></button></div>) : <div className="px-4 py-12 text-center text-xs text-slate-400"><MessageSquare className="mx-auto mb-2 h-7 w-7 opacity-30" />No saved research chats yet.</div>}</div>
+        <div className="border-t border-slate-200/80 p-3 text-[11px] dark:border-white/10"><button onClick={() => navigate('/more')} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"><ChevronLeft className="h-3.5 w-3.5" /> Back to Liverton</button></div>
+      </aside>
+      {isHistoryOpen && <button aria-label="Close history overlay" onClick={() => setIsHistoryOpen(false)} className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" />}
+
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur-xl dark:border-white/10 dark:bg-[#080a0f]/80 sm:px-7"><div className="flex min-w-0 items-center gap-3"><button onClick={() => setIsHistoryOpen(true)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-white/10" aria-label="Open conversation history"><Menu className="h-5 w-5" /></button><div className="min-w-0"><p className="flex items-center gap-2 text-sm font-black"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.12)]" /> Hanna research workspace</p><p className="truncate text-[11px] text-slate-400">{currentChatId ? (sessions.find(s => s.id === currentChatId)?.title || 'Current conversation') : 'A grounded learning partner for Liverton'}</p></div></div><div className="flex items-center gap-2"><button onClick={() => setResearchEnabled(value => !value)} className={`hidden items-center gap-1.5 rounded-xl border px-3 py-2 text-[11px] font-bold transition sm:flex ${researchEnabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 text-slate-500 dark:border-white/10'}`}><Globe2 className="h-3.5 w-3.5" /> {researchEnabled ? 'Web research on' : 'Web research off'}</button><button onClick={() => setIsSourceDrawerOpen(true)} className={`rounded-xl border p-2 transition ${isSourceDrawerOpen ? 'border-emerald-400 bg-emerald-500/10 text-emerald-600' : 'border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5'}`} aria-label="Open sources"><Library className="h-4 w-4" /></button><button onClick={() => navigate('/more')} className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5" aria-label="Close Hanna"><X className="h-4 w-4" /></button></div></header>
+
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-8 sm:px-8"><div className="mx-auto max-w-3xl pb-20">
+          {!messages.length && !isGenerating ? <div className="flex min-h-[58vh] flex-col items-center justify-center text-center"><div className="relative grid h-24 w-24 place-items-center rounded-[30px] bg-slate-950 shadow-2xl shadow-emerald-900/20"><AskHannaIcon size={44} showText={false} /><span className="absolute -bottom-2 -right-2 grid h-9 w-9 place-items-center rounded-2xl border-4 border-[#f7f8fb] bg-amber-400 text-slate-950 dark:border-[#080a0f]"><Sparkles className="h-4 w-4" /></span></div><p className="mt-7 text-[11px] font-black uppercase tracking-[.22em] text-emerald-600">Research, learn, create</p><h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">What are you working on?</h1><p className="mt-3 max-w-lg text-sm leading-relaxed text-slate-500 dark:text-slate-400">Hanna combines Liverton context with transparent web research, source cards, visual references, and practical learning artifacts.</p><div className="mt-9 grid w-full max-w-2xl gap-3 sm:grid-cols-2">{PROMPTS.map(item => <button key={item.label} onClick={() => { setInputValue(item.prompt); composerRef.current?.focus(); }} className="group flex items-start gap-3 rounded-3xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400/50 hover:shadow-md dark:border-white/10 dark:bg-white/[.04]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600 transition group-hover:scale-105 dark:text-emerald-300"><item.icon className="h-4 w-4" /></span><span><span className="block text-xs font-black">{item.label}</span><span className="mt-1 block text-[11px] leading-relaxed text-slate-400">{item.prompt}</span></span></button>)}</div></div> : <div className="space-y-7">{messages.map(message => { const isUser = message.senderRole === 'user'; return <article key={message.id} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[92%] ${isUser ? 'order-first' : ''}`}><div className={`mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 ${isUser ? 'justify-end' : ''}`}>{!isUser && <span className="grid h-5 w-5 place-items-center rounded-lg bg-slate-950"><AskHannaIcon size={14} showText={false} /></span>}{isUser ? 'You' : 'Hanna'}<span className="font-normal normal-case tracking-normal">{message.createdAt ? new Date(millis(message.createdAt)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span></div><div className={`rounded-[26px] px-4 py-3.5 text-sm leading-relaxed shadow-sm ${isUser ? 'rounded-tr-md bg-emerald-600 text-white' : 'rounded-tl-md border border-slate-200/80 bg-white text-slate-800 dark:border-white/10 dark:bg-white/[.045] dark:text-slate-100'}`}>{message.attachments?.length ? <div className="mb-3 flex flex-wrap gap-2">{message.attachments.map(att => <span key={att.url} className="inline-flex items-center gap-1.5 rounded-xl bg-black/5 px-2.5 py-1.5 text-[10px] dark:bg-white/10"><Paperclip className="h-3 w-3" />{att.name}</span>)}</div> : null}<HannaMarkdown text={message.content} /></div>{!isUser && (message.sources?.length || message.images?.length) ? <div className="mt-3 space-y-3">{message.images?.length ? <ImageStrip images={message.images} /> : null}<div className="flex flex-wrap gap-2">{(message.sources || []).slice(0, 4).map((source, index) => <button key={source.url} onClick={() => openSource(source)} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"><span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-500 text-[8px] text-white">{index + 1}</span><span className="max-w-[180px] truncate">{source.title}</span></button>)}</div></div> : null}<div className={`mt-2 flex items-center gap-3 text-[10px] text-slate-400 ${isUser ? 'justify-end' : ''}`}>{!isUser && <button onClick={() => copyMessage(message)} className="inline-flex items-center gap-1 hover:text-emerald-500">{copiedId === message.id ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}{copiedId === message.id ? 'Copied' : 'Copy'}</button>}{!isUser && message.sources?.length ? <button onClick={() => setIsSourceDrawerOpen(true)} className="inline-flex items-center gap-1 hover:text-emerald-500"><Library className="h-3 w-3" />{message.sources.length} sources</button> : null}</div></div></article>; })}
+          {isGenerating && <article className="flex gap-3"><div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-slate-950"><AskHannaIcon size={19} showText={false} /></div><div className="max-w-[92%] rounded-[26px] rounded-tl-md border border-slate-200/80 bg-white px-4 py-3.5 text-sm shadow-sm dark:border-white/10 dark:bg-white/[.045]">{researchStage !== 'idle' && !streamingText ? <div className="space-y-2"><div className="flex items-center gap-2 text-xs font-bold"><Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />{researchStage === 'planning' ? 'Understanding your question' : researchStage === 'searching' ? 'Searching focused sources' : researchStage === 'synthesizing' ? 'Comparing evidence' : 'Web research partially available'}</div><div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full w-2/3 animate-pulse rounded-full bg-emerald-500" /></div></div> : streamingText ? <><HannaMarkdown text={streamingText} /><span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-emerald-500" /></> : <div className="flex gap-1.5 py-1"><span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500" /><span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 [animation-delay:150ms]" /><span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 [animation-delay:300ms]" /></div>}</div></article>}
+          </div>}
+        </div></div>
+
+        {latestHannaMessage && <div className="absolute bottom-24 left-1/2 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-[10px] font-bold text-slate-500 shadow-lg backdrop-blur sm:flex dark:border-white/10 dark:bg-[#11151d]/90"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {researchStage === 'ready' ? `${sources.length} sources ready` : 'Ask a follow-up to continue'}</div>}
+        <footer className="border-t border-slate-200/80 bg-white/85 p-3 backdrop-blur-xl dark:border-white/10 dark:bg-[#080a0f]/85 sm:p-5"><div className="mx-auto max-w-3xl"><div className="mb-2 flex items-center justify-between text-[10px] text-slate-400"><span>{researchEnabled ? 'Hanna will research before answering' : 'Using Liverton context only'}</span><button onClick={() => setResearchEnabled(value => !value)} className="font-bold text-emerald-600 sm:hidden">{researchEnabled ? 'Turn off web' : 'Turn on web'}</button></div>{attachments.length > 0 && <div className="mb-2 flex flex-wrap gap-2">{attachments.map(att => <span key={att.url} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">{att.name}<button onClick={() => setAttachments(prev => prev.filter(item => item.url !== att.url))} aria-label={`Remove ${att.name}`}><X className="h-3 w-3" /></button></span>)}</div>}<form onSubmit={event => { event.preventDefault(); void send(); }} className="relative flex items-end gap-2 rounded-[25px] border border-slate-200 bg-white p-2 shadow-[0_12px_40px_rgba(15,23,42,.08)] focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-500/10 dark:border-white/10 dark:bg-white/[.05]"><input ref={fileRef} type="file" multiple className="hidden" onChange={handleFile} /><button type="button" onClick={() => fileRef.current?.click()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-white/10" aria-label="Attach files"><Paperclip className="h-4 w-4" /></button><textarea ref={composerRef} value={inputValue} onChange={event => setInputValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder="Ask Hanna anything..." className="max-h-32 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-slate-400" disabled={isGenerating} /><div className="relative flex items-center gap-1"><button type="button" onClick={() => setShowPromptMenu(value => !value)} className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-white/10" aria-label="More Hanna tools"><Sparkles className="h-4 w-4" /></button>{showPromptMenu && <div className="absolute bottom-12 right-0 z-20 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-[#11151d]"><button type="button" onClick={() => { void searchImages(); setShowPromptMenu(false); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><ImageIcon className="h-4 w-4 text-amber-500" />Find visual references</button><button type="button" onClick={() => { setInputValue('Create an educational visual for: ' + inputValue); setShowPromptMenu(false); composerRef.current?.focus(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><Sparkles className="h-4 w-4 text-emerald-500" />Draft an image prompt</button><button type="button" onClick={() => { setIsSourceDrawerOpen(true); setShowPromptMenu(false); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><Library className="h-4 w-4 text-blue-500" />Review sources</button></div>}</div>{isGenerating ? <button type="button" onClick={stop} className="grid h-9 w-9 place-items-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900" aria-label="Stop generating"><StopCircle className="h-4 w-4 text-emerald-400" /></button> : <button type="submit" disabled={!inputValue.trim() && !attachments.length || uploading} className="grid h-9 w-9 place-items-center rounded-full bg-emerald-600 text-white shadow-md shadow-emerald-600/20 transition hover:scale-105 disabled:opacity-40" aria-label="Send message"><Send className="h-4 w-4" /></button>}</form></div></footer>
+      </main>
+
+      <aside className={`${isSourceDrawerOpen ? 'translate-x-0' : 'translate-x-full'} fixed inset-y-0 right-0 z-50 flex w-[min(25rem,100vw)] flex-col border-l border-slate-200/80 bg-white/97 shadow-2xl backdrop-blur-xl transition-transform duration-200 dark:border-white/10 dark:bg-[#0c1018]/98 lg:relative lg:z-20 lg:shadow-none`}>
+        <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 dark:border-white/10"><div><p className="flex items-center gap-2 text-sm font-black"><Library className="h-4 w-4 text-emerald-500" /> Source drawer</p><p className="mt-1 text-[10px] text-slate-400">Verify, open, and reuse Hanna’s evidence.</p></div><button onClick={() => setIsSourceDrawerOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Close source drawer"><X className="h-4 w-4" /></button></div>
+        {selectedSource ? <div className="border-b border-slate-200/80 p-4 dark:border-white/10"><button onClick={() => setSelectedSource(null)} className="mb-3 text-[10px] font-bold text-emerald-600">← All sources</button><p className="text-sm font-black leading-snug">{selectedSource.title}</p><p className="mt-1 text-[10px] font-bold text-emerald-600">{domain(selectedSource.url)}</p>{selectedSource.citedText && <blockquote className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 dark:bg-white/[.05] dark:text-slate-300">“{selectedSource.citedText}”</blockquote>}<a href={selectedSource.url} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white hover:bg-emerald-700">Open source <ExternalLink className="h-3.5 w-3.5" /></a></div> : <div className="flex-1 overflow-y-auto p-4"><div className="mb-5 rounded-2xl bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-800 dark:text-emerald-200"><p className="font-black">Research trace</p><p className="mt-1">Hanna’s response is grounded with links you can inspect. Open a card to see the supporting passage.</p></div>{sources.length ? <div className="space-y-2.5">{sources.map((source, index) => <SourceCard key={`${source.url}-${index}`} source={source} index={index} onOpen={openSource} />)}</div> : <div className="py-16 text-center text-xs text-slate-400"><Globe2 className="mx-auto mb-3 h-8 w-8 opacity-30" /><p>No sources in this conversation yet.</p><p className="mt-1 text-[10px]">Turn on web research and ask Hanna a question.</p></div>}{images.length ? <div className="mt-5"><ImageStrip images={images} /></div> : null}</div>}
+        <div className="border-t border-slate-200/80 p-4 dark:border-white/10"><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => { setInputValue('Compare the sources used in the last answer and identify disagreements.'); setIsSourceDrawerOpen(false); composerRef.current?.focus(); }} className="h-9 rounded-xl text-[10px] font-bold"><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Compare</Button><Button variant="outline" onClick={() => { setInputValue('Use only official or primary sources for the next answer.'); setIsSourceDrawerOpen(false); composerRef.current?.focus(); }} className="h-9 rounded-xl text-[10px] font-bold"><Pin className="mr-1.5 h-3.5 w-3.5" /> Official only</Button></div></div>
+      </aside>
+      {isSourceDrawerOpen && <button aria-label="Close sources overlay" onClick={() => setIsSourceDrawerOpen(false)} className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" />}
+    </div>
+  </>;
 }

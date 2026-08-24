@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, BarChart3, ClipboardList, Moon, Sun } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Briefcase, MoreHorizontal, FileText, Calendar, Bell, Settings, X, Users, HeartHandshake, ShoppingBag, UserRound, LogOut, BarChart3, ClipboardList, Moon, Sun, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
@@ -26,7 +26,8 @@ const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; se
     { name: 'Announcements', path: '/announcements', icon: Bell },
     { name: 'Documents', path: '/dashboard/documents', icon: FileText },
     { name: 'Profile', path: '/profile', icon: UserRound },
-    { name: 'Settings', path: '/settings', icon: Settings }
+    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Hanna AI', path: '/features/hanna-ai', icon: Sparkles }
   ];
   const home: NavItem = { name: 'Home', path: homeFor(role), icon: Home };
   const more: NavItem = { name: 'More', path: '#more', icon: MoreHorizontal, onClick: openMore };
