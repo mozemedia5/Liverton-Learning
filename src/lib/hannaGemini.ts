@@ -140,3 +140,32 @@ export async function enhanceTextWithHanna(draft: string, type: 'bio' | 'team_de
     return draft;
   }
 }
+
+
+export type HannaArtifactFormat = 'pdf' | 'docx';
+
+export async function exportHannaArtifact(params: {
+  title: string;
+  content: string;
+  format: HannaArtifactFormat;
+}): Promise<{ fileName: string; format: HannaArtifactFormat }> {
+  const endpoint = `${API_BASE_URL}/api/hanna-artifact`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: await getGatewayHeaders(),
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) return parseGatewayError(response);
+  const blob = await response.blob();
+  const disposition = response.headers.get('content-disposition') || '';
+  const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] || `hanna-document.${params.format}`;
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  return { fileName, format: params.format };
+}
