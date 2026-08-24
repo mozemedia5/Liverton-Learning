@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAdminFirestore, applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server.js';
 import { getApplicationKnowledgeParts } from './_lib/appKnowledge.js';
 import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini.js';
+import { formatResearchContext, performWebResearch } from './_lib/webResearch.js';
 
 const MAX_HISTORY = 20;
 const MAX_ATTACHMENTS = 5;
@@ -90,7 +91,8 @@ async function loadCloudinaryParts(input: unknown, uid: string): Promise<Part[]>
 }
 
 function systemPrompt(identity: { name: string; email: string }, operation: string) {
-  return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\n\nRules:\n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.`;
+  return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\n\nRules:\n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.
+- For chat requests, use the supplied web-research context when present. Cite or link sources for externally sourced claims, distinguish official requirements from suggestions, and explain when current information could not be verified.`;
 }
 
 function sse(res: VercelResponse, payload: Record<string, unknown>) {
@@ -132,6 +134,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chatId = safeString(body.chatId, 160);
     const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
     const applicationKnowledge = await getApplicationKnowledgeParts(operation === 'chat' && !chatId);
+    let researchContext = '';
+    if (operation === 'chat') {
+      const knowledgeText = applicationKnowledge.map(part => 'text' in part ? part.text : '').filter(Boolean).join('\n');
+      const research = await performWebResearch(message, knowledgeText);
+      researchContext = formatResearchContext(research);
+    }
     const uploadedParts = await loadCloudinaryParts(body.attachments, identity.uid);
     const requestedAttachments = Array.isArray(body.attachments) ? body.attachments.length : 0;
     if (requestedAttachments > 0 && uploadedParts.length === 0) {
@@ -139,6 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const parts: Part[] = [
       ...applicationKnowledge,
+      ...(researchContext ? [{ text: researchContext }] : []),
       ...uploadedParts,
       { text: message },
     ];
