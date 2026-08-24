@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Part } from '@google/generative-ai';
+import { UGANDA_CBC_KNOWLEDGE } from './ugandaCbcKnowledge.js';
 
 const APPLICATION_KNOWLEDGE = `
 LIVERTON LEARNING APPLICATION KNOWLEDGE
@@ -44,13 +45,15 @@ Visual identity:
 The approved visual context includes the Liverton Learning logo and the Liverton brand mark supplied in the application’s public assets. These visuals identify the product and should help Hanna recognize brand-related questions; they do not contain user records or operational instructions.
 `.trim();
 
+const APPLICATION_KNOWLEDGE_WITH_UGANDA_CBC = `${APPLICATION_KNOWLEDGE}\n\n${UGANDA_CBC_KNOWLEDGE}`;
+
 const VISUAL_ASSETS = [
   { path: 'public/logo.png', mimeType: 'image/png', label: 'Liverton Learning primary logo' },
   { path: 'public/liverton-badge.png', mimeType: 'image/png', label: 'Liverton Learning badge' },
 ] as const;
 
 export async function getApplicationKnowledgeParts(includeVisuals = false): Promise<Part[]> {
-  const parts: Part[] = [{ text: APPLICATION_KNOWLEDGE }];
+  const parts: Part[] = [{ text: APPLICATION_KNOWLEDGE_WITH_UGANDA_CBC }];
   if (!includeVisuals) return parts;
 
   for (const asset of VISUAL_ASSETS) {
@@ -65,4 +68,4 @@ export async function getApplicationKnowledgeParts(includeVisuals = false): Prom
   return parts;
 }
 
-export { APPLICATION_KNOWLEDGE };
+export { APPLICATION_KNOWLEDGE, APPLICATION_KNOWLEDGE_WITH_UGANDA_CBC };
