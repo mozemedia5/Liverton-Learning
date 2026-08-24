@@ -219,7 +219,9 @@ export async function scheduleTeamMeeting(teamId: string, meetingData: Partial<T
     const meetingsRef = collection(db, 'teams', teamId, 'meetings');
     const finalMeeting = {
       ...meetingData,
-      joinUrl: meetingData.joinUrl || `https://meet.liverton.com/teams/${teamId}/${Math.random().toString(36).substring(2, 9)}`,
+      // Keep a real Zoom URL when configured; otherwise create the meeting
+      // inside Liverton so users never fall back to the retired placeholder host.
+      joinUrl: meetingData.joinUrl || '',
       notes: meetingData.notes || '',
       recordingUrlPlaceholder: '',
       attendance: [],
@@ -227,6 +229,9 @@ export async function scheduleTeamMeeting(teamId: string, meetingData: Partial<T
     };
 
     const docRef = await addDoc(meetingsRef, finalMeeting);
+    if (!finalMeeting.joinUrl) {
+      await updateDoc(docRef, { joinUrl: `/liv-teams/meeting/${teamId}/${docRef.id}` });
+    }
     await logTeamActivity(teamId, userId, userName, 'scheduled a meeting', finalMeeting.title);
     return docRef.id;
   } catch (error) {

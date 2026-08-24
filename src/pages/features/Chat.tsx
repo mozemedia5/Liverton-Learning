@@ -74,6 +74,7 @@ export default function Chat() {
   const [searchRetry, setSearchRetry] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [chatError, setChatError] = useState<string | null>(null);
   
   // New feature states
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function Chat() {
 
     const unsubscribe = listenToUserChats(currentUser.uid, (updatedChats) => {
       setChats(updatedChats);
+      setChatError(null);
       setLoading(false);
 
       if (chatIdParam) {
@@ -127,6 +129,10 @@ export default function Chat() {
           setSelectedChat(target);
         }
       }
+    }, (error) => {
+      console.error('Unable to load chats:', error);
+      setChatError('Chats are temporarily unavailable. Refresh after the latest access rules finish deploying.');
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -518,6 +524,8 @@ export default function Chat() {
             )}
           </div>
         </div>
+
+        {chatError && <div className="mx-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">{chatError}</div>}
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">

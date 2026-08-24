@@ -38,6 +38,7 @@ import {
   Activity,
   Image as ImageIcon,
   Share2,
+  Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -114,7 +115,9 @@ export default function SideNavbar() {
     { label: 'Dashboard', path: getDashboardPath(), icon: Home },
     
     // Student & Parent shared routes
-    { label: 'Courses', path: '/student/courses', icon: BookOpen, roles: ['student', 'parent'] },
+    { label: 'Modules', path: '/student/courses', icon: BookOpen, roles: ['student', 'parent'] },
+    { label: 'My Modules', path: '/student/courses?view=mine', icon: BookOpen, roles: ['student', 'parent'] },
+    { label: 'Upcoming Live Lessons', path: '/student/upcoming-lessons', icon: Video, roles: ['student', 'parent'] },
     { label: 'Quizzes', path: '/student/quizzes', icon: FileText, roles: ['student', 'parent'] },
     
     // Parent-specific routes

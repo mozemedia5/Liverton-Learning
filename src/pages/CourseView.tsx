@@ -165,7 +165,7 @@ export default function CourseView() {
 
   const handleEnroll = async () => {
     if (!currentUser) {
-      handleGuestAction(isFreeModule ? 'to join this free module' : 'to purchase this module');
+      handleGuestAction(isFreeModule ? 'to join this free module' : 'to enroll in this module');
       return;
     }
     if (!isStudentLike) return;
@@ -340,7 +340,7 @@ export default function CourseView() {
                   className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
                   onClick={handleEnroll}
                 >
-                  {isFreeModule ? 'Start for free' : 'Purchase module'}
+                  {isFreeModule ? 'Start for free' : 'Enroll in module'}
                 </Button>
               ) : isOwner ? (
                 <Button
@@ -360,7 +360,7 @@ export default function CourseView() {
                   className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
                   onClick={handleEnroll}
                 >
-                  {isFreeModule ? 'Start for free' : 'Purchase module'}
+                  {isFreeModule ? 'Start for free' : 'Enroll in module'}
                 </Button>
               ) : null}
             </div>

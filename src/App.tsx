@@ -54,6 +54,7 @@ const TeacherQuizzes = lazy(() => import('@/pages/teacher/TeacherQuizzes'));
 const MyQuiz = lazy(() => import('@/pages/teacher/MyQuiz'));
 const QuizAnalytics = lazy(() => import('@/pages/teacher/QuizAnalytics'));
 const TakeQuiz = lazy(() => import('@/pages/student/TakeQuiz'));
+const UpcomingLiveLessons = lazy(() => import('@/pages/student/UpcomingLiveLessons'));
 const CreateCourse = lazy(() => import('@/pages/teacher/CreateCourse'));
 const TeacherCourses = lazy(() => import('@/pages/teacher/TeacherCourses'));
 const ViewCourse = lazy(() => import('@/pages/teacher/ViewCourse'));
@@ -65,6 +66,7 @@ const PublicDocument = lazy(() => import('@/pages/features/PublicDocument'));
 // New Global Features
 const LivTeams = lazy(() => import('@/pages/features/liv-teams/LivTeams'));
 const TeamWorkspace = lazy(() => import('@/pages/features/liv-teams/TeamWorkspace'));
+const TeamMeetingRoom = lazy(() => import('@/pages/features/liv-teams/TeamMeetingRoom'));
 const CalendarPage = lazy(() => import('@/pages/features/CalendarPage'));
 const Events = lazy(() => import('@/pages/features/Events'));
 const CreateEvent = lazy(() => import('@/pages/features/CreateEvent'));
@@ -247,6 +249,7 @@ function AppRoutes() {
       } />
 
       <Route path="/student/zoom-lessons" element={<ProtectedRoute allowedRoles={['student', 'parent']}><AuthenticatedLayout><StudentZoomLessons /></AuthenticatedLayout></ProtectedRoute>} />
+      <Route path="/student/upcoming-lessons" element={<ProtectedRoute allowedRoles={['student', 'parent']}><AuthenticatedLayout><UpcomingLiveLessons /></AuthenticatedLayout></ProtectedRoute>} />
 
       {/* Parent Routes - Protected, accessible only to parents */}
       <Route path="/parent/dashboard" element={
@@ -489,6 +492,16 @@ function AppRoutes() {
       <Route path="/features/books/:bookId" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <AuthenticatedLayout><BookReader /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/liv-teams/meeting/:teamId/:meetingId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <TeamMeetingRoom />
+        </ProtectedRoute>
+      } />
+      <Route path="/liv-teams/live-lesson/:lessonId" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <ZoomLessonArena />
         </ProtectedRoute>
       } />
       <Route path="/zoom-lessons/:lessonId" element={

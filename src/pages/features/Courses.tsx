@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { subscribeToAllCourses, type Course } from '@/services/courseService';
+import { subscribeToAllCourses, subscribeToStudentCourses, type Course } from '@/services/courseService';
 import {
   subscribeToAllCourseReviewSummaries,
   type CourseReviewSummary,
@@ -185,8 +185,11 @@ function ModuleSection({
 
 export default function Courses() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userRole, userData } = useAuth();
   const [modules, setModules] = useState<Course[]>([]);
+  const [myModules, setMyModules] = useState<Course[]>([]);
+  const [viewMode, setViewMode] = useState<'explore' | 'mine'>('explore');
   const [reviewSummaries, setReviewSummaries] = useState<Record<string, CourseReviewSummary>>({});
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -196,19 +199,25 @@ export default function Courses() {
   const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
+    if (searchParams.get('view') === 'mine') setViewMode('mine');
+  }, [searchParams]);
+
+  useEffect(() => {
     setLoading(true);
     const unsubscribeModules = subscribeToAllCourses((data) => {
       setModules(data);
       setLoading(false);
     });
+    const unsubscribeMine = userData?.uid ? subscribeToStudentCourses(userData.uid, setMyModules) : () => undefined;
     const unsubscribeReviews = subscribeToAllCourseReviewSummaries(setReviewSummaries);
     const unsubscribeViews = subscribeToCourseViewCounts(setViewCounts);
     return () => {
       unsubscribeModules();
+      unsubscribeMine();
       unsubscribeReviews();
       unsubscribeViews();
     };
-  }, []);
+  }, [userData?.uid]);
 
   const openShare = (module: Course) => {
     setShareItem({
@@ -245,6 +254,7 @@ export default function Courses() {
   const recommendedModules = contextualRecommendations.length > 0 ? contextualRecommendations : sortedByPopularity;
 
   const handleOpen = (module: Course) => navigate(`/courses/${module.id}`);
+  const displayedModules = viewMode === 'mine' ? myModules : filteredModules;
 
   return (
     <div className="min-h-screen bg-[#f8faf9] text-slate-900 transition-colors duration-300 dark:bg-black dark:text-white">
@@ -278,7 +288,12 @@ export default function Courses() {
           </div>
         </section>
 
-        <section className="space-y-3" aria-label="Search and filter modules">
+          <section className="flex flex-wrap items-center gap-2" aria-label="Module views">
+            <Button variant={viewMode === 'explore' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('explore')} className="rounded-full">Explore modules</Button>
+            <Button variant={viewMode === 'mine' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('mine')} className="rounded-full">My modules ({myModules.length})</Button>
+          </section>
+
+          <section className="space-y-3" aria-label="Search and filter modules">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
@@ -293,6 +308,10 @@ export default function Courses() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" /></div>
+        ) : viewMode === 'mine' ? (
+          <>
+            {myModules.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500 dark:border-white/10">You have not enrolled in any modules yet. Explore modules to get started.</div> : <ModuleSection title="My enrolled modules" eyebrow="Your learning library updates live" icon={<BookOpen className="h-3.5 w-3.5" />} modules={displayedModules} summaries={reviewSummaries} onOpen={handleOpen} onShare={openShare} />}
+          </>
         ) : (
           <>
             <ModuleSection title="Recommended for you" eyebrow={contextualRecommendations.length > 0 ? 'Based on your learning profile' : 'Popular picks to get you started'} icon={<Sparkles className="h-3.5 w-3.5" />} modules={recommendedModules} summaries={reviewSummaries} onOpen={handleOpen} onShare={openShare} />
