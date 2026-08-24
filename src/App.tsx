@@ -69,7 +69,6 @@ const CalendarPage = lazy(() => import('@/pages/features/CalendarPage'));
 const Events = lazy(() => import('@/pages/features/Events'));
 const CreateEvent = lazy(() => import('@/pages/features/CreateEvent'));
 const Calculator = lazy(() => import('@/pages/features/Calculator'));
-const ProfileSystem = lazy(() => import('@/pages/features/ProfileSystem'));
 const HannaChatIntegrated = lazy(() => import('@/pages/features/HannaChatIntegrated'));
 const Analytics = lazy(() => import('@/pages/features/Analytics'));
 const MoreHub = lazy(() => import('@/pages/features/MoreHub'));
@@ -524,9 +523,10 @@ function AppRoutes() {
           <AuthenticatedLayout><Calculator /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+      {/* Legacy profile URL now uses the canonical editor so username updates work everywhere. */}
       <Route path="/features/profile" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><ProfileSystem /></AuthenticatedLayout>
+          <AuthenticatedLayout><Profile /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
       <Route path="/features/hanna-ai" element={

@@ -387,43 +387,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUserProfile = async (data: Partial<User>) => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      throw new Error('You must be signed in to update your profile.');
+    }
 
     let profileUpdate: Partial<User> = { ...data };
-    const previousUsername = userData?.username;
+    const previousUsername = normalizeUsername(userData?.username);
+    let claimedUsername: string | null = null;
+
     if (typeof data.username === 'string') {
       const usernameError = validateUsername(data.username);
       if (usernameError) throw new Error(usernameError);
-      const username = await claimUsername(normalizeUsername(data.username), currentUser.uid);
+      claimedUsername = normalizeUsername(data.username);
+      await claimUsername(claimedUsername, currentUser.uid);
       profileUpdate = {
         ...profileUpdate,
-        username,
-        usernameLower: username,
+        username: claimedUsername,
+        usernameLower: claimedUsername,
       };
     }
 
     const profileTimestamp = serverTimestamp();
     const userRef = doc(db, 'users', currentUser.uid);
-    await setDoc(userRef, {
-      ...profileUpdate,
-      updatedAt: profileTimestamp,
-    }, { merge: true });
 
-    if (userData?.role) {
-      const roleRef = doc(db, userData.role + 's', currentUser.uid);
-      await setDoc(roleRef, {
+    try {
+      await setDoc(userRef, {
         ...profileUpdate,
         updatedAt: profileTimestamp,
       }, { merge: true });
+
+      if (userData?.role) {
+        const roleRef = doc(db, userData.role + 's', currentUser.uid);
+        await setDoc(roleRef, {
+          ...profileUpdate,
+          updatedAt: profileTimestamp,
+        }, { merge: true });
+      }
+    } catch (error) {
+      // Do not strand a new username claim when a profile write is rejected.
+      if (claimedUsername && claimedUsername !== previousUsername) {
+        await releaseUsername(claimedUsername, currentUser.uid).catch((releaseError) => {
+          console.warn('Unable to roll back username claim:', releaseError);
+        });
+      }
+      throw error;
     }
 
     const nextProfile = userData ? { ...userData, ...profileUpdate } : null;
     setUserData(nextProfile);
     if (nextProfile) {
-      // Refresh the public directory before resolving the save so new usernames
-      // and email addresses are searchable immediately in Chat.
-      await syncAccountIdentity(nextProfile, currentUser);
-      if (typeof data.username === 'string' && previousUsername && previousUsername !== nextProfile.username) {
+      // Directory syncing is useful for chat discovery but should not make a
+      // successful profile save look like a failure if the secondary index is
+      // temporarily unavailable.
+      try {
+        await syncAccountIdentity(nextProfile, currentUser);
+      } catch (error) {
+        console.warn('Unable to refresh searchable user identity:', error);
+      }
+      if (claimedUsername && previousUsername && previousUsername !== claimedUsername) {
         await releaseUsername(previousUsername, currentUser.uid);
       }
       await syncAccountOnOpen(nextProfile, currentUser);

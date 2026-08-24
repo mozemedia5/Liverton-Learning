@@ -17,9 +17,12 @@ import {
 import {
   ArrowLeft, BookOpen, Loader2, Video, FileText, Music,
   FileSpreadsheet, Presentation, Image as ImageIcon, File as FileIcon,
-  Users, DollarSign, Pencil, Share2, LogIn, UserPlus, Lock
+  Users, DollarSign, Pencil, Share2, LogIn, UserPlus, Lock,
+  Star, MessageCircle, Send, CheckCircle2
 } from 'lucide-react';
-import { getPublicCourse, type Course, type CourseMaterial } from '@/services/courseService';
+import { enrollStudent, getPublicCourse, type Course, type CourseMaterial } from '@/services/courseService';
+import { addCourseReview, subscribeToCourseReviews, type CourseReview } from '@/services/courseReviewService';
+import { recordCourseView } from '@/services/courseStatsService';
 import { absoluteUrl } from '@/lib/seo';
 
 function materialIcon(type: CourseMaterial['type']) {
@@ -42,7 +45,7 @@ function materialIcon(type: CourseMaterial['type']) {
 export default function CourseView() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { currentUser, userRole } = useAuth();
+  const { currentUser, userData, userRole } = useAuth();
   const location = useLocation();
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -50,6 +53,10 @@ export default function CourseView() {
   const [authModalReason, setAuthModalReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [reviews, setReviews] = useState<CourseReview[]>([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -71,11 +78,27 @@ export default function CourseView() {
     load();
   }, [courseId]);
 
+  useEffect(() => {
+    if (!courseId) return;
+    return subscribeToCourseReviews(courseId, setReviews);
+  }, [courseId]);
+
+  useEffect(() => {
+    if (!courseId || !currentUser?.uid || !course) return;
+    const sessionKey = `liverton-module-view:${courseId}:${currentUser.uid}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, '1');
+    void recordCourseView(courseId, currentUser.uid).catch((error) => {
+      sessionStorage.removeItem(sessionKey);
+      console.warn('Unable to record module view:', error);
+    });
+  }, [courseId, currentUser?.uid, course]);
+
   const handleShare = async () => {
     const url = absoluteUrl(`/courses/${courseId}`);
     try {
       await navigator.clipboard.writeText(url);
-      toast.success('Course link copied to clipboard');
+      toast.success('Module link copied to clipboard');
     } catch {
       toast.info(url);
     }
@@ -88,7 +111,7 @@ export default function CourseView() {
       "@context": "https://schema.org",
       "@type": "Course",
       "name": course.title,
-      "description": course.description || `Learn ${course.subject} on Liverton Learning.`,
+      "description": course.description || `Learn ${course.subject} in a Liverton module.`,
       "provider": {
         "@type": "Organization",
         "name": "Liverton Learning",
@@ -116,7 +139,7 @@ export default function CourseView() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-        <p className="text-sm text-slate-400">Loading course...</p>
+        <p className="text-sm text-slate-400">Loading module...</p>
       </div>
     );
   }
@@ -125,7 +148,7 @@ export default function CourseView() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
         <BookOpen className="w-10 h-10 text-slate-300" />
-        <p className="font-semibold">Course not found</p>
+        <p className="font-semibold">Module not found</p>
         <Button variant="outline" className="rounded-xl" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Go back
         </Button>
@@ -136,6 +159,60 @@ export default function CourseView() {
   const isOwner = currentUser?.uid === course.teacherId;
   const isEnrolled = !!currentUser && course.enrolledStudents?.includes(currentUser.uid);
   const isStudentLike = userRole === 'student' || userRole === 'parent';
+  const isFreeModule = course.price <= 0 || course.isFree === true;
+  const averageRating = reviews.length ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length : 0;
+  const hasReviewed = reviews.some((review) => review.userId === currentUser?.uid);
+
+  const handleEnroll = async () => {
+    if (!currentUser) {
+      handleGuestAction(isFreeModule ? 'to join this free module' : 'to purchase this module');
+      return;
+    }
+    if (!isStudentLike) return;
+    if (!isFreeModule) {
+      toast.info('This module requires verified checkout. Payment access will be enabled from the payment page.');
+      navigate(`/payments?moduleId=${course.id}`);
+      return;
+    }
+    if (isEnrolled) return;
+    try {
+      await enrollStudent(course.id, currentUser.uid, userData?.fullName || currentUser.displayName || 'Liverton learner', currentUser.email || undefined);
+      setCourse((previous) => previous ? { ...previous, enrolledStudents: [...(previous.enrolledStudents || []), currentUser.uid] } : previous);
+      toast.success('You are enrolled. Start learning for free.');
+    } catch (error) {
+      console.error('Unable to enroll in free module:', error);
+      toast.error('We could not enroll you right now. Please try again.');
+    }
+  };
+
+  const submitReview = async () => {
+    if (!currentUser || !userData) {
+      handleGuestAction('to leave a review');
+      return;
+    }
+    if (hasReviewed) {
+      toast.info('You have already reviewed this module.');
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      await addCourseReview({
+        courseId: course.id,
+        userId: currentUser.uid,
+        userName: userData.fullName || currentUser.displayName || 'Liverton learner',
+        username: userData.username,
+        rating: reviewRating,
+        comment: reviewComment,
+      });
+      setReviewComment('');
+      setReviewRating(5);
+      toast.success('Your review is now live.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'We could not publish your review.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Guest trigger state
   const handleGuestAction = (reason: string) => {
@@ -239,7 +316,7 @@ export default function CourseView() {
                 {course.grade && <Badge variant="outline">{course.grade}</Badge>}
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 max-w-3xl">
-                {course.description || 'A course on Liverton Learning.'}
+                {course.description || 'A learning module on Liverton Learning.'}
               </p>
               <div className="flex items-center gap-4 text-xs text-slate-400 pt-1 flex-wrap">
                 <span>By <span className="font-semibold text-slate-600 dark:text-slate-300">{course.teacherName}</span></span>
@@ -261,9 +338,9 @@ export default function CourseView() {
                 <Button
                   size="sm"
                   className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
-                  onClick={() => handleGuestAction('to enroll in this course and begin learning')}
+                  onClick={handleEnroll}
                 >
-                  Enroll in Course
+                  {isFreeModule ? 'Start for free' : 'Purchase module'}
                 </Button>
               ) : isOwner ? (
                 <Button
@@ -271,7 +348,7 @@ export default function CourseView() {
                   className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
                   onClick={() => navigate(`/teacher/courses/${course.id}`)}
                 >
-                  <Pencil className="w-4 h-4 mr-1.5" /> Manage Course
+                  <Pencil className="w-4 h-4 mr-1.5" /> Manage Module
                 </Button>
               ) : isEnrolled ? (
                 <Badge variant="outline" className="border-emerald-500 text-emerald-600 dark:text-emerald-400 py-1.5 px-3">
@@ -281,9 +358,9 @@ export default function CourseView() {
                 <Button
                   size="sm"
                   className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
-                  onClick={() => navigate('/student/courses')}
+                  onClick={handleEnroll}
                 >
-                  Enroll from Courses
+                  {isFreeModule ? 'Start for free' : 'Purchase module'}
                 </Button>
               ) : null}
             </div>
@@ -291,8 +368,73 @@ export default function CourseView() {
         </CardContent>
       </Card>
 
+      <section className="space-y-4" aria-labelledby="module-reviews-heading">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Live learner feedback</p>
+            <h2 id="module-reviews-heading" className="flex items-center gap-2 text-lg font-bold"><MessageCircle className="h-5 w-5 text-emerald-500" /> Module reviews</h2>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            <span className="font-semibold text-slate-800 dark:text-slate-200">{averageRating ? averageRating.toFixed(1) : '0.0'}</span>
+            <span>from {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}</span>
+          </div>
+        </div>
+
+        {currentUser && isStudentLike && !hasReviewed && !isOwner && (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div>
+                <p className="text-sm font-semibold">Share your experience</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Your review appears here for other learners in real time.</p>
+              </div>
+              <div className="flex items-center gap-1" aria-label="Choose a rating">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button key={value} type="button" onClick={() => setReviewRating(value)} aria-label={`${value} stars`} aria-pressed={reviewRating === value} className="rounded-md p-1 transition hover:bg-amber-50 dark:hover:bg-amber-950/30">
+                    <Star className={`h-5 w-5 ${value <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300 dark:text-slate-600'}`} />
+                  </button>
+                ))}
+              </div>
+              <textarea value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} placeholder="What did you learn from this module?" rows={3} maxLength={500} className="w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-zinc-950" />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-400">{reviewComment.length}/500</span>
+                <Button size="sm" onClick={submitReview} disabled={isSubmittingReview || !reviewComment.trim()} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">
+                  <Send className="mr-1.5 h-3.5 w-3.5" /> {isSubmittingReview ? 'Publishing...' : 'Publish review'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!currentUser && <Button variant="outline" onClick={() => handleGuestAction('to leave a review')} className="rounded-xl"><MessageCircle className="mr-2 h-4 w-4" /> Sign in to review</Button>}
+        {hasReviewed && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" /> Your review is live. Thanks for helping other learners.</div>}
+
+        {reviews.length === 0 ? (
+          <Card><CardContent className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">No reviews yet. Be the first learner to share feedback.</CardContent></Card>
+        ) : (
+          <div className="space-y-3">
+            {reviews.map((review) => (
+              <Card key={review.id}>
+                <CardContent className="space-y-2 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{review.userName}</p>
+                      <p className="text-[11px] text-slate-400">{review.username ? `@${review.username} · ` : ''}{review.createdAt.toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1" aria-label={`${review.rating} out of 5 stars`}>
+                      {Array.from({ length: 5 }, (_, index) => <Star key={index} className={`h-3.5 w-3.5 ${index < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300 dark:text-slate-600'}`} />)}
+                    </div>
+                  </div>
+                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{review.comment}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="space-y-3">
-        <h2 className="text-lg font-bold">Course Materials ({course.materials?.length || 0})</h2>
+        <h2 className="text-lg font-bold">Module Materials ({course.materials?.length || 0})</h2>
         {(course.materials || []).length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-slate-400">
@@ -322,7 +464,7 @@ export default function CourseView() {
                   return (
                     <button
                       key={material.id || idx}
-                      onClick={() => handleGuestAction('to unlock premium course materials and assignments')}
+                      onClick={() => handleGuestAction('to unlock premium module materials and assignments')}
                       className="w-full flex items-center gap-3 p-4 hover:bg-slate-50/60 dark:hover:bg-slate-900/30 transition-colors text-left"
                     >
                       {itemContent}
