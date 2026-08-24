@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -10,11 +10,11 @@ import { streamHannaReply, isGeminiConfigured, generateSmartTitle, type HannaAtt
 import { researchWithHanna, searchImagesForHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, increment, onSnapshot, query, serverTimestamp,
-  updateDoc, where, writeBatch,
+  addDoc, collection, deleteDoc, doc, increment, onSnapshot, query, serverTimestamp,
+  updateDoc, where,
 } from 'firebase/firestore';
 import {
-  Archive, ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardList, Copy, Download, ExternalLink, FileText,
+  Archive, ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardList, Copy, Download, ExternalLink,
   Globe2, Image as ImageIcon, Library, Loader2, Menu, MessageSquare, Paperclip, Pin, Plus,
   FolderPlus, Home, MoreVertical, Pencil, RefreshCw, Search, Send, Share2, Sparkles, StopCircle, Trash2, X,
 } from 'lucide-react';
@@ -206,7 +206,6 @@ export default function HannaChatIntegrated() {
   const searchImages = async () => { if (!inputValue.trim() || isImageSearching) return; setIsImageSearching(true); try { const result = await searchImagesForHanna(inputValue.trim()); setImages(result.images || []); toast.success(`${result.images?.length || 0} visual references found`); } catch { toast.error('Image search is unavailable right now.'); } finally { setIsImageSearching(false); } };
   const handleDownloadImage = async (image: HannaImageResult) => { try { await downloadImage(image); toast.success('Image downloaded.'); } catch { window.open(image.url, '_blank', 'noopener,noreferrer'); toast.info('Opened the image in a new tab. Use your browser menu to save it.'); } };
   const handleExportImage = async (image: HannaImageResult) => { try { const mode = await exportImage(image); toast.success(mode === 'shared' ? 'Image shared.' : 'Image downloaded for export.'); } catch (error) { if ((error as Error)?.name !== 'AbortError') toast.error('Could not export this image.'); } };
-  const clearChat = async () => { if (!currentChatId) return; const snap = await getDocs(query(collection(db, 'hanna_messages'), where('chatId', '==', currentChatId))); const batch = writeBatch(db); snap.docs.forEach(item => batch.delete(item.ref)); await batch.commit(); setMessages([]); setSources([]); setImages([]); };
   const deleteChat = async (id: string) => { await deleteDoc(doc(db, 'hanna_chats', id)); if (id === currentChatId) newChat(); };
   const togglePin = async (session: ChatSession) => { if (!currentUser) return; const pinned = session.pinnedBy?.includes(currentUser.uid); await updateDoc(doc(db, 'hanna_chats', session.id), { pinnedBy: pinned ? (session.pinnedBy || []).filter(id => id !== currentUser.uid) : [...(session.pinnedBy || []), currentUser.uid] }); };
   const renameChat = async (session: ChatSession) => { const next = window.prompt('Rename conversation', session.title); if (next?.trim()) await updateDoc(doc(db, 'hanna_chats', session.id), { title: next.trim().slice(0, 80) }); };

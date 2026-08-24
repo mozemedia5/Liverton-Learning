@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
@@ -14,10 +14,12 @@ import {
   Shield,
   Volume2,
   User,
-  LogOut
+  LogOut,
+  Sparkles
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
+import type { HannaPersonalizationSettings } from '@/types';
 
 /**
  * Settings Page Component
@@ -33,12 +35,17 @@ import { toast } from 'sonner';
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { userData, logout } = useAuth();
+  const { userData, logout, updateUserProfile } = useAuth();
+  const defaultHannaPersonalization: HannaPersonalizationSettings = { profile: true, learning: true, documents: false, teams: false, projects: false, funds: false, marketplace: false, chats: false, autoAnalyze: false };
+  const [hannaPersonalization, setHannaPersonalization] = useState<HannaPersonalizationSettings>(userData?.hannaPersonalization || defaultHannaPersonalization);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  const handleSave = () => {
-    toast.success('Settings saved successfully!');
+  useEffect(() => { if (userData?.hannaPersonalization) setHannaPersonalization({ ...defaultHannaPersonalization, ...userData.hannaPersonalization }); }, [userData?.hannaPersonalization]);
+
+  const handleSave = async () => {
+    try { await updateUserProfile({ hannaPersonalization }); toast.success('Settings saved successfully!'); }
+    catch { toast.error('Could not save settings. Please try again.'); }
   };
 
   const handleLogout = async () => {
@@ -103,6 +110,25 @@ export default function Settings() {
                 Edit profile
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Hanna personalization */}
+        <Card className="border-blue-200/70 dark:border-blue-900/50">
+          <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blue-500" /> Hanna personalization</CardTitle><p className="text-sm text-muted-foreground">Choose the information Hanna may use for personalized answers. You can change these permissions at any time.</p></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 rounded-xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-900 dark:bg-blue-950/30 dark:text-blue-100 sm:flex-row sm:items-center sm:justify-between"><span>Hanna only receives data from scopes you enable. Backend permissions still apply, and Hanna cannot access another person’s private records.</span><Button type="button" size="sm" variant="outline" className="shrink-0 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-transparent dark:text-blue-200" onClick={() => setHannaPersonalization(prev => ({ ...prev, profile: true, learning: true, documents: true, teams: true, projects: true, funds: true, marketplace: true }))}>Enable recommended context</Button></div>
+            {([
+              ['profile', 'Profile and role', 'Use your name, role, school, subjects, and education level.'],
+              ['learning', 'Modules and progress', 'Use enrolled modules, lessons, quizzes, exams, and progress signals.'],
+              ['documents', 'Document library', 'Read authorized document titles and excerpts to summarize or analyze them.'],
+              ['teams', 'Liv Teams', 'Use teams you belong to, member-safe summaries, and team resources.'],
+              ['projects', 'Projects and tasks', 'Use authorized team projects, task status, and project descriptions.'],
+              ['funds', 'LivFund campaigns', 'Use campaigns you own or are authorized to manage; financial actions still require confirmation.'],
+              ['marketplace', 'LivMart listings', 'Use authorized team listings and project resources; no purchases are made automatically.'],
+              ['chats', 'Hanna conversation index', 'Use your Hanna conversation titles and counts for continuity.'],
+              ['autoAnalyze', 'Analyze enabled content automatically', 'When enabled, Hanna may proactively use selected documents and learning context when relevant.'],
+            ] as const).map(([key, label, description]) => <div key={key} className="flex items-center justify-between gap-4"><div className="min-w-0"><p className="font-medium">{label}</p><p className="text-sm text-gray-600 dark:text-gray-400">{description}</p></div><Switch checked={hannaPersonalization[key]} onCheckedChange={checked => setHannaPersonalization(prev => ({ ...prev, [key]: checked }))} /></div>)}
           </CardContent>
         </Card>
 

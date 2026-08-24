@@ -1,5 +1,17 @@
 export type UserRole = 'student' | 'teacher' | 'school_admin' | 'parent' | 'platform_admin';
 
+export interface HannaPersonalizationSettings {
+  profile: boolean;
+  learning: boolean;
+  documents: boolean;
+  teams: boolean;
+  projects: boolean;
+  funds: boolean;
+  marketplace: boolean;
+  chats: boolean;
+  autoAnalyze: boolean;
+}
+
 export type DocumentType = 'doc' | 'sheet' | 'presentation' | 'pdf' | 'image' | 'video' | 'audio' | 'file' | 'folder';
 export type DocumentVisibility = 'private' | 'internal' | 'public';
 export type DocumentSharePermission = 'view' | 'edit';
@@ -73,6 +85,7 @@ export interface User {
     global: number;
   };
   name?: string;
+  hannaPersonalization?: HannaPersonalizationSettings;
 }
 
 export interface Student extends User {

@@ -4,6 +4,7 @@ import { getAdminFirestore, applyCors, json, parseBody, requireIdentity, safeStr
 import { getApplicationKnowledgeParts } from './_lib/appKnowledge.js';
 import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini.js';
 import { formatResearchContext, performWebResearch } from './_lib/webResearch.js';
+import { loadAuthorizedHannaContext } from './_lib/userContext.js';
 
 const MAX_HISTORY = 20;
 const MAX_ATTACHMENTS = 5;
@@ -92,7 +93,10 @@ async function loadCloudinaryParts(input: unknown, uid: string): Promise<Part[]>
 
 function systemPrompt(identity: { name: string; email: string }, operation: string) {
   return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\n\nRules:\n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.
-- For chat requests, use the supplied web-research context when present. Cite or link sources for externally sourced claims, distinguish official requirements from suggestions, and explain when current information could not be verified.`;
+- For chat requests, use the supplied web-research context when present. Cite or link sources for externally sourced claims, distinguish official requirements from suggestions, and explain when current information could not be verified.
+- For tables, use a clear Markdown table with a header row, consistent columns, concise cell content, and a short definition or interpretation immediately before or after it. Never output pseudo-tables made from spaces, repeated symbols, or decorative characters.
+- For documents, PDFs, lessons, modules, Teams, projects, LivFund, and LivMart, explain what is present in authorized context, separate observed facts from recommendations, and ask for confirmation before any external or irreversible action.
+- When asked to create a document or PDF, prepare polished structured content and clearly identify the artifact format; do not claim it was saved or submitted until the application confirms that action.`;
 }
 
 function sse(res: VercelResponse, payload: Record<string, unknown>) {
@@ -134,6 +138,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chatId = safeString(body.chatId, 160);
     const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
     const applicationKnowledge = await getApplicationKnowledgeParts(operation === 'chat' && !chatId);
+    let personalContext = { text: '' };
+    if (operation === 'chat') {
+      try { personalContext = await loadAuthorizedHannaContext(getAdminFirestore(), identity.uid); }
+      catch (error) { console.warn('Optional Hanna personal context unavailable', { error: error instanceof Error ? error.message : 'unknown' }); }
+    }
     let researchContext = '';
     if (operation === 'chat') {
       const knowledgeText = applicationKnowledge.map(part => 'text' in part ? part.text : '').filter(Boolean).join('\n');
@@ -147,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const parts: Part[] = [
       ...applicationKnowledge,
+      ...(personalContext.text ? [{ text: `AUTHORIZED PERSONAL LIVERTON CONTEXT\n${personalContext.text}` }] : []),
       ...(researchContext ? [{ text: researchContext }] : []),
       ...uploadedParts,
       { text: message },
