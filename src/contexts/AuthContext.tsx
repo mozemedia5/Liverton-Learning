@@ -92,6 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn('Unable to sync searchable user identity:', error);
     }
 
+    // Notifications are a convenience side effect. They must never block
+    // authentication or profile persistence when rules are stale or a reminder
+    // document is unavailable.
     if (setupStatus.percentage < 100) {
       void createAccountSetupReminder(profile, user, profile.role)
         .catch((error) => console.warn('Unable to create account setup reminder:', error));
@@ -442,12 +445,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await syncAccountIdentity(nextProfile, currentUser);
       } catch (error) {
+        // The primary profile write already succeeded. Directory indexing is a
+        // secondary convenience and must not make the save look unsuccessful.
         console.warn('Unable to refresh searchable user identity:', error);
       }
       if (claimedUsername && previousUsername && previousUsername !== claimedUsername) {
-        await releaseUsername(previousUsername, currentUser.uid);
+        await releaseUsername(previousUsername, currentUser.uid).catch((error) => {
+          console.warn('Unable to release previous username claim:', error);
+        });
       }
-      await syncAccountOnOpen(nextProfile, currentUser);
+      // Account-setup reminders are also secondary side effects. A stale or
+      // partially deployed ruleset must not make profile editing fail after the
+      // users/{uid} and role profile documents have been written.
+      await syncAccountOnOpen(nextProfile, currentUser).catch((error) => {
+        console.warn('Unable to refresh account setup side effects:', error);
+      });
     }
   };
 

@@ -39,7 +39,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
 import type { DashboardAnnouncement, AnnouncementType } from '@/types/announcement';
 
 export default function DashboardAnnouncementManagement() {
@@ -156,15 +156,14 @@ export default function DashboardAnnouncementManagement() {
     setVideoFile(file);
   };
 
-  // Upload file to Firebase Storage
-  const uploadFile = async (file: File, path: string): Promise<string> => {
-    const storage = getStorage();
-    const fileRef = ref(storage, `announcements/${path}/${Date.now()}_${file.name}`);
-    
-    const snapshot = await uploadBytes(fileRef, file);
-    const downloadUrl = await getDownloadURL(snapshot.ref);
-    
-    return downloadUrl;
+  // Upload announcement media through the authenticated signed Cloudinary flow.
+  const uploadFile = async (file: File): Promise<string> => {
+    const type = file.type.startsWith('video/') ? 'course_video' : 'image';
+    return uploadToCloudinary(file, type, {
+      onProgress: (percent) => setUploadProgress(Math.max(30, Math.min(70, percent))),
+      showErrorToast: false,
+      purpose: 'dashboard_announcement',
+    });
   };
 
   // Handle form submission
@@ -201,13 +200,13 @@ export default function DashboardAnnouncementManagement() {
       // Upload files
       if (announcementType === 'image' && imageFile) {
         setUploadProgress(30);
-        imageUrl = await uploadFile(imageFile, 'images');
+        imageUrl = await uploadFile(imageFile);
         setUploadProgress(60);
       }
 
       if (announcementType === 'video' && videoFile) {
         setUploadProgress(30);
-        videoUrl = await uploadFile(videoFile, 'videos');
+        videoUrl = await uploadFile(videoFile);
         setUploadProgress(60);
       }
 

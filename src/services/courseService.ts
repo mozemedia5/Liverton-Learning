@@ -18,14 +18,11 @@ import {
   arrayUnion,
   serverTimestamp
 } from 'firebase/firestore';
-import { 
-  ref, 
-  deleteObject 
-} from 'firebase/storage';
+
 import type { Unsubscribe } from 'firebase/firestore';
 import { uploadToCloudinary } from './cloudinaryService';
 import { dispatchEnrollmentNotification } from './notificationService';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 
 // ==========================================
 // TYPES
@@ -204,14 +201,9 @@ export async function deleteCourseMaterial(courseId: string, materialId: string)
   // First remove from Firestore
   await removeCourseMaterial(courseId, materialId);
   
-  // Then delete from storage
-  try {
-    const storageRef = ref(storage, `courses/${courseId}/materials/${materialId}`);
-    await deleteObject(storageRef);
-  } catch (error) {
-    console.error('Error deleting file from storage:', error);
-    // Continue even if storage deletion fails
-  }
+  // Course files are stored in Cloudinary. Firestore metadata is removed
+  // above; Cloudinary deletion requires a secured server-side destroy call.
+  // The old client-side Firebase Storage deletion has been removed.
 }
 
 // ==========================================

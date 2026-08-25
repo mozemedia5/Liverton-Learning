@@ -143,30 +143,50 @@ export default function DocumentEditor() {
     fetchMeta();
   }, [docId, currentUser]);
 
-  // 2. Dynamically Load PDF.js from CDN
+  // 2. Dynamically load PDF.js from CDN. If the CDN or worker is
+  // unavailable, the reader falls back to the browser's native PDF viewer.
   useEffect(() => {
-    const initPDFJS = async () => {
-      try {
-        if (docMeta && !isPdfDocumentRecord(docMeta)) return;
-        if ((window as any).pdfjsLib) {
-          setPdfjs((window as any).pdfjsLib);
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = PDFJS_SCRIPT_URL;
-        script.onload = () => {
-          const lib = (window as any).pdfjsLib;
-          lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-          setPdfjs(lib);
-        };
-        document.head.appendChild(script);
-      } catch (err) {
-        console.error('Failed to load PDF.js script:', err);
-        setPdfError('Failed to load browser PDF renderer script.');
-      }
+    if (docMeta && !isPdfDocumentRecord(docMeta)) return;
+    if ((window as any).pdfjsLib) {
+      const lib = (window as any).pdfjsLib;
+      lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+      setPdfjs(lib);
+      return;
+    }
+
+    const script = document.createElement('script');
+    let timeoutId: number | undefined;
+    const fail = (message: string) => {
+      console.error(message);
+      setPdfError(message);
     };
-    initPDFJS();
-  }, []);
+    script.src = PDFJS_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      const lib = (window as any).pdfjsLib;
+      if (!lib) {
+        fail('PDF renderer loaded without its browser API.');
+        return;
+      }
+      lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+      setPdfjs(lib);
+    };
+    script.onerror = () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      fail('The enhanced PDF renderer could not be downloaded.');
+    };
+    timeoutId = window.setTimeout(() => {
+      script.remove();
+      fail('The enhanced PDF renderer timed out while loading.');
+    }, 10000);
+    document.head.appendChild(script);
+
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      script.remove();
+    };
+  }, [docMeta]);
 
   // 3. Load PDF Document once Metadata and PDF.js are loaded
   useEffect(() => {
@@ -180,11 +200,17 @@ export default function DocumentEditor() {
         setPdfDoc(docInstance);
         setNumPages(docInstance.numPages);
 
-        // Update Page Count in metadata if it is 0
+        // Page-count metadata is optional. Do not let a stale ruleset or a
+        // shared-document write restriction make a successfully loaded PDF
+        // appear unreadable.
         if (!docMeta.pageCount || docMeta.pageCount === 0) {
-          const refDoc = doc(db, 'documents', docId!);
-          await updateDoc(refDoc, { pageCount: docInstance.numPages });
-          setDocMeta((prev: any) => ({ ...prev, pageCount: docInstance.numPages }));
+          try {
+            const refDoc = doc(db, 'documents', docId!);
+            await updateDoc(refDoc, { pageCount: docInstance.numPages });
+            setDocMeta((prev: any) => ({ ...prev, pageCount: docInstance.numPages }));
+          } catch (metadataError) {
+            console.warn('Unable to persist PDF page count:', metadataError);
+          }
         }
 
         // Fetch first page aspect ratio
@@ -874,15 +900,20 @@ export default function DocumentEditor() {
                 <p className="text-sm text-slate-500 font-bold animate-pulse">Rendering high-quality PDF canvases...</p>
               </div>
             ) : pdfError ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4">
-                <HelpCircle className="w-16 h-16 text-red-500" />
-                <div className="space-y-1">
-                  <h2 className="font-extrabold text-lg text-slate-800 dark:text-white">Failed to load PDF</h2>
-                  <p className="text-xs text-slate-400 leading-relaxed">{pdfError}</p>
+              <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-5 gap-3">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                  <p className="text-xs leading-relaxed">The enhanced reader could not start. You can still preview the original PDF below.</p>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/documents')} className="shrink-0">Back</Button>
                 </div>
-                <Button variant="outline" onClick={() => navigate('/dashboard/documents')} className="glass-card font-bold">
-                  Return to library
-                </Button>
+                {docMeta?.fileUrl ? (
+                  <iframe
+                    src={`${docMeta.fileUrl}#toolbar=1&view=FitH`}
+                    title={`${docMeta.title || 'PDF'} preview`}
+                    className="min-h-0 flex-1 w-full rounded-xl border border-slate-200 bg-white dark:border-slate-800"
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-sm text-slate-500">No PDF file URL is available.</div>
+                )}
               </div>
             ) : (
               <div

@@ -16,13 +16,8 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot
 } from 'firebase/firestore';
-import {
-  getDownloadURL,
-  ref,
-  uploadBytes,
-  deleteObject,
-} from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { toDate } from '@/lib/date';
 import type {
   DocumentContent,
@@ -474,9 +469,10 @@ export async function uploadFileToDocument(params: {
   docId: string;
   file: File;
 }): Promise<string> {
-  const objectRef = ref(storage, `documents/${params.docId}/${params.file.name}`);
-  await uploadBytes(objectRef, params.file);
-  const url = await getDownloadURL(objectRef);
+  const url = await uploadToCloudinary(params.file, 'document', {
+    referenceId: params.docId,
+    purpose: 'document_attachment',
+  });
   await updateDoc(doc(db, DOCUMENTS_COLLECTION, params.docId), {
     fileUrl: url,
     updatedAt: serverTimestamp(),
@@ -485,8 +481,9 @@ export async function uploadFileToDocument(params: {
 }
 
 export async function deleteDocumentFile(params: { docId: string; filePath: string }): Promise<void> {
-  const objectRef = ref(storage, params.filePath);
-  await deleteObject(objectRef);
+  // Cloudinary assets are managed outside Firebase Storage. Remove the
+  // document reference here; Cloudinary deletion requires a secured server
+  // destroy endpoint and is not attempted from the client.
   await updateDoc(doc(db, DOCUMENTS_COLLECTION, params.docId), {
     fileUrl: null,
     updatedAt: serverTimestamp(),

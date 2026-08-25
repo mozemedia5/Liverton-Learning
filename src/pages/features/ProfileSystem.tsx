@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { db, storage } from '../../lib/firebase';
+import { db } from '../../lib/firebase';
 import { doc, getDoc, updateDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadToCloudinary } from '../../services/cloudinaryService';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -160,9 +160,11 @@ export default function ProfileSystem() {
 
     try {
       setUploadingPhoto(true);
-      const storageRef = ref(storage, `profiles/${currentUser.uid}/photo`);
-      await uploadBytes(storageRef, photoFile);
-      const photoURL = await getDownloadURL(storageRef);
+      const photoURL = await uploadToCloudinary(photoFile, 'image', {
+        showErrorToast: false,
+        userId: currentUser.uid,
+        purpose: 'profile_picture',
+      });
 
       await updateDoc(doc(db, 'profiles', currentUser.uid), {
         photoURL,
