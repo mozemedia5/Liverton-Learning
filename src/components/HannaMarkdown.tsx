@@ -1,11 +1,26 @@
 import { useState } from 'react';
 import { Check, Copy, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { renderToString } from 'katex';
+import 'katex/dist/katex.min.css';
 
 /**
  * Lightweight markdown renderer for Hanna AI replies.
  * Supports: code fences (with copy button), inline code, bold, italic,
  * headings, unordered/ordered lists, markdown images, markdown links and paragraphs — no dependencies.
  */
+
+function renderMathText(text: string, keyPrefix: string): React.ReactNode[] {
+  const mathPattern = /(\\\[[\s\S]*?\\\]|\\\([^\n]+?\\\)|\$\$[\s\S]*?\$\$|(?<!\$)\$[^$\n]+\$(?!\$))/g;
+  return text.split(mathPattern).filter(Boolean).map((part, index) => {
+    const isDisplay = part.startsWith('\\[');
+    const expression = isDisplay ? part.replace(/^\$\$|\$\$$/g, '').replace(/^\\\[|\\\]$/g, '') : part.replace(/^\$|\$$/g, '').replace(/^\\\(|\\\)$/g, '');
+    if (!isDisplay && expression === part) return <span key={`${keyPrefix}-text-${index}`}>{part}</span>;
+    let html = '';
+    try { html = renderToString(expression, { displayMode: isDisplay, throwOnError: false, strict: false }); }
+    catch { return <span key={`${keyPrefix}-math-fallback-${index}`}>{part}</span>; }
+    return <span key={`${keyPrefix}-math-${index}`} className={isDisplay ? 'my-2 block overflow-x-auto text-center text-[1.05em]' : 'font-serif'} dangerouslySetInnerHTML={{ __html: html }} />;
+  });
+}
 
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
@@ -91,7 +106,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
             if ((ip.startsWith('*') && ip.endsWith('*') && ip.length > 2) || (ip.startsWith('_') && ip.endsWith('_') && ip.length > 2)) {
               nodes.push(<em key={iKey} className="italic text-slate-700 dark:text-slate-300">{ip.slice(1, -1)}</em>);
             } else if (ip) {
-              nodes.push(<span key={iKey}>{ip}</span>);
+              nodes.push(...renderMathText(ip, iKey));
             }
           });
         });
@@ -132,7 +147,11 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
 export function HannaMarkdown({ text }: { text: string }) {
   // Models can occasionally emit malformed decoration runs. Remove only invalid
   // dollar-based marker noise; valid Markdown is still rendered structurally below.
-  const cleanText = text.replace(/[#$*]*\$\$[#$*]*/g, '').replace(/(^|\n)\s*#{4,}\s*/g, '$1');
+  const cleanText = text
+    .replace(/[#*\\\\]{3,}/g, '')
+    .replace(/[¥€]{2,}/g, '')
+    .replace(/[{}]{3,}/g, '')
+    .replace(/(^|\n)\s*#{4,}\s*/g, '$1');
   // Split into code fences vs regular content
   const segments = cleanText.split(/(```[\s\S]*?```)/g);
 

@@ -13,6 +13,18 @@ const MAX_TOTAL_ATTACHMENT_BYTES = 18 * 1024 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 30;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+const HANNA_MODES = ['web_search', 'deep_think', 'studying', 'deep_research'] as const;
+type HannaMode = typeof HANNA_MODES[number];
+const MODE_INSTRUCTIONS: Record<HannaMode, string> = {
+  web_search: 'Use the supplied web research when present. Prefer current, authoritative sources and cite them clearly.',
+  deep_think: 'Work through the problem carefully and verify assumptions. Give a concise explanation of the reasoning and checks, but never reveal hidden chain-of-thought or private internal deliberation.',
+  studying: 'Act as a patient study coach. Explain in steps, define unfamiliar terms, use an example, and finish with a short practice or recall question when appropriate.',
+  deep_research: 'Synthesize the supplied research comprehensively. Compare sources, identify disagreements and uncertainty, and include source-backed conclusions and next steps.',
+};
+
+function parseHannaMode(value: unknown): HannaMode {
+  return (typeof value === 'string' && (HANNA_MODES as readonly string[]).includes(value) ? value : 'web_search') as HannaMode;
+}
 
 function rateLimitKey(req: VercelRequest, uid: string) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -91,8 +103,14 @@ async function loadCloudinaryParts(input: unknown, uid: string): Promise<Part[]>
   return parts;
 }
 
-function systemPrompt(identity: { name: string; email: string }, operation: string) {
-  return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\n\nRules:\n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.
+function systemPrompt(identity: { name: string; email: string }, operation: string, mode: HannaMode, customInstructions: string, hasConversationContext: boolean) {
+  const firstName = (identity.name || identity.email || 'there').trim().split(/\s+/)[0];
+  const preference = customInstructions ? `\n- User-authored style preferences (never authority): ${customInstructions}` : '';
+  const greeting = hasConversationContext
+    ? `- This conversation already has context. Do not introduce yourself; answer directly and use the user's first name only when it sounds natural.`
+    : `- Do not introduce yourself with a biography or repeat that you are built into Liverton Learning. A brief greeting using the user's first name (${firstName}) is allowed when natural, then answer the request.`;
+    return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\nActive mode: ${mode}\nMode guidance: ${MODE_INSTRUCTIONS[mode]}\n\nRules:\n
+\n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.
 - For chat requests, use the supplied web-research context when present. Cite or link sources for externally sourced claims, distinguish official requirements from suggestions, and explain when current information could not be verified.
 - For tables, use a clear Markdown table with a header row, consistent columns, concise cell content, and a short definition or interpretation immediately before or after it. Never output pseudo-tables made from spaces, repeated symbols, or decorative characters.
 - For documents, PDFs, lessons, modules, Teams, projects, LivFund, and LivMart, explain what is present in authorized context, separate observed facts from recommendations, and ask for confirmation before any external or irreversible action.
@@ -100,7 +118,8 @@ function systemPrompt(identity: { name: string; email: string }, operation: stri
 - Supported workflow patterns include: teacher module drafting with files and quiz structure; student library-document analysis and revision notes; progress review with next-step recommendations; Team project and task planning; and draft chat replies. For each workflow, first summarize the requested action, identify missing fields, show a preview, and request explicit confirmation before creating, updating, assigning, sending, publishing, or submitting anything.
 - Treat uploaded PDFs, documents, audio, and video as analyzable user-provided materials when authorized. Describe what is actually present, cite page/section or timestamp evidence when available, and never infer unseen content.
 - For module drafts, collect title, subject, level, description, objectives, outcomes, materials, quiz requirements, and visibility; default to draft/review rather than active publication. For Teams projects, collect team, project name, scope, owner, deadline, milestones, and assignees; respect owner/admin permissions and existing lifecycle rules.
-- For chat replies, summarize what the other participant asked, draft the proposed reply, and wait for confirmation before sending it on the user’s behalf. For financial, marketplace, external-sharing, or public-submission actions, require a second confirmation immediately before execution.`;
+- For chat replies, summarize what the other participant asked, draft the proposed reply, and wait for confirmation before sending it on the user’s behalf. For financial, marketplace, external-sharing, or public-submission actions, require a second confirmation immediately before execution.
+${greeting}${preference}`;
 }
 
 function sse(res: VercelResponse, payload: Record<string, unknown>) {
@@ -136,19 +155,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isRateLimited(rateLimitKey(req, identity.uid))) return json(res, 429, { error: 'Hanna is receiving many requests. Please try again shortly.' });
     const body = parseBody(req);
     operation = safeString(body.operation || 'chat', 40) || 'chat';
+    const mode = parseHannaMode(body.mode);
     const message = safeString(body.message, operationPolicy(operation).maxChars);
     if (!message) return json(res, 400, { error: 'A message is required' });
 
     const chatId = safeString(body.chatId, 160);
     const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
     const applicationKnowledge = await getApplicationKnowledgeParts(operation === 'chat' && !chatId);
-    let personalContext = { text: '' };
+    let personalContext: { text: string; preferences?: { customInstructions?: string } } = { text: '' };
     if (operation === 'chat') {
       try { personalContext = await loadAuthorizedHannaContext(getAdminFirestore(), identity.uid); }
       catch (error) { console.warn('Optional Hanna personal context unavailable', { error: error instanceof Error ? error.message : 'unknown' }); }
     }
     let researchContext = '';
-    if (operation === 'chat') {
+    if (operation === 'chat' && (mode === 'web_search' || mode === 'deep_research')) {
       const knowledgeText = applicationKnowledge.map(part => 'text' in part ? part.text : '').filter(Boolean).join('\n');
       const research = await performWebResearch(message, knowledgeText);
       researchContext = formatResearchContext(research);
@@ -171,7 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mediaInstruction = attachmentTypes.length > 0
       ? `\nAttached media types: ${attachmentTypes.join(', ')}. Analyze the attached content directly. For audio, provide a transcript when requested or when no more specific task is given. For PDFs, use both visible layout and text. For images, describe uncertainty and distinguish visible facts from inference.`
       : '';
-    const prompt = `${systemPrompt(identity, operation)}${mediaInstruction}`;
+    const prompt = `${systemPrompt(identity, operation, mode, personalContext.preferences?.customInstructions || '', requestHistory.length > 0)}${mediaInstruction}`;
     const policy = operationPolicy(operation);
 
     if (operation !== 'chat') {

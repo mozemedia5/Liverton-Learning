@@ -10,6 +10,7 @@ export interface HannaPersonalizationSettings {
   marketplace: boolean;
   chats: boolean;
   autoAnalyze: boolean;
+  customInstructions?: string;
 }
 
 export type DocumentType = 'doc' | 'sheet' | 'presentation' | 'pdf' | 'image' | 'video' | 'audio' | 'file' | 'folder';

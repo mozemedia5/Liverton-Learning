@@ -7,6 +7,7 @@ export const HANNA_SYSTEM_PROMPT = `You are Hanna, the friendly AI study assista
 
 export interface HannaAttachment { url: string; name: string; mimeType: string; }
 export interface HannaHistoryMessage { role: 'user' | 'hanna'; content: string; }
+export type HannaMode = 'web_search' | 'deep_think' | 'studying' | 'deep_research';
 
 export function isGeminiConfigured(): boolean {
   // Provider configuration is intentionally server-side. The browser only needs the gateway URL.
@@ -85,8 +86,9 @@ export async function streamHannaReply(
   attachments: HannaAttachment[],
   onChunk: (text: string) => void,
   signal?: AbortSignal,
-  _userInfo?: { userName?: string; userRole?: string; customInstructions?: string },
+  userInfo?: { userName?: string; userRole?: string; customInstructions?: string },
   chatId?: string,
+  mode: HannaMode = 'web_search',
 ): Promise<string> {
   const response = await fetch(HANNA_ENDPOINT, {
     method: 'POST',
@@ -99,6 +101,8 @@ export async function streamHannaReply(
       attachments,
       // The server reloads the authorized history. This is retained only for compatibility and is not trusted.
       history: history.slice(-20),
+      mode,
+      customInstructions: userInfo?.customInstructions?.slice(0, 2000) || '',
     }),
   });
   if (!response.ok) return parseGatewayError(response);
@@ -148,7 +152,7 @@ export async function exportHannaArtifact(params: {
   title: string;
   content: string;
   format: HannaArtifactFormat;
-}): Promise<{ fileName: string; format: HannaArtifactFormat }> {
+}): Promise<{ fileName: string; format: HannaArtifactFormat; blob: Blob }> {
   const endpoint = `${API_BASE_URL}/api/hanna-artifact`;
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -167,5 +171,5 @@ export async function exportHannaArtifact(params: {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  return { fileName, format: params.format };
+  return { fileName, format: params.format, blob };
 }

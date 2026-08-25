@@ -5,6 +5,7 @@ import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, BookOpen, FileText, LogOut, ShieldCheck, Sparkles, User } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -20,9 +21,10 @@ const DEFAULT_HANNA_PERSONALIZATION: HannaPersonalizationSettings = {
   marketplace: false,
   chats: false,
   autoAnalyze: false,
+  customInstructions: '',
 };
 
-const HANNA_SCOPES: Array<[keyof HannaPersonalizationSettings, string, string]> = [
+const HANNA_SCOPES: Array<[Exclude<keyof HannaPersonalizationSettings, 'customInstructions'>, string, string]> = [
   ['profile', 'Profile and role', 'Use your name, role, school, subjects, and education level.'],
   ['learning', 'Modules and progress', 'Use enrolled modules, lessons, quizzes, exams, and progress signals.'],
   ['documents', 'Document library', 'Read authorized document titles and excerpts to summarize or analyze them.'],
@@ -80,6 +82,7 @@ export default function Settings() {
           <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blue-500" /> Hanna personalization</CardTitle><p className="text-sm text-muted-foreground">Choose the information Hanna may use for personalized answers. You can change these permissions at any time.</p></CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3 rounded-xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-900 dark:bg-blue-950/30 dark:text-blue-100 sm:flex-row sm:items-center sm:justify-between"><span>Hanna only receives scopes you enable. Backend permissions still apply, and private records remain protected.</span><Button type="button" size="sm" variant="outline" className="shrink-0 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-transparent dark:text-blue-200" onClick={() => setHannaPersonalization(prev => ({ ...prev, profile: true, learning: true, documents: true, teams: true, projects: true, funds: true, marketplace: true }))}>Enable recommended context</Button></div>
+            <div className="space-y-2 rounded-2xl border border-slate-200/70 p-3 dark:border-white/10"><label htmlFor="hanna-custom-instructions" className="font-medium">Custom instructions</label><p className="text-sm text-muted-foreground">Tell Hanna how you prefer explanations, examples, tone, or study support. Safety, privacy, and authorization rules always remain active.</p><Textarea id="hanna-custom-instructions" value={hannaPersonalization.customInstructions || ''} maxLength={2000} onChange={event => setHannaPersonalization(prev => ({ ...prev, customInstructions: event.target.value.slice(0, 2000) }))} placeholder="For example: Explain mathematics step by step, define new terms, and finish with one practice question." className="min-h-28 rounded-xl" /><p className="text-right text-xs text-muted-foreground">{(hannaPersonalization.customInstructions || '').length}/2000</p></div>
             {HANNA_SCOPES.map(([key, label, description]) => <div key={key} className="flex items-center justify-between gap-4"><div className="min-w-0"><p className="font-medium">{label}</p><p className="text-sm text-muted-foreground">{description}</p></div><Switch checked={hannaPersonalization[key]} onCheckedChange={checked => setHannaPersonalization(prev => ({ ...prev, [key]: checked }))} aria-label={`Allow Hanna to use ${label}`} /></div>)}
           </CardContent>
         </Card>
