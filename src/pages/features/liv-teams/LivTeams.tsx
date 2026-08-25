@@ -41,6 +41,9 @@ import { formatUGX } from './livTeamsUtils';
 import TeamCreationWizard from './TeamCreationWizard';
 import { CloudinaryImage } from '@/components/CloudinaryImage';
 import BannerCarousel from '@/components/BannerCarousel';
+import LivTeamsPromotionRail from '@/components/LivTeamsPromotionRail';
+import { uploadToCloudinary } from '@/services/cloudinaryService';
+import { submitLivTeamPromotion } from '@/services/livTeamsPromotionService';
 import { SEO } from '@/components/SEO';
 
 type FundingWithTeam = ProjectFundingRequest & { teamName: string };
@@ -62,6 +65,10 @@ export default function LivTeams() {
 
   // Creation wizard state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
+  const [promotionUploading, setPromotionUploading] = useState(false);
+  const [promotionSaving, setPromotionSaving] = useState(false);
+  const [promotionForm, setPromotionForm] = useState({ title: '', description: '', imageUrl: '', destinationUrl: '', expiresAt: '' });
 
   // Edit team state (Settings tab)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -73,6 +80,56 @@ export default function LivTeams() {
   const [editRules, setEditRules] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [enhancingDescription, setEnhancingDescription] = useState(false);
+
+  const handlePromotionImageUpload = async (file: File) => {
+    if (!currentUser) return;
+    setPromotionUploading(true);
+    try {
+      const imageUrl = await uploadToCloudinary(file, 'image', {
+        userId: currentUser.uid,
+        referenceId: 'liv-team-promotion',
+        purpose: 'liv_team_promotion',
+        showErrorToast: false,
+      });
+      setPromotionForm((form) => ({ ...form, imageUrl }));
+      toast.success('Promotion image uploaded.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not upload promotion image.');
+    } finally {
+      setPromotionUploading(false);
+    }
+  };
+
+  const handlePromotionSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!currentUser || !userData || myTeams.length === 0) return;
+    if (!promotionForm.title.trim() || !promotionForm.description.trim() || !promotionForm.destinationUrl.trim()) {
+      toast.error('Add a title, description, and destination link.');
+      return;
+    }
+    setPromotionSaving(true);
+    try {
+      const team = myTeams[0];
+      await submitLivTeamPromotion({
+        teamId: team.id,
+        teamName: team.name,
+        createdBy: currentUser.uid,
+        createdByName: userData.fullName || currentUser.displayName || 'Team member',
+        title: promotionForm.title.trim(),
+        description: promotionForm.description.trim(),
+        imageUrl: promotionForm.imageUrl.trim(),
+        destinationUrl: promotionForm.destinationUrl.trim(),
+        expiresAt: promotionForm.expiresAt ? new Date(`${promotionForm.expiresAt}T23:59:59`) : null,
+      });
+      toast.success('Promotion submitted for platform review.');
+      setPromotionDialogOpen(false);
+      setPromotionForm({ title: '', description: '', imageUrl: '', destinationUrl: '', expiresAt: '' });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not submit promotion.');
+    } finally {
+      setPromotionSaving(false);
+    }
+  };
 
   const handleEnhanceDescriptionWithHanna = async () => {
     if (!editDescription.trim()) {
@@ -463,19 +520,31 @@ export default function LivTeams() {
               </p>
             </div>
           </div>
-          {myTeams.length === 0 && (
-            <Button
-              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md flex-shrink-0"
-              onClick={() => setCreateDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Create Team
-            </Button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {myTeams.length > 0 && (
+              <Button
+                variant="outline"
+                className="rounded-xl border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+                onClick={() => setPromotionDialogOpen(true)}
+              >
+                <Sparkles className="w-4 h-4 mr-2" /> Promote your team
+              </Button>
+            )}
+            {myTeams.length === 0 && (
+              <Button
+                className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md flex-shrink-0"
+                onClick={() => setCreateDialogOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" /> Create Team
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Platform Banners for Liv Teams */}
       <BannerCarousel pageScope="liv_teams" />
+      <LivTeamsPromotionRail />
 
       {/* Sleek Tab Navigation Bar with Dropdown View Selector */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -960,6 +1029,46 @@ export default function LivTeams() {
         onCreated={handleTeamCreated}
       />
 
+
+      {/* ============================ PROMOTION SUBMISSION DIALOG ============================ */}
+      <Dialog open={promotionDialogOpen} onOpenChange={setPromotionDialogOpen}>
+        <DialogContent className="rounded-2xl max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Promote your Liv Team</DialogTitle>
+            <DialogDescription>
+              Submit an image, message, and destination link. A Platform Administrator must approve it before it appears publicly.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePromotionSubmit} className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="promotionTitle">Promotion title</Label>
+              <Input id="promotionTitle" value={promotionForm.title} onChange={e => setPromotionForm(form => ({ ...form, title: e.target.value }))} maxLength={80} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="promotionDescription">Description</Label>
+              <Textarea id="promotionDescription" value={promotionForm.description} onChange={e => setPromotionForm(form => ({ ...form, description: e.target.value }))} maxLength={240} rows={4} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="promotionUrl">Destination link</Label>
+              <Input id="promotionUrl" type="url" placeholder="https://your-team.example" value={promotionForm.destinationUrl} onChange={e => setPromotionForm(form => ({ ...form, destinationUrl: e.target.value }))} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="promotionImage">Promotional image (optional)</Label>
+              <Input id="promotionImage" type="file" accept="image/*" disabled={promotionUploading} onChange={e => { const file = e.target.files?.[0]; if (file) void handlePromotionImageUpload(file); }} />
+              {promotionUploading && <p className="text-xs text-slate-500">Uploading image securely…</p>}
+              {promotionForm.imageUrl && <img src={promotionForm.imageUrl} alt="Promotion preview" className="h-28 w-full rounded-xl object-cover" />}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="promotionExpiry">Expiry date (optional)</Label>
+              <Input id="promotionExpiry" type="date" min={new Date().toISOString().split('T')[0]} value={promotionForm.expiresAt} onChange={e => setPromotionForm(form => ({ ...form, expiresAt: e.target.value }))} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPromotionDialogOpen(false)} disabled={promotionSaving}>Cancel</Button>
+              <Button type="submit" disabled={promotionSaving || promotionUploading}>{promotionSaving ? <Loader2 className="animate-spin" /> : 'Submit for review'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ============================ EDIT TEAM DIALOG ============================ */}
       <Dialog open={!!editingTeam} onOpenChange={(open) => !open && setEditingTeam(null)}>

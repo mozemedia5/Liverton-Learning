@@ -39,6 +39,7 @@ import {
   Image as ImageIcon,
   Share2,
   Video,
+  ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -144,6 +145,7 @@ export default function SideNavbar() {
     { label: 'Monitoring', path: '/admin/monitoring', icon: Activity, roles: ['platform_admin'] },
     { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['platform_admin'] },
     { label: 'Dashboard Banners', path: '/admin/dashboard-banners', icon: ImageIcon, roles: ['platform_admin'] },
+    { label: 'Liv Teams Promotions', path: '/admin/liv-teams-promotions', icon: ClipboardList, roles: ['platform_admin'] },
 
     // Shared routes for all authenticated users
     { label: 'Work Hub', path: '/features/tearn', icon: Award },
