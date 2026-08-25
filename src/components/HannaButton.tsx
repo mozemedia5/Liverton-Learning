@@ -15,6 +15,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { AskHannaIcon } from '@/components/AskHannaIcon';
+import HannaActivityIndicator from '@/components/HannaActivityIndicator';
 import { HannaMarkdown } from '@/components/HannaMarkdown';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
 import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
@@ -795,23 +796,10 @@ export function HannaButton() {
                 <div className="flex justify-start animate-in fade-in duration-150">
                   <div className="flex gap-2 max-w-[85%]">
                     <div className="w-6 h-6 rounded-md bg-black flex items-center justify-center overflow-hidden border border-white/5 mt-0.5">
-                      <div className="scale-[1.5]">
-                        <AskHannaIcon size={20} showText={false} />
-                      </div>
+                      <div className="scale-[1.5]"><AskHannaIcon size={20} active={isGenerating} showText={false} /></div>
                     </div>
                     <div className="px-3 py-2 rounded-2xl rounded-tl-sm text-xs bg-slate-100 dark:bg-slate-900 border border-slate-200/40 dark:border-white/5 text-slate-800 dark:text-slate-100">
-                      {streamingText ? (
-                        <div>
-                          <HannaMarkdown text={streamingText} />
-                          <span className="inline-block w-1.5 h-3 bg-emerald-500 animate-pulse ml-0.5" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 py-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                      )}
+                      <div className="space-y-2"><HannaActivityIndicator stage="streaming" compact />{streamingText && <div><HannaMarkdown text={streamingText} /><span className="inline-block w-1.5 h-3 bg-emerald-500 animate-pulse ml-0.5" /></div>}</div>
                     </div>
                   </div>
                 </div>
@@ -1250,25 +1238,12 @@ export function HannaButton() {
               <div className="flex gap-2.5 max-w-[85%] justify-start animate-in fade-in duration-150">
                 <div className="flex-shrink-0 mt-0.5">
                   <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center overflow-hidden border border-white/5 shadow-md">
-                    <div className="scale-[1.6]">
-                      <AskHannaIcon size={22} showText={false} />
-                    </div>
+                    <div className="scale-[1.6]"><AskHannaIcon size={22} active={isGenerating} showText={false} /></div>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <div className="bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-tl-[4px] px-3.5 py-2.5 text-xs leading-relaxed shadow-sm min-w-[100px]">
-                    {streamingText ? (
-                      <div>
-                        <HannaMarkdown text={streamingText} />
-                        <span className="inline-block w-1.5 h-3 bg-emerald-500 animate-pulse ml-0.5" />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 py-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    )}
+                    <div className="space-y-2"><HannaActivityIndicator stage="streaming" compact />{streamingText && <div><HannaMarkdown text={streamingText} /><span className="inline-block w-1.5 h-3 bg-emerald-500 animate-pulse ml-0.5" /></div>}</div>
                   </div>
                 </div>
               </div>

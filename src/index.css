@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+.hanna-icon {
+  display: block;
+  border-radius: 22%;
+  object-fit: cover;
+  user-select: none;
+  transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+}
+
+.hanna-icon--active {
+  animation: hanna-thinking 1.7s ease-in-out infinite;
+  filter: saturate(1.25) brightness(1.08) drop-shadow(0 0 7px rgba(34, 211, 238, .72));
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, .12), 0 0 22px rgba(37, 99, 235, .65);
+}
+
+@keyframes hanna-thinking {
+  0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); }
+  35% { transform: translateY(-3px) rotate(2deg) scale(1.06); }
+  70% { transform: translateY(1px) rotate(-1deg) scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hanna-icon--active { animation: none; }
+}
+
 @layer base {
   :root {
     --background: 240 20% 98%;

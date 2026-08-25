@@ -2,6 +2,7 @@ import { ArrowUpRight, BookOpen, CalendarDays, FileText, HeartHandshake, Message
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import BannerCarousel from '@/components/BannerCarousel';
+import AskHannaIcon from '@/components/AskHannaIcon';
 
 const items = [
   { title: 'Modules', description: 'Learn, teach, and revisit structured learning paths.', path: '/student/courses', educatorPath: '/teacher/courses', icon: BookOpen, tone: 'lavender' },
@@ -9,7 +10,7 @@ const items = [
   { title: 'Liv Teams', description: 'Coordinate people, projects, and shared momentum.', path: '/features/liv-teams', icon: Users, tone: 'teal' },
   { title: 'Liv Fund', description: 'Discover and support community-led opportunities.', path: '/features/liv-fund', icon: HeartHandshake, tone: 'peach' },
   { title: 'Liv Mart', description: 'Find useful products, services, and creator offers.', path: '/features/liv-mart', icon: ShoppingBag, tone: 'orange' },
-  { title: 'Hanna AI', description: 'Ask a secure, contextual study assistant for help.', path: '/features/hanna-ai', icon: Sparkles, tone: 'dark' },
+  { title: 'Hanna AI', description: 'Ask a secure, contextual study assistant for help.', path: '/features/hanna-ai', icon: AskHannaIcon, tone: 'dark' },
   { title: 'Documents', description: 'Create, organize, and share your working documents.', path: '/dashboard/documents', icon: FileText, tone: 'soft' },
   { title: 'Chat', description: 'Keep conversations and collaboration in one place.', path: '/chat', icon: MessageCircle, tone: 'soft' },
   { title: 'Calendar', description: 'Stay ahead of lessons, events, and deadlines.', path: '/calendar', icon: CalendarDays, tone: 'soft' },

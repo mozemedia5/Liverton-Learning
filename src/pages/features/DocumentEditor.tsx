@@ -35,6 +35,8 @@ import { SEO } from '@/components/SEO';
 import DocumentFileViewer from '@/components/DocumentFileViewer';
 import ShareDocumentDialog from '@/components/ShareDocumentDialog';
 import { getDocumentDownloadName } from '@/lib/documents';
+import { AskHannaIcon } from '@/components/AskHannaIcon';
+import HannaActivityIndicator from '@/components/HannaActivityIndicator';
 
 // CDN Paths for PDF.js
 const PDFJS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -816,7 +818,7 @@ export default function DocumentEditor() {
               }`}
               title="Ask Hanna AI Study Buddy"
             >
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <AskHannaIcon size={20} active={isHannaGenerating} alt="Hanna" />
               <span className="hidden sm:inline">Ask Hanna</span>
             </Button>
           </div>
@@ -1008,7 +1010,7 @@ export default function DocumentEditor() {
               <div className="p-4 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center overflow-hidden">
-                    <img src="/logo.png" alt="" className="w-5 h-5 object-contain" />
+                    <AskHannaIcon size={20} active={isHannaGenerating} alt="Hanna" />
                   </div>
                   <div>
                     <h3 className="font-extrabold text-xs text-slate-800 dark:text-white leading-tight">Hanna Study Tutor</h3>
@@ -1084,8 +1086,7 @@ export default function DocumentEditor() {
                 {isHannaGenerating && (
                   <div className="flex justify-start animate-in fade-in duration-100">
                     <div className="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-none flex items-center gap-1.5">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
-                      <span className="text-[10px] font-bold text-slate-400 animate-pulse">Hanna typing...</span>
+                      <HannaActivityIndicator stage="streaming" compact />
                     </div>
                   </div>
                 )}
