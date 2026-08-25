@@ -5,7 +5,13 @@ import { subscribeToApprovedLivTeamPromotions, type LivTeamPromotion } from '@/s
 export default function LivTeamsPromotionRail() {
   const [promotions, setPromotions] = useState<LivTeamPromotion[]>([]);
 
-  useEffect(() => subscribeToApprovedLivTeamPromotions(setPromotions), []);
+  useEffect(() => {
+    const unsubscribe = subscribeToApprovedLivTeamPromotions(setPromotions, (error) => {
+      console.error('Could not load approved Liv Team promotions:', error);
+      setPromotions([]);
+    });
+    return unsubscribe;
+  }, []);
 
   if (promotions.length === 0) return null;
 

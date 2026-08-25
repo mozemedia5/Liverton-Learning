@@ -77,9 +77,20 @@ export async function submitLivTeamPromotion(input: {
   destinationUrl: string;
   expiresAt?: Date | null;
 }): Promise<string> {
+  const title = input.title.trim();
+  const description = input.description.trim();
+  const destinationUrl = input.destinationUrl.trim();
+  if (!input.teamId.trim() || !title || !description || !destinationUrl) throw new Error('A team, title, description, and destination link are required.');
+  if (title.length > 80 || description.length > 240) throw new Error('Promotion title or description is too long.');
+  let parsedUrl: URL;
+  try { parsedUrl = new URL(destinationUrl); } catch { throw new Error('Enter a valid destination URL.'); }
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Destination link must use HTTP or HTTPS.');
   const created = Timestamp.now();
   const ref = await addDoc(collection(db, 'livTeamPromotions'), {
     ...input,
+    title,
+    description,
+    destinationUrl,
     status: 'pending',
     createdAt: created,
     updatedAt: created,
@@ -93,15 +104,15 @@ export async function getLivTeamPromotions(): Promise<LivTeamPromotion[]> {
   return snapshot.docs.map(mapPromotion);
 }
 
-export function subscribeToApprovedLivTeamPromotions(callback: (promotions: LivTeamPromotion[]) => void): Unsubscribe {
-  return onSnapshot(collection(db, 'livTeamPromotions'), (snapshot: QuerySnapshot<DocumentData>) => {
+export function subscribeToApprovedLivTeamPromotions(callback: (promotions: LivTeamPromotion[]) => void, onError?: (error: Error) => void): Unsubscribe {
+  return onSnapshot(query(collection(db, 'livTeamPromotions'), where('status', '==', 'approved')), (snapshot: QuerySnapshot<DocumentData>) => {
     const now = new Date();
     const promotions = snapshot.docs
       .map(mapPromotion)
       .filter((promotion) => promotion.status === 'approved' && (!promotion.expiresAt || promotion.expiresAt > now))
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     callback(promotions);
-  });
+  }, (error) => onError?.(error));
 }
 
 export async function approveLivTeamPromotion(id: string, reviewerId: string, moderationNote = ''): Promise<void> {

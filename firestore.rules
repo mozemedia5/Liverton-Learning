@@ -180,9 +180,13 @@ service cloud.firestore {
         request.resource.data.createdBy == currentUserId() &&
         request.resource.data.status == 'pending' &&
         request.resource.data.teamId is string &&
+        currentUserId() in get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.get('memberIds', []) &&
         request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 80 &&
         request.resource.data.description is string &&
-        request.resource.data.destinationUrl is string;
+        request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 240 &&
+        request.resource.data.destinationUrl is string &&
+        request.resource.data.destinationUrl.size() > 0;
       allow update: if isPlatformAdmin();
       allow delete: if isPlatformAdmin() ||
         (isAuthenticated() && resource.data.createdBy == currentUserId() && resource.data.status == 'pending');
