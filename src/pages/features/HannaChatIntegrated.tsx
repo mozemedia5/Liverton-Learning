@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import {
   Archive, ArrowUpRight, BookOpen, Check, ChevronLeft, ClipboardList, Copy, Download, ExternalLink, FileDown,
-  Globe2, Image as ImageIcon, Library, Loader2, Menu, MessageSquare, Paperclip, Pin, Plus,
+  Globe2, Image as ImageIcon, Library, Menu, MessageSquare, Paperclip, Pin, Plus,
   FolderPlus, Home, MoreVertical, Pencil, RefreshCw, Search, Send, Share2, Sparkles, StopCircle, Trash2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';

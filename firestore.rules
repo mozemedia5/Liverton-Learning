@@ -435,7 +435,7 @@ service cloud.firestore {
         (isAuthenticated() && collectionName in [
           'activities', 'activityLogs', 'assignments',
           'enrollments', 'hanna_queue', 'lessonHistory',
-          'messages', 'otpCodes', 'parentStudentLinks',
+          'messages', 'parentStudentLinks',
           'quizAttempts', 'quiz_attempts', 'studentEnrollments', 'zoomLessons',
           'students', 'teachers', 'parents', 'school_admins'
         ]);

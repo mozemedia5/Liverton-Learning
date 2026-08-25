@@ -405,6 +405,8 @@ export interface MarketplaceItem {
   verificationId?: string;
   fileUrl?: string;
   coverUrl?: string;
+  sourceUrl?: string;
+  moderationNote?: string;
   createdAt: Date | any;
 }
 

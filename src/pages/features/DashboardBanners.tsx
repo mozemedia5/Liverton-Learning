@@ -257,8 +257,8 @@ export default function DashboardBanners() {
         mediaUrl: d.data().mediaUrl || d.data().imageUrl || '',
         clickUrl: d.data().clickUrl || d.data().link || '',
         clickUrlType: d.data().clickUrlType || d.data().linkType || 'external',
-        targetRoles: d.data.targetRoles || [],
-        pageScopes: d.data.pageScopes || (d.data.pageScope ? [d.data.pageScope] : ['all']),
+        targetRoles: d.data().targetRoles || [],
+        pageScopes: d.data().pageScopes || (d.data().pageScope ? [d.data().pageScope] : ['all']),
       })) as DashboardBanner[];
       setBanners(data);
     } catch (err) {

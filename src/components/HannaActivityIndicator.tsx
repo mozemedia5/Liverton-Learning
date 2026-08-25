@@ -3,7 +3,8 @@ import { AskHannaIcon } from '@/components/AskHannaIcon';
 
 type HannaStage = 'idle' | 'planning' | 'searching' | 'synthesizing' | 'ready' | 'partial' | 'streaming';
 
-const STAGE_LABELS: Record<Exclude<HannaStage, 'idle'>, string[]> = {
+const STAGE_LABELS: Record<HannaStage, string[]> = {
+  idle: ['Ready', 'Standing by'],
   planning: ['Thinking', 'Sharpening the pencil', 'Planning the response'],
   searching: ['Searching the Web', 'Gathering info', 'Checking sources'],
   synthesizing: ['Noting', 'Compiling', 'Comparing evidence'],
