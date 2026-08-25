@@ -6,7 +6,27 @@ export const OTP_TTL_MS = 10 * 60 * 1000;
 export const SEND_COOLDOWN_MS = 60 * 1000;
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_SENDS_PER_WINDOW = 5;
-const recentRequests = new Map<string, { count: number; resetAt: number }>();
+
+async function claimRateLimit(db: ReturnType<typeof getAdminFirestore>, key: string, now: number) {
+  const ref = db.collection('otpRateLimits').doc(key);
+  let allowed = true;
+  await db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? snapshot.data() || {} : {};
+    const resetAt = data.resetAt?.toMillis?.() || 0;
+    const count = Number(data.count || 0);
+    if (resetAt > now && count >= MAX_SENDS_PER_WINDOW) {
+      allowed = false;
+      return;
+    }
+    transaction.set(ref, {
+      count: resetAt > now ? count + 1 : 1,
+      resetAt: new Date(resetAt > now ? resetAt : now + WINDOW_MS),
+      updatedAt: new Date(now),
+    });
+  });
+  return allowed;
+}
 
 function validEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
@@ -43,14 +63,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const key = digest(`${email}:${clientIp(req)}`);
     const now = Date.now();
-    const current = recentRequests.get(key);
-    if (current && current.resetAt > now && current.count >= MAX_SENDS_PER_WINDOW) {
+    const db = getAdminFirestore();
+    if (!await claimRateLimit(db, key, now)) {
       return json(res, 429, { error: 'Too many requests. Please try again later.' });
     }
-    if (!current || current.resetAt <= now) recentRequests.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    else current.count += 1;
 
-    const db = getAdminFirestore();
     const otpRef = db.collection('otpCodes').doc(digest(email));
     const existing = await otpRef.get();
     if (existing.exists) {
