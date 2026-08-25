@@ -235,6 +235,27 @@ export async function createLivMartListing(input: {
   return ref.id;
 }
 
+export async function getAllLivMartSubmissions(): Promise<MarketplaceItem[]> {
+  const snap = await getDocs(query(collection(db, LISTINGS), orderBy('createdAt', 'desc')));
+  return snap.docs.map(item => ({ id: item.id, ...item.data() } as MarketplaceItem));
+}
+
+export async function reviewLivMartListing(input: {
+  listingId: string;
+  status: 'Listed' | 'Rejected';
+  reviewerId: string;
+  moderationNote?: string;
+}): Promise<void> {
+  await updateDoc(doc(db, LISTINGS, input.listingId), {
+    status: input.status,
+    isVerified: input.status === 'Listed',
+    moderationNote: input.moderationNote?.trim() || null,
+    reviewedBy: input.reviewerId,
+    reviewedAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+}
+
 export async function createPendingLivMartOrder(input: {
   listingId: string;
   buyerId: string;

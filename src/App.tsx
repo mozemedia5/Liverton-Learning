@@ -33,6 +33,7 @@ const ContentModeration = lazy(() => import('@/pages/admin/ContentModeration'));
 const GlobalMonitoring = lazy(() => import('@/pages/admin/GlobalMonitoring'));
 const DashboardAnnouncementManagement = lazy(() => import('@/pages/admin/DashboardAnnouncementManagement'));
 const LivTeamsPromotionModeration = lazy(() => import('@/pages/admin/LivTeamsPromotionModeration'));
+const LivMartModeration = lazy(() => import('@/pages/admin/LivMartModeration'));
 
 // Parent Pages
 const ParentStudents = lazy(() => import('@/pages/ParentStudents'));
@@ -402,6 +403,11 @@ function AppRoutes() {
       <Route path="/admin/liv-teams-promotions" element={
         <ProtectedRoute allowedRoles={['platform_admin']}>
           <AdminLayout><LivTeamsPromotionModeration /></AdminLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/livmart-moderation" element={
+        <ProtectedRoute allowedRoles={['platform_admin']}>
+          <AdminLayout><LivMartModeration /></AdminLayout>
         </ProtectedRoute>
       } />
 
