@@ -71,15 +71,19 @@ service cloud.firestore {
       allow read: if isParent();
     }
     match /announcements/{announcementId} {
-      allow read, write: if isPlatformAdmin();
-      allow create: if isSchoolAdmin() &&
-        (request.resource.data.targetSchoolId == currentUserSchoolId() ||
-         request.resource.data.targetSchoolId == null);
-      allow read: if isSchoolAdmin() &&
-        (resource.data.targetSchoolId == currentUserSchoolId() ||
-         resource.data.targetSchoolId == null);
       allow read: if isAuthenticated();
-      allow write: if isPlatformAdmin() || isSchoolAdmin();
+      allow write: if isPlatformAdmin();
+    }
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isPlatformAdmin();
+      // Account setup reminders are system-generated and may only target the
+      // authenticated user who owns the reminder document.
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.senderRole == 'system' &&
+        request.resource.data.senderId == 'liverton-system' &&
+        request.resource.data.targetUsers.hasOnly([currentUserId()]);
+      allow delete: if isPlatformAdmin();
     }
     match /chats/{chatId} {
       function isChatParticipant(chatData) {
@@ -162,7 +166,7 @@ service cloud.firestore {
       allow read: if isSchoolAdmin();
     }
     match /dashboardBanners/{bannerId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isPlatformAdmin();
     }
     match /shorts/{shortId} {
@@ -391,9 +395,9 @@ service cloud.firestore {
     match /{collectionName}/{document=**} {
       allow read, write: if isPlatformAdmin() ||
         (isAuthenticated() && collectionName in [
-          'activities', 'activityLogs', 'assignments', 'dashboardAnnouncements',
+          'activities', 'activityLogs', 'assignments',
           'enrollments', 'hanna_queue', 'lessonHistory',
-          'messages', 'notifications', 'otpCodes', 'parentStudentLinks',
+          'messages', 'otpCodes', 'parentStudentLinks',
           'quizAttempts', 'quiz_attempts', 'studentEnrollments', 'zoomLessons',
           'students', 'teachers', 'parents', 'school_admins'
         ]);

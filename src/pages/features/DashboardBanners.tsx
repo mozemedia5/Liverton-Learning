@@ -61,6 +61,7 @@ import {
 
 type MediaType = 'image' | 'video' | 'url';
 type AudienceRole = 'student' | 'teacher' | 'parent' | 'school_admin' | 'liv_teams' | 'all';
+type BannerPageScope = 'homepage' | 'student' | 'teacher' | 'parent' | 'school_admin' | 'liv_teams' | 'events' | 'liv_fund' | 'liv_mart' | 'more' | 'all';
 
 interface DashboardBanner {
   id: string;
@@ -70,6 +71,7 @@ interface DashboardBanner {
   clickUrl: string;
   clickUrlType: 'internal' | 'external';
   targetRoles: AudienceRole[];
+  pageScopes?: BannerPageScope[];
   isActive: boolean;
   expiresAt?: Date | null;
   createdAt: Date;
@@ -94,6 +96,7 @@ interface FormState {
   clickUrl: string;
   clickUrlType: 'internal' | 'external';
   targetRoles: AudienceRole[];
+  pageScopes: BannerPageScope[];
   isActive: boolean;
   expiresAt: string; // ISO date string for input[type=date]
   title: string;
@@ -125,7 +128,21 @@ const audienceOptions: { id: AudienceRole; label: string; icon: string; color: s
   { id: 'teacher', label: 'Educators Workhub', icon: '👩‍🏫', color: 'bg-gradient-to-br from-green-500 to-emerald-600' },
   { id: 'parent', label: 'Parent Dashboard', icon: '👨‍👩‍👧', color: 'bg-gradient-to-br from-orange-500 to-amber-600' },
   { id: 'school_admin', label: 'School Admin', icon: '🏫', color: 'bg-gradient-to-br from-pink-500 to-rose-600' },
-  { id: 'liv_teams', label: 'Liv Teams Page', icon: '👥', color: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
+  { id: 'liv_teams', label: 'Liv Teams Members', icon: '👥', color: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
+];
+
+const pageOptions: { id: BannerPageScope; label: string; icon: string }[] = [
+  { id: 'homepage', label: 'Homepage', icon: '⌂' },
+  { id: 'student', label: 'Student Dashboard', icon: '🎓' },
+  { id: 'teacher', label: 'Teacher Workhub', icon: '👩‍🏫' },
+  { id: 'parent', label: 'Parent Dashboard', icon: '👨‍👩‍👧' },
+  { id: 'school_admin', label: 'Organization Dashboard', icon: '🏫' },
+  { id: 'liv_teams', label: 'Liv Teams', icon: '👥' },
+  { id: 'events', label: 'Events', icon: '📅' },
+  { id: 'liv_fund', label: 'LivFund', icon: '💚' },
+  { id: 'liv_mart', label: 'LivMart', icon: '🛍️' },
+  { id: 'more', label: 'More / Modules', icon: '✦' },
+  { id: 'all', label: 'All Pages', icon: '🌍' },
 ];
 
 // ─── URL Preview fetcher ─────────────────────────────────────────────────────
@@ -209,6 +226,7 @@ export default function DashboardBanners() {
     clickUrl: '',
     clickUrlType: 'external',
     targetRoles: [],
+    pageScopes: ['all'],
     isActive: true,
     expiresAt: '',
     title: '',
@@ -239,7 +257,8 @@ export default function DashboardBanners() {
         mediaUrl: d.data().mediaUrl || d.data().imageUrl || '',
         clickUrl: d.data().clickUrl || d.data().link || '',
         clickUrlType: d.data().clickUrlType || d.data().linkType || 'external',
-        targetRoles: d.data().targetRoles || [],
+        targetRoles: d.data.targetRoles || [],
+        pageScopes: d.data.pageScopes || (d.data.pageScope ? [d.data.pageScope] : ['all']),
       })) as DashboardBanner[];
       setBanners(data);
     } catch (err) {
@@ -325,6 +344,18 @@ export default function DashboardBanners() {
 
   // ── Audience toggle ───────────────────────────────────────────────────────
 
+  const togglePage = (page: BannerPageScope) => {
+    setForm(prev => {
+      if (page === 'all') {
+        return { ...prev, pageScopes: prev.pageScopes.includes('all') ? [] : ['all'] };
+      }
+      const filtered = prev.pageScopes.filter(scope => scope !== 'all');
+      return filtered.includes(page)
+        ? { ...prev, pageScopes: filtered.filter(scope => scope !== page) }
+        : { ...prev, pageScopes: [...filtered, page] };
+    });
+  };
+
   const toggleRole = (role: AudienceRole) => {
     setForm(prev => {
       if (role === 'all') {
@@ -349,6 +380,10 @@ export default function DashboardBanners() {
       toast.error('Please select at least one target audience');
       return;
     }
+    if (form.pageScopes.length === 0) {
+      toast.error('Please select at least one destination page');
+      return;
+    }
     if (!currentUser?.uid) return;
 
     try {
@@ -363,6 +398,7 @@ export default function DashboardBanners() {
         clickUrl: form.clickUrl,
         clickUrlType: form.clickUrlType,
         targetRoles: form.targetRoles,
+        pageScopes: form.pageScopes,
         isActive: form.isActive,
         expiresAt,
         updatedAt: Timestamp.now(),
@@ -445,6 +481,7 @@ export default function DashboardBanners() {
       clickUrl: banner.clickUrl || '',
       clickUrlType: banner.clickUrlType || 'external',
       targetRoles: banner.targetRoles || [],
+      pageScopes: banner.pageScopes || ['all'],
       isActive: banner.isActive,
       expiresAt: banner.expiresAt
         ? banner.expiresAt.toISOString().split('T')[0]
@@ -1116,7 +1153,36 @@ export default function DashboardBanners() {
               )}
             </div>
 
-            {/* ── Section 5: Expiration & Status ── */}
+            {/* ── Section 5: Destination Pages ── */}
+            <div>
+              <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <Globe className="w-4 h-4" /> Destination Pages <span className="text-red-500">*</span>
+              </Label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Choose where this approved banner will appear. This is separate from the audience who can see it.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {pageOptions.map(option => {
+                  const selected = form.pageScopes.includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => togglePage(option.id)}
+                      className={`rounded-xl border-2 px-3 py-2 text-left text-xs font-medium transition-all ${
+                        selected
+                          ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                      }`}
+                    >
+                      <span className="mr-1.5">{option.icon}</span>{option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Section 6: Expiration & Status ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Expiration date */}
               <div>

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, MoreVertical, CheckCircle, XCircle, UserCheck, UserX } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, XCircle, UserCheck, UserX, ChevronDown } from 'lucide-react';
 import { 
   getAllUsers, 
   getUsersByRole, 
@@ -45,6 +45,7 @@ export default function UserManagement() {
   const [filterRole, setFilterRole] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [isUserListExpanded, setIsUserListExpanded] = useState(false);
 
   // Fetch users from Firebase on component mount
   useEffect(() => {
@@ -284,11 +285,22 @@ export default function UserManagement() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">
-            Users ({filteredUsers.length} of {users.length})
-          </CardTitle>
+          <button
+            type="button"
+            onClick={() => setIsUserListExpanded((expanded) => !expanded)}
+            className="flex w-full items-center justify-between text-left"
+            aria-expanded={isUserListExpanded}
+          >
+            <CardTitle className="text-lg">
+              Users ({filteredUsers.length} of {users.length})
+            </CardTitle>
+            <ChevronDown className={`h-5 w-5 transition-transform ${isUserListExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          <p className="text-xs text-gray-500 mt-1">
+            {isUserListExpanded ? 'Collapse the user table to keep the dashboard compact.' : 'Expand to view and manage users.'}
+          </p>
         </CardHeader>
-        <CardContent>
+        {isUserListExpanded && <CardContent>
           {loading ? (
             <div className="text-center py-8 text-gray-500">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -425,7 +437,7 @@ export default function UserManagement() {
               </Table>
             </div>
           )}
-        </CardContent>
+        </CardContent>}
       </Card>
     </div>
   );

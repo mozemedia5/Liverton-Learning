@@ -28,6 +28,8 @@ interface Banner {
   clickUrlType?: 'internal' | 'external';
   linkType?: 'internal' | 'external' | 'none'; // legacy support
   targetRoles?: string[];
+  pageScopes?: string[];
+  pageScope?: string;
   isActive?: boolean;
   expiresAt?: { toDate?: () => Date } | Date | null;
   title?: string;
@@ -107,7 +109,7 @@ export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) 
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!userRole) return;
+    if (!userRole && !pageScope) return;
 
     const q = query(
       collection(db, 'dashboardBanners'),
@@ -134,12 +136,16 @@ export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) 
 
           // Target audience validation
           const roles = Array.isArray(raw.targetRoles) ? raw.targetRoles : [];
+          const pages = Array.isArray(raw.pageScopes)
+            ? raw.pageScopes
+            : raw.pageScope
+              ? [raw.pageScope]
+              : ['all'];
           if (roles.length === 0) return null;
 
-          const visible = roles.includes('all') ||
-            (pageScope && roles.includes(pageScope)) ||
-            (userRole && roles.includes(userRole));
-          if (!visible) return null;
+          const audienceVisible = roles.includes('all') || Boolean(userRole && roles.includes(userRole));
+          const pageVisible = pages.includes('all') || Boolean(pageScope && pages.includes(pageScope));
+          if (!audienceVisible || !pageVisible) return null;
 
           return raw;
         })
@@ -152,7 +158,7 @@ export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) 
     });
 
     return () => unsubscribe();
-  }, [userRole]);
+  }, [userRole, pageScope]);
 
   // Firestore banners take priority; otherwise use dynamic built-ins
   const banners = useMemo(() => {

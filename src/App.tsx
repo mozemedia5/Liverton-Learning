@@ -406,7 +406,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/announcements/create" element={
-        <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['platform_admin']}>
           <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
         </ProtectedRoute>
       } />

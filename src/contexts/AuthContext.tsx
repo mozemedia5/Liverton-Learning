@@ -92,9 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn('Unable to sync searchable user identity:', error);
     }
 
-    // Notifications are a convenience side effect. They must never block
-    // authentication or profile persistence when rules are stale or a reminder
-    // document is unavailable.
+    // Platform administrators manage the system and should not receive
+    // learner account-setup reminders. Notifications are a convenience side
+    // effect and must never block authentication or profile persistence.
+    if (profile.role === 'platform_admin') return;
     if (setupStatus.percentage < 100) {
       void createAccountSetupReminder(profile, user, profile.role)
         .catch((error) => console.warn('Unable to create account setup reminder:', error));

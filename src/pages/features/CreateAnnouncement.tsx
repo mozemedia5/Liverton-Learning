@@ -68,6 +68,12 @@ export default function CreateAnnouncement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (userRole !== 'platform_admin') {
+      toast.error('Only Platform Administrators can publish notifications.');
+      navigate('/announcements');
+      return;
+    }
     
     if (!formData.title.trim()) {
       toast.error('Please enter a notification title');
@@ -122,7 +128,7 @@ export default function CreateAnnouncement() {
               New Broadcast Alert
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Create and dispatch real-time system alerts to selected workspaces, like SALAF.
+              Create and dispatch platform-wide alerts to selected users or audience groups.
             </p>
           </div>
         </div>

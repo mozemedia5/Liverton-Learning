@@ -88,7 +88,7 @@ export default function Announcements() {
   const [hideReason, setHideReason] = useState('');
 
   const isAdmin = userRole === 'platform_admin';
-  const canCreate = userRole === 'platform_admin' || userRole === 'school_admin' || userRole === 'teacher';
+  const canCreate = userRole === 'platform_admin';
 
   const getRoleAudienceKey = (role: string | null | undefined) => {
     switch (role) {
