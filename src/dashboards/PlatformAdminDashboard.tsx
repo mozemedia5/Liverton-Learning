@@ -247,7 +247,7 @@ export default function PlatformAdminDashboard() {
   return (
     <div className="space-y-6">
         {/* Dashboard Banner */}
-        <BannerCarousel />
+        <BannerCarousel pageScope="homepage" />
 
 
         {/* Welcome */}

@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import BannerCarousel from '@/components/BannerCarousel';
 import AskHannaIcon from '@/components/AskHannaIcon';
 import './landing.css';
 import './auth.css';
@@ -135,9 +134,6 @@ export default function LandingPage() {
       </nav>
 
       <main id="top">
-        <div className="section-shell pt-6">
-          <BannerCarousel pageScope="homepage" />
-        </div>
         <section className="home-hero">
           <div className="hero-copy">
             <div className="eyebrow"><span className="eyebrow-spark">✦</span> One home for every learning journey</div>
