@@ -166,11 +166,15 @@ export async function enhanceTextWithHanna(draft: string, type: 'bio' | 'team_de
 
 
 export type HannaArtifactFormat = 'pdf' | 'docx' | 'pptx';
+export type HannaPptxTemplate = 'liverton' | 'minimal' | 'midnight' | 'sunrise';
+export type HannaPptxAnimation = 'none' | 'calm' | 'dynamic';
 
 export async function exportHannaArtifact(params: {
   title: string;
   content: string;
   format: HannaArtifactFormat;
+  template?: HannaPptxTemplate;
+  animation?: HannaPptxAnimation;
 }): Promise<{ fileName: string; format: HannaArtifactFormat; blob: Blob }> {
   const endpoint = `${API_BASE_URL}/api/hanna-artifact`;
   const response = await fetch(endpoint, {

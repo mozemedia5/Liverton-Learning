@@ -2,12 +2,32 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { AlignmentType, Document, Footer, Header, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import PptxGenJS from 'pptxgenjs';
+import JSZip from 'jszip';
 import { applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server.js';
 
 const MAX_CONTENT = 60_000;
 const MAX_TITLE = 120;
 
 type ArtifactFormat = 'pdf' | 'docx' | 'pptx';
+export type PptxTemplate = 'liverton' | 'minimal' | 'midnight' | 'sunrise';
+export type PptxAnimation = 'none' | 'calm' | 'dynamic';
+
+type PptxTheme = { background: string; accent: string; heading: string; body: string; muted: string };
+
+const PPTX_THEMES: Record<PptxTemplate, PptxTheme> = {
+  liverton: { background: 'F8FAFC', accent: '10B981', heading: '0F172A', body: '334155', muted: '64748B' },
+  minimal: { background: 'FFFFFF', accent: '64748B', heading: '111827', body: '374151', muted: '6B7280' },
+  midnight: { background: '0F172A', accent: '38BDF8', heading: 'F8FAFC', body: 'E2E8F0', muted: '94A3B8' },
+  sunrise: { background: 'FFF7ED', accent: 'F97316', heading: '431407', body: '7C2D12', muted: '9A3412' },
+};
+
+function normalizePptxTemplate(value: unknown): PptxTemplate {
+  return value === 'minimal' || value === 'midnight' || value === 'sunrise' ? value : 'liverton';
+}
+
+function normalizePptxAnimation(value: unknown): PptxAnimation {
+  return value === 'calm' || value === 'dynamic' ? value : 'none';
+}
 
 const UNICODE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\u2212/g, '-'], [/\u2013|\u2014/g, '-'], [/\u2018|\u2019/g, "'"], [/\u201C|\u201D/g, '"'],
@@ -160,7 +180,26 @@ export async function createDocx(title: string, content: string): Promise<Buffer
   return Packer.toBuffer(document);
 }
 
-export async function createPptx(title: string, content: string): Promise<Buffer> {
+async function applyPptxTransitions(buffer: Buffer, animation: PptxAnimation): Promise<Buffer> {
+  if (animation === 'none') return buffer;
+  const zip = await JSZip.loadAsync(buffer);
+  const transition = animation === 'dynamic'
+    ? '<p:transition spd="fast" advClick="1"><p:push dir="l"/></p:transition>'
+    : '<p:transition spd="slow" advClick="1"><p:fade/></p:transition>';
+  const slidePaths = Object.keys(zip.files).filter(path => /^ppt\/slides\/slide\d+\.xml$/.test(path));
+  await Promise.all(slidePaths.map(async path => {
+    const file = zip.file(path);
+    if (!file) return;
+    const xml = await file.async('string');
+    if (!xml.includes('<p:transition')) zip.file(path, xml.replace('</p:sld>', `${transition}</p:sld>`));
+  }));
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+}
+
+export async function createPptx(title: string, content: string, options: { template?: PptxTemplate; animation?: PptxAnimation } = {}): Promise<Buffer> {
+  const template = normalizePptxTemplate(options.template);
+  const animation = normalizePptxAnimation(options.animation);
+  const theme = PPTX_THEMES[template];
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
   pptx.author = 'Hanna AI - Liverton Learning';
@@ -175,23 +214,27 @@ export async function createPptx(title: string, content: string): Promise<Buffer
   const addFooter = (slide: PptxGenJS.Slide) => {
     slide.addText('HANNA AI  |  LIVERTON LEARNING', {
       x: 0.65, y: 7.08, w: 12.0, h: 0.18, fontFace: 'Aptos', fontSize: 7,
-      color: '94A3B8', margin: 0, align: 'right', breakLine: false,
+      color: theme.muted, margin: 0, align: 'right', breakLine: false,
     });
+  };
+  const addAccent = (slide: PptxGenJS.Slide) => {
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.16, fill: { color: theme.accent }, line: { color: theme.accent } });
   };
 
   const titleSlide = pptx.addSlide();
-  titleSlide.background = { color: 'F8FAFC' };
+  titleSlide.background = { color: theme.background };
+  addAccent(titleSlide);
   titleSlide.addText(normalizeExportText(title), {
     x: 0.8, y: 1.55, w: 11.75, h: 1.25, fontFace: 'Aptos Display', fontSize: 30,
-    bold: true, color: '0F172A', margin: 0, fit: 'shrink', breakLine: false,
+    bold: true, color: theme.heading, margin: 0, fit: 'shrink', breakLine: false,
   });
   titleSlide.addText('Prepared by Hanna AI', {
     x: 0.82, y: 3.05, w: 5.5, h: 0.35, fontFace: 'Aptos', fontSize: 15,
-    color: '10B981', margin: 0, breakLine: false,
+    color: theme.accent, margin: 0, breakLine: false,
   });
   titleSlide.addText('Liverton Learning educational artifact', {
     x: 0.82, y: 3.48, w: 6.5, h: 0.3, fontFace: 'Aptos', fontSize: 11,
-    color: '64748B', margin: 0, breakLine: false,
+    color: theme.muted, margin: 0, breakLine: false,
   });
   addFooter(titleSlide);
 
@@ -215,15 +258,16 @@ export async function createPptx(title: string, content: string): Promise<Buffer
   for (const section of sections) {
     for (let start = 0; start < section.bullets.length; start += 6) {
       const slide = pptx.addSlide();
-      slide.background = { color: 'FFFFFF' };
+      slide.background = { color: theme.background };
+      addAccent(slide);
       slide.addText(section.heading, {
         x: 0.75, y: 0.62, w: 11.8, h: 0.62, fontFace: 'Aptos Display', fontSize: 24,
-        bold: true, color: '0F172A', margin: 0, fit: 'shrink', breakLine: false,
+        bold: true, color: theme.heading, margin: 0, fit: 'shrink', breakLine: false,
       });
       const bullets = section.bullets.slice(start, start + 6);
       slide.addText(bullets.map(item => ({ text: item, options: { bullet: { indent: 18 }, hanging: 4 } })), {
         x: 0.95, y: 1.55, w: 11.0, h: 4.9, fontFace: 'Aptos', fontSize: 18,
-        color: '334155', breakLine: true, paraSpaceAfter: 14, valign: 'top', margin: 0.05,
+        color: theme.body, breakLine: true, paraSpaceAfter: 14, valign: 'top', margin: 0.05,
         fit: 'shrink', bullet: { indent: 18 },
       });
       addFooter(slide);
@@ -231,11 +275,13 @@ export async function createPptx(title: string, content: string): Promise<Buffer
   }
 
   const output = await pptx.write({ outputType: 'nodebuffer' });
-  if (Buffer.isBuffer(output)) return output;
-  if (output instanceof Uint8Array) return Buffer.from(output);
-  if (output instanceof ArrayBuffer) return Buffer.from(new Uint8Array(output));
-  if (typeof output === 'string') return Buffer.from(output, 'binary');
-  throw new Error('PPTX generation returned an unsupported output type.');
+  let buffer: Buffer;
+  if (Buffer.isBuffer(output)) buffer = output;
+  else if (output instanceof Uint8Array) buffer = Buffer.from(output);
+  else if (output instanceof ArrayBuffer) buffer = Buffer.from(new Uint8Array(output));
+  else if (typeof output === 'string') buffer = Buffer.from(output, 'binary');
+  else throw new Error('PPTX generation returned an unsupported output type.');
+  return applyPptxTransitions(buffer, animation);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -251,8 +297,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const title = safeString(body.title, MAX_TITLE).trim() || 'Hanna learning document';
     const content = safeString(body.content, MAX_CONTENT).trim();
     if (!content) return json(res, 400, { error: 'Document content is required.' });
+    const template = normalizePptxTemplate(body.template);
+    const animation = normalizePptxAnimation(body.animation);
+    if (format === 'pptx' && typeof body.template === 'string' && !Object.prototype.hasOwnProperty.call(PPTX_THEMES, body.template)) return json(res, 400, { error: 'Choose a supported PPTX template.' });
+    if (format === 'pptx' && typeof body.animation === 'string' && !['none', 'calm', 'dynamic'].includes(body.animation)) return json(res, 400, { error: 'Choose a supported PPTX animation setting.' });
 
-    const buffer = format === 'pdf' ? await createPdf(title, content) : format === 'docx' ? await createDocx(title, content) : await createPptx(title, content);
+    const buffer = format === 'pdf' ? await createPdf(title, content) : format === 'docx' ? await createDocx(title, content) : await createPptx(title, content, { template, animation });
     const extension = format;
     const mime = format === 'pdf'
       ? 'application/pdf'
