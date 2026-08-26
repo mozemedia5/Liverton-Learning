@@ -11,8 +11,8 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { TeamProject, TeamTask, TeamFolderFile, TeamMilestone } from '@/types/livTeams';
-import { logTeamActivity } from './livTeamsCoreService';
+import type { TeamProject, TeamTask, TeamFolderFile, TeamMilestone, TeamFolderRequest } from '@/types/livTeams';
+import { getTeamById, logTeamActivity } from './livTeamsCoreService';
 import { isValidProjectTransition } from './livTeamsGovernanceService';
 
 /**
@@ -275,6 +275,42 @@ export async function getTeamFiles(teamId: string): Promise<TeamFolderFile[]> {
     console.error('Error fetching team files:', error);
     return [];
   }
+}
+
+export async function createTeamFolderRequest(teamId: string, name: string, userId: string, userName: string): Promise<string> {
+  const normalizedName = name.trim().replace(/\s+/g, ' ');
+  if (normalizedName.length < 2 || normalizedName.length > 40) throw new Error('Folder name must be between 2 and 40 characters');
+  const team = await getTeamById(teamId);
+  const member = team?.members?.find(candidate => candidate.userId === userId);
+  if (!member) throw new Error('Team membership required');
+  const existing = await getDocs(collection(db, 'teams', teamId, 'folderRequests'));
+  const duplicate = existing.docs.some(item => String(item.data().name || '').toLowerCase() === normalizedName.toLowerCase() && item.data().status !== 'rejected');
+  if (duplicate) throw new Error('That folder already exists or is awaiting approval');
+  const record = {
+    teamId,
+    name: normalizedName,
+    requestedBy: userId,
+    requestedByName: userName,
+    status: 'pending' as const,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  } satisfies Omit<TeamFolderRequest, 'id'>;
+  const ref = await addDoc(collection(db, 'teams', teamId, 'folderRequests'), record);
+  await logTeamActivity(teamId, userId, userName, `requested a new folder: ${normalizedName}`);
+  return ref.id;
+}
+
+export async function getTeamFolderRequests(teamId: string): Promise<TeamFolderRequest[]> {
+  const snapshot = await getDocs(query(collection(db, 'teams', teamId, 'folderRequests'), orderBy('createdAt', 'desc')));
+  return snapshot.docs.map(item => ({ id: item.id, ...item.data() } as TeamFolderRequest));
+}
+
+export async function reviewTeamFolderRequest(teamId: string, requestId: string, status: 'approved' | 'rejected', reviewerId: string, reviewerName: string): Promise<void> {
+  const team = await getTeamById(teamId);
+  const reviewer = team?.members?.find(candidate => candidate.userId === reviewerId);
+  if (!reviewer || !['owner', 'admin'].includes(reviewer.role)) throw new Error('Only the team owner or administrator can review folders');
+  await updateDoc(doc(db, 'teams', teamId, 'folderRequests', requestId), { status, reviewedBy: reviewerId, updatedAt: Timestamp.now() });
+  await logTeamActivity(teamId, reviewerId, reviewerName, `${status} a team folder request`);
 }
 
 export async function deleteTeamFile(teamId: string, fileId: string, userId: string, userName: string): Promise<void> {

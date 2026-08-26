@@ -227,10 +227,22 @@ export interface TeamFolderFile {
   url: string;
   type: string;
   size: string;
-  folder: 'Notes' | 'Assignments' | 'Research' | 'Presentations' | 'Resources' | 'Books' | 'Reports' | 'Previous Papers';
+  folder: string;
   uploadedBy: string;
   uploadedByName: string;
   createdAt: Date | any;
+}
+
+export interface TeamFolderRequest {
+  id: string;
+  teamId: string;
+  name: string;
+  requestedBy: string;
+  requestedByName: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  createdAt: Date | any;
+  updatedAt?: Date | any;
 }
 
 export interface SavingsTransaction {

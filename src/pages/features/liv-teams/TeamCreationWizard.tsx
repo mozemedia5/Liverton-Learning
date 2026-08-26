@@ -56,7 +56,7 @@ const INITIAL_FORM: WizardFormState = {
   district: '',
   language: 'English',
   visibility: 'public',
-  maxMembers: 50,
+  maxMembers: 1000,
   welcomeMessage: 'Welcome to the Team!',
   rules: '',
   tagsText: '',
@@ -218,7 +218,7 @@ export default function TeamCreationWizard({ open, onOpenChange, onCreated }: Te
         district: form.district.trim(),
         language: form.language.trim() || 'English',
         visibility: form.visibility,
-        maxMembers: Math.max(2, form.maxMembers || 50),
+        maxMembers: 1000,
         rules: form.rules.trim(),
         welcomeMessage: form.welcomeMessage.trim() || 'Welcome to the Team!',
         tags: parsedTags
@@ -490,18 +490,10 @@ export default function TeamCreationWizard({ open, onOpenChange, onCreated }: Te
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="wz-max">Max Members</Label>
-                    <Input
-                      id="wz-max"
-                      type="number"
-                      min={2}
-                      max={1000}
-                      className={inputClass}
-                      value={form.maxMembers}
-                      onChange={e => set('maxMembers', Number(e.target.value))}
-                    />
-                    {errorText('maxMembers')}
+                  <div className="space-y-2 rounded-xl border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/20 px-3 py-2">
+                    <Label>Team capacity</Label>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Up to 1,000 members</p>
+                    <p className="text-xs text-slate-500">Capacity is managed by the platform for reliable team performance.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="wz-welcome">Welcome Message *</Label>
@@ -574,7 +566,7 @@ export default function TeamCreationWizard({ open, onOpenChange, onCreated }: Te
                 {reviewSection('Settings', 3, (
                   <>
                     {reviewRow('Visibility', <span className="capitalize">{form.visibility}</span>)}
-                    {reviewRow('Max members', form.maxMembers)}
+                    {reviewRow('Team capacity', 'Up to 1,000 members')}
                     {reviewRow('Welcome', form.welcomeMessage)}
                     {form.rules && reviewRow('Rules', <span className="line-clamp-2">{form.rules}</span>)}
                   </>

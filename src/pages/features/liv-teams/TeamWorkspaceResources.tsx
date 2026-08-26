@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Folder, FileText, Search, Trash2, Download,
+  Folder, FileText, Search, Trash2, Download, Plus, ChevronDown, Check, X,
   FolderOpen, UploadCloud, FileImage, FileVideo, FileAudio, FileArchive, File as FileIcon, Loader2
 } from 'lucide-react';
-import { uploadTeamFile, getTeamFiles, deleteTeamFile } from '@/services/livTeamsProjectService';
+import { uploadTeamFile, getTeamFiles, deleteTeamFile, createTeamFolderRequest, getTeamFolderRequests, reviewTeamFolderRequest } from '@/services/livTeamsProjectService';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
-import type { TeamFolderFile, TeamRole } from '@/types/livTeams';
+import type { TeamFolderFile, TeamFolderRequest, TeamRole } from '@/types/livTeams';
 import { LivEmptyState, LivSectionHeader } from './livTeamsUi';
 
 interface ResourcesProps {
@@ -39,11 +39,16 @@ export default function TeamWorkspaceResources({ teamId, teamRole }: ResourcesPr
   const [files, setFiles] = useState<TeamFolderFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFolder, setActiveFolder] = useState<typeof FOLDERS[number] | 'All'>('All');
+  const [activeFolder, setActiveFolder] = useState<string>('All');
   const [uploading, setUploading] = useState(false);
+  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
+  const [folderRequests, setFolderRequests] = useState<TeamFolderRequest[]>([]);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [folderRequestBusy, setFolderRequestBusy] = useState(false);
 
   useEffect(() => {
-    loadFiles();
+    void loadFiles();
+    void loadFolderRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
@@ -57,6 +62,32 @@ export default function TeamWorkspaceResources({ teamId, teamRole }: ResourcesPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadFolderRequests = async () => {
+    if (!teamId) return;
+    try { setFolderRequests(await getTeamFolderRequests(teamId)); } catch { /* Firestore rules enforce access */ }
+  };
+  const handleRequestFolder = async () => {
+    if (!currentUser || !newFolderName.trim()) return;
+    setFolderRequestBusy(true);
+    try {
+      await createTeamFolderRequest(teamId, newFolderName, currentUser.uid, userData?.fullName || 'Team member');
+      setNewFolderName('');
+      await loadFolderRequests();
+      toast.success('Folder request sent to the team owner/admin');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not request folder'); }
+    finally { setFolderRequestBusy(false); }
+  };
+  const handleReviewFolder = async (request: TeamFolderRequest, status: 'approved' | 'rejected') => {
+    if (!currentUser) return;
+    setFolderRequestBusy(true);
+    try {
+      await reviewTeamFolderRequest(teamId, request.id, status, currentUser.uid, userData?.fullName || 'Team administrator');
+      await loadFolderRequests();
+      toast.success(`Folder request ${status}`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not review folder request'); }
+    finally { setFolderRequestBusy(false); }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,12 +129,15 @@ export default function TeamWorkspaceResources({ teamId, teamRole }: ResourcesPr
     }
   };
 
+  const approvedCustomFolders = useMemo(() => folderRequests.filter(request => request.status === 'approved').map(request => request.name), [folderRequests]);
+  const visibleFolders = useMemo(() => Array.from(new Set([...FOLDERS, ...approvedCustomFolders])), [approvedCustomFolders]);
+  const isFolderManager = teamRole === 'owner' || teamRole === 'admin';
   const folderCounts = useMemo(() => {
     const counts: Record<string, number> = { All: files.length };
-    FOLDERS.forEach(f => { counts[f] = 0; });
+    visibleFolders.forEach(f => { counts[f] = 0; });
     files.forEach(f => { counts[f.folder] = (counts[f.folder] || 0) + 1; });
     return counts;
-  }, [files]);
+  }, [files, visibleFolders]);
 
   const filteredFiles = useMemo(() => {
     return files.filter(f => {
@@ -135,29 +169,36 @@ export default function TeamWorkspaceResources({ teamId, teamRole }: ResourcesPr
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
         {/* Folders */}
-        <div className="space-y-1.5 lg:col-span-1">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide block mb-2">Folders</span>
-          {(['All', ...FOLDERS] as const).map(folder => (
-            <button
-              key={folder}
-              onClick={() => setActiveFolder(folder)}
-              className={`w-full flex items-center justify-between rounded-xl text-sm py-2 px-3 border transition-colors ${
-                activeFolder === folder
-                  ? 'bg-emerald-500 text-white border-emerald-500'
-                  : 'bg-white/60 dark:bg-slate-900/60 border-gray-200 dark:border-white/10 hover:border-emerald-500/50 text-slate-600 dark:text-slate-300'
-              }`}
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                {activeFolder === folder
-                  ? <FolderOpen className="w-4 h-4 flex-shrink-0" />
-                  : <Folder className={`w-4 h-4 flex-shrink-0 ${folder === 'All' ? '' : 'text-amber-500'}`} />}
-                <span className="truncate">{folder === 'All' ? 'All Files' : folder}</span>
-              </span>
-              <span className={`text-xs ${activeFolder === folder ? 'text-white/80' : 'text-slate-400'}`}>
-                {folderCounts[folder] || 0}
-              </span>
-            </button>
-          ))}
+        <div className="space-y-2 lg:col-span-1">
+          <button type="button" onClick={() => setFoldersCollapsed(value => !value)} className="w-full flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wide" aria-expanded={!foldersCollapsed}>
+            <span>Folders</span><ChevronDown className={`w-4 h-4 transition-transform ${foldersCollapsed ? '-rotate-90' : ''}`} />
+          </button>
+          {!foldersCollapsed && <>
+            <div className="space-y-1.5">
+              {(['All', ...visibleFolders]).map(folder => (
+                <button
+                  key={folder}
+                  onClick={() => setActiveFolder(folder)}
+                  className={`w-full flex items-center justify-between rounded-xl text-sm py-2 px-3 border transition-colors ${
+                    activeFolder === folder
+                      ? 'bg-emerald-500 text-white border-emerald-500'
+                      : 'bg-white/60 dark:bg-slate-900/60 border-gray-200 dark:border-white/10 hover:border-emerald-500/50 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    {activeFolder === folder ? <FolderOpen className="w-4 h-4 flex-shrink-0" /> : <Folder className={`w-4 h-4 flex-shrink-0 ${folder === 'All' ? '' : 'text-amber-500'}`} />}
+                    <span className="truncate">{folder === 'All' ? 'All Files' : folder}</span>
+                  </span>
+                  <span className={`text-xs ${activeFolder === folder ? 'text-white/80' : 'text-slate-400'}`}>{folderCounts[folder] || 0}</span>
+                </button>
+              ))}
+            </div>
+            {!isGuest && <div className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 p-3 space-y-2">
+              <p className="text-xs text-slate-500">Need another folder?</p>
+              <div className="flex gap-2"><Input value={newFolderName} onChange={event => setNewFolderName(event.target.value)} maxLength={40} placeholder="Folder name" className="h-9 rounded-lg text-xs" /><Button type="button" size="icon-sm" onClick={() => void handleRequestFolder()} disabled={folderRequestBusy || !newFolderName.trim()} aria-label="Request folder"><Plus className="w-4 h-4" /></Button></div>
+            </div>}
+            {isFolderManager && folderRequests.some(request => request.status === 'pending') && <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 p-3 space-y-2"><p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Pending folder requests</p>{folderRequests.filter(request => request.status === 'pending').map(request => <div key={request.id} className="flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate" title={request.name}>{request.name}<span className="block text-[10px] text-slate-400">by {request.requestedByName}</span></span><span className="flex gap-1"><Button type="button" size="icon-sm" variant="ghost" className="text-emerald-600" onClick={() => void handleReviewFolder(request, 'approved')} disabled={folderRequestBusy} aria-label={`Approve ${request.name}`}><Check className="w-3.5 h-3.5" /></Button><Button type="button" size="icon-sm" variant="ghost" className="text-red-600" onClick={() => void handleReviewFolder(request, 'rejected')} disabled={folderRequestBusy} aria-label={`Reject ${request.name}`}><X className="w-3.5 h-3.5" /></Button></span></div>)}</div>}
+          </>}
         </div>
 
         {/* Files list */}

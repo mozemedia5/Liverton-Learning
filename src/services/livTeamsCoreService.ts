@@ -105,7 +105,8 @@ export async function createTeam(teamData: Partial<Team>, ownerId: string, owner
       district: teamData.district || '',
       language: teamData.language || 'English',
       visibility: teamData.visibility || 'public',
-      maxMembers: teamData.maxMembers || 50,
+      // Capacity is platform-controlled; clients cannot lower or raise this limit.
+      maxMembers: 1000,
       rules: teamData.rules || '',
       welcomeMessage: teamData.welcomeMessage || 'Welcome to the Team!',
       tags: teamData.tags || [],
@@ -532,7 +533,7 @@ export async function requestToJoinTeam(teamId: string, userId: string, fullName
     if (!team) throw new Error('Team not found');
     if (team.visibility !== 'public') throw new Error('This team is not open for public join requests');
     if (team.members.some(member => member.userId === userId)) throw new Error('You are already a member of this team');
-    if (team.members.length >= (team.maxMembers || 50)) throw new Error('This team has reached its maximum member capacity');
+    if (team.members.length >= 1000) throw new Error('This team has reached its maximum member capacity');
 
     const requestRef = doc(db, 'teams', teamId, 'join_requests', userId);
     const snap = await getDoc(requestRef);
@@ -751,7 +752,7 @@ export async function joinPublicTeam(team: Team, userId: string, fullName: strin
   if (team.members.some(m => m.userId === userId)) {
     throw new Error('You are already a member of this team');
   }
-  if (team.members.length >= (team.maxMembers || 50)) {
+  if (team.members.length >= 1000) {
     throw new Error('This team has reached its maximum member capacity');
   }
   await addMemberToTeam(team.id, {

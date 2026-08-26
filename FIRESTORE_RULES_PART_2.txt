@@ -1,0 +1,210 @@
+    match /hannaChats/{chatId} {
+      allow read: if isPlatformAdmin();
+      allow read, write: if isAuthenticated() &&
+        resource.data.userId == currentUserId();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == currentUserId();
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() &&
+          get(/databases/$(database)/documents/hannaChats/$(chatId)).data.userId == currentUserId();
+        allow create: if isAuthenticated();
+      }
+    }
+    match /hanna_chats/{chatId} {
+      allow read, write: if isPlatformAdmin() ||
+        (isAuthenticated() && resource.data.userId == currentUserId());
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == currentUserId();
+    }
+    match /hanna_messages/{messageId} {
+      allow read: if isPlatformAdmin() ||
+        (isAuthenticated() &&
+          get(/databases/$(database)/documents/hanna_chats/$(resource.data.chatId)).data.userId == currentUserId());
+      allow create: if isAuthenticated() &&
+        get(/databases/$(database)/documents/hanna_chats/$(request.resource.data.chatId)).data.userId == currentUserId();
+      allow update, delete: if isPlatformAdmin() ||
+        (isAuthenticated() &&
+          get(/databases/$(database)/documents/hanna_chats/$(resource.data.chatId)).data.userId == currentUserId());
+    }
+    function isTeamMember(teamId) {
+      return isAuthenticated() &&
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('memberIds', []);
+    }
+    function isTeamManager(teamId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('adminIds', [])
+      );
+    }
+    function isTeamFinanceManager(teamId) {
+      return isTeamMember(teamId) && (
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('financeManagerIds', [])
+      );
+    }
+    function isTeamAIManager(teamId) {
+      return isTeamMember(teamId) && (
+        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
+        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('aiManagerIds', [])
+      );
+    }
+    function hasPendingTeamInvite(teamId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/team_invitations/$(teamId + '_' + currentUserData().email));
+    }
+    function isJoiningSelf() {
+      return request.resource.data.get('memberIds', []).toSet()
+               .difference(resource.data.get('memberIds', []).toSet()) == [currentUserId()].toSet()
+        && resource.data.get('memberIds', []).toSet()
+             .difference(request.resource.data.get('memberIds', []).toSet()).size() == 0;
+    }
+    match /teams/{teamId} {
+      allow read, write: if isPlatformAdmin();
+      allow read: if isAuthenticated() && resource.data.visibility == 'public';
+      allow read: if isTeamMember(teamId);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == currentUserId();
+      allow update: if isAuthenticated() &&
+        resource.data.ownerId == currentUserId() &&
+        request.resource.data.ownerId == resource.data.ownerId;
+      allow update: if isTeamMember(teamId) &&
+        request.resource.data.ownerId == resource.data.ownerId;
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedByUsers']);
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds']) &&
+        isJoiningSelf() &&
+        (resource.data.visibility == 'public' || hasPendingTeamInvite(teamId));
+      allow delete: if isAuthenticated() && resource.data.ownerId == currentUserId();
+      match /join_requests/{requesterId} {
+        allow read: if isPlatformAdmin() || isTeamManager(teamId) || (isAuthenticated() && requesterId == currentUserId());
+        allow create: if isAuthenticated() &&
+          requesterId == currentUserId() &&
+          request.resource.data.userId == currentUserId() &&
+          request.resource.data.status == 'pending' &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.visibility == 'public' &&
+          !isTeamMember(teamId);
+        allow update: if isTeamManager(teamId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          request.resource.data.status in ['accepted', 'declined'];
+        allow delete: if isTeamManager(teamId) ||
+          (isAuthenticated() && requesterId == currentUserId() && resource.data.status != 'accepted');
+      }
+      match /{subCollection}/{documentId} {
+        allow read, write: if isPlatformAdmin() ||
+          (subCollection != 'join_requests' && isTeamMember(teamId));
+      }
+    }
+    match /team_invitations/{inviteId} {
+      allow read: if isPlatformAdmin() ||
+        (isAuthenticated() &&
+          (resource.data.invitedEmail == currentUserData().email ||
+           resource.data.senderId == currentUserId()));
+      allow create: if isAuthenticated() && request.resource.data.senderId == currentUserId();
+      allow update: if isPlatformAdmin() ||
+        (isAuthenticated() &&
+          (resource.data.invitedEmail == currentUserData().email ||
+           resource.data.senderId == currentUserId()));
+      allow delete: if isPlatformAdmin() ||
+        (isAuthenticated() && resource.data.senderId == currentUserId());
+    }
+    match /team_treasury_ledger/{entryId} {
+      allow read: if isPlatformAdmin() || isTeamFinanceManager(resource.data.teamId);
+      allow create: if isPlatformAdmin() || isTeamFinanceManager(request.resource.data.teamId);
+      allow update: if isPlatformAdmin() || isTeamFinanceManager(resource.data.teamId);
+      allow delete: if isPlatformAdmin();
+    }
+    match /team_ai_credit_ledger/{entryId} {
+      allow read: if isPlatformAdmin() || isTeamMember(resource.data.teamId);
+      allow create: if isPlatformAdmin() || isTeamAIManager(request.resource.data.teamId) || isTeamMember(request.resource.data.teamId);
+      allow update, delete: if isPlatformAdmin();
+    }
+    match /livfund_campaigns/{campaignId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.status in ['Approved', 'Active', 'Paused', 'Funded', 'Completed'] || resource.data.ownerId == currentUserId()));
+      allow create: if isPlatformAdmin() || (isAuthenticated() && request.resource.data.ownerId == currentUserId() && isTeamMember(request.resource.data.teamId));
+      allow update: if isPlatformAdmin() || (isAuthenticated() && resource.data.ownerId == currentUserId() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'objective', 'purpose', 'deadline', 'minimumContributionMinor', 'updatedAt']));
+      allow delete: if isPlatformAdmin();
+    }
+    match /livfund_contributions/{contributionId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.contributorId == currentUserId() || get(/databases/$(database)/documents/livfund_campaigns/$(resource.data.campaignId)).data.ownerId == currentUserId()));
+      allow create: if isAuthenticated() && get(/databases/$(database)/documents/livfund_campaigns/$(request.resource.data.campaignId)).data.status == 'Active' && request.resource.data.status == 'pending' && request.resource.data.amountMinor is int && request.resource.data.amountMinor > 0 && request.resource.data.contributorId == currentUserId();
+      allow update: if isPlatformAdmin();
+      allow delete: if false;
+    }
+    match /project_verifications/{verificationId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && isTeamMember(resource.data.teamId));
+      allow create: if isPlatformAdmin() || (isAuthenticated() && isTeamMember(request.resource.data.teamId));
+      allow update: if isPlatformAdmin();
+      allow delete: if isPlatformAdmin();
+    }
+    match /livmart_orders/{orderId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.buyerId == currentUserId() || resource.data.sellerId == currentUserId()));
+      allow create: if isAuthenticated() && request.resource.data.buyerId == currentUserId() && get(/databases/$(database)/documents/marketplace_items/$(request.resource.data.listingId)).data.status == 'Listed' && request.resource.data.status == 'Payment Pending';
+      allow update: if isPlatformAdmin();
+      allow delete: if false;
+    }
+    match /marketplace_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.teamId is string;
+      allow update: if isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['ratings', 'downloadsCount', 'purchasesCount', 'isVerified']);
+      allow delete: if isPlatformAdmin();
+    }
+    match /ai_usage/{usageId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && resource.data.userId == currentUserId());
+      allow write: if false;
+    }
+    // Authenticated learners and educators can search this deliberately minimal
+    // directory by username or email. Private profile fields stay in /users.
+    match /userDirectory/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && currentUserId() == userId && request.resource.data.uid == userId;
+      allow delete: if isAuthenticated() && currentUserId() == userId;
+    }
+    // Username claims are reserved atomically so two users cannot take one handle.
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == currentUserId() && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if isAuthenticated() && resource.data.uid == currentUserId() && request.resource.data.uid == currentUserId();
+      allow delete: if isAuthenticated() && resource.data.uid == currentUserId();
+    }
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && currentUserId() in resource.data.participants;
+      allow create: if isAuthenticated() && currentUserId() in request.resource.data.participants;
+      allow update, delete: if isAuthenticated() && currentUserId() in resource.data.participants && currentUserId() in request.resource.data.participants;
+    }
+    match /liveLessonArenaChats/{chatId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /courseViews/{viewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == currentUserId() && request.resource.data.courseId is string;
+      allow update, delete: if isPlatformAdmin();
+    }
+    match /courseReviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == currentUserId() &&
+        request.resource.data.courseId is string &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        request.resource.data.comment is string && request.resource.data.comment.size() > 0;
+      allow update, delete: if isAuthenticated() && resource.data.userId == currentUserId();
+    }
+    match /uploaded_assets/{assetId} {
+      allow read: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
+      allow create: if isAuthenticated() && request.resource.data.uploader == currentUserId();
+      allow update: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
+      allow delete: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
+    }
+    match /{collectionName}/{document=**} {
+      allow read, write: if isPlatformAdmin() ||
+        (isAuthenticated() && collectionName in [
+          'activities', 'activityLogs', 'assignments', 'dashboardAnnouncements',
+          'enrollments', 'hanna_queue', 'lessonHistory',
+          'messages', 'notifications', 'otpCodes', 'parentStudentLinks',
+          'quizAttempts', 'quiz_attempts', 'studentEnrollments', 'zoomLessons',
+          'students', 'teachers', 'parents', 'school_admins'
+        ]);
+    }
+  }
+}

@@ -300,16 +300,28 @@ service cloud.firestore {
       allow read, write: if isPlatformAdmin();
       allow read: if isAuthenticated() && resource.data.visibility == 'public';
       allow read: if isTeamMember(teamId);
-      allow create: if isAuthenticated() && request.resource.data.ownerId == currentUserId();
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerId == currentUserId() &&
+        request.resource.data.maxMembers == 1000 &&
+        request.resource.data.memberIds.size() == 1;
       allow update: if isAuthenticated() &&
         resource.data.ownerId == currentUserId() &&
-        request.resource.data.ownerId == resource.data.ownerId;
-      allow update: if isTeamMember(teamId) &&
-        request.resource.data.ownerId == resource.data.ownerId;
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.maxMembers == 1000;
+      // Team managers may edit only approved team settings; capacity remains platform-controlled.
+      allow update: if isTeamManager(teamId) &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.maxMembers == 1000 &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'logoUrl', 'coverUrl', 'description', 'category', 'purpose',
+          'country', 'school', 'district', 'language', 'visibility', 'maxMembers',
+          'rules', 'welcomeMessage', 'tags', 'updatedAt'
+        ]);
       allow update: if isAuthenticated() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedByUsers']);
       allow update: if isAuthenticated() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds']) &&
+        request.resource.data.memberIds.size() <= 1000 &&
         isJoiningSelf() &&
         (resource.data.visibility == 'public' || hasPendingTeamInvite(teamId));
       allow delete: if isAuthenticated() && resource.data.ownerId == currentUserId();
@@ -327,9 +339,23 @@ service cloud.firestore {
         allow delete: if isTeamManager(teamId) ||
           (isAuthenticated() && requesterId == currentUserId() && resource.data.status != 'accepted');
       }
+      match /folderRequests/{requestId} {
+        allow read: if isPlatformAdmin() || isTeamManager(teamId) ||
+          (isAuthenticated() && resource.data.requestedBy == currentUserId());
+        allow create: if isAuthenticated() && isTeamMember(teamId) &&
+          request.resource.data.teamId == teamId &&
+          request.resource.data.requestedBy == currentUserId() &&
+          request.resource.data.status == 'pending';
+        allow update: if isPlatformAdmin() ||
+          (isTeamManager(teamId) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedBy', 'updatedAt']) &&
+           request.resource.data.status in ['approved', 'rejected']);
+        allow delete: if isPlatformAdmin() ||
+          (isTeamManager(teamId) && resource.data.status != 'approved');
+      }
       match /{subCollection}/{documentId} {
         allow read, write: if isPlatformAdmin() ||
-          (subCollection != 'join_requests' && isTeamMember(teamId));
+          (subCollection not in ['join_requests', 'folderRequests'] && isTeamMember(teamId));
       }
     }
     match /team_invitations/{inviteId} {
