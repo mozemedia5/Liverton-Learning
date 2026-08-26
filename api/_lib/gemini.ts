@@ -104,7 +104,7 @@ export async function* streamGemini(
       return;
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error) || model === candidates.at(-1)) throw providerError(error);
+      if (!isRetryableProviderError(error) || model === candidates[candidates.length - 1]) throw providerError(error);
     }
   }
   throw providerError(lastError);
@@ -127,7 +127,7 @@ export async function generateGemini(
       return { text: result.response.text(), model, credits: policy.credits };
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error) || model === candidates.at(-1)) throw providerError(error);
+      if (!isRetryableProviderError(error) || model === candidates[candidates.length - 1]) throw providerError(error);
     }
   }
   throw providerError(lastError);

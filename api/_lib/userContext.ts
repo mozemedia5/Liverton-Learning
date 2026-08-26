@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { Firestore, WhereFilterOp } from 'firebase-admin/firestore';
 
 export type HannaPersonalization = {
   profile: boolean;
@@ -36,7 +36,7 @@ function asPreferences(value: unknown): HannaPersonalization {
   return { ...booleans, customInstructions: clean(input.customInstructions, 2000) } as HannaPersonalization;
 }
 
-async function limitedQuery(db: Firestore, collectionName: string, field: string, operator: FirebaseFirestore.WhereFilterOp, value: unknown, limit = 20) {
+async function limitedQuery(db: Firestore, collectionName: string, field: string, operator: WhereFilterOp, value: unknown, limit = 20) {
   try { return await db.collection(collectionName).where(field, operator, value).limit(limit).get(); } catch { return { docs: [] } as any; }
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
-import { createDocx, createPdf, normalizeExportText } from './hanna-artifact';
+import { createDocx, createPdf, normalizeExportText } from './hanna-artifact.js';
 
 describe('Hanna artifact exports', () => {
   it('normalizes LaTeX delimiters and removes malformed decoration without destroying equations', () => {
