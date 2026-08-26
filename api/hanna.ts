@@ -13,13 +13,15 @@ const MAX_TOTAL_ATTACHMENT_BYTES = 18 * 1024 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 30;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
-const HANNA_MODES = ['web_search', 'deep_think', 'studying', 'deep_research'] as const;
+const HANNA_MODES = ['web_search', 'deep_think', 'studying', 'deep_research', 'coding', 'artifacts'] as const;
 type HannaMode = typeof HANNA_MODES[number];
 const MODE_INSTRUCTIONS: Record<HannaMode, string> = {
   web_search: 'Use the supplied web research when present. Prefer current, authoritative sources and cite them clearly.',
   deep_think: 'Work through the problem carefully and verify assumptions. Give a concise explanation of the reasoning and checks, but never reveal hidden chain-of-thought or private internal deliberation.',
   studying: 'Act as a patient study coach. Explain in steps, define unfamiliar terms, use an example, and finish with a short practice or recall question when appropriate.',
   deep_research: 'Synthesize the supplied research comprehensively. Compare sources, identify disagreements and uncertainty, and include source-backed conclusions and next steps.',
+  coding: 'Act as a careful coding partner. Show the plan first, use fenced code blocks with a language label, explain important decisions, and never claim to have changed files unless the application confirms it.',
+  artifacts: 'Prepare polished artifact-ready content. Use clear headings, concise sections, Markdown tables when useful, and a short suggested artifact format. Do not claim an artifact was saved until the application confirms the export.',
 };
 
 function parseHannaMode(value: unknown): HannaMode {

@@ -7,7 +7,7 @@ export const HANNA_SYSTEM_PROMPT = `You are Hanna, the friendly AI study assista
 
 export interface HannaAttachment { url: string; name: string; mimeType: string; }
 export interface HannaHistoryMessage { role: 'user' | 'hanna'; content: string; }
-export type HannaMode = 'web_search' | 'deep_think' | 'studying' | 'deep_research';
+export type HannaMode = 'web_search' | 'deep_think' | 'studying' | 'deep_research' | 'coding' | 'artifacts';
 
 export function isGeminiConfigured(): boolean {
   // Provider configuration is intentionally server-side. The browser only needs the gateway URL.
@@ -165,7 +165,7 @@ export async function enhanceTextWithHanna(draft: string, type: 'bio' | 'team_de
 }
 
 
-export type HannaArtifactFormat = 'pdf' | 'docx';
+export type HannaArtifactFormat = 'pdf' | 'docx' | 'pptx';
 
 export async function exportHannaArtifact(params: {
   title: string;

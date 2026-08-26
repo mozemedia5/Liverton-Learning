@@ -144,20 +144,47 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   );
 }
 
+function splitTableRow(line: string): string[] {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+}
+
+function isTableSeparator(line: string) {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+}
+
+function MarkdownTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  return (
+    <section className="my-4 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/70 dark:border-white/10 dark:bg-white/[.03]" aria-label="Hanna response table">
+      <table className="min-w-full border-collapse text-left text-sm">
+        <thead className="bg-slate-100/80 text-xs uppercase tracking-wide text-slate-600 dark:bg-white/[.06] dark:text-slate-300">
+          <tr>{headers.map((header, index) => <th key={`header-${index}`} className="border-b border-slate-200 px-4 py-3 font-black dark:border-white/10">{renderInline(header, `table-header-${index}`)}</th>)}</tr>
+        </thead>
+        <tbody>{rows.map((row, rowIndex) => <tr key={`row-${rowIndex}`} className="border-b border-slate-100 last:border-0 dark:border-white/5">{headers.map((_, columnIndex) => <td key={`cell-${rowIndex}-${columnIndex}`} className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{renderInline(row[columnIndex] || '', `table-cell-${rowIndex}-${columnIndex}`)}</td>)}</tr>)}</tbody>
+      </table>
+    </section>
+  );
+}
+
+export function sanitizeHannaDisplayText(text: string) {
+  const protectedTokens: string[] = [];
+  const protect = (value: string) => `__HANNA_TOKEN_${protectedTokens.push(value) - 1}__`;
+  const protectedText = text.replace(/```[\s\S]*?```|\\\[[\s\S]*?\\\]|\\\([^\n]+?\\\)|\$\$[\s\S]*?\$\$|(?<!\$)\$[^$\n]+\$(?!\$)|\*\*[^*\n]+\*\*|(?<!\w)\*[^*\n]+\*(?!\w)/g, protect);
+  const cleaned = protectedText.split('\n').map(line => {
+    const heading = line.match(/^(\s*#{1,6})(\s+)/);
+    const prefix = heading ? `${heading[1]}${heading[2]}` : '';
+    const body = heading ? line.slice(prefix.length) : line;
+    return `${prefix}${body.replace(/#{2,}|\${2,}|[¥€]|\\|[{}]{2,}|%\\/g, '')}`;
+  }).join('\n').replace(/__HANNA_TOKEN_(\d+)__/g, (_, index) => protectedTokens[Number(index)] || '');
+  return cleaned.replace(/(^|\n)\s*#{4,}\s*/g, '$1').replace(/\n{3,}/g, '\n\n');
+}
+
 export function HannaMarkdown({ text }: { text: string }) {
-  // Models can occasionally emit malformed decoration runs. Remove only invalid
-  // dollar-based marker noise; valid Markdown is still rendered structurally below.
-  const cleanText = text
-    .replace(/[#*\\\\]{3,}/g, '')
-    .replace(/\${2,}/g, '')
-    .replace(/[¥€]/g, '')
-    .replace(/[{}]{2,}/g, '')
-    .replace(/(^|\n)\s*#{4,}\s*/g, '$1');
+  const cleanText = sanitizeHannaDisplayText(text);
   // Split into code fences vs regular content
   const segments = cleanText.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div className="space-y-2 text-[15px] leading-relaxed break-words">
+    <article className="space-y-2 text-[15px] leading-relaxed break-words">
       {segments.map((segment, segIdx) => {
         if (segment.startsWith('```')) {
           const inner = segment.slice(3, -3);
@@ -184,8 +211,24 @@ export function HannaMarkdown({ text }: { text: string }) {
           listItems = null;
         };
 
-        lines.forEach((line, lineIdx) => {
+        let lineIdx = 0;
+        while (lineIdx < lines.length) {
+          const line = lines[lineIdx];
           const trimmed = line.trim();
+
+          if (trimmed.includes('|') && lineIdx + 1 < lines.length && isTableSeparator(lines[lineIdx + 1])) {
+            flushList(lineIdx);
+            const headers = splitTableRow(line);
+            const rows: string[][] = [];
+            lineIdx += 2;
+            while (lineIdx < lines.length && lines[lineIdx].trim().includes('|')) {
+              rows.push(splitTableRow(lines[lineIdx]));
+              lineIdx += 1;
+            }
+            blocks.push(<MarkdownTable key={`table-${lineIdx}`} headers={headers} rows={rows} />);
+            continue;
+          }
+
           const bullet = trimmed.match(/^[-*•]\s+(.*)$/);
           const numbered = trimmed.match(/^\d+[.)]\s+(.*)$/);
 
@@ -196,29 +239,30 @@ export function HannaMarkdown({ text }: { text: string }) {
               flushList(lineIdx);
               listItems = { ordered, items: [] };
             }
-            listItems!.items.push(content);
-            return;
+            listItems.items.push(content);
+            lineIdx += 1;
+            continue;
           }
 
           flushList(lineIdx);
 
-          if (!trimmed) {
-            return;
+          if (trimmed) {
+            if (trimmed.startsWith('### ')) {
+              blocks.push(<h4 key={lineIdx} className="font-bold text-base pt-2 text-slate-800 dark:text-white">{renderInline(trimmed.slice(4), `h4-${lineIdx}`)}</h4>);
+            } else if (trimmed.startsWith('## ')) {
+              blocks.push(<h3 key={lineIdx} className="font-bold text-lg pt-2 text-slate-800 dark:text-white">{renderInline(trimmed.slice(3), `h3-${lineIdx}`)}</h3>);
+            } else if (trimmed.startsWith('# ')) {
+              blocks.push(<h2 key={lineIdx} className="font-bold text-xl pt-2 text-slate-800 dark:text-white">{renderInline(trimmed.slice(2), `h2-${lineIdx}`)}</h2>);
+            } else {
+              blocks.push(<p key={lineIdx} className="leading-relaxed">{renderInline(line, `p-${lineIdx}`)}</p>);
+            }
           }
-          if (trimmed.startsWith('### ')) {
-            blocks.push(<h4 key={lineIdx} className="font-bold text-base pt-2 text-slate-800 dark:text-white">{renderInline(trimmed.slice(4), `h4-${lineIdx}`)}</h4>);
-          } else if (trimmed.startsWith('## ')) {
-            blocks.push(<h3 key={lineIdx} className="font-bold text-lg pt-2 text-slate-800 dark:text-white">{renderInline(trimmed.slice(3), `h3-${lineIdx}`)}</h3>);
-          } else if (trimmed.startsWith('# ')) {
-            blocks.push(<h2 key={lineIdx} className="font-bold text-xl pt-2 text-slate-800 dark:text-white">{renderInline(trimmed.slice(2), `h2-${lineIdx}`)}</h2>);
-          } else {
-            blocks.push(<p key={lineIdx} className="leading-relaxed">{renderInline(line, `p-${lineIdx}`)}</p>);
-          }
-        });
+          lineIdx += 1;
+        }
         flushList(-1);
 
         return <div key={segIdx} className="space-y-1.5">{blocks}</div>;
       })}
-    </div>
+    </article>
   );
 }

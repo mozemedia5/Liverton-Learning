@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
-import { createDocx, createPdf, normalizeExportText } from './hanna-artifact.js';
+import { createDocx, createPdf, createPptx, normalizeExportText } from './hanna-artifact.js';
 
 describe('Hanna artifact exports', () => {
   it('normalizes LaTeX delimiters and removes malformed decoration without destroying equations', () => {
@@ -23,5 +23,12 @@ describe('Hanna artifact exports', () => {
     const buffer = await createDocx('Study notes', '## Key idea\nUse a worked example and practice question.');
     expect(buffer.subarray(0, 2).toString()).toBe('PK');
     expect(buffer.byteLength).toBeGreaterThan(1000);
+  });
+
+  it('generates a valid PPTX package with title and content slides', async () => {
+    const buffer = await createPptx('Photosynthesis lesson', '# Overview\nPlants use light energy.\n\n## Key terms\n- Chlorophyll\n- Glucose');
+    expect(buffer.subarray(0, 2).toString()).toBe('PK');
+    expect(buffer.byteLength).toBeGreaterThan(5000);
+    expect(buffer.toString('latin1')).toContain('ppt/slides/slide1.xml');
   });
 });

@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { AlignmentType, Document, Footer, Header, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
+import PptxGenJS from 'pptxgenjs';
 import { applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server.js';
 
 const MAX_CONTENT = 60_000;
 const MAX_TITLE = 120;
 
-type ArtifactFormat = 'pdf' | 'docx';
+type ArtifactFormat = 'pdf' | 'docx' | 'pptx';
 
 const UNICODE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\u2212/g, '-'], [/\u2013|\u2014/g, '-'], [/\u2018|\u2019/g, "'"], [/\u201C|\u201D/g, '"'],
@@ -159,6 +160,84 @@ export async function createDocx(title: string, content: string): Promise<Buffer
   return Packer.toBuffer(document);
 }
 
+export async function createPptx(title: string, content: string): Promise<Buffer> {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.author = 'Hanna AI - Liverton Learning';
+  pptx.company = 'Liverton Learning';
+  pptx.subject = 'Educational learning artifact';
+  pptx.title = normalizeExportText(title);
+  pptx.theme = {
+    headFontFace: 'Aptos Display',
+    bodyFontFace: 'Aptos',
+  };
+
+  const addFooter = (slide: PptxGenJS.Slide) => {
+    slide.addText('HANNA AI  |  LIVERTON LEARNING', {
+      x: 0.65, y: 7.08, w: 12.0, h: 0.18, fontFace: 'Aptos', fontSize: 7,
+      color: '94A3B8', margin: 0, align: 'right', breakLine: false,
+    });
+  };
+
+  const titleSlide = pptx.addSlide();
+  titleSlide.background = { color: 'F8FAFC' };
+  titleSlide.addText(normalizeExportText(title), {
+    x: 0.8, y: 1.55, w: 11.75, h: 1.25, fontFace: 'Aptos Display', fontSize: 30,
+    bold: true, color: '0F172A', margin: 0, fit: 'shrink', breakLine: false,
+  });
+  titleSlide.addText('Prepared by Hanna AI', {
+    x: 0.82, y: 3.05, w: 5.5, h: 0.35, fontFace: 'Aptos', fontSize: 15,
+    color: '10B981', margin: 0, breakLine: false,
+  });
+  titleSlide.addText('Liverton Learning educational artifact', {
+    x: 0.82, y: 3.48, w: 6.5, h: 0.3, fontFace: 'Aptos', fontSize: 11,
+    color: '64748B', margin: 0, breakLine: false,
+  });
+  addFooter(titleSlide);
+
+  const sections: Array<{ heading: string; bullets: string[] }> = [];
+  let current = { heading: 'Key points', bullets: [] as string[] };
+  for (const rawLine of normalizeExportText(content).split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    if (heading && current.bullets.length) {
+      sections.push(current);
+      current = { heading: plainText(heading[1]).slice(0, 100), bullets: [] };
+    } else if (heading) {
+      current.heading = plainText(heading[1]).slice(0, 100);
+    } else {
+      current.bullets.push(plainText(line).replace(/^[-*+]\s+/, '').slice(0, 420));
+    }
+  }
+  if (current.bullets.length || !sections.length) sections.push(current);
+
+  for (const section of sections) {
+    for (let start = 0; start < section.bullets.length; start += 6) {
+      const slide = pptx.addSlide();
+      slide.background = { color: 'FFFFFF' };
+      slide.addText(section.heading, {
+        x: 0.75, y: 0.62, w: 11.8, h: 0.62, fontFace: 'Aptos Display', fontSize: 24,
+        bold: true, color: '0F172A', margin: 0, fit: 'shrink', breakLine: false,
+      });
+      const bullets = section.bullets.slice(start, start + 6);
+      slide.addText(bullets.map(item => ({ text: item, options: { bullet: { indent: 18 }, hanging: 4 } })), {
+        x: 0.95, y: 1.55, w: 11.0, h: 4.9, fontFace: 'Aptos', fontSize: 18,
+        color: '334155', breakLine: true, paraSpaceAfter: 14, valign: 'top', margin: 0.05,
+        fit: 'shrink', bullet: { indent: 18 },
+      });
+      addFooter(slide);
+    }
+  }
+
+  const output = await pptx.write({ outputType: 'nodebuffer' });
+  if (Buffer.isBuffer(output)) return output;
+  if (output instanceof Uint8Array) return Buffer.from(output);
+  if (output instanceof ArrayBuffer) return Buffer.from(new Uint8Array(output));
+  if (typeof output === 'string') return Buffer.from(output, 'binary');
+  throw new Error('PPTX generation returned an unsupported output type.');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -168,14 +247,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const identity = await requireIdentity(req);
     const body = parseBody(req);
     const format = safeString(body.format, 10).toLowerCase() as ArtifactFormat;
-    if (format !== 'pdf' && format !== 'docx') return json(res, 400, { error: 'Choose PDF or DOCX.' });
+    if (format !== 'pdf' && format !== 'docx' && format !== 'pptx') return json(res, 400, { error: 'Choose PDF, DOCX, or PPTX.' });
     const title = safeString(body.title, MAX_TITLE).trim() || 'Hanna learning document';
     const content = safeString(body.content, MAX_CONTENT).trim();
     if (!content) return json(res, 400, { error: 'Document content is required.' });
 
-    const buffer = format === 'pdf' ? await createPdf(title, content) : await createDocx(title, content);
+    const buffer = format === 'pdf' ? await createPdf(title, content) : format === 'docx' ? await createDocx(title, content) : await createPptx(title, content);
     const extension = format;
-    const mime = format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const mime = format === 'pdf'
+      ? 'application/pdf'
+      : format === 'docx'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     const safeName = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 70) || 'hanna-document';
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.${extension}"`);
