@@ -40,6 +40,9 @@ import {
   Maximize2,
   Send,
   Paperclip,
+  Plus,
+  Image as ImageIcon,
+  Presentation,
   X,
   Sparkles,
   FileText,
@@ -201,6 +204,13 @@ function getContextActionChips(type: string): string[] {
 /**
  * Returns dynamic action chips after Hanna responds based on message content
  */
+const HANNA_CREATION_ACTIONS = [
+  { label: 'Create slides', prompt: 'Create a clear educational slide deck about: ', icon: Presentation },
+  { label: 'Create image', prompt: 'Create an educational image about: ', icon: ImageIcon },
+  { label: 'Create PDF', prompt: 'Create a polished PDF learning document about: ', icon: FileText },
+  { label: 'Create document', prompt: 'Create a well-structured learning document about: ', icon: FileText },
+] as const;
+
 function getFeedbackChips(lastMessageText: string): string[] {
   const text = lastMessageText.toLowerCase();
   if (text.includes('math') || text.includes('equation') || text.includes('calculat')) {
@@ -225,6 +235,7 @@ export function HannaButton() {
 
   // Core chat session state
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -241,6 +252,7 @@ export function HannaButton() {
   // Custom Settings Dialogue State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isPromptMenuOpen, setIsPromptMenuOpen] = useState(false);
 
   // Active Workspace Mode: 'Conversation' | 'Explanation' | 'Visuals' | 'Practice'
   const [workspaceMode, setWorkspaceMode] = useState<'Conversation' | 'Explanation' | 'Visuals' | 'Practice'>('Conversation');
@@ -315,30 +327,33 @@ export function HannaButton() {
         return tB - tA;
       });
       setChatSessions(sorted);
-    }, (error) => console.error('Error loading chats:', error));
+      setSessionsLoaded(true);
+    }, (error) => {
+      console.error('Error loading chats:', error);
+      setSessionsLoaded(true);
+    });
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Handle opening the widget for the first time in a session or clicking floating icon
-  const handleOpenWidget = async (targetState: 'compact' | 'expanded') => {
+  // Opening Hanna resumes the latest saved chat. A blank session is created only
+  // after the user sends a first message or explicitly chooses New Chat.
+  const handleOpenWidget = (targetState: 'compact' | 'expanded') => {
     setWidgetState(targetState);
-    if (!currentUser) return;
+    setIsPromptMenuOpen(false);
+    if (!sessionsLoaded || currentChatId || chatSessions.length === 0) return;
+    setCurrentChatId(chatSessions[0].id);
+  };
 
-    // Check if we already started a new conversation for this specific app session
-    const freshSessionStarted = sessionStorage.getItem(`hanna_fresh_started_${currentUser.uid}`);
-
-    if (!freshSessionStarted) {
-      try {
-        const freshId = await createNewSession();
-        setCurrentChatId(freshId);
-        sessionStorage.setItem(`hanna_fresh_started_${currentUser.uid}`, 'true');
-      } catch (error) {
-        console.warn('Could not auto-start fresh session:', error);
-      }
-    } else if (chatSessions.length > 0 && !currentChatId) {
-      // Fallback to most recent session if none currently selected
+  useEffect(() => {
+    if (widgetState !== 'button' && sessionsLoaded && !currentChatId && chatSessions.length > 0) {
       setCurrentChatId(chatSessions[0].id);
     }
+  }, [chatSessions, currentChatId, sessionsLoaded, widgetState]);
+
+  const applyCreationPrompt = (prompt: string) => {
+    setInputValue((previous) => `${prompt}${previous.trim()}`.trimEnd());
+    setIsPromptMenuOpen(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   // Subscribe to messages when a chat ID is active
@@ -632,6 +647,9 @@ export function HannaButton() {
       setCurrentChatId(freshId);
       setMessages([]);
       setInputValue('');
+      setAttachments([]);
+      setIsPromptMenuOpen(false);
+      setIsHistoryOpen(false);
       toast.success('Started a fresh conversation session!');
     } catch (e) {
       toast.error('Could not create a new conversation');
@@ -775,6 +793,7 @@ export function HannaButton() {
                         )}
                       </div>
                       <div className="space-y-0.5">
+                        {m.attachments?.length ? <div className={`flex flex-wrap gap-1.5 ${isHanna ? 'justify-start' : 'justify-end'}`}>{m.attachments.map((attachment, index) => attachment.mimeType.startsWith('image/') ? <img key={`${attachment.url}-${index}`} src={attachment.url} alt="Attached image" className="max-h-32 max-w-[180px] rounded-xl border border-slate-200/50 object-cover dark:border-white/10" /> : <span key={`${attachment.url}-${index}`} className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2 py-1 text-[10px] text-slate-500 dark:bg-white/5 dark:text-slate-300"><FileText className="h-3 w-3 text-emerald-500" />Attached file</span>)}</div> : null}
                         <div className={`
                           px-3 py-2 rounded-2xl text-xs leading-relaxed
                           ${isHanna
@@ -848,11 +867,36 @@ export function HannaButton() {
         </div>
 
         {/* Input Composer (Compact State) */}
-        <footer className="p-4 border-t border-slate-200/50 dark:border-white/5">
+        <footer className="shrink-0 sticky bottom-0 p-4 border-t border-slate-200/50 dark:border-white/5 bg-white/95 dark:bg-[#09090d]/95 backdrop-blur-xl">
+          {(attachments.length > 0 || uploadingFiles) && (
+            <div className="mb-2 flex max-w-full flex-wrap gap-2" aria-label="Selected attachments">
+              {attachments.map((attachment) => attachment.mimeType.startsWith('image/') ? (
+                <div key={attachment.url} className="relative h-16 w-16 overflow-hidden rounded-xl border border-slate-200 shadow-sm dark:border-white/10">
+                  <img src={attachment.url} alt="Selected image" className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => removeAttachment(attachment.url)} aria-label={`Remove ${attachment.name}`} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white hover:bg-red-500"><X className="h-3 w-3" /></button>
+                </div>
+              ) : (
+                <div key={attachment.url} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] font-bold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                  <FileText className="h-3.5 w-3.5 text-emerald-500" /> Attached file
+                  <button type="button" onClick={() => removeAttachment(attachment.url)} aria-label={`Remove ${attachment.name}`}><X className="h-3 w-3 text-slate-400 hover:text-red-500" /></button>
+                </div>
+              ))}
+              {uploadingFiles && <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-400 dark:border-white/10 dark:bg-white/5"><Loader2 className="h-3 w-3 animate-spin" /> Preparing attachment</span>}
+            </div>
+          )}
           <form
             onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
-            className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 p-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all"
+            className="relative flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 p-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all"
           >
+            <div className="relative shrink-0">
+              <button type="button" onClick={() => setIsPromptMenuOpen((value) => !value)} aria-expanded={isPromptMenuOpen} aria-label="Add to Hanna chat" className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-white/10">
+                <Plus className={`h-5 w-5 transition-transform ${isPromptMenuOpen ? 'rotate-45' : ''}`} />
+              </button>
+              {isPromptMenuOpen && <div className="absolute bottom-11 left-0 z-30 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-[#11151d]">
+                <button type="button" onClick={() => { setIsPromptMenuOpen(false); fileInputRef.current?.click(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><Paperclip className="h-4 w-4 text-emerald-500" />Attach image or file</button>
+                {HANNA_CREATION_ACTIONS.map((action) => <button type="button" key={action.label} onClick={() => applyCreationPrompt(action.prompt)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><action.icon className="h-4 w-4 text-amber-500" />{action.label}</button>)}
+              </div>}
+            </div>
             <textarea
               ref={textareaRef}
               value={inputValue}
@@ -863,7 +907,7 @@ export function HannaButton() {
                   handleSendMessage();
                 }
               }}
-              placeholder="Ask Hanna anything..."
+              placeholder="Assign a task or ask anything"
               rows={1}
               className="flex-1 bg-transparent border-0 outline-none resize-none text-[13px] leading-relaxed px-2 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-100 max-h-24"
               disabled={isGenerating}
@@ -890,7 +934,7 @@ export function HannaButton() {
             ) : (
               <button
                 type="submit"
-                disabled={!inputValue.trim() || uploadingFiles}
+                disabled={(!inputValue.trim() && attachments.length === 0) || uploadingFiles}
                 className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/10 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -1278,26 +1322,19 @@ export function HannaButton() {
           )}
 
           {(attachments.length > 0 || uploadingFiles) && (
-            <div className="flex flex-wrap gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-              {attachments.map(att => (
-                <span key={att.url} className="inline-flex items-center gap-1 pl-1 pr-1.5 py-1 rounded-xl bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-[10px] shadow-sm">
-                  {att.mimeType.startsWith('image/') ? (
-                    <img src={att.url} alt="" className="w-6 h-6 rounded object-cover" />
-                  ) : (
-                    <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                  )}
-                  <span className="max-w-[110px] truncate text-slate-700 dark:text-slate-300">{att.name}</span>
-                  <button onClick={() => removeAttachment(att.url)} className="text-slate-400 hover:text-red-500 ml-1">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
+            <div className="flex max-w-full flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200" aria-label="Selected attachments">
+              {attachments.map(att => att.mimeType.startsWith('image/') ? (
+                <div key={att.url} className="relative h-16 w-16 overflow-hidden rounded-xl border border-slate-200 shadow-sm dark:border-white/10">
+                  <img src={att.url} alt="Selected image" className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => removeAttachment(att.url)} aria-label={`Remove ${att.name}`} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white hover:bg-red-500"><X className="h-3 w-3" /></button>
+                </div>
+              ) : (
+                <div key={att.url} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] font-bold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                  <FileText className="h-3.5 w-3.5 text-emerald-500" /> Attached file
+                  <button type="button" onClick={() => removeAttachment(att.url)} aria-label={`Remove ${att.name}`}><X className="h-3 w-3 text-slate-400 hover:text-red-500" /></button>
+                </div>
               ))}
-              {uploadingFiles && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white dark:bg-[#111115] border border-slate-200/60 dark:border-white/5 text-[10px] text-slate-400 shadow-sm">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Uploading...</span>
-                </span>
-              )}
+              {uploadingFiles && <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-400 dark:border-white/10 dark:bg-white/5"><Loader2 className="h-3 w-3 animate-spin" /> Preparing attachment</span>}
             </div>
           )}
 
@@ -1315,15 +1352,15 @@ export function HannaButton() {
               onChange={handleFilePick}
             />
 
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingFiles || isGenerating}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex-shrink-0"
-              title="Attach File"
-            >
-              <Paperclip className="w-4.5 h-4.5" />
-            </button>
+            <div className="relative shrink-0">
+              <button type="button" onClick={() => setIsPromptMenuOpen((value) => !value)} aria-expanded={isPromptMenuOpen} aria-label="Add to Hanna chat" className="grid h-8 w-8 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-emerald-500 dark:hover:bg-white/5">
+                <Plus className={`h-4.5 w-4.5 transition-transform ${isPromptMenuOpen ? 'rotate-45' : ''}`} />
+              </button>
+              {isPromptMenuOpen && <div className="absolute bottom-11 left-0 z-30 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-[#11151d]">
+                <button type="button" onClick={() => { setIsPromptMenuOpen(false); fileInputRef.current?.click(); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><Paperclip className="h-4 w-4 text-emerald-500" />Attach image or file</button>
+                {HANNA_CREATION_ACTIONS.map((action) => <button type="button" key={action.label} onClick={() => applyCreationPrompt(action.prompt)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold hover:bg-slate-100 dark:hover:bg-white/10"><action.icon className="h-4 w-4 text-amber-500" />{action.label}</button>)}
+              </div>}
+            </div>
 
             <textarea
               ref={textareaRef}
@@ -1335,7 +1372,7 @@ export function HannaButton() {
                   handleSendMessage();
                 }
               }}
-              placeholder="Ask Hanna anything..."
+              placeholder="Assign a task or ask anything"
               rows={1}
               className="flex-1 bg-transparent border-0 outline-none resize-none text-xs leading-relaxed py-1.5 px-0.5 max-h-24 placeholder:text-slate-400 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-100"
               disabled={isGenerating}
