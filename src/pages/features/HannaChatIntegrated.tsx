@@ -11,6 +11,7 @@ import { streamHannaReply, isGeminiConfigured, generateSmartTitle, exportHannaAr
 import { researchWithHanna, searchImagesForHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
 import { IMAGE_CAPABLE_GEMINI_MODELS, SERVER_SUPPORTED_GEMINI_MODELS } from '@/lib/geminiModels';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
+import { filterHannaSessions } from '@/lib/hannaArchive';
 import {
   addDoc, collection, deleteDoc, doc, increment, onSnapshot, query, serverTimestamp,
   updateDoc, where,
@@ -188,7 +189,7 @@ export default function HannaChatIntegrated() {
   const researchEnabled = hannaMode === 'web_search' || hannaMode === 'deep_research';
   const selectedMode = HANNA_MODE_OPTIONS.find(option => option.value === hannaMode) || HANNA_MODE_OPTIONS[0];
   const rolePrompts = ROLE_PROMPTS[userRole || 'student'] || PROMPTS;
-  const visibleSessions = useMemo(() => sessions.filter(s => Boolean(s.archived) === showArchivedSessions && s.title.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => Number(b.pinnedBy?.includes(currentUser?.uid || '') || false) - Number(a.pinnedBy?.includes(currentUser?.uid || '') || false) || millis(b.updatedAt) - millis(a.updatedAt)), [sessions, searchQuery, currentUser, showArchivedSessions]);
+  const visibleSessions = useMemo(() => filterHannaSessions(sessions, showArchivedSessions, searchQuery, currentUser?.uid || ''), [sessions, searchQuery, currentUser, showArchivedSessions]);
   const archivedSessionCount = useMemo(() => sessions.filter(session => session.archived).length, [sessions]);
   const latestHannaMessage = [...messages].reverse().find(m => m.senderRole === 'hanna');
 
