@@ -4,7 +4,7 @@ import { ArrowUpRight, BarChart3, BookOpen, CheckCircle2, ChevronRight, Clock3, 
 import { useAuth } from '@/contexts/AuthContext';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
 import ActivitySummaryCard from '@/components/ActivitySummaryCard';
-import BannerCarousel from '@/components/BannerCarousel';
+import RoleVideoUpdate from '@/components/RoleVideoUpdate';
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -53,7 +53,7 @@ export default function TeacherDashboard() {
   ];
 
   return <div className="liv-page">
-    <BannerCarousel pageScope="homepage" />
+    <RoleVideoUpdate />
     <header className="liv-page-header">
       <div><span className="liv-eyebrow">Educator studio · {formatDate(Date.now())}</span><h1 className="liv-title">Good morning, {userData?.fullName?.split(' ')[0] || 'Educator'}.</h1><p className="liv-subtitle">Your educator workspace is ready. Keep your learners moving with one clear next step.</p></div>
       <button className="liv-button liv-button-green" onClick={() => navigate('/features/tearn')}><Plus size={16} /> Create module</button>

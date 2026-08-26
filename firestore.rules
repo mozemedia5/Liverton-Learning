@@ -74,6 +74,26 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isPlatformAdmin();
     }
+    // Platform-admin video updates are readable only while active and only by
+    // the authenticated role they target. Creation and management stay admin-only.
+    match /dashboardAnnouncements/{announcementId} {
+      allow read: if isPlatformAdmin() || (
+        isAuthenticated() &&
+        resource.data.isActive == true &&
+        resource.data.status == 'active' &&
+        resource.data.type == 'video' &&
+        resource.data.expiresAt > request.time &&
+        (
+          resource.data.targetAudience == 'all' ||
+          resource.data.get('targetRoles', []).hasAny(['all']) ||
+          (isStudent() && (resource.data.targetAudience == 'students' || resource.data.get('targetRoles', []).hasAny(['students']))) ||
+          (isTeacher() && (resource.data.targetAudience == 'teachers' || resource.data.get('targetRoles', []).hasAny(['teachers']))) ||
+          (isParent() && (resource.data.targetAudience == 'parents' || resource.data.get('targetRoles', []).hasAny(['parents']))) ||
+          (isSchoolAdmin() && (resource.data.targetAudience == 'school_admins' || resource.data.get('targetRoles', []).hasAny(['school_admins'])))
+        )
+      );
+      allow write: if isPlatformAdmin();
+    }
     match /notifications/{notificationId} {
       allow read: if isAuthenticated();
       allow create, update: if isPlatformAdmin();

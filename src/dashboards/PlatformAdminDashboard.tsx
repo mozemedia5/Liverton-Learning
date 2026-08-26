@@ -22,9 +22,9 @@ import {
   BookOpen,
   FileText,
   Image as ImageIcon,
-  TrendingUp
+  TrendingUp,
+  Video
 } from 'lucide-react';
-import BannerCarousel from '@/components/BannerCarousel';
 import { 
   getDashboardStats, 
   getPendingVerifications,
@@ -246,10 +246,6 @@ export default function PlatformAdminDashboard() {
 
   return (
     <div className="space-y-6">
-        {/* Dashboard Banner */}
-        <BannerCarousel pageScope="homepage" />
-
-
         {/* Welcome */}
         <div className="flex items-center justify-between">
           <div>
@@ -465,7 +461,26 @@ export default function PlatformAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card 
+          <Card
+            className="hover:shadow-md transition-shadow cursor-pointer border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-900/10"
+            onClick={() => navigate('/admin/dashboard-announcements')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-lg flex items-center justify-center">
+                    <Video className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Video Updates</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Send updates by role</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm">Create</Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card
             className="hover:shadow-md transition-shadow cursor-pointer border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/10"
             onClick={() => navigate('/admin/dashboard-banners')}
           >
@@ -477,7 +492,7 @@ export default function PlatformAdminDashboard() {
                   </div>
                   <div>
                     <p className="font-semibold">Dashboard Banners</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Manage rotating banners</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Manage Liv Teams banners</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">Manage</Button>

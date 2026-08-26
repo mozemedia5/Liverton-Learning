@@ -4,7 +4,7 @@ import { ArrowUpRight, BookOpen, CheckCircle2, ChevronRight, Clock3, Flame, Play
 import { useAuth } from '@/contexts/AuthContext';
 import { useCourses } from '@/hooks/useCourses';
 import ActivitySummaryCard from '@/components/ActivitySummaryCard';
-import BannerCarousel from '@/components/BannerCarousel';
+import RoleVideoUpdate from '@/components/RoleVideoUpdate';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function StudentDashboard() {
   ];
 
   return <div className="liv-page">
-    <BannerCarousel pageScope="homepage" />
+    <RoleVideoUpdate />
     <header className="liv-page-header"><div><span className="liv-eyebrow">Student space · Your learning rhythm</span><h1 className="liv-title">Keep going, {name}.</h1><p className="liv-subtitle">Your learning space reflects the modules and progress connected to your account.</p></div><button className="liv-button liv-button-green" onClick={() => navigate('/student/courses')}><BookOpen size={16} /> Explore modules</button></header>
     <section className="liv-hero-card"><div><span className="liv-eyebrow">Your library</span><h2>{courses.length ? `${activeCourses.length} module${activeCourses.length === 1 ? '' : 's'} ready when you are.` : 'Your next chapter starts here.'}</h2><p>{courses.length ? 'Continue a module below or explore the library for your next focused session.' : 'Once you join a module, your real progress and next steps will appear here.'}</p><button className="liv-button liv-button-green" style={{ marginTop: 20 }} onClick={() => navigate('/student/courses')}>{courses.length ? 'Continue learning' : 'Browse modules'} <ArrowUpRight size={15} /></button></div><div style={{ display:'grid', placeItems:'center', minWidth:90 }}><Flame size={58} color="var(--liv-green)" fill="var(--liv-green)" /></div></section>
     <ActivitySummaryCard />

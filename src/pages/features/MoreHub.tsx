@@ -1,7 +1,6 @@
 import { ArrowUpRight, BookOpen, CalendarDays, FileText, HeartHandshake, MessageCircle, Settings, ShoppingBag, Sparkles, Users, UserRound, BriefcaseBusiness } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import BannerCarousel from '@/components/BannerCarousel';
 import AskHannaIcon from '@/components/AskHannaIcon';
 
 const items = [
@@ -22,7 +21,6 @@ export default function MoreHub() {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   return <div className="liv-page">
-    <BannerCarousel pageScope="more" />
     <header className="liv-page-header"><div><span className="liv-eyebrow">Liverton ecosystem</span><h1 className="liv-title">More, made useful.</h1><p className="liv-subtitle">A calm home for every part of your learning, work, community, and account experience.</p></div><button className="liv-button liv-button-green" onClick={() => navigate('/features/hanna-ai')}><Sparkles size={16} /> Ask Hanna</button></header>
     <section className="liv-hero-card"><div><span className="liv-eyebrow">One platform, many paths</span><h2>Move from learning to doing without losing your flow.</h2><p>Everything here is connected to the same account and the same responsive workspace.</p></div><div style={{ display:'grid', placeItems:'center', minWidth:90 }}><Users size={58} color="var(--liv-green)" /></div></section>
     <div className="liv-section-head"><h2>Explore Liverton</h2><span className="liv-eyebrow">Choose your next move</span></div>

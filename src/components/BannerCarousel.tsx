@@ -109,7 +109,7 @@ export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) 
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!userRole && !pageScope) return;
+    if (pageScope !== 'liv_teams' || !userRole) return;
 
     const q = query(
       collection(db, 'dashboardBanners'),
@@ -177,7 +177,7 @@ export default function BannerCarousel({ pageScope }: BannerCarouselProps = {}) 
     return () => clearInterval(interval);
   }, [isPlaying, banners.length]);
 
-  if (userRole === 'platform_admin' || banners.length === 0) {
+  if (pageScope !== 'liv_teams' || userRole === 'platform_admin' || banners.length === 0) {
     return null;
   }
 

@@ -40,14 +40,23 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
-import type { DashboardAnnouncement, AnnouncementType } from '@/types/announcement';
+import type { DashboardAnnouncement, AnnouncementAudience, AnnouncementType } from '@/types/announcement';
+
+const AUDIENCE_OPTIONS: Array<{ value: AnnouncementAudience; label: string }> = [
+  { value: 'all', label: 'All authenticated users' },
+  { value: 'students', label: 'Students' },
+  { value: 'teachers', label: 'Teachers' },
+  { value: 'parents', label: 'Parents' },
+  { value: 'school_admins', label: 'Organizations / school admins' },
+  { value: 'platform_admins', label: 'Platform administrators' },
+];
 
 export default function DashboardAnnouncementManagement() {
   const navigate = useNavigate();
   const { userData, currentUser } = useAuth();
   
   // Check if user is admin
-  const isAdmin = userData?.role === 'platform_admin' || userData?.role === 'school_admin';
+  const isAdmin = userData?.role === 'platform_admin';
   
   // State
   const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([]);
@@ -57,7 +66,7 @@ export default function DashboardAnnouncementManagement() {
   const [uploadProgress, setUploadProgress] = useState(0);
   
   // Form state
-  const [announcementType, setAnnouncementType] = useState<AnnouncementType>('image');
+  const [announcementType, setAnnouncementType] = useState<AnnouncementType>('video');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
@@ -67,7 +76,18 @@ export default function DashboardAnnouncementManagement() {
   const [priority, setPriority] = useState(5);
   const [backgroundColor, setBackgroundColor] = useState('#3B82F6');
   const [textColor, setTextColor] = useState('#FFFFFF');
-  const [targetAudience, setTargetAudience] = useState<'all' | 'students' | 'teachers' | 'admins'>('all');
+  const [targetRoles, setTargetRoles] = useState<AnnouncementAudience[]>(['all']);
+
+  const toggleTargetRole = (role: AnnouncementAudience) => {
+    setTargetRoles((current) => {
+      if (role === 'all') return current.includes('all') ? [] : ['all'];
+      const withoutAll = current.filter((item) => item !== 'all');
+      const next = withoutAll.includes(role)
+        ? withoutAll.filter((item) => item !== role)
+        : [...withoutAll, role];
+      return next;
+    });
+  };
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
@@ -175,6 +195,11 @@ export default function DashboardAnnouncementManagement() {
       return;
     }
 
+    if (targetRoles.length === 0) {
+      toast.error('Select at least one target role');
+      return;
+    }
+
     if (announcementType === 'image' && !imageFile) {
       toast.error('Please select an image');
       return;
@@ -240,7 +265,8 @@ export default function DashboardAnnouncementManagement() {
         views: 0,
         clicks: 0,
         isActive: true,
-        targetAudience,
+        targetAudience: targetRoles.includes('all') ? 'all' : targetRoles[0],
+        targetRoles,
       };
 
       await addDoc(collection(db, 'dashboardAnnouncements'), announcementData);
@@ -271,11 +297,11 @@ export default function DashboardAnnouncementManagement() {
     setPriority(5);
     setBackgroundColor('#3B82F6');
     setTextColor('#FFFFFF');
-    setTargetAudience('all');
+    setTargetRoles(['all']);
     setImageFile(null);
     setVideoFile(null);
     setImagePreview('');
-    setAnnouncementType('image');
+    setAnnouncementType('video');
   };
 
   // Toggle announcement active status
@@ -318,10 +344,10 @@ export default function DashboardAnnouncementManagement() {
             </Button>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                Dashboard Announcements
+                Video Updates
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Create and manage promotional banners for user dashboards
+                Send responsive video updates to selected user roles. Liv Teams banners are managed separately.
               </p>
             </div>
           </div>
@@ -331,7 +357,7 @@ export default function DashboardAnnouncementManagement() {
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
-              New Announcement
+              New Video Update
             </Button>
           )}
         </div>
@@ -358,7 +384,7 @@ export default function DashboardAnnouncementManagement() {
               {/* Announcement Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Announcement Type
+                  Update Type
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   <button
@@ -403,12 +429,12 @@ export default function DashboardAnnouncementManagement() {
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Title *
+                    Update title *
                 </label>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter announcement title"
+                  placeholder="e.g. Welcome to this week’s learning update"
                   required
                   maxLength={100}
                 />
@@ -422,7 +448,7 @@ export default function DashboardAnnouncementManagement() {
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief description (optional)"
+                  placeholder="Tell the selected roles what this update is about"
                   rows={2}
                   maxLength={200}
                 />
@@ -629,18 +655,22 @@ export default function DashboardAnnouncementManagement() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    Target Audience
+                    Send update to
                   </label>
-                  <select
-                    value={targetAudience}
-                    onChange={(e) => setTargetAudience(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                  >
-                    <option value="all">All Users</option>
-                    <option value="students">Students</option>
-                    <option value="teachers">Teachers</option>
-                    <option value="admins">Admins</option>
-                  </select>
+                  <div className="grid gap-2 rounded-lg border border-gray-300 p-3 dark:border-gray-700">
+                    {AUDIENCE_OPTIONS.map((option) => (
+                      <label key={option.value} className="flex cursor-pointer items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={targetRoles.includes(option.value)}
+                          onChange={() => toggleTargetRole(option.value)}
+                          className="rounded"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">The update appears only on the selected authenticated role dashboards.</p>
                 </div>
               </div>
 
@@ -676,7 +706,7 @@ export default function DashboardAnnouncementManagement() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Create Announcement
+                      Publish Video Update
                     </>
                   )}
                 </Button>
@@ -699,7 +729,7 @@ export default function DashboardAnnouncementManagement() {
         {/* Announcements List */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            All Announcements ({announcements.length})
+            Published and draft updates ({announcements.length})
           </h2>
 
           {isLoading ? (
@@ -715,14 +745,14 @@ export default function DashboardAnnouncementManagement() {
                 No announcements yet
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Create your first dashboard announcement to get started
+                Create the first role-targeted video update for your community
               </p>
               <Button
                 onClick={() => setShowCreateForm(true)}
                 className="bg-blue-500 hover:bg-blue-600 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Create Announcement
+                Create Video Update
               </Button>
             </Card>
           ) : (
@@ -765,7 +795,7 @@ export default function DashboardAnnouncementManagement() {
                         </span>
                         <span>Priority: {announcement.priority}</span>
                         <span>Expires: {new Date(announcement.expiresAt?.toMillis?.() || 0).toLocaleDateString()}</span>
-                        <span className="capitalize">Target: {announcement.targetAudience}</span>
+                        <span>Target: {(announcement.targetRoles?.length ? announcement.targetRoles : [announcement.targetAudience || 'all']).join(', ')}</span>
                       </div>
 
                       {announcement.redirectUrl && (
