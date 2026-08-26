@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import {
   Users, Plus, Search, Compass, Bookmark, Store, Landmark,
   Settings as SettingsIcon, Globe, Languages, Mail, ArrowRight,
-  Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, LogIn, Sparkles
+  Loader2, Pencil, Trash2, Download, Star, Heart, LayoutGrid, Sparkles
 } from 'lucide-react';
 import { enhanceTextWithHanna } from '@/lib/hannaGemini';
 import {
@@ -75,7 +75,6 @@ export default function LivTeams() {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editVisibility, setEditVisibility] = useState<TeamVisibility>('public');
-  const [editMaxMembers, setEditMaxMembers] = useState(50);
   const [editWelcome, setEditWelcome] = useState('');
   const [editRules, setEditRules] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
@@ -261,7 +260,6 @@ export default function LivTeams() {
     setEditName(team.name);
     setEditDescription(team.description || '');
     setEditVisibility(team.visibility);
-    setEditMaxMembers(team.maxMembers || 50);
     setEditWelcome(team.welcomeMessage || '');
     setEditRules(team.rules || '');
   };

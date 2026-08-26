@@ -156,7 +156,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = parseBody(req);
     operation = safeString(body.operation || 'chat', 40) || 'chat';
     const mode = parseHannaMode(body.mode);
-    const message = safeString(body.message, operationPolicy(operation).maxChars);
+    const requestedModel = safeString(body.model, 100);
+    const message = safeString(body.message, operationPolicy(operation, requestedModel).maxChars);
     if (!message) return json(res, 400, { error: 'A message is required' });
 
     const chatId = safeString(body.chatId, 160);
@@ -192,10 +193,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? `\nAttached media types: ${attachmentTypes.join(', ')}. Analyze the attached content directly. For audio, provide a transcript when requested or when no more specific task is given. For PDFs, use both visible layout and text. For images, describe uncertainty and distinguish visible facts from inference.`
       : '';
     const prompt = `${systemPrompt(identity, operation, mode, personalContext.preferences?.customInstructions || '', requestHistory.length > 0)}${mediaInstruction}`;
-    const policy = operationPolicy(operation);
+    const policy = operationPolicy(operation, requestedModel);
 
     if (operation !== 'chat') {
-      const result = await generateGemini(operation, prompt, requestHistory, parts);
+      const result = await generateGemini(operation, prompt, requestHistory, parts, requestedModel);
       await recordUsage(identity.uid, operation, result.model, result.credits, true);
       return json(res, 200, { success: true, result: result.text, model: result.model });
     }
@@ -206,7 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
     let fullText = '';
-    for await (const text of streamGemini(operation, prompt, requestHistory, parts)) {
+    for await (const text of streamGemini(operation, prompt, requestHistory, parts, requestedModel)) {
       fullText += text;
       sse(res, { type: 'chunk', text: fullText });
     }

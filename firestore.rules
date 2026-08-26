@@ -67,7 +67,8 @@ service cloud.firestore {
       allow update: if isTeacher() &&
         resource.data.teacherId == currentUserId();
       allow read: if isStudent() &&
-        currentUserId() in resource.data.enrolledStudents;
+        (currentUserId() in resource.data.get('enrolledStudents', []) ||
+         (resource.data.status == 'active' && resource.data.get('visibility', 'public') in ['public', 'unlisted']));
       allow read: if isParent();
     }
     match /announcements/{announcementId} {
@@ -460,6 +461,21 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.userId == currentUserId() && request.resource.data.courseId is string;
       allow update, delete: if isPlatformAdmin();
+    }
+    match /moduleProgress/{progressId} {
+      allow read: if isAuthenticated() && resource.data.studentId == currentUserId();
+      allow create, update: if isAuthenticated() && request.resource.data.studentId == currentUserId();
+      allow delete: if isAuthenticated() && resource.data.studentId == currentUserId();
+    }
+    match /moduleSubmissions/{submissionId} {
+      allow read: if isAuthenticated() && (resource.data.studentId == currentUserId() || resource.data.teacherId == currentUserId());
+      allow create: if isAuthenticated() && request.resource.data.studentId == currentUserId();
+      allow update: if isAuthenticated() && (resource.data.studentId == currentUserId() || resource.data.teacherId == currentUserId());
+      allow delete: if isAuthenticated() && resource.data.studentId == currentUserId();
+    }
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && resource.data.userId == currentUserId();
+      allow write: if false;
     }
     match /courseReviews/{reviewId} {
       allow read: if isAuthenticated();

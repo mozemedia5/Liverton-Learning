@@ -89,6 +89,7 @@ export async function streamHannaReply(
   userInfo?: { userName?: string; userRole?: string; customInstructions?: string },
   chatId?: string,
   mode: HannaMode = 'web_search',
+  model?: string,
 ): Promise<string> {
   const response = await fetch(HANNA_ENDPOINT, {
     method: 'POST',
@@ -102,6 +103,7 @@ export async function streamHannaReply(
       // The server reloads the authorized history. This is retained only for compatibility and is not trusted.
       history: history.slice(-20),
       mode,
+      model,
       customInstructions: userInfo?.customInstructions?.slice(0, 2000) || '',
     }),
   });
@@ -109,6 +111,23 @@ export async function streamHannaReply(
   const reply = await readSseStream(response, onChunk, signal);
   if (!reply.trim()) throw new Error('Hanna returned an empty response. Please try again.');
   return reply;
+}
+
+export async function generateHannaImage(prompt: string, model = 'gemini-3-pro-image'): Promise<{ title: string; url: string; thumbnailUrl: string; sourceUrl: string; model: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/hanna-media`, {
+    method: 'POST',
+    headers: await getGatewayHeaders(),
+    body: JSON.stringify({ prompt, model }),
+  });
+  if (!response.ok) return parseGatewayError(response);
+  const body = await response.json() as { data?: string; mimeType?: string; model?: string };
+  if (!body.data) throw new Error('Hanna did not return an image.');
+  const binary = atob(body.data);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const blob = new Blob([bytes], { type: body.mimeType || 'image/png' });
+  const url = URL.createObjectURL(blob);
+  return { title: prompt.slice(0, 80) || 'Hanna educational image', url, thumbnailUrl: url, sourceUrl: 'hanna-generated', model: body.model || model };
 }
 
 export function deriveChatTitle(firstMessage: string): string {

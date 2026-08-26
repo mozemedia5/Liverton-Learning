@@ -36,11 +36,11 @@ FLW_SECRET_HASH=replace-with-webhook-secret-hash
 VITE_FLW_PUBLIC_KEY=FLWPUBK_TEST-replace-me
 ```
 
-The current frontend has only a payment history/mock payment screen and a `flutterwaveRef` type field; it does not yet have a complete verified Flutterwave checkout endpoint. Until that endpoint exists, paid-module buttons must not grant access. The current implementation therefore routes paid-module intent to the payment page and leaves access gated pending verified checkout.
+The paid-module flow is implemented through the Vercel API routes `/api/flutterwave/initialize` and `/api/flutterwave/verify`. The browser sends an authenticated module purchase request to the server, the server creates a Flutterwave Standard hosted checkout and stores a pending payment intent, and Flutterwave returns the learner to `/payments`. The payment page then asks the server to verify the transaction status, reference, amount, and currency before the server transactionally updates the course enrollment and marks the payment completed. A client-side success redirect alone never grants access.
 
-## Required server-side checks
+## Implemented server-side checks
 
-Before granting module access, the future payment endpoint should verify the transaction reference, transaction status, amount, currency, and the intended module ID. It should also use a unique `tx_ref`, store a pending payment before redirecting, handle the callback and webhook idempotently, and grant access only after a server-side verification response confirms the exact expected amount and currency. Flutterwave recommends comparing transaction details before providing value and recommends webhooks where applicable.[3]
+Before granting module access, the verification endpoint checks the transaction reference, provider status, exact amount, exact currency, and intended module ID. It uses a unique `tx_ref`, stores a pending payment before redirecting, is idempotent when a completed payment is verified again, and grants access only after a server-side verification response confirms the expected transaction. The payment page also subscribes to the learner’s real payment records. A production webhook can be added later for asynchronous reconciliation, but no client-side redirect can grant access.
 
 The secret key must be kept in Vercel/server environment variables or another secrets manager. Flutterwave explicitly states that secret-key API calls must originate from the backend, not from the browser, and that keys should not be hardcoded in the codebase.[3]
 

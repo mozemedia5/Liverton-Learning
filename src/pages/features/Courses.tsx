@@ -18,7 +18,6 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import { subscribeToAllCourses, subscribeToStudentCourses, type Course } from '@/services/courseService';
 import {
   subscribeToAllCourseReviewSummaries,
@@ -253,7 +252,7 @@ export default function Courses() {
   const contextualRecommendations = filteredModules.filter((module) => matchesLearnerContext(module, userSubjects, userLevels));
   const recommendedModules = contextualRecommendations.length > 0 ? contextualRecommendations : sortedByPopularity;
 
-  const handleOpen = (module: Course) => navigate(`/courses/${module.id}`);
+  const handleOpen = (module: Course) => navigate(`/student/courses/${module.id}`);
   const displayedModules = viewMode === 'mine' ? myModules : filteredModules;
 
   return (
@@ -274,7 +273,7 @@ export default function Courses() {
               </div>
             </div>
           </div>
-          {userRole === 'teacher' && <Button onClick={() => toast.info('Create module is coming soon.')} className="shrink-0 rounded-xl bg-slate-900 text-white hover:bg-slate-700 dark:bg-white dark:text-black"><BookOpen className="mr-2 h-4 w-4" /> Create Module</Button>}
+          {userRole === 'teacher' && <Button onClick={() => navigate('/teacher/courses/create')} className="shrink-0 rounded-xl bg-slate-900 text-white hover:bg-slate-700 dark:bg-white dark:text-black"><BookOpen className="mr-2 h-4 w-4" /> Create Module</Button>}
         </div>
       </header>
 

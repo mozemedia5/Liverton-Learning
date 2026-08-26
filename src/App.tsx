@@ -57,6 +57,7 @@ const TeacherQuizzes = lazy(() => import('@/pages/teacher/TeacherQuizzes'));
 const MyQuiz = lazy(() => import('@/pages/teacher/MyQuiz'));
 const QuizAnalytics = lazy(() => import('@/pages/teacher/QuizAnalytics'));
 const TakeQuiz = lazy(() => import('@/pages/student/TakeQuiz'));
+const ModuleWorkspace = lazy(() => import('@/pages/student/ModuleWorkspace'));
 const UpcomingLiveLessons = lazy(() => import('@/pages/student/UpcomingLiveLessons'));
 const CreateCourse = lazy(() => import('@/pages/teacher/CreateCourse'));
 const TeacherCourses = lazy(() => import('@/pages/teacher/TeacherCourses'));
@@ -249,6 +250,11 @@ function AppRoutes() {
       <Route path="/student/quiz/:id" element={
         <ProtectedRoute allowedRoles={['student']}>
           <TakeQuiz />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/courses/:courseId" element={
+        <ProtectedRoute allowedRoles={['student', 'parent']}>
+          <AuthenticatedLayout><ModuleWorkspace /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
 

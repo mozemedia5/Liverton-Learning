@@ -1,5 +1,6 @@
 // Payments component
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +12,12 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-// import { toast } from 'sonner';
+import { subscribeToPaymentHistory, verifyModulePayment, type PaymentRecord } from '@/services/paymentService';
+import { toast } from 'sonner';
 
 interface Payment {
   id: string;
@@ -33,6 +36,10 @@ const mockPayments: Payment[] = [
   { id: '4', item: 'Chemistry Basics', type: 'Course Purchase', amount: 40, status: 'failed', date: '2026-02-01', reference: 'PAY-001230' },
   { id: '5', item: 'Computer Science 101', type: 'Course Purchase', amount: 60, status: 'refunded', date: '2026-01-28', reference: 'PAY-001225' },
 ];
+
+function formatPaymentDate(value: string | Date | undefined) {
+  return value instanceof Date ? value.toLocaleDateString() : value || 'Pending';
+}
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -56,13 +63,48 @@ const getStatusBadge = (status: string) => {
 
 export default function Payments() {
   const navigate = useNavigate();
-  useAuth();
+  const [searchParams] = useSearchParams();
+  const { currentUser } = useAuth();
+  const [verifying, setVerifying] = useState(false);
+  const [livePayments, setLivePayments] = useState<PaymentRecord[]>([]);
 
-  const totalSpent = mockPayments
+  useEffect(() => {
+    if (!currentUser) return;
+    return subscribeToPaymentHistory(currentUser.uid, setLivePayments);
+  }, [currentUser]);
+
+  useEffect(() => {
+    const transactionId = searchParams.get('transaction_id');
+    const txRef = searchParams.get('tx_ref');
+    const status = searchParams.get('status');
+    if (!currentUser || (!transactionId && !status)) return;
+    if (status && status !== 'successful' && !transactionId) {
+      toast.error('Payment was not completed. Your module access remains protected.');
+      return;
+    }
+    if (!transactionId || !txRef) return;
+    let active = true;
+    setVerifying(true);
+    verifyModulePayment(transactionId, txRef).then((result) => {
+      if (!active) return;
+      if (result.accessGranted && result.courseId) {
+        toast.success('Payment verified. Your module is now available.');
+        navigate(`/student/courses/${result.courseId}`, { replace: true });
+      } else {
+        toast.error('Payment could not be verified. No module access was granted.');
+      }
+    }).catch((error) => {
+      if (active) toast.error(error instanceof Error ? error.message : 'Payment verification failed.');
+    }).finally(() => { if (active) setVerifying(false); });
+    return () => { active = false; };
+  }, [currentUser, navigate, searchParams]);
+
+  const displayedPayments: Array<Payment | PaymentRecord> = livePayments.length ? livePayments : mockPayments;
+  const totalSpent = displayedPayments
     .filter(p => p.status === 'completed')
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const pendingAmount = mockPayments
+  const pendingAmount = displayedPayments
     .filter(p => p.status === 'pending')
     .reduce((sum, p) => sum + p.amount, 0);
 
@@ -86,7 +128,7 @@ export default function Payments() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 lg:p-6 space-y-6">
+      <main className="p-4 lg:p-6 space-y-6">{verifying && <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"><CardContent className="flex items-center gap-3 p-4 text-sm font-semibold text-emerald-800 dark:text-emerald-200"><Loader2 className="h-4 w-4 animate-spin" /> Verifying payment and preparing your module access...</CardContent></Card>}
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
@@ -123,7 +165,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Transactions</p>
-                  <p className="text-xl font-bold">{mockPayments.length}</p>
+                  <p className="text-xl font-bold">{displayedPayments.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -137,7 +179,7 @@ export default function Payments() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockPayments.map((payment) => (
+              {displayedPayments.map((payment) => (
                 <div 
                   key={payment.id} 
                   className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
@@ -147,7 +189,7 @@ export default function Payments() {
                     <div>
                       <p className="font-medium">{payment.item}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {payment.type} • {payment.date}
+                        {payment.type} • {formatPaymentDate('date' in payment ? payment.date : undefined)}
                       </p>
                       <p className="text-xs text-gray-500">
                         Ref: {payment.reference}

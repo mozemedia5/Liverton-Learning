@@ -1,11 +1,24 @@
 import { GoogleGenerativeAI, type Content, type Part } from '@google/generative-ai';
 
 const DEFAULT_MODEL = 'gemini-3.6-flash';
-const ALLOWED_MODELS = new Set(['gemini-3.6-flash', 'gemini-3.7-flash']);
+const STABLE_ENV_MODELS = new Set(['gemini-3.6-flash', 'gemini-3.7-flash']);
+const ALLOWED_MODELS = new Set([
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-3-flash-preview',
+  'gemini-3.1-pro-preview',
+  'gemini-3.6-flash',
+  'gemini-3.7-flash',
+]);
 
-export function getModelName() {
-  const requested = process.env.GEMINI_MODEL?.trim();
-  return requested && ALLOWED_MODELS.has(requested) ? requested : DEFAULT_MODEL;
+export function getModelName(requestedModel?: string) {
+  if (requestedModel?.trim() && ALLOWED_MODELS.has(requestedModel.trim())) return requestedModel.trim();
+  const environmentModel = process.env.GEMINI_MODEL?.trim();
+  return environmentModel && STABLE_ENV_MODELS.has(environmentModel) ? environmentModel : DEFAULT_MODEL;
+}
+
+export function isAllowedGeminiModel(model: string) {
+  return ALLOWED_MODELS.has(model);
 }
 
 /**
@@ -39,10 +52,10 @@ function getClient() {
   return new GoogleGenerativeAI(key);
 }
 
-function modelCandidates() {
-  const selected = getModelName();
+function modelCandidates(requestedModel?: string) {
+  const selected = getModelName(requestedModel);
   const alternate = selected === 'gemini-3.6-flash' ? 'gemini-3.7-flash' : 'gemini-3.6-flash';
-  return [selected, alternate];
+  return selected === alternate ? [selected] : [selected, alternate];
 }
 
 function isRetryableProviderError(error: unknown) {
@@ -58,13 +71,14 @@ function providerError(error: unknown) {
   return error;
 }
 
-export function operationPolicy(operation: string) {
+export function operationPolicy(operation: string, requestedModel?: string) {
+  const model = getModelName(requestedModel);
   const policies: Record<string, { model: string; maxChars: number; credits: number }> = {
-    chat: { model: getModelName(), maxChars: 5000, credits: 1 },
-    title: { model: getModelName(), maxChars: 3000, credits: 1 },
-    structured_poll: { model: getModelName(), maxChars: 5000, credits: 2 },
-    text_enhancement: { model: getModelName(), maxChars: 5000, credits: 2 },
-    document: { model: getModelName(), maxChars: 5000, credits: 5 },
+    chat: { model, maxChars: 5000, credits: 1 },
+    title: { model, maxChars: 3000, credits: 1 },
+    structured_poll: { model, maxChars: 5000, credits: 2 },
+    text_enhancement: { model, maxChars: 5000, credits: 2 },
+    document: { model, maxChars: 5000, credits: 5 },
   };
   return policies[operation] || policies.chat;
 }
@@ -74,9 +88,12 @@ export async function* streamGemini(
   systemPrompt: string,
   history: Content[],
   parts: Part[],
+  requestedModel?: string,
 ) {
+  void operation;
   let lastError: unknown;
-  for (const model of modelCandidates()) {
+  const candidates = modelCandidates(requestedModel);
+  for (const model of candidates) {
     try {
       const chat = getClient().getGenerativeModel({ model }).startChat({ history });
       const result = await chat.sendMessageStream([{ text: `${systemPrompt}\n\nUser request:` }, ...parts]);
@@ -87,7 +104,7 @@ export async function* streamGemini(
       return;
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error) || model === modelCandidates().at(-1)) throw providerError(error);
+      if (!isRetryableProviderError(error) || model === candidates.at(-1)) throw providerError(error);
     }
   }
   throw providerError(lastError);
@@ -98,17 +115,19 @@ export async function generateGemini(
   systemPrompt: string,
   history: Content[],
   parts: Part[],
+  requestedModel?: string,
 ) {
-  const policy = operationPolicy(operation);
+  const policy = operationPolicy(operation, requestedModel);
   let lastError: unknown;
-  for (const model of modelCandidates()) {
+  const candidates = modelCandidates(requestedModel);
+  for (const model of candidates) {
     try {
       const chat = getClient().getGenerativeModel({ model }).startChat({ history });
       const result = await chat.sendMessage([{ text: `${systemPrompt}\n\nUser request:` }, ...parts]);
       return { text: result.response.text(), model, credits: policy.credits };
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error) || model === modelCandidates().at(-1)) throw providerError(error);
+      if (!isRetryableProviderError(error) || model === candidates.at(-1)) throw providerError(error);
     }
   }
   throw providerError(lastError);

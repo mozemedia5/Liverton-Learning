@@ -149,8 +149,9 @@ export function HannaMarkdown({ text }: { text: string }) {
   // dollar-based marker noise; valid Markdown is still rendered structurally below.
   const cleanText = text
     .replace(/[#*\\\\]{3,}/g, '')
-    .replace(/[¥€]{2,}/g, '')
-    .replace(/[{}]{3,}/g, '')
+    .replace(/\${2,}/g, '')
+    .replace(/[¥€]/g, '')
+    .replace(/[{}]{2,}/g, '')
     .replace(/(^|\n)\s*#{4,}\s*/g, '$1');
   // Split into code fences vs regular content
   const segments = cleanText.split(/(```[\s\S]*?```)/g);
