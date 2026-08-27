@@ -1,4 +1,4 @@
-import { useEffect, useState, type ElementType, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from 'react';
 
 interface DashboardHeroProps {
   eyebrow: string;
@@ -22,12 +22,34 @@ export default function DashboardHero({
   children,
 }: DashboardHeroProps) {
   const [wordIndex, setWordIndex] = useState(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  const wordsKey = rotatingWords.join('|');
+  const words = useMemo(() => rotatingWords.length ? rotatingWords : ['learn'], [wordsKey]);
 
   useEffect(() => {
-    if (rotatingWords.length < 2) return;
-    const interval = window.setInterval(() => setWordIndex((current) => (current + 1) % rotatingWords.length), 2400);
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    const updatePageVisibility = () => setIsPageVisible(document.visibilityState === 'visible');
+    updateMotionPreference();
+    updatePageVisibility();
+    mediaQuery.addEventListener?.('change', updateMotionPreference);
+    document.addEventListener('visibilitychange', updatePageVisibility);
+    return () => {
+      mediaQuery.removeEventListener?.('change', updateMotionPreference);
+      document.removeEventListener('visibilitychange', updatePageVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    setWordIndex(0);
+  }, [wordsKey]);
+
+  useEffect(() => {
+    if (prefersReducedMotion || !isPageVisible || words.length < 2) return;
+    const interval = window.setInterval(() => setWordIndex((current) => (current + 1) % words.length), 2400);
     return () => window.clearInterval(interval);
-  }, [rotatingWords]);
+  }, [isPageVisible, prefersReducedMotion, words.length, wordsKey]);
 
   return (
     <section className="relative mb-6 overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-xl sm:p-8">
@@ -40,7 +62,7 @@ export default function DashboardHero({
             <span className="h-1.5 w-1.5 rounded-full bg-blue-300 shadow-[0_0_12px_rgba(147,197,253,.9)]" aria-hidden="true" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">{eyebrow}</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">{title} <span key={rotatingWords[wordIndex]} className="inline-block min-w-[4ch] text-blue-200 drop-shadow-[0_0_18px_rgba(147,197,253,.65)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2">{rotatingWords[wordIndex]}</span></h1>
+          <h1 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">{title} <span key={words[wordIndex]} aria-live="polite" className="inline-block min-w-[6ch] whitespace-nowrap text-blue-200 drop-shadow-[0_0_18px_rgba(147,197,253,.65)] [will-change:transform,opacity] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-reduce:animate-none">{words[wordIndex]}</span></h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100/80 sm:text-base">{description}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
