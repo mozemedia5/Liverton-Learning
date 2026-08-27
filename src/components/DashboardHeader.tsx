@@ -40,7 +40,7 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
   useEffect(() => {
     if (!currentUser?.uid) return;
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') void registerPushToken(userRole);
-  }, [currentUser?.uid, currentUser?.email]);
+  }, [currentUser?.uid, currentUser?.email, userRole]);
 
   // Live unread notification count for the bell badge
   useEffect(() => {
