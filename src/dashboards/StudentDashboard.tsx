@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCourses } from '@/hooks/useCourses';
 import ActivitySummaryCard from '@/components/ActivitySummaryCard';
 import RoleVideoUpdate from '@/components/RoleVideoUpdate';
-import DashboardHero from '@/components/DashboardHero';
+import AnimatedWord from '@/components/AnimatedWord';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export default function StudentDashboard() {
 
   return <div className="liv-page">
     <RoleVideoUpdate />
-    <DashboardHero eyebrow="Student space · Your learning rhythm" title={`Keep going, ${name}.`} rotatingWords={['learn', 'practice', 'discover', 'grow']} description="Your learning space reflects the modules and progress connected to your account." actionLabel="Explore modules" onAction={() => navigate('/student/courses')} actionIcon={BookOpen} />
+    <header className="liv-page-header"><div><span className="liv-eyebrow">Student space · Your learning rhythm</span><h1 className="liv-title">Keep going, {name}. <AnimatedWord words={['learn', 'practice', 'discover', 'grow']} /></h1><p className="liv-subtitle">Your learning space reflects the modules and progress connected to your account.</p></div><button className="liv-button liv-button-green" onClick={() => navigate('/student/courses')}><BookOpen size={16} /> Explore modules</button></header>
     <section className="liv-hero-card"><div><span className="liv-eyebrow">Your library</span><h2>{courses.length ? `${activeCourses.length} module${activeCourses.length === 1 ? '' : 's'} ready when you are.` : 'Your next chapter starts here.'}</h2><p>{courses.length ? 'Continue a module below or explore the library for your next focused session.' : 'Once you join a module, your real progress and next steps will appear here.'}</p><button className="liv-button liv-button-green" style={{ marginTop: 20 }} onClick={() => navigate('/student/courses')}>{courses.length ? 'Continue learning' : 'Browse modules'} <ArrowUpRight size={15} /></button></div><div style={{ display:'grid', placeItems:'center', minWidth:90 }}><Flame size={58} color="var(--liv-green)" fill="var(--liv-green)" /></div></section>
     <ActivitySummaryCard />
     <div className="liv-grid-4" style={{ marginTop: 14 }}>{stats.map(([label, value, note, Icon]) => <div className="liv-card liv-stat" key={label}><div className="liv-stat-top"><span>{label}</span><span className="liv-stat-icon"><Icon size={16} /></span></div><strong className="liv-stat-value">{value}</strong><span className="liv-stat-note">{note}</span></div>)}</div>

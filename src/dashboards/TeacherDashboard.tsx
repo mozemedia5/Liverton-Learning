@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
 import ActivitySummaryCard from '@/components/ActivitySummaryCard';
 import RoleVideoUpdate from '@/components/RoleVideoUpdate';
-import DashboardHero from '@/components/DashboardHero';
+import AnimatedWord from '@/components/AnimatedWord';
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -55,7 +55,10 @@ export default function TeacherDashboard() {
 
   return <div className="liv-page">
     <RoleVideoUpdate />
-    <DashboardHero eyebrow={`Educator studio · ${formatDate(Date.now())}`} title={`Good morning, ${userData?.fullName?.split(' ')[0] || 'Educator'}.`} rotatingWords={['teach', 'inspire', 'publish', 'grow']} description="Your educator workspace is ready. Keep your learners moving with one clear next step." actionLabel="Create module" onAction={() => navigate('/features/tearn')} actionIcon={Plus} />
+    <header className="liv-page-header">
+      <div><span className="liv-eyebrow">Educator studio · {formatDate(Date.now())}</span><h1 className="liv-title">Good morning, {userData?.fullName?.split(' ')[0] || 'Educator'}. <AnimatedWord words={['teach', 'inspire', 'publish', 'grow']} /></h1><p className="liv-subtitle">Your educator workspace is ready. Keep your learners moving with one clear next step.</p></div>
+      <button className="liv-button liv-button-green" onClick={() => navigate('/features/tearn')}><Plus size={16} /> Create module</button>
+    </header>
 
     <section className="liv-hero-card"><div><span className="liv-eyebrow">Your educator workspace</span><h2>Turn your best ideas into learning people remember.</h2><p>Create structured modules, invite co-creators, and publish lessons with outcomes your learners can see.</p><div style={{ display: 'flex', gap: 8, marginTop: 20 }}><button className="liv-button liv-button-green" onClick={() => navigate('/features/tearn')}>Open Educators Workhub <ArrowUpRight size={15} /></button><button className="liv-button liv-button-light" onClick={() => navigate('/features/liv-teams')}><Users size={15} /> Invite a creator</button></div></div>    </section>
     <ActivitySummaryCard />
