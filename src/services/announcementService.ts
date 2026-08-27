@@ -11,7 +11,7 @@ import {
   doc,
   deleteDoc
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 export interface Notification {
   id?: string;
@@ -90,6 +90,18 @@ export const createNotification = async (notification: Omit<Notification, 'id' |
       isHidden: false,
       isRead: false,
     });
+    const signedInUser = auth.currentUser;
+    if (signedInUser) {
+      try {
+        await fetch('/api/notifications/dispatch', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${await signedInUser.getIdToken()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationId: docRef.id }),
+        });
+      } catch (pushError) {
+        console.warn('Broadcast push dispatch unavailable; in-app notification remains active:', pushError);
+      }
+    }
     return docRef.id;
   } catch (error) {
     console.error('Error creating notification:', error);

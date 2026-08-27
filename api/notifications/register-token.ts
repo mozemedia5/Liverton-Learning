@@ -7,13 +7,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
   try {
     const identity = await requireIdentity(req);
-    const token = safeString(parseBody(req).token, 4096);
+    const body = parseBody(req);
+    const token = safeString(body.token, 4096);
+    const role = safeString(body.role, 40);
     if (!token) return json(res, 400, { error: 'A push token is required.' });
     const db = getAdminFirestore();
     await db.collection('pushTokens').doc(`${identity.uid}_${token.slice(-80)}`).set({
       token,
       userId: identity.uid,
       email: identity.email || '',
+      role,
       updatedAt: new Date(),
       active: true,
     }, { merge: true });
