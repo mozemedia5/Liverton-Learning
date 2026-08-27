@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, getAdminFirestore, json, parseBody, requireIdentity, safeString } from '../_lib/server.js';
+import { getAdminMessaging, applyCors, getAdminFirestore, json, parseBody, requireIdentity, safeString } from '../_lib/server.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
@@ -44,7 +44,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     });
     await batch.commit();
-    return json(res, 200, { notified: enrolledStudents.length });
+
+    let pushDelivered = 0;
+    try {
+      const messaging = getAdminMessaging();
+      await Promise.all(enrolledStudents.map(async (studentId) => {
+        const tokenSnapshot = await db.collection('pushTokens').where('userId', '==', studentId).where('active', '==', true).get();
+        await Promise.all(tokenSnapshot.docs.map(async (tokenDocument: any) => {
+          const token = tokenDocument.data()?.token;
+          if (!token) return;
+          try {
+            await messaging.send({
+              token,
+              notification: { title, body: message },
+              data: { notificationId: tokenDocument.id, courseId, redirectUrl: `/student/courses/${courseId}` },
+            });
+            pushDelivered += 1;
+          } catch (pushError) {
+            console.warn('Push delivery failed for token:', pushError);
+          }
+        }));
+      }));
+    } catch (pushError) {
+      console.warn('Push delivery is unavailable; in-app notifications were still recorded:', pushError);
+    }
+    return json(res, 200, { notified: enrolledStudents.length, pushDelivered });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown';
     if (message === 'AUTH_REQUIRED' || message.includes('auth/')) return json(res, 401, { error: 'Authentication required.' });

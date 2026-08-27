@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/generate-firebase-messaging-sw.mjs",
+    "prebuild:full": "node scripts/generate-firebase-messaging-sw.mjs",
     "build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
     "build:full": "NODE_OPTIONS='--max-old-space-size=8192' tsc -b && vite build",
     "typecheck:api": "tsc -p tsconfig.api.json",

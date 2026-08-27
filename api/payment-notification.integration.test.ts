@@ -39,6 +39,7 @@ vi.mock('firebase-admin/firestore', () => ({
 vi.mock('./_lib/server.js', () => ({
   applyCors: vi.fn(),
   getAdminFirestore: () => fakeDb,
+  getAdminMessaging: () => ({ send: vi.fn().mockResolvedValue('message-id') }),
   json: (res: FakeResponse, status: number, payload: Record<string, unknown>) => res.status(status).json(payload),
   parseBody: (req: { body?: Record<string, unknown> }) => req.body || {},
   requireIdentity: async () => state.identity,
@@ -62,6 +63,9 @@ const copy = (data: Record<string, unknown>) => JSON.parse(JSON.stringify(data))
 const fakeDb = {
   collection(name: string) {
     return {
+      where() {
+        return { where: () => ({ get: async () => ({ docs: [] }) }), get: async () => ({ docs: [] }) };
+      },
       doc(id?: string) {
         const documentId = id || `${name}-${state.documents.length + state.notificationCounter + 1}`;
         if (!id && name === 'notifications') state.notificationCounter += 1;
@@ -170,7 +174,7 @@ describe('payment verification and student notification integration', () => {
     await notifyCourseUpdate(handlerRequest({ courseId: 'course-1' }) as any, response as any);
 
     expect(response.statusCode).toBe(200);
-    expect(response.body).toEqual({ notified: 2 });
+    expect(response.body).toMatchObject({ notified: 2, pushDelivered: 0 });
     expect(state.documents.filter((item) => item.collection === 'notifications')).toHaveLength(2);
     expect(state.documents[0].data).toMatchObject({ targetUsers: ['student-1'], courseId: 'course-1', type: 'course_update' });
     expect(state.documents[1].data).toMatchObject({ targetUsers: ['student-2'], courseId: 'course-1', type: 'course_update' });

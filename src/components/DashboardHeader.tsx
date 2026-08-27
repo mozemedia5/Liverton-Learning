@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Search } from 'lucide-react';
-import { subscribeToVisibleNotifications } from '@/services/notificationService';
+import { requestNotificationPermission, showNotification, subscribeToVisibleNotifications } from '@/services/notificationService';
+import { registerPushToken } from '@/services/pushNotificationService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardHeaderProps {
@@ -36,6 +37,11 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
     []
   );
 
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') void registerPushToken();
+  }, [currentUser?.uid, currentUser?.email]);
+
   // Live unread notification count for the bell badge
   useEffect(() => {
     if (!currentUser?.uid) return;
@@ -66,6 +72,15 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
       },
       (error) => {
         console.error('Notification badge error:', error);
+      },
+      (notification) => {
+        if (notification.isHidden || notification.isRead === true) return;
+        showNotification({
+          title: String(notification.title || 'Liverton Learning'),
+          message: String(notification.message || 'You have a new notification.'),
+          tag: `notification-${notification.id}`,
+          data: { redirectUrl: notification.redirectUrl || '/announcements' },
+        });
       }
     );
 
@@ -95,7 +110,7 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
         </button>
 
         <button
-          onClick={() => navigate('/announcements')}
+          onClick={() => { void requestNotificationPermission().then(() => registerPushToken()); navigate('/announcements'); }}
           className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-sm transition-colors"
           title="Notifications"
         >

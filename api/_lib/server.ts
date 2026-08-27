@@ -1,11 +1,13 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 let firestore: Firestore | undefined;
+let messaging: Messaging | undefined;
 
-function ensureAdminApp() {
+export function ensureAdminApp() {
   return getApps()[0] || initializeApp({
     credential: cert({
       projectId: required('FIREBASE_PROJECT_ID'),
@@ -24,6 +26,11 @@ function required(name: string): string {
 export function getAdminFirestore() {
   if (!firestore) firestore = getFirestore(ensureAdminApp());
   return firestore;
+}
+
+export function getAdminMessaging() {
+  if (!messaging) messaging = getMessaging(ensureAdminApp());
+  return messaging;
 }
 
 export async function requireIdentity(req: VercelRequest) {

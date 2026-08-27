@@ -19,17 +19,39 @@ export interface VisibleNotificationRecord { id: string; [key: string]: any }
 
 const notificationAudience = (role?: string | null) => role === 'student' ? 'students' : role === 'teacher' ? 'teachers' : role === 'parent' ? 'parents' : role === 'school_admin' ? 'school_admins' : null;
 
-export function subscribeToVisibleNotifications(userId: string, email: string | null | undefined, role: string | null | undefined, callback: (records: VisibleNotificationRecord[]) => void, onError?: (error: Error) => void): Unsubscribe {
+export function subscribeToVisibleNotifications(userId: string, email: string | null | undefined, role: string | null | undefined, callback: (records: VisibleNotificationRecord[]) => void, onError?: (error: Error) => void, onNewNotification?: (record: VisibleNotificationRecord) => void): Unsubscribe {
   const notifications = collection(db, 'notifications');
   if (role === 'platform_admin') {
     return onSnapshot(notifications, snapshot => callback(snapshot.docs.map(item => ({ id: item.id, ...item.data() }))), error => onError?.(error as Error));
   }
-  const queries = [query(notifications, where('targetUsers', 'array-contains', userId)), query(notifications, where('targetAudience', 'array-contains', 'all')), query(notifications, where('senderId', '==', userId))];
+  const queries = [
+    query(notifications, where('targetUsers', 'array-contains', userId)),
+    query(notifications, where('targetAudience', 'array-contains', 'all')),
+    query(notifications, where('targetAudience', '==', 'all')),
+    query(notifications, where('senderId', '==', userId)),
+  ];
   const audience = notificationAudience(role);
-  if (audience) queries.push(query(notifications, where('targetAudience', 'array-contains', audience)));
+  if (audience) {
+    queries.push(query(notifications, where('targetAudience', 'array-contains', audience)));
+    queries.push(query(notifications, where('targetAudience', '==', audience)));
+  }
   if (email) queries.push(query(notifications, where('targetEmail', '==', email.toLowerCase())));
   const byId = new Map<string, VisibleNotificationRecord>();
-  const emit = () => callback([...byId.values()].sort((a, b) => ((b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))));
+  const notifiedIds = new Set<string>();
+  let initialized = false;
+  const emit = () => {
+    const records = [...byId.values()].sort((a, b) => ((b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+    callback(records);
+    if (initialized && onNewNotification) {
+      records.filter((record) => !notifiedIds.has(record.id)).forEach((record) => {
+        notifiedIds.add(record.id);
+        onNewNotification(record);
+      });
+    } else {
+      records.forEach((record) => notifiedIds.add(record.id));
+      initialized = true;
+    }
+  };
   const stops = queries.map((notificationQuery) => onSnapshot(notificationQuery, snapshot => { snapshot.docs.forEach(item => byId.set(item.id, { id: item.id, ...item.data() })); emit(); }, error => onError?.(error as Error)));
   return () => stops.forEach(stop => stop());
 }
