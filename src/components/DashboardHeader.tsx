@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Search } from 'lucide-react';
-import { requestNotificationPermission, showNotification, subscribeToVisibleNotifications } from '@/services/notificationService';
+import { isNotificationVisibleToUser, requestNotificationPermission, showNotification, subscribeToVisibleNotifications } from '@/services/notificationService';
 import { registerPushToken } from '@/services/pushNotificationService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -48,21 +48,12 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
 
     const unsubscribe = subscribeToVisibleNotifications(currentUser.uid, currentUser.email, userRole, (notifications) => {
         const now = new Date();
-        const audienceKey = userRole ? `${userRole}s` : '';
         let count = 0;
         notifications.forEach((data) => {
           if (data.isHidden) return;
           const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
           if (expiresAt && expiresAt <= now) return;
-          const targets: string[] = Array.isArray(data.targetAudience) ? data.targetAudience : [];
-          const targetUsers: string[] = Array.isArray(data.targetUsers) ? data.targetUsers : [];
-          const targeted =
-            targetUsers.includes(currentUser.uid) ||
-            targets.includes('all') ||
-            (audienceKey && targets.includes(audienceKey)) ||
-            (userRole && targets.includes(userRole)) ||
-            data.senderId === currentUser.uid;
-          if (!targeted) return;
+          if (!isNotificationVisibleToUser(data, currentUser.uid, currentUser.email, userRole)) return;
 
           const readBy: string[] = Array.isArray(data.readBy) ? data.readBy : [];
           const isUserRead = readBy.includes(currentUser.uid) || data.isRead === true;
@@ -85,7 +76,7 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
     );
 
     return () => unsubscribe();
-  }, [currentUser?.uid, userRole]);
+  }, [currentUser?.uid, currentUser?.email, userRole]);
 
   return (
     <div className="flex items-center justify-between gap-3">

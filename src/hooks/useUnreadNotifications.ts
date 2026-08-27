@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
-import { subscribeToVisibleNotifications } from '@/services/notificationService';
+import { isNotificationVisibleToUser, subscribeToVisibleNotifications } from '@/services/notificationService';
 import { useAuth } from '@/contexts/AuthContext';
-
-function audienceKey(role: string | null | undefined) {
-  if (role === 'student') return 'students';
-  if (role === 'teacher') return 'teachers';
-  if (role === 'parent') return 'parents';
-  if (role === 'school_admin') return 'school_admins';
-  return null;
-}
 
 /** Live unread notification count for navigation badges and dashboard summaries. */
 export function useUnreadNotificationsCount(): number {
@@ -22,13 +14,9 @@ export function useUnreadNotificationsCount(): number {
     }
 
     const unsubscribe = subscribeToVisibleNotifications(currentUser.uid, currentUser.email, userRole, (notifications) => {
-      const roleAudience = audienceKey(userRole);
       const nextCount = notifications.reduce((total, notification) => {
         const data = notification;
-        const targeted = (Array.isArray(data.targetUsers) && data.targetUsers.includes(currentUser.uid))
-          || (typeof data.targetEmail === 'string' && data.targetEmail.toLowerCase() === (currentUser.email || '').toLowerCase())
-          || data.targetAudience?.includes('all')
-          || Boolean(roleAudience && data.targetAudience?.includes(roleAudience));
+        const targeted = isNotificationVisibleToUser(data, currentUser.uid, currentUser.email, userRole);
         const readBy = Array.isArray(data.readBy) ? data.readBy : [];
         const isRead = readBy.includes(currentUser.uid) || data.isRead === true;
         return targeted && !data.isHidden && !isRead ? total + 1 : total;

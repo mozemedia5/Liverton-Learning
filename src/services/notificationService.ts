@@ -19,6 +19,18 @@ export interface VisibleNotificationRecord { id: string; [key: string]: any }
 
 const notificationAudience = (role?: string | null) => role === 'student' ? 'students' : role === 'teacher' ? 'teachers' : role === 'parent' ? 'parents' : role === 'school_admin' ? 'school_admins' : null;
 
+export function isNotificationVisibleToUser(record: VisibleNotificationRecord, userId: string, email?: string | null, role?: string | null): boolean {
+  const audiences = Array.isArray(record.targetAudience) ? record.targetAudience : typeof record.targetAudience === 'string' ? [record.targetAudience] : [];
+  const targetUsers = Array.isArray(record.targetUsers) ? record.targetUsers : [];
+  const roleAudience = notificationAudience(role);
+  return targetUsers.includes(userId)
+    || (typeof record.targetEmail === 'string' && record.targetEmail.toLowerCase() === (email || '').toLowerCase())
+    || audiences.includes('all')
+    || Boolean(role && audiences.includes(role))
+    || Boolean(roleAudience && audiences.includes(roleAudience))
+    || record.senderId === userId;
+}
+
 export function subscribeToVisibleNotifications(userId: string, email: string | null | undefined, role: string | null | undefined, callback: (records: VisibleNotificationRecord[]) => void, onError?: (error: Error) => void, onNewNotification?: (record: VisibleNotificationRecord) => void): Unsubscribe {
   const notifications = collection(db, 'notifications');
   if (role === 'platform_admin') {
