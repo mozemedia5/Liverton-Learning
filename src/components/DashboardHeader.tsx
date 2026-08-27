@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Search } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { subscribeToVisibleNotifications } from '@/services/notificationService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardHeaderProps {
@@ -41,15 +40,11 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
   useEffect(() => {
     if (!currentUser?.uid) return;
 
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
+    const unsubscribe = subscribeToVisibleNotifications(currentUser.uid, currentUser.email, userRole, (notifications) => {
         const now = new Date();
         const audienceKey = userRole ? `${userRole}s` : '';
         let count = 0;
-        snapshot.docs.forEach((d) => {
-          const data = d.data();
+        notifications.forEach((data) => {
           if (data.isHidden) return;
           const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
           if (expiresAt && expiresAt <= now) return;

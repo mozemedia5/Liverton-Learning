@@ -23,11 +23,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
+import { subscribeToVisibleNotifications } from '@/services/notificationService';
+import {
   deleteDoc, 
   doc, 
   updateDoc,
@@ -109,11 +106,9 @@ export default function Announcements() {
 
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(docSnap => {
-        const d = docSnap.data();
+    const unsubscribe = subscribeToVisibleNotifications(currentUser?.uid || '', currentUser?.email, userRole, (records) => {
+      const data = records.map(docSnap => {
+        const d = docSnap;
         return {
           id: docSnap.id,
           type: d.type || 'announcement',

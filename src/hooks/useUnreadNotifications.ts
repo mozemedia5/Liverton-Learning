@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { subscribeToVisibleNotifications } from '@/services/notificationService';
 import { useAuth } from '@/contexts/AuthContext';
 
 function audienceKey(role: string | null | undefined) {
@@ -22,10 +21,10 @@ export function useUnreadNotificationsCount(): number {
       return;
     }
 
-    const unsubscribe = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+    const unsubscribe = subscribeToVisibleNotifications(currentUser.uid, currentUser.email, userRole, (notifications) => {
       const roleAudience = audienceKey(userRole);
-      const nextCount = snapshot.docs.reduce((total, notification) => {
-        const data = notification.data();
+      const nextCount = notifications.reduce((total, notification) => {
+        const data = notification;
         const targeted = (Array.isArray(data.targetUsers) && data.targetUsers.includes(currentUser.uid))
           || (typeof data.targetEmail === 'string' && data.targetEmail.toLowerCase() === (currentUser.email || '').toLowerCase())
           || data.targetAudience?.includes('all')

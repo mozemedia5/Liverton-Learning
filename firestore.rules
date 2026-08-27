@@ -96,7 +96,17 @@ service cloud.firestore {
       allow write: if isPlatformAdmin();
     }
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
+      allow read: if isPlatformAdmin() ||
+        (isAuthenticated() && (
+          currentUserId() in resource.data.get('targetUsers', []) ||
+          resource.data.get('targetEmail', '') == request.auth.token.email ||
+          resource.data.get('senderId', '') == currentUserId() ||
+          resource.data.get('targetAudience', []).hasAny(['all']) ||
+          (isStudent() && resource.data.get('targetAudience', []).hasAny(['students'])) ||
+          (isTeacher() && resource.data.get('targetAudience', []).hasAny(['teachers'])) ||
+          (isParent() && resource.data.get('targetAudience', []).hasAny(['parents'])) ||
+          (isSchoolAdmin() && resource.data.get('targetAudience', []).hasAny(['school_admins']))
+        ));
       allow create, update: if isPlatformAdmin();
       // Account setup reminders are system-generated and may only target the
       // authenticated user who owns the reminder document.
@@ -226,16 +236,20 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read, write: if isPlatformAdmin();
       allow get, list: if isAuthenticated() &&
+        resource.data.creatorRole == 'platform_admin' &&
         resource.data.visibility == 'public';
       allow get, list: if isAuthenticated() &&
+        resource.data.creatorRole == 'platform_admin' &&
         resource.data.visibility == 'school' &&
         resource.data.schoolId == currentUserSchoolId();
       allow get, list: if isAuthenticated() &&
         resource.data.createdBy == currentUserId();
       allow create: if isAuthenticated() &&
-        request.resource.data.createdBy == currentUserId();
+        request.resource.data.createdBy == currentUserId() &&
+        (isPlatformAdmin() || request.resource.data.visibility == 'private');
       allow update, delete: if isAuthenticated() &&
-        resource.data.createdBy == currentUserId();
+        resource.data.createdBy == currentUserId() &&
+        (isPlatformAdmin() || request.resource.data.visibility == 'private');
     }
     match /hannaChats/{chatId} {
       allow read: if isPlatformAdmin();

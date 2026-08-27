@@ -257,6 +257,20 @@ export interface Chat {
   updatedAt: Date | any;
 }
 
+export interface SharedContent {
+  type: 'course' | 'module' | 'lesson' | 'resource' | 'book';
+  id: string;
+  title: string;
+  description?: string;
+  teacherName?: string;
+  subject?: string;
+  path?: string;
+  coverUrl?: string;
+  isFree?: boolean;
+  price?: number;
+  currency?: string;
+}
+
 export interface Message {
   id: string;
   chatId: string;
@@ -271,7 +285,9 @@ export interface Message {
     type: string;
     url: string;
     name: string;
+    mimeType?: string;
   }>;
+  sharedContent?: SharedContent;
 }
 
 export interface Attendance {

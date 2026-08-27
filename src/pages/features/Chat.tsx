@@ -19,7 +19,6 @@ import {
   MessageSquare,
   Plus,
   FileText,
-  Download,
   CheckCheck,
   Mic,
   Pin
@@ -54,6 +53,8 @@ import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { groupMessagesByDate } from '@/lib/dateUtils';
 import { DateSeparator } from '@/components/DateSeparator';
 import { SEO } from '@/components/SEO';
+import UnifiedMediaViewer, { type UnifiedMediaItem } from '@/components/UnifiedMediaViewer';
+import type { SharedContent } from '@/types';
 
 export default function Chat() {
   const { currentUser, userData } = useAuth();
@@ -61,6 +62,9 @@ export default function Chat() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const sharedMessage = searchParams.get('share');
+  const sharedMetadataParam = searchParams.get('shareMeta');
+  const [sharedContent, setSharedContent] = useState<SharedContent | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<UnifiedMediaItem | null>(null);
   const [chats, setChats] = useState<ChatType[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatType | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -151,10 +155,13 @@ export default function Chat() {
 
   // Product shares arrive through an exact chat deep link and are placed in the composer.
   useEffect(() => {
-    if (selectedChat && sharedMessage) {
-      setMessageInput(sharedMessage);
-    }
-  }, [selectedChat?.id, sharedMessage]);
+    if (selectedChat && sharedMessage) setMessageInput(sharedMessage);
+    if (!sharedMetadataParam) { setSharedContent(null); return; }
+    try {
+      const parsed = JSON.parse(sharedMetadataParam) as SharedContent;
+      if (parsed?.id && parsed?.title && parsed?.type) setSharedContent(parsed);
+    } catch { setSharedContent(null); }
+  }, [selectedChat?.id, sharedMessage, sharedMetadataParam]);
 
   // Listen to messages when a chat is selected (+ keep read receipts fresh)
   useEffect(() => {
@@ -222,8 +229,11 @@ export default function Chat() {
         selectedChat.id, 
         currentUser.uid, 
         userData?.fullName || 'Me', 
-        content
+        content,
+        false,
+        sharedContent || undefined,
       );
+      setSharedContent(null);
     } catch {
       toast.error('Failed to send message');
       setMessageInput(content); // Restore input on failure
@@ -707,35 +717,9 @@ export default function Chat() {
                           fontWeight: chatSettings.fontStyle.includes('bold') ? 'bold' : 'normal',
                         }}
                         >
-                          {hasAttachment && (
-                            <div className="mb-2">
-                              {msg.attachments?.map((attachment, attIdx) => (
-                                <div key={attIdx} className="flex items-center gap-2 p-2 bg-white/10 rounded-lg">
-                                  {attachment.type === 'image' ? (
-                                    <img 
-                                      src={attachment.url} 
-                                      alt={attachment.name}
-                                      className="max-w-full rounded-lg"
-                                    />
-                                  ) : (
-                                    <>
-                                      <FileText className="w-5 h-5" />
-                                      <span className="text-sm flex-1">{attachment.name}</span>
-                                      <a 
-                                        href={attachment.url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="p-1 hover:bg-white/20 rounded"
-                                      >
-                                        <Download className="w-4 h-4" />
-                                      </a>
-                                    </>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
+                          {hasAttachment && <div className="mb-2 space-y-2">{msg.attachments?.map((attachment, attIdx) => <button type="button" key={attIdx} onClick={() => setSelectedMedia({ url: attachment.url, name: attachment.name, type: attachment.type as UnifiedMediaItem['type'], mimeType: attachment.mimeType })} className="flex w-full items-center gap-2 rounded-xl bg-black/5 p-2 text-left transition hover:bg-emerald-500/10 dark:bg-white/10"><span className="grid h-12 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">{attachment.type === 'image' || attachment.mimeType?.startsWith('image/') ? <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover" /> : <FileText className="h-5 w-5" />}</span><span className="min-w-0 flex-1 truncate text-sm">{attachment.name}</span><span className="text-[10px] font-bold text-emerald-600">View</span></button>)}</div>}
+                          {msg.sharedContent && <button type="button" onClick={() => navigate(msg.sharedContent?.path || `/courses/${msg.sharedContent?.id}`)} className="mb-3 flex w-full overflow-hidden rounded-2xl border border-emerald-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-400/20 dark:bg-slate-900"><div className="h-24 w-24 shrink-0 bg-gradient-to-br from-emerald-400 to-cyan-500">{msg.sharedContent.coverUrl ? <img src={msg.sharedContent.coverUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-2xl font-black text-white">L</div>}</div><span className="min-w-0 flex-1 p-3"><span className="block text-[10px] font-black uppercase tracking-wider text-emerald-600">Shared learning {msg.sharedContent.type}</span><strong className="mt-1 block truncate text-sm text-slate-900 dark:text-white">{msg.sharedContent.title}</strong><span className="mt-1 block line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{msg.sharedContent.description || 'Open this learning experience in Liverton Learning.'}</span><span className="mt-2 block text-[10px] font-bold text-emerald-600">{msg.sharedContent.isFree || msg.sharedContent.price === 0 ? 'Free access' : 'Open to view access options'}</span></span></button>}
+                          <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content.split(/(https?:\/\/[^\s]+)/g).map((part, partIndex) => /^https?:\/\//.test(part) ? <a key={partIndex} href={part} target="_blank" rel="noopener noreferrer" className="font-semibold underline decoration-emerald-400 underline-offset-2 hover:text-emerald-600">{part}</a> : <span key={partIndex}>{part}</span>)}</p>
                           <span className={`text-[10px] mt-1 flex items-center gap-1 ${isMe ? 'justify-end text-emerald-100' : 'text-gray-400'}`}>
                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             {isMe && (
@@ -754,6 +738,7 @@ export default function Chat() {
               ))}
               <div ref={messagesEndRef} />
             </div>
+            <UnifiedMediaViewer item={selectedMedia} open={Boolean(selectedMedia)} onOpenChange={open => { if (!open) setSelectedMedia(null); }} />
 
             {/* Upload Progress */}
             {uploadingFile && (

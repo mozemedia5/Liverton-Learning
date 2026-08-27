@@ -491,6 +491,7 @@ export default function Profile() {
           </CardContent>
         </Card>
 
+        {setupStatus.percentage < 100 && <>
         {/* Account setup progress */}
         <Card className="border-emerald-200 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950/20 dark:via-gray-950 dark:to-teal-950/20 overflow-hidden">
           <CardContent className="p-6 space-y-5">
@@ -528,6 +529,7 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+        </>}
 
         {/* Email Verification Banner */}
         {!isEmailVerified && !isMockUser && currentUser && (

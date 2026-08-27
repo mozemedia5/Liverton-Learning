@@ -226,6 +226,10 @@ export default function Courses() {
       description: module.description,
       teacherName: module.teacherName,
       subject: module.subject,
+      coverUrl: module.coverUrl || module.thumbnail,
+      isFree: module.isFree || Number(module.price || 0) <= 0,
+      price: module.price,
+      currency: module.currency,
     });
     setShowShare(true);
   };

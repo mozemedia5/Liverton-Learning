@@ -51,6 +51,7 @@ import {
 } from '@/services/moduleLearningService';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { initializeModulePayment } from '@/services/paymentService';
+import UnifiedMediaViewer from '@/components/UnifiedMediaViewer';
 
 interface LessonRecord {
   id?: string;
@@ -139,6 +140,7 @@ function ResourcePanel({
   setSelectedMaterial: (material: CourseMaterial) => void;
   markMaterialComplete: (material: CourseMaterial) => void;
 }) {
+  const [viewerOpen, setViewerOpen] = useState(false);
   const isComplete = selectedMaterial ? progress?.completedMaterialIds.includes(selectedMaterial.id) : false;
   return <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
     <Card className="rounded-2xl">
@@ -155,10 +157,11 @@ function ResourcePanel({
     <Card className="min-h-[420px] rounded-2xl">
       <CardHeader className="flex-row items-start justify-between gap-3">
         <div><CardTitle>{selectedMaterial?.name || 'Choose a resource'}</CardTitle><CardDescription>{selectedMaterial ? 'View the resource without leaving your module.' : 'PDFs, videos, images, audio, and supported office files open inside this workspace.'}</CardDescription></div>
-        {selectedMaterial && <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" asChild className="rounded-xl"><a href={selectedMaterial.url} download={selectedMaterial.name}><Download className="mr-1.5 h-3.5 w-3.5" /> Download</a></Button><Button size="sm" onClick={() => markMaterialComplete(selectedMaterial)} disabled={isComplete} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">{isComplete ? <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}{isComplete ? 'Complete' : 'Mark complete'}</Button></div>}
+        {selectedMaterial && <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" onClick={() => setViewerOpen(true)} className="rounded-xl">Open viewer</Button><Button size="sm" variant="outline" asChild className="rounded-xl"><a href={selectedMaterial.url} download={selectedMaterial.name}><Download className="mr-1.5 h-3.5 w-3.5" /> Download</a></Button><Button size="sm" onClick={() => markMaterialComplete(selectedMaterial)} disabled={isComplete} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">{isComplete ? <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}{isComplete ? 'Complete' : 'Mark complete'}</Button></div>}
       </CardHeader>
       <CardContent>{selectedMaterial ? <MaterialViewer material={selectedMaterial} /> : <div className="flex min-h-[340px] flex-col items-center justify-center rounded-2xl bg-slate-50 text-center dark:bg-white/5"><FileText className="mb-3 h-10 w-10 text-slate-300" /><p className="font-semibold">Select a resource to begin</p></div>}</CardContent>
     </Card>
+    <UnifiedMediaViewer item={selectedMaterial ? { url: selectedMaterial.url, name: selectedMaterial.name, mimeType: selectedMaterial.mimeType, type: materialKind(selectedMaterial) === 'office' ? 'document' : materialKind(selectedMaterial) } : null} open={viewerOpen} onOpenChange={setViewerOpen} />
   </div>;
 }
 

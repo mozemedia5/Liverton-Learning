@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,12 +60,16 @@ export default function CreateEvent() {
   const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<EventCategory | ''>('');
-  const [visibility, setVisibility] = useState<EventVisibility>('public');
+  const [visibility, setVisibility] = useState<EventVisibility>(userRole === 'platform_admin' ? 'public' : 'private');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [enhancingDescription, setEnhancingDescription] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (userRole !== 'platform_admin') setVisibility('private');
+  }, [userRole]);
 
   const handleEnhanceDescriptionWithHanna = async () => {
     if (!description.trim()) {
@@ -129,7 +133,7 @@ export default function CreateEvent() {
         time,
         location: location.trim(),
         category,
-        visibility,
+        visibility: userRole === 'platform_admin' ? visibility : 'private',
         createdBy: currentUser.uid,
         creatorName: userData?.fullName || '',
         creatorRole: userRole || undefined,

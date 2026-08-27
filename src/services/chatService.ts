@@ -17,7 +17,7 @@ import {
   type FieldValue
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import type { Chat, Message, UserRole } from '@/types';
+import type { Chat, Message, SharedContent, UserRole } from '@/types';
 import { mapDirectoryEntry, normalizeDisplayName, normalizeEmail, normalizeUsername, type UserDirectoryEntry } from '@/services/userProfileService';
 
 export interface ChatContact {
@@ -442,7 +442,8 @@ export const sendMessage = async (
   senderId: string,
   senderName: string,
   content: string,
-  isFirstMessage: boolean = false
+  isFirstMessage: boolean = false,
+  sharedContent?: SharedContent,
 ) => {
   try {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
@@ -453,7 +454,8 @@ export const sendMessage = async (
       content,
       type: 'text',
       createdAt: Timestamp.now(),
-      readBy: [senderId]
+      readBy: [senderId],
+      ...(sharedContent ? { sharedContent } : {}),
     };
 
     await addDoc(messagesRef, messageData);

@@ -85,7 +85,7 @@ export async function createEvent(
     time: params.time ?? '',
     location: params.location ?? '',
     category: params.category,
-    visibility: params.visibility,
+    visibility: params.creatorRole === 'platform_admin' ? params.visibility : 'private',
     createdBy: params.createdBy,
     creatorName: params.creatorName ?? '',
     creatorRole: params.creatorRole ?? null,
