@@ -262,19 +262,25 @@ export async function deleteCourse(courseId: string): Promise<void> {
  * Get a single course by ID
  */
 export async function getCourse(courseId: string): Promise<Course | null> {
-  const courseRef = doc(db, 'courses', courseId);
-  const courseSnap = await getDoc(courseRef);
-  
-  if (!courseSnap.exists()) {
-    return null;
-  }
-
+  if (!courseId?.trim()) return null;
+  const courseSnap = await getDoc(doc(db, 'courses', courseId.trim()));
+  if (!courseSnap.exists()) return null;
   const data = courseSnap.data();
+  const asDate = (value: unknown) => {
+    if (value && typeof (value as { toDate?: () => Date }).toDate === 'function') return (value as { toDate: () => Date }).toDate();
+    if (value instanceof Date) return value;
+    if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+    return new Date();
+  };
   return {
     id: courseSnap.id,
     ...data,
-    createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
-    updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt)
+    materials: Array.isArray(data.materials) ? data.materials : [],
+    enrolledStudents: Array.isArray(data.enrolledStudents) ? data.enrolledStudents : [],
+    lessons: Number(data.lessons || 0),
+    price: Number(data.price || 0),
+    createdAt: asDate(data.createdAt),
+    updatedAt: asDate(data.updatedAt),
   } as Course;
 }
 

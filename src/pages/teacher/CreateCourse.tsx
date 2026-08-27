@@ -612,6 +612,9 @@ export default function CreateCourse() {
                             }
                           </div>
                           <div className="flex-1 min-w-0">
+                            {fileObj.file.type.startsWith('video/') && (
+                              <video className="mb-2 h-24 w-full max-w-xs rounded-lg bg-slate-950 object-cover" controls preload="metadata" src={URL.createObjectURL(fileObj.file)} aria-label={`Preview ${fileObj.file.name}`} />
+                            )}
                             <p className="font-medium truncate">{fileObj.file.name}</p>
                             <p className="text-sm text-gray-500">
                               {fileObj.material ? 

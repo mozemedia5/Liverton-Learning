@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { getCourse, type Course, type CourseMaterial } from '@/services/courseService';
 import { absoluteUrl } from '@/lib/seo';
+import { convertCurrency, formatCurrency, refreshUgandaRates, SUPPORTED_CURRENCIES, type SupportedCurrency } from '@/lib/currency';
 
 function materialIcon(type: CourseMaterial['type']) {
   switch (type) {
@@ -47,6 +48,12 @@ export default function CourseView() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState('');
+  const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>('UGX');
+  const location = useLocation();
+
+  useEffect(() => { void refreshUgandaRates(); }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -102,11 +109,6 @@ export default function CourseView() {
   const isOwner = currentUser?.uid === course.teacherId;
   const isEnrolled = !!currentUser && course.enrolledStudents?.includes(currentUser.uid);
   const isStudentLike = userRole === 'student' || userRole === 'parent';
-
-  // Guest trigger state
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authModalReason, setAuthModalReason] = useState('');
-  const location = useLocation();
 
   const handleGuestAction = (reason: string) => {
     setAuthModalReason(reason);
@@ -253,11 +255,14 @@ export default function CourseView() {
             <div className="flex-shrink-0 flex md:flex-col items-center md:items-end gap-2">
               {course.price > 0 ? (
                 <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" /> {course.currency || 'UGX'} {course.price.toLocaleString()}
+                  <DollarSign className="w-4 h-4" /> {displayCurrency} {formatCurrency(convertCurrency(course.price, (course.currency as SupportedCurrency) || 'UGX', displayCurrency), displayCurrency)}
                 </span>
               ) : (
                 <Badge className="bg-emerald-500 text-white border-0">FREE</Badge>
               )}
+              <select aria-label="Display currency" value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="rounded-lg border border-slate-200 bg-background px-2 py-1 text-xs">
+                {(Object.keys(SUPPORTED_CURRENCIES) as SupportedCurrency[]).map((code) => <option key={code} value={code}>{code}</option>)}
+              </select>
               {!currentUser ? (
                 <Button
                   size="sm"

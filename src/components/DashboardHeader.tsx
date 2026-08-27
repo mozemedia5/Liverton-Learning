@@ -19,6 +19,15 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const { userData, userRole, currentUser } = useAuth();
   const [unread, setUnread] = useState(0);
+  const [greetingIndex, setGreetingIndex] = useState(0);
+  const greetings = userRole === 'teacher'
+    ? ['Good morning', 'Empower minds', 'Inspire the future', 'Welcome back, Leader', 'Guide your scholars']
+    : ['Keep going', 'Keep pushing', 'Reach for the stars', 'Stay curious', 'Welcome back'];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setGreetingIndex((index) => (index + 1) % greetings.length), 3500);
+    return () => window.clearInterval(timer);
+  }, [greetings.length]);
 
   const firstName = useMemo(() => {
     const full = userData?.fullName?.trim();
@@ -73,11 +82,10 @@ export function DashboardHeader({ subtitle }: DashboardHeaderProps) {
     <div className="flex items-center justify-between gap-3">
       {/* Greeting */}
       <div className="min-w-0">
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium truncate">
-          {subtitle || today}
-        </p>
-        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
-          Hello, {firstName}
+        <p className="text-[10px] sm:text-xs font-black tracking-[0.35em] text-emerald-500 drop-shadow-[0_0_12px_rgba(16,185,129,0.6)] truncate">L I V E R T O N  L E A R N I N G</p>
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium truncate">{subtitle || today}</p>
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white truncate transition-all duration-500" key={greetingIndex}>
+          {greetings[greetingIndex]}, {firstName}
         </h1>
       </div>
 
