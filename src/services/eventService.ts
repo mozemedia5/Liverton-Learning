@@ -147,11 +147,11 @@ export function subscribeToEvents(
   };
 
   // Rules-compatible queries (equality filters only, merged + sorted client-side):
-  // 1) public events  2) events created by me (incl. private)  3) school events
+  // 1) platform-admin public events  2) events created by me (incl. private)  3) platform-admin school events
   const unsubs: Unsubscribe[] = [];
 
   unsubs.push(
-    onSnapshot(query(eventsRef, where('visibility', '==', 'public')), applySnapshot, handleError)
+    onSnapshot(query(eventsRef, where('visibility', '==', 'public'), where('creatorRole', '==', 'platform_admin')), applySnapshot, handleError)
   );
   unsubs.push(
     onSnapshot(query(eventsRef, where('createdBy', '==', userId)), applySnapshot, handleError)
@@ -159,7 +159,7 @@ export function subscribeToEvents(
   if (schoolId) {
     unsubs.push(
       onSnapshot(
-        query(eventsRef, where('visibility', '==', 'school'), where('schoolId', '==', schoolId)),
+        query(eventsRef, where('visibility', '==', 'school'), where('schoolId', '==', schoolId), where('creatorRole', '==', 'platform_admin')),
         applySnapshot,
         handleError
       )

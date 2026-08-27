@@ -3,7 +3,7 @@
  * Allows teachers to create courses with materials and optional quizzes
  */
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { convertAmount, EXCHANGE_RATE_ATTRIBUTION_LABEL, EXCHANGE_RATE_ATTRIBUTION_URL, fetchExchangeRates, formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/currency';
 import { 
   createCourse, 
   uploadCourseMaterial, 
@@ -92,6 +93,7 @@ export default function CreateCourse() {
   const navigate = useNavigate();
   const { userData, currentUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
 
   // Course form state
   const [title, setTitle] = useState('');
@@ -101,7 +103,9 @@ export default function CreateCourse() {
   const [grade, setGrade] = useState('');
   const [gradeOther, setGradeOther] = useState('');
   const [price, setPrice] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('UGX');
+  const [exchangeRates, setExchangeRates] = useState<Awaited<ReturnType<typeof fetchExchangeRates>> | null>(null);
+  const [ratesLoading, setRatesLoading] = useState(false);
   const [maxStudents, setMaxStudents] = useState('');
 
   // Materials state
@@ -120,13 +124,19 @@ export default function CreateCourse() {
   // Submit state
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
-  const CURRENCIES = [
-    { code: 'USD', symbol: '$', label: 'US Dollar' },
-    { code: 'UGX', symbol: 'USh', label: 'Ugandan Shilling' },
-    { code: 'KES', symbol: 'KSh', label: 'Kenyan Shilling' },
-    { code: 'TZS', symbol: 'TSh', label: 'Tanzanian Shilling' },
-    { code: 'RWF', symbol: 'FRw', label: 'Rwandan Franc' }
-  ];
+
+  useEffect(() => {
+    let mounted = true;
+    setRatesLoading(true);
+    fetchExchangeRates(currency)
+      .then((rates) => { if (mounted) setExchangeRates(rates); })
+      .catch(() => { if (mounted) setExchangeRates(null); })
+      .finally(() => { if (mounted) setRatesLoading(false); });
+    return () => { mounted = false; };
+  }, [currency]);
+
+  const numericPrice = Number(price || 0);
+  const ugxEquivalent = convertAmount(numericPrice, exchangeRates, 'UGX');
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -237,6 +247,8 @@ export default function CreateCourse() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const liveLessonVideos = uploadedFiles.filter(({ file, material }) => material?.type === 'video' || file.type.startsWith('video/'));
+
   const addQuestion = () => {
     if (!currentQuestion.trim()) {
       toast.error('Please enter a question');
@@ -303,6 +315,12 @@ export default function CreateCourse() {
       return;
     }
 
+    if (liveLessonVideos.length === 0) {
+      toast.error('Add at least one live lesson video before creating the module.');
+      setActiveTab('materials');
+      return;
+    }
+
     if (!currentUser?.uid) {
       toast.error('You must be logged in to create a module');
       return;
@@ -325,6 +343,8 @@ export default function CreateCourse() {
           grade: finalGrade,
           price: parseFloat(price) || 0,
           currency,
+          isFree: (parseFloat(price) || 0) <= 0,
+          visibility: 'public',
           status: 'active',
           ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
           lessons: uploadedFiles.length
@@ -527,7 +547,7 @@ export default function CreateCourse() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {CURRENCIES.map(c => (
+                        {SUPPORTED_CURRENCIES.map(c => (
                           <SelectItem key={c.code} value={c.code}>
                             {c.label} ({c.symbol})
                           </SelectItem>
@@ -537,7 +557,7 @@ export default function CreateCourse() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price ({CURRENCIES.find(c => c.code === currency)?.symbol})</Label>
+                    <Label htmlFor="price">Price ({SUPPORTED_CURRENCIES.find(c => c.code === currency)?.symbol})</Label>
                     <Input
                       id="price"
                       type="number"
@@ -547,6 +567,11 @@ export default function CreateCourse() {
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                     />
+                    {numericPrice > 0 && (
+                      <p className="text-[11px] leading-relaxed text-slate-500">
+                        {ratesLoading ? 'Loading live UGX conversion…' : ugxEquivalent !== null ? <>Indicative Uganda price: <strong>{formatCurrency(ugxEquivalent, 'UGX')}</strong> · <a href={EXCHANGE_RATE_ATTRIBUTION_URL} target="_blank" rel="noreferrer" className="underline">{EXCHANGE_RATE_ATTRIBUTION_LABEL}</a></> : 'UGX conversion is temporarily unavailable; your selected price will still be saved.'}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -567,13 +592,25 @@ export default function CreateCourse() {
 
           {/* Materials Tab */}
           <TabsContent value="materials" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Module Materials</CardTitle>
-                <CardDescription>
-                  Upload videos, PDFs, documents, spreadsheets, presentations, and more
-                </CardDescription>
-              </CardHeader>
+              <Card className="border-blue-200 bg-blue-50/40 dark:border-blue-900/60 dark:bg-blue-950/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Video className="h-5 w-5 text-blue-600" /> Live lesson video</CardTitle>
+                  <CardDescription>Make the main teaching experience a video lesson students can watch inside the module workspace.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center justify-between gap-4">
+                  <div><p className="text-sm font-semibold">{liveLessonVideos.length ? `${liveLessonVideos.length} video lesson${liveLessonVideos.length === 1 ? '' : 's'} selected` : 'No live lesson video selected yet'}</p><p className="mt-1 text-xs text-slate-500">Upload MP4, WebM, MOV, or another supported video format.</p></div>
+                  <input ref={videoFileInputRef} type="file" accept="video/*" multiple className="hidden" onChange={handleFileSelect} />
+                  <Button type="button" onClick={() => videoFileInputRef.current?.click()} className="rounded-xl bg-blue-600 text-white hover:bg-blue-700"><Video className="mr-2 h-4 w-4" /> Add video lesson</Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Module Materials</CardTitle>
+                  <CardDescription>
+                    Upload videos, PDFs, documents, spreadsheets, presentations, and more
+                  </CardDescription>
+                </CardHeader>
               <CardContent className="space-y-4">
                 <div 
                   className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-gray-400 dark:hover:border-gray-600 transition-colors cursor-pointer"

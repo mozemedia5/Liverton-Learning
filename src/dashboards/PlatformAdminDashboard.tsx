@@ -33,6 +33,7 @@ import {
   type FirestoreUser
 } from '@/services/userService';
 import { subscribeToAllCoursesAdmin, type Course } from '@/services/courseService';
+import DashboardHero from '@/components/DashboardHero';
 import { subscribeToAllQuizzesAdmin, type Quiz } from '@/services/quizService';
 import { getAllTeams, suspendTeam, unsuspendTeam, updateTeamAppealStatus } from '@/services/livTeamsCoreService';
 import type { Team } from '@/types/livTeams';
@@ -246,27 +247,7 @@ export default function PlatformAdminDashboard() {
 
   return (
     <div className="space-y-6">
-        {/* Welcome */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Platform Admin Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Manage the entire Liverton Learning platform
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={loadDashboardData}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4 mr-2" />
-            )}
-            Refresh
-          </Button>
-        </div>
+        <DashboardHero eyebrow="Platform control · Liverton Learning" title="Move every part forward." rotatingWords={['measure', 'protect', 'enable', 'grow']} description="Manage the entire Liverton Learning platform with clear operational signals and responsible oversight."><Button variant="outline" onClick={loadDashboardData} disabled={loading} className="rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20">{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh</Button></DashboardHero>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

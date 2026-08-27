@@ -22,7 +22,7 @@ import {
 import type { Unsubscribe } from 'firebase/firestore';
 import { uploadToCloudinary } from './cloudinaryService';
 import { dispatchEnrollmentNotification } from './notificationService';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 // ==========================================
 // TYPES
@@ -220,8 +220,13 @@ export async function createCourse(
 ): Promise<string> {
   const courseRef = collection(db, 'courses');
   
+  const normalizedPrice = Number(courseData.price || 0);
   const newCourse = {
     ...courseData,
+    price: Number.isFinite(normalizedPrice) ? normalizedPrice : 0,
+    currency: String(courseData.currency || 'UGX').toUpperCase(),
+    isFree: courseData.isFree ?? normalizedPrice <= 0,
+    visibility: courseData.visibility || 'public',
     teacherId,
     teacherName,
     materials: [],
@@ -447,7 +452,19 @@ export async function enrollStudent(
   const courseRef = doc(db, 'courses', courseId);
   const enrollmentRef = collection(db, 'enrollments');
 
-  // Get course to get teacher info
+  const signedInUser = auth.currentUser;
+  if (signedInUser?.uid === studentId) {
+    const response = await fetch('/api/courses/enroll', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await signedInUser.getIdToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Could not enroll in the module.');
+    return;
+  }
+
+  // Get course to get teacher info for legacy or administrative callers.
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) {
     throw new Error('Course not found');

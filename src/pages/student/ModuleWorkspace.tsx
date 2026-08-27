@@ -52,6 +52,7 @@ import {
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { initializeModulePayment } from '@/services/paymentService';
 import UnifiedMediaViewer from '@/components/UnifiedMediaViewer';
+import { convertAmount, fetchExchangeRates, formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/currency';
 
 interface LessonRecord {
   id?: string;
@@ -176,7 +177,13 @@ export default function ModuleWorkspace() {
   const [selectedMaterial, setSelectedMaterial] = useState<CourseMaterial | null>(null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState(() => {
+    if (typeof window === 'undefined') return 'UGX';
+    return window.localStorage.getItem('liverton-display-currency') || 'UGX';
+  });
+  const [exchangeRates, setExchangeRates] = useState<Awaited<ReturnType<typeof fetchExchangeRates>> | null>(null);
   const [following, setFollowing] = useState(false);
   const [assignmentResponse, setAssignmentResponse] = useState('');
   const [assignmentFile, setAssignmentFile] = useState<File | null>(null);
@@ -184,9 +191,24 @@ export default function ModuleWorkspace() {
   const [uploadingAssignment, setUploadingAssignment] = useState(false);
 
   useEffect(() => {
-    if (!courseId) return;
-    getCourse(courseId).then(setCourse).catch(() => toast.error('Unable to load this module.')).finally(() => setLoading(false));
-  }, [courseId]);
+    if (!courseId || !currentUser) return;
+    let mounted = true;
+    setLoading(true);
+    setLoadError(null);
+    getCourse(courseId)
+      .then((data) => {
+        if (!mounted) return;
+        if (!data) setLoadError('This module could not be found or is not available to your account.');
+        setCourse(data);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        console.error('Unable to load module workspace:', error);
+        setLoadError('We could not load this module. Please try again.');
+      })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [courseId, currentUser]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -211,6 +233,21 @@ export default function ModuleWorkspace() {
   const isEnrolled = Boolean(currentUser && course?.enrolledStudents?.includes(currentUser.uid));
   const isFree = Boolean(course && (course.isFree || Number(course.price || 0) <= 0));
   const hasAccess = Boolean(isOwner || isEnrolled);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.localStorage.setItem('liverton-display-currency', displayCurrency);
+  }, [displayCurrency]);
+
+  useEffect(() => {
+    if (!course || isFree) return;
+    let mounted = true;
+    fetchExchangeRates(course.currency || 'UGX')
+      .then((rates) => { if (mounted) setExchangeRates(rates); })
+      .catch(() => { if (mounted) setExchangeRates(null); });
+    return () => { mounted = false; };
+  }, [course?.currency, isFree]);
+
+  const convertedPrice = convertAmount(Number(course?.price || 0), exchangeRates, displayCurrency);
   const totalLearningItems = Math.max((course?.materials?.length || 0) + lessons.length, 1);
   const calculatedProgress = progress?.percentage ?? 0;
 
@@ -290,9 +327,9 @@ export default function ModuleWorkspace() {
   };
 
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-emerald-500" /><span className="text-sm text-slate-500">Loading module workspace...</span></div>;
-  if (!course) return <div className="mx-auto max-w-3xl px-4 py-16 text-center"><BookOpen className="mx-auto mb-4 h-10 w-10 text-slate-300" /><h1 className="text-xl font-bold">Module not found</h1><Button onClick={() => navigate('/student/courses')} className="mt-5 rounded-xl">Back to modules</Button></div>;
+  if (!course) return <div className="mx-auto max-w-3xl px-4 py-16 text-center"><BookOpen className="mx-auto mb-4 h-10 w-10 text-slate-300" /><h1 className="text-xl font-bold">{loadError || 'Module not found'}</h1><div className="mt-5 flex justify-center gap-3"><Button variant="outline" onClick={() => navigate('/student/courses')} className="rounded-xl">Back to modules</Button><Button onClick={() => window.location.reload()} className="rounded-xl">Try again</Button></div></div>;
 
-  if (!hasAccess) return <div className="mx-auto max-w-4xl space-y-5 px-4 py-8 lg:px-6"><Button variant="ghost" onClick={() => navigate('/student/courses')} className="rounded-xl"><ArrowLeft className="mr-2 h-4 w-4" /> Modules</Button><Card className="overflow-hidden rounded-[2rem]"><div className="bg-slate-950 px-6 py-12 text-white sm:px-10"><Badge className="bg-emerald-500 text-white">{isFree ? 'Free module' : 'Paid module'}</Badge><h1 className="mt-4 text-3xl font-black tracking-tight">{course.title}</h1><p className="mt-3 max-w-2xl text-slate-300">{course.description || 'Build your skills with a teacher-led learning path.'}</p></div><CardContent className="space-y-5 p-6 sm:p-10"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Teacher</p><p className="mt-1 font-semibold">{course.teacherName}</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Resources</p><p className="mt-1 font-semibold">{course.materials?.length || 0} resources</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Access</p><p className="mt-1 font-semibold">{isFree ? 'Start for free' : `${course.currency || 'UGX'} ${Number(course.price).toLocaleString()}`}</p></div></div><div className="flex flex-wrap gap-3"><Button onClick={isFree ? enrollForFree : startPaidCheckout} disabled={actionLoading} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">{actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isFree ? <Sparkles className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}{isFree ? 'Start learning for free' : 'Continue to payment'}</Button><Button variant="outline" onClick={() => navigate(`/courses/${course.id}`)} className="rounded-xl">View module details</Button></div></CardContent></Card></div>;
+  if (!hasAccess) return <div className="mx-auto max-w-4xl space-y-5 px-4 py-8 lg:px-6"><Button variant="ghost" onClick={() => navigate('/student/courses')} className="rounded-xl"><ArrowLeft className="mr-2 h-4 w-4" /> Modules</Button><Card className="overflow-hidden rounded-[2rem]"><div className="bg-slate-950 px-6 py-12 text-white sm:px-10"><Badge className="bg-emerald-500 text-white">{isFree ? 'Free module' : 'Paid module'}</Badge><h1 className="mt-4 text-3xl font-black tracking-tight">{course.title}</h1><p className="mt-3 max-w-2xl text-slate-300">{course.description || 'Build your skills with a teacher-led learning path.'}</p></div><CardContent className="space-y-5 p-6 sm:p-10"><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Teacher</p><p className="mt-1 font-semibold">{course.teacherName}</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Resources</p><p className="mt-1 font-semibold">{course.materials?.length || 0} resources</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Access</p>{isFree ? <p className="mt-1 font-semibold">Start for free</p> : <><p className="mt-1 font-semibold">{course.currency || 'UGX'} {Number(course.price).toLocaleString()}</p><label className="mt-3 block text-[11px] font-semibold text-slate-500">Display price in<select value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700" aria-label="Display module price in currency">{SUPPORTED_CURRENCIES.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}</select></label>{convertedPrice !== null && displayCurrency !== (course.currency || 'UGX') && <p className="mt-2 text-[11px] text-slate-500">Approximately <strong>{formatCurrency(convertedPrice, displayCurrency)}</strong> at the latest available rate.</p>}</>}</div></div><div className="flex flex-wrap gap-3"><Button onClick={isFree ? enrollForFree : startPaidCheckout} disabled={actionLoading} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">{actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isFree ? <Sparkles className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}{isFree ? 'Start learning for free' : 'Continue to payment'}</Button><Button variant="outline" onClick={() => navigate(`/courses/${course.id}`)} className="rounded-xl">View module details</Button></div></CardContent></Card></div>;
 
   return <div className="min-h-screen bg-[#f7faf8] text-slate-900 dark:bg-black dark:text-white">
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f7faf8]/95 backdrop-blur dark:border-white/10 dark:bg-black/90"><div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-6"><Button variant="ghost" size="sm" onClick={() => navigate('/student/courses')} className="rounded-xl"><ArrowLeft className="mr-2 h-4 w-4" /> Modules</Button><div className="hidden min-w-0 flex-1 px-3 sm:block"><p className="truncate text-sm font-bold">{course.title}</p><p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">{course.subject} · {course.teacherName}</p></div><div className="flex items-center gap-2"><span className="hidden items-center gap-1.5 text-xs font-semibold text-slate-500 sm:flex"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> {calculatedProgress}% complete</span><Button variant="outline" size="sm" onClick={toggleFollow} className="rounded-xl">{following ? <Check className="mr-1.5 h-4 w-4 text-emerald-500" /> : <UserPlus className="mr-1.5 h-4 w-4" />}{following ? 'Following' : 'Follow teacher'}</Button></div></div></header>

@@ -5,6 +5,7 @@ import { Users, BarChart3, Shield, Activity, AlertCircle, RefreshCw, Loader2 } f
 import { useNavigate } from 'react-router-dom';
 import { getDashboardStats } from '@/services/userService';
 import { toast } from 'sonner';
+import DashboardHero from '@/components/DashboardHero';
 
 interface DashboardStats {
   totalUsers: number;
@@ -94,25 +95,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Platform administration and monitoring</p>
-        </div>
-        <Button 
-          variant="outline" 
-          onClick={loadDashboardStats}
-          disabled={loading}
-        >
-          {loading ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="w-4 h-4 mr-2" />
-          )}
-          Refresh
-        </Button>
-      </div>
+      <DashboardHero eyebrow="Administration · Platform operations" title="Keep the platform moving." rotatingWords={['secure', 'support', 'improve', 'grow']} description="Review users, system health, moderation, and platform performance from one clear control center."><Button variant="outline" onClick={loadDashboardStats} disabled={loading} className="rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20">{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh</Button></DashboardHero>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
