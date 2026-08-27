@@ -283,21 +283,33 @@ export async function deleteCourse(courseId: string): Promise<void> {
 /**
  * Get a single course by ID
  */
-export async function getCourse(courseId: string): Promise<Course | null> {
-  const courseRef = doc(db, 'courses', courseId);
-  const courseSnap = await getDoc(courseRef);
-  
-  if (!courseSnap.exists()) {
-    return null;
+function asCourseDate(value: unknown): Date {
+  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate?: unknown }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate();
   }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const parsed = value ? new Date(value as string | number) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
 
+function mapCourseSnapshot(courseSnap: { id: string; data: () => Record<string, any> }): Course {
   const data = courseSnap.data();
   return {
     id: courseSnap.id,
     ...data,
-    createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
-    updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt)
+    materials: Array.isArray(data.materials) ? data.materials : [],
+    enrolledStudents: Array.isArray(data.enrolledStudents) ? data.enrolledStudents : [],
+    lessons: Number(data.lessons || 0),
+    createdAt: asCourseDate(data.createdAt),
+    updatedAt: asCourseDate(data.updatedAt),
   } as Course;
+}
+
+export async function getCourse(courseId: string): Promise<Course | null> {
+  const normalizedCourseId = courseId.trim();
+  if (!normalizedCourseId) return null;
+  const courseSnap = await getDoc(doc(db, 'courses', normalizedCourseId));
+  return courseSnap.exists() ? mapCourseSnapshot(courseSnap) : null;
 }
 
 /**

@@ -113,6 +113,25 @@ function materialIcon(material: CourseMaterial) {
   return <File className="h-4 w-4" />;
 }
 
+function PdfPreview({ url, name, className = '' }: { url: string; name: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setFailed(false);
+    setLoading(true);
+    const timeout = window.setTimeout(() => {
+      setLoading(false);
+      setFailed(true);
+    }, 8000);
+    return () => window.clearTimeout(timeout);
+  }, [url]);
+  if (failed) return <div className={`flex min-h-[18rem] flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center ${className}`}><FileText className="mb-3 h-10 w-10 text-amber-500" /><p className="font-semibold text-slate-800">The embedded PDF preview could not be opened.</p><p className="mt-1 max-w-md text-sm text-slate-600">The file host may block iframe previews. Open the original PDF in a new tab or download it.</p><div className="mt-4 flex gap-2"><Button size="sm" asChild className="rounded-xl bg-emerald-600 text-white"><a href={url} target="_blank" rel="noopener noreferrer">Open PDF</a></Button><Button size="sm" variant="outline" asChild className="rounded-xl"><a href={url} download={name}>Download</a></Button></div></div>;
+  return <div className={`relative ${className}`}>
+    {loading && <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-white/90 text-sm text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PDF…</div>}
+    <iframe src={`${url}#toolbar=1&view=FitH`} title={name} onLoad={() => setLoading(false)} onError={() => { setLoading(false); setFailed(true); }} className="h-full min-h-[30rem] w-full rounded-2xl border border-slate-200 bg-white" />
+  </div>;
+}
+
 function MaterialViewer({ material }: { material: CourseMaterial }) {
   const kind = materialKind(material);
   const url = material.url;
@@ -120,7 +139,7 @@ function MaterialViewer({ material }: { material: CourseMaterial }) {
   if (kind === 'image') return <img src={url} alt={material.name} className="max-h-[66vh] w-full rounded-2xl bg-slate-950 object-contain" />;
   if (kind === 'video') return <video src={url} controls preload="metadata" className="max-h-[66vh] w-full rounded-2xl bg-black" />;
   if (kind === 'audio') return <div className="rounded-2xl bg-slate-950 p-8"><audio src={url} controls className="w-full" /></div>;
-  if (kind === 'pdf') return <iframe src={`${url}#toolbar=1&view=FitH`} title={material.name} className="h-[66vh] w-full rounded-2xl border border-slate-200 bg-white" />;
+  if (kind === 'pdf') return <PdfPreview url={url} name={material.name} className="h-[66vh]" />;
   if (kind === 'office') {
     const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
     return <iframe src={officeUrl} title={material.name} className="h-[66vh] w-full rounded-2xl border border-slate-200 bg-white" />;
@@ -198,13 +217,16 @@ export default function ModuleWorkspace() {
     getCourse(courseId)
       .then((data) => {
         if (!mounted) return;
-        if (!data) setLoadError('This module could not be found or is not available to your account.');
         setCourse(data);
+        if (!data) setLoadError('This module could not be found or is not available to your account.');
       })
       .catch((error) => {
         if (!mounted) return;
         console.error('Unable to load module workspace:', error);
-        setLoadError('We could not load this module. Please try again.');
+        setCourse(null);
+        setLoadError(error?.code === 'permission-denied'
+          ? 'You do not have access to this module. Enroll first, or ask the teacher to publish it.'
+          : 'We could not load this module. Please try again.');
       })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
