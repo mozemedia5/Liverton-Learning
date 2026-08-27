@@ -55,6 +55,18 @@ service cloud.firestore {
         currentUserData().schoolId == schoolId;
     }
     match /courses/{courseId} {
+      function hasPublishFields() {
+        return request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+          request.resource.data.description is string && request.resource.data.description.size() > 0 &&
+          request.resource.data.teacherId is string && request.resource.data.teacherId == currentUserId() &&
+          request.resource.data.teacherName is string && request.resource.data.teacherName.size() > 0 &&
+          request.resource.data.subject is string && request.resource.data.subject.size() > 0 &&
+          request.resource.data.currency is string && request.resource.data.currency.size() > 0 &&
+          request.resource.data.price is number && request.resource.data.price >= 0 &&
+          request.resource.data.visibility in ['public', 'unlisted'] &&
+          request.resource.data.materials is list && request.resource.data.materials.size() > 0 &&
+          request.resource.data.lessons is number && request.resource.data.lessons > 0;
+      }
       allow read, write: if isPlatformAdmin();
       allow read: if isSchoolAdmin() &&
         resource.data.schoolId == currentUserSchoolId();
@@ -63,9 +75,13 @@ service cloud.firestore {
       allow read: if isTeacher() &&
         (resource.data.teacherId == currentUserId() ||
          resource.data.schoolId == currentUserSchoolId());
-      allow create: if isTeacher();
+      allow create: if isTeacher() &&
+        request.resource.data.teacherId == currentUserId() &&
+        (request.resource.data.status != 'active' || hasPublishFields());
       allow update: if isTeacher() &&
-        resource.data.teacherId == currentUserId();
+        resource.data.teacherId == currentUserId() &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        (request.resource.data.status != 'active' || hasPublishFields());
       allow read: if isStudent() &&
         (currentUserId() in resource.data.get('enrolledStudents', []) ||
          (resource.data.status == 'active' && resource.data.get('visibility', 'public') in ['public', 'unlisted']));

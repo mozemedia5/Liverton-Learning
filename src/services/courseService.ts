@@ -99,6 +99,21 @@ export interface Course {
   updatedAt: Date;
 }
 
+export function validateCourseForPublishing(course: Partial<Course>): string[] {
+  const errors: string[] = [];
+  if (!course.title?.trim()) errors.push('a module title');
+  if (!course.description?.trim()) errors.push('a module description');
+  if (!course.teacherId?.trim()) errors.push('a teacher owner');
+  if (!course.teacherName?.trim()) errors.push('a teacher name');
+  if (!course.subject?.trim()) errors.push('a subject');
+  if (!course.currency?.trim()) errors.push('a currency');
+  if (typeof course.price !== 'number' || !Number.isFinite(course.price) || course.price < 0) errors.push('a valid non-negative price');
+  if (!['public', 'unlisted'].includes(course.visibility || '')) errors.push('public or unlisted visibility');
+  if (!Array.isArray(course.materials) || course.materials.length === 0) errors.push('at least one uploaded material');
+  if (typeof course.lessons !== 'number' || course.lessons < 1) errors.push('at least one lesson');
+  return errors;
+}
+
 export interface Enrollment {
   id: string;
   courseId: string;
@@ -445,6 +460,19 @@ export function subscribeToAllCoursesAdmin(
       callback(courses);
     });
   });
+}
+
+export async function notifyCourseUpdate(courseId: string): Promise<number> {
+  const signedInUser = auth.currentUser;
+  if (!signedInUser) throw new Error('Please sign in before notifying learners.');
+  const response = await fetch('/api/courses/notify-update', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await signedInUser.getIdToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ courseId }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Could not notify enrolled learners.');
+  return Number(body.notified || 0);
 }
 
 // ==========================================

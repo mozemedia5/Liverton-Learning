@@ -43,6 +43,8 @@ import {
   uploadCourseMaterial,
   deleteCourseMaterial,
   subscribeToCourseMaterials,
+  notifyCourseUpdate,
+  validateCourseForPublishing,
   type Course,
   type CourseMaterial
 } from '@/services/courseService';
@@ -317,35 +319,55 @@ export default function EditCourse() {
       return;
     }
 
+    const hasVideo = existingMaterials.some((material) => material.type === 'video') || newFiles.some(({ file }) => file.type.startsWith('video/'));
+    if (status === 'active' && !hasVideo) {
+      toast.error('A published module must contain at least one video lesson or video material.');
+      setActiveTab('materials');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      // Update course
       const finalSubject = subject === 'Other' ? subjectOther.trim() : subject;
       const finalGrade = grade === 'Other' ? gradeOther.trim() : (grade || undefined);
-      
+      const requestedPrice = parseFloat(price) || 0;
+      const draftStatus = status === 'active' ? 'draft' : status;
       await updateCourse(courseId, {
         title: title.trim(),
         description: description.trim(),
         subject: finalSubject,
         grade: finalGrade,
-        price: parseFloat(price) || 0,
+        price: requestedPrice,
         currency,
-        status,
+        status: draftStatus,
+        visibility: 'public',
         ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
-        lessons: existingMaterials.length + newFiles.length
+        lessons: existingMaterials.length
       });
 
-      // Upload new materials
+      let uploadedCount = 0;
       for (const fileObj of newFiles) {
         try {
           await uploadCourseMaterial(courseId, fileObj.file);
+          uploadedCount += 1;
         } catch (error) {
           console.error('Error uploading material:', error);
         }
       }
 
-      toast.success('Course updated successfully!');
+      const finalMaterials = [...existingMaterials, ...newFiles.map(({ material }) => material).filter((material): material is CourseMaterial => Boolean(material))];
+      const finalHasVideo = finalMaterials.some((material) => material.type === 'video') || newFiles.some(({ file }) => file.type.startsWith('video/'));
+      const publishErrors = validateCourseForPublishing({ title: title.trim(), description: description.trim(), teacherId: currentUser?.uid, teacherName: currentUser?.displayName || course?.teacherName || 'Teacher', subject: finalSubject, price: requestedPrice, currency, visibility: 'public', materials: finalMaterials, lessons: finalMaterials.length });
+      if (status === 'active' && (publishErrors.length > 0 || !finalHasVideo)) {
+        throw new Error('The module remains a draft until all required fields and at least one video lesson/material are present.');
+      }
+      await updateCourse(courseId, { status, visibility: 'public', lessons: finalMaterials.length });
+      if (uploadedCount > 0) {
+        try { await notifyCourseUpdate(courseId); } catch (notificationError) { console.warn('Learner notification warning:', notificationError); }
+      }
+
+      toast.success(status === 'active' ? 'Module published successfully!' : 'Module updated successfully!');
       navigate(`/teacher/courses/${courseId}`);
     } catch (error) {
       console.error('Error updating course:', error);
