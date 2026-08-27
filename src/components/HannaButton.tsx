@@ -21,6 +21,7 @@ import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudina
 import { streamHannaReply, deriveChatTitle, isGeminiConfigured, type HannaAttachment } from '@/lib/hannaGemini';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { HannaSettingsDialog } from '@/components/HannaSettingsDialog';
+import UnifiedMediaViewer, { type UnifiedMediaItem } from '@/components/UnifiedMediaViewer';
 import {
   collection,
   addDoc,
@@ -242,6 +243,7 @@ export function HannaButton() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<UnifiedMediaItem | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -263,6 +265,10 @@ export function HannaButton() {
   // References
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const openAttachment = useCallback((attachment: { url: string; name: string; mimeType: string }) => {
+    setSelectedMedia({ url: attachment.url, name: attachment.name, mimeType: attachment.mimeType });
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
@@ -793,7 +799,7 @@ export function HannaButton() {
                         )}
                       </div>
                       <div className="space-y-0.5">
-                        {m.attachments?.length ? <div className={`flex flex-wrap gap-1.5 ${isHanna ? 'justify-start' : 'justify-end'}`}>{m.attachments.map((attachment, index) => attachment.mimeType.startsWith('image/') ? <img key={`${attachment.url}-${index}`} src={attachment.url} alt="Attached image" className="max-h-32 max-w-[180px] rounded-xl border border-slate-200/50 object-cover dark:border-white/10" /> : <span key={`${attachment.url}-${index}`} className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2 py-1 text-[10px] text-slate-500 dark:bg-white/5 dark:text-slate-300"><FileText className="h-3 w-3 text-emerald-500" />Attached file</span>)}</div> : null}
+                        {m.attachments?.length ? <div className={`flex flex-wrap gap-1.5 ${isHanna ? 'justify-start' : 'justify-end'}`}>{m.attachments.map((attachment, index) => attachment.mimeType.startsWith('image/') || attachment.mimeType.startsWith('video/') ? <button type="button" key={`${attachment.url}-${index}`} onClick={() => openAttachment(attachment)} aria-label={`View ${attachment.name}`} className="group relative overflow-hidden rounded-xl border border-slate-200/50 bg-black shadow-sm dark:border-white/10">{attachment.mimeType.startsWith('image/') ? <img src={attachment.url} alt={attachment.name} className="max-h-32 max-w-[180px] object-cover" /> : <video src={attachment.url} muted playsInline preload="metadata" className="max-h-32 max-w-[180px] object-cover" />}<span className="absolute inset-x-1 bottom-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">Open viewer</span></button> : <span key={`${attachment.url}-${index}`} className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2 py-1 text-[10px] text-slate-500 dark:bg-white/5 dark:text-slate-300"><FileText className="h-3 w-3 text-emerald-500" />Attached file</span>)}</div> : null}
                         <div className={`
                           px-3 py-2 rounded-2xl text-xs leading-relaxed
                           ${isHanna
@@ -942,6 +948,7 @@ export function HannaButton() {
             )}
           </form>
         </footer>
+        <UnifiedMediaViewer item={selectedMedia} open={Boolean(selectedMedia)} onOpenChange={(open) => { if (!open) setSelectedMedia(null); }} />
       </div>
     );
   }
@@ -1231,8 +1238,11 @@ export function HannaButton() {
                       {m.attachments && m.attachments.length > 0 && (
                         <div className={`flex flex-wrap gap-1.5 ${isHanna ? 'justify-start' : 'justify-end'}`}>
                           {m.attachments.map((att, i) => (
-                            att.mimeType.startsWith('image/') ? (
-                              <img key={i} src={att.url} alt={att.name} className="max-w-[200px] max-h-36 rounded-xl object-cover border border-slate-200/50 dark:border-white/10 shadow-sm" />
+                            att.mimeType.startsWith('image/') || att.mimeType.startsWith('video/') ? (
+                              <button type="button" key={i} onClick={() => openAttachment(att)} aria-label={`View ${att.name}`} className="group relative overflow-hidden rounded-xl border border-slate-200/50 bg-black shadow-sm dark:border-white/10">
+                                {att.mimeType.startsWith('image/') ? <img src={att.url} alt={att.name} className="max-w-[200px] max-h-36 object-cover" /> : <video src={att.url} muted playsInline preload="metadata" className="max-w-[200px] max-h-36 object-cover" />}
+                                <span className="absolute inset-x-1 bottom-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white opacity-0 transition group-hover:opacity-100">Open viewer</span>
+                              </button>
                             ) : (
                               <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-[10px]">
                                 <FileText className="w-3.5 h-3.5 text-emerald-500" /> {att.name}
@@ -1445,6 +1455,7 @@ export function HannaButton() {
         onClose={() => setIsSettingsOpen(false)}
         userId={currentUser?.uid || ''}
       />
+      <UnifiedMediaViewer item={selectedMedia} open={Boolean(selectedMedia)} onOpenChange={(open) => { if (!open) setSelectedMedia(null); }} />
     </div>
   );
 }
