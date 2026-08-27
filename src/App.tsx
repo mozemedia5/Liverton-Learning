@@ -79,7 +79,7 @@ const HannaChatIntegrated = lazy(() => import('@/pages/features/HannaChatIntegra
 const Analytics = lazy(() => import('@/pages/features/Analytics'));
 const MoreHub = lazy(() => import('@/pages/features/MoreHub'));
 const LiveFeatureGate = lazy(() => import('@/pages/features/LiveFeatureGate'));
-const LiveMart = lazy(() => import('@/pages/features/LiveMart'));
+
 const TeacherZoomLessons = lazy(() => import('@/components/ZoomLessons/TeacherZoomLessons'));
 const StudentZoomLessons = lazy(() => import('@/components/ZoomLessons/StudentZoomLessons'));
 const ParentZoomLessons = lazy(() => import('@/components/ZoomLessons/ParentZoomLessons'));
@@ -530,11 +530,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      <Route path="/features/liv-match" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <LiveFeatureGate feature="match" />
-        </ProtectedRoute>
-      } />
+
       <Route path="/features/liv-fund" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
           <LiveFeatureGate feature="fund" />
@@ -542,7 +538,7 @@ function AppRoutes() {
       } />
       <Route path="/features/liv-mart" element={
         <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <LiveMart />
+          <LiveFeatureGate feature="mart" />
         </ProtectedRoute>
       } />
       <Route path="/features/liv-teams" element={

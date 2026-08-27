@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Button } from '@/components/ui/button';
 
-type LiveFeature = 'match' | 'fund';
+type LiveFeature = 'mart' | 'fund';
 
 const featureContent: Record<LiveFeature, {
   name: string;
@@ -18,11 +18,11 @@ const featureContent: Record<LiveFeature, {
   how: string[];
   benefits: string[];
 }> = {
-  match: {
-    name: 'LiveMatch',
+  mart: {
+    name: 'LivMart',
     eyebrow: 'Education marketplace · Coming next',
     title: 'Match great learning work with the people who need it.',
-    description: 'LiveMatch will help educators, learners, organizations, and creators discover and exchange useful scholastic materials, lesson kits, classroom tools, and completed educational projects in one trusted space.',
+    description: 'LivMart will help educators, learners, organizations, and creators discover and exchange useful scholastic materials, lesson kits, classroom tools, and completed educational projects in one trusted space.',
     image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1400&q=85',
     imageAlt: 'Students collaborating around a table with learning materials',
     icon: Store,
