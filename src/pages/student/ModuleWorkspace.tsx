@@ -50,7 +50,6 @@ import {
   type ModuleSubmission,
 } from '@/services/moduleLearningService';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
-import { initializeModulePayment } from '@/services/paymentService';
 import UnifiedMediaViewer from '@/components/UnifiedMediaViewer';
 import { convertAmount, fetchExchangeRates, formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/currency';
 
@@ -127,8 +126,8 @@ function PdfPreview({ url, name, className = '' }: { url: string; name: string; 
   }, [url]);
   if (failed) return <div className={`flex min-h-[18rem] flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center ${className}`}><FileText className="mb-3 h-10 w-10 text-amber-500" /><p className="font-semibold text-slate-800">The embedded PDF preview could not be opened.</p><p className="mt-1 max-w-md text-sm text-slate-600">The file host may block iframe previews. Open the original PDF in a new tab or download it.</p><div className="mt-4 flex gap-2"><Button size="sm" asChild className="rounded-xl bg-emerald-600 text-white"><a href={url} target="_blank" rel="noopener noreferrer">Open PDF</a></Button><Button size="sm" variant="outline" asChild className="rounded-xl"><a href={url} download={name}>Download</a></Button></div></div>;
   return <div className={`relative ${className}`}>
-    {loading && <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-white/90 text-sm text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PDF…</div>}
-    <iframe src={`${url}#toolbar=1&view=FitH`} title={name} onLoad={() => setLoading(false)} onError={() => { setLoading(false); setFailed(true); }} className="h-full min-h-[30rem] w-full rounded-2xl border border-slate-200 bg-white" />
+    {loading && <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-white/90 text-sm text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Opening Microsoft PDF viewer…</div>}
+    <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`} title={name} onLoad={() => setLoading(false)} onError={() => { setLoading(false); setFailed(true); }} className="h-full min-h-[30rem] w-full rounded-2xl border border-slate-200 bg-white" />
   </div>;
 }
 
@@ -273,23 +272,9 @@ export default function ModuleWorkspace() {
   const totalLearningItems = Math.max((course?.materials?.length || 0) + lessons.length, 1);
   const calculatedProgress = progress?.percentage ?? 0;
 
-  const startPaidCheckout = async () => {
+  const startPaidCheckout = () => {
     if (!course) return;
-    setActionLoading(true);
-    try {
-      const result = await initializeModulePayment(course.id);
-      if (result.alreadyEnrolled) {
-        setCourse((old) => old ? { ...old, enrolledStudents: [...(old.enrolledStudents || []), currentUser?.uid || ''] } : old);
-        toast.success('Your access is already active.');
-        return;
-      }
-      if (!result.checkoutUrl) throw new Error('Payment checkout link was not returned.');
-      window.location.assign(result.checkoutUrl);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'We could not start payment.');
-    } finally {
-      setActionLoading(false);
-    }
+    navigate(`/payments?courseId=${encodeURIComponent(course.id)}`);
   };
 
   const enrollForFree = async () => {

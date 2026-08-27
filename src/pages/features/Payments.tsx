@@ -16,7 +16,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { subscribeToPaymentHistory, verifyModulePayment, type PaymentRecord } from '@/services/paymentService';
+import { initializeModulePayment, subscribeToPaymentHistory, verifyModulePayment, type PaymentRecord } from '@/services/paymentService';
+import { getCourse, type Course } from '@/services/courseService';
 import { toast } from 'sonner';
 
 interface Payment {
@@ -67,11 +68,43 @@ export default function Payments() {
   const { currentUser } = useAuth();
   const [verifying, setVerifying] = useState(false);
   const [livePayments, setLivePayments] = useState<PaymentRecord[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const courseId = searchParams.get('courseId');
 
   useEffect(() => {
     if (!currentUser) return;
     return subscribeToPaymentHistory(currentUser.uid, setLivePayments);
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!courseId) {
+      setSelectedCourse(null);
+      return;
+    }
+    let active = true;
+    getCourse(courseId).then((course) => { if (active) setSelectedCourse(course); }).catch(() => { if (active) setSelectedCourse(null); });
+    return () => { active = false; };
+  }, [courseId]);
+
+  const beginCheckout = async () => {
+    if (!selectedCourse) return;
+    setCheckoutLoading(true);
+    try {
+      const result = await initializeModulePayment(selectedCourse.id);
+      if (result.alreadyEnrolled) {
+        toast.success('Your access is already active.');
+        navigate(`/student/courses/${selectedCourse.id}`, { replace: true });
+        return;
+      }
+      if (!result.checkoutUrl) throw new Error('Payment checkout link was not returned.');
+      window.location.assign(result.checkoutUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'We could not start payment.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   useEffect(() => {
     const transactionId = searchParams.get('transaction_id');
@@ -128,7 +161,7 @@ export default function Payments() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 lg:p-6 space-y-6">{verifying && <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"><CardContent className="flex items-center gap-3 p-4 text-sm font-semibold text-emerald-800 dark:text-emerald-200"><Loader2 className="h-4 w-4 animate-spin" /> Verifying payment and preparing your module access...</CardContent></Card>}
+      <main className="p-4 lg:p-6 space-y-6">{selectedCourse && <Card className="border-emerald-200 bg-white shadow-sm dark:border-emerald-900 dark:bg-zinc-950"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-600">Complete enrollment</p><h1 className="mt-1 text-xl font-bold">{selectedCourse.title}</h1><p className="mt-1 text-sm text-gray-500">{selectedCourse.currency || 'UGX'} {Number(selectedCourse.price || 0).toLocaleString()} · Secure payment with Flutterwave</p></div><Button onClick={beginCheckout} disabled={checkoutLoading} className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700">{checkoutLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}<CreditCard className="mr-2 h-4 w-4" /> Pay now</Button></CardContent></Card>}{courseId && !selectedCourse && <Card><CardContent className="p-5 text-sm text-gray-500">Loading the selected module…</CardContent></Card>}{verifying && <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"><CardContent className="flex items-center gap-3 p-4 text-sm font-semibold text-emerald-800 dark:text-emerald-200"><Loader2 className="h-4 w-4 animate-spin" /> Verifying payment and preparing your module access...</CardContent></Card>}
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>

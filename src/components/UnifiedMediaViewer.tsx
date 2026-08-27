@@ -50,7 +50,9 @@ export function UnifiedMediaViewer({ item, open, onOpenChange }: UnifiedMediaVie
   if (!item) return null;
   const kindForViewer = mediaKind(item);
   const office = ['document', 'spreadsheet', 'presentation', 'office'].includes(kindForViewer);
-  const viewerUrl = office ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.url)}` : item.url;
+  const viewerUrl = office || kindForViewer === 'pdf'
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.url)}`
+    : item.url;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -81,8 +83,8 @@ export function UnifiedMediaViewer({ item, open, onOpenChange }: UnifiedMediaVie
               </div>
             </div>
           ) : <div className="relative h-[calc(92vh-130px)] min-h-[30rem] w-full">
-            {pdfLoading && <div className="absolute inset-0 z-10 grid place-items-center bg-white/90 text-sm font-semibold text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PDF…</div>}
-            <iframe src={`${item.url}#toolbar=1&view=FitH`} title={item.name} onLoad={() => { setPdfLoading(false); setPdfPreviewFailed(false); }} onError={() => { setPdfLoading(false); setPdfPreviewFailed(true); }} className="h-full w-full rounded-2xl bg-white shadow-2xl" />
+            {pdfLoading && <div className="absolute inset-0 z-10 grid place-items-center bg-white/90 text-sm font-semibold text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Opening Microsoft PDF viewer…</div>}
+            <iframe src={viewerUrl} title={item.name} onLoad={() => { setPdfLoading(false); setPdfPreviewFailed(false); }} onError={() => { setPdfLoading(false); setPdfPreviewFailed(true); }} className="h-full w-full rounded-2xl bg-white shadow-2xl" />
           </div>)}
           {office && <div className="h-[calc(92vh-130px)] min-h-[30rem] w-full overflow-hidden rounded-2xl bg-white shadow-2xl"><iframe src={viewerUrl} title={item.name} className="h-full w-full" /></div>}
           {kindForViewer === 'file' && <div className="max-w-md rounded-3xl bg-white p-8 text-center shadow-xl dark:bg-[#11151d]"><FileText className="mx-auto mb-4 h-12 w-12 text-emerald-500" /><p className="font-bold text-slate-900 dark:text-white">Preview unavailable for this file type.</p><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Use the download action above to open it with a compatible application.</p><a href={item.url} download={item.name} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white"><ExternalLink className="h-4 w-4" /> Open file</a></div>}
