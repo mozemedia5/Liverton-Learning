@@ -42,6 +42,9 @@ const roles: RoleOption[] = [
   },
 ];
 
+// Parent and organization roles remain defined for future revival, but are intentionally hidden from this in-development UI.
+const visibleRoles = roles.filter((role) => role.id === 'student' || role.id === 'teacher');
+
 export default function RoleSelection() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,7 +82,7 @@ export default function RoleSelection() {
 
           {/* Role Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {roles.map((role) => (
+            {visibleRoles.map((role) => (
               <Card
                 key={role.id}
                 className="cursor-pointer border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all duration-200 hover:shadow-lg bg-white dark:bg-black"

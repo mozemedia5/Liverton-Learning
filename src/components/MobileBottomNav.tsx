@@ -35,7 +35,7 @@ const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; se
   if (role === 'teacher') {
     return {
       main: [home, { name: 'Modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Chat', path: '/chat', icon: MessageSquare, primary: true } , { name: 'Teams', path: '/features/liv-teams', icon: Users }, more],
-      secondary: [{ name: 'Educators Workhub', path: '/features/tearn', icon: Briefcase }, { name: 'My modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common]
+      secondary: [{ name: 'Educators Workhub', path: '/features/tearn', icon: Briefcase }, { name: 'My modules', path: '/teacher/courses', icon: BookOpen }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, ...common]
     };
   }
 
@@ -54,8 +54,8 @@ const roleNavigation = (role: Role, openMore: () => void): { main: NavItem[]; se
   }
 
   return {
-    main: [home, { name: 'Modules', path: '/student/courses', icon: BookOpen }, { name: 'Chat', path: '/chat', icon: MessageSquare }, { name: 'Explore', path: '/features/liv-mart', icon: ShoppingBag }, more],
-    secondary: [{ name: 'My modules', path: '/student/courses', icon: BookOpen }, { name: 'Chat', path: '/chat', icon: MessageSquare }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, { name: 'Liv Fund', path: '/features/liv-fund', icon: HeartHandshake }, { name: 'Liv Mart', path: '/features/liv-mart', icon: ShoppingBag }, ...common.filter(item => item.name !== 'Chat')]
+    main: [home, { name: 'Modules', path: '/student/courses', icon: BookOpen }, { name: 'Chat', path: '/chat', icon: MessageSquare }, more],
+    secondary: [{ name: 'My modules', path: '/student/courses', icon: BookOpen }, { name: 'Chat', path: '/chat', icon: MessageSquare }, { name: 'Liv Teams', path: '/features/liv-teams', icon: Users }, ...common.filter(item => item.name !== 'Chat')]
   };
 };
 
