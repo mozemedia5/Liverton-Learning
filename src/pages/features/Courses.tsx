@@ -26,6 +26,8 @@ import {
 import { subscribeToCourseViewCounts } from '@/services/courseStatsService';
 import ShareContentDialog, { type ShareContentItem } from '@/components/ShareContentDialog';
 import { CloudinaryImage } from '@/components/CloudinaryImage';
+import { enrollStudent } from '@/services/courseService';
+import { toast } from 'sonner';
 
 const subjects = [
   'All',
@@ -185,7 +187,7 @@ function ModuleSection({
 export default function Courses() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { userRole, userData } = useAuth();
+  const { currentUser, userRole, userData } = useAuth();
   const [modules, setModules] = useState<Course[]>([]);
   const [myModules, setMyModules] = useState<Course[]>([]);
   const [viewMode, setViewMode] = useState<'explore' | 'mine'>('explore');
@@ -196,6 +198,7 @@ export default function Courses() {
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [shareItem, setShareItem] = useState<ShareContentItem | null>(null);
   const [showShare, setShowShare] = useState(false);
+  const [openingModuleId, setOpeningModuleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (searchParams.get('view') === 'mine') setViewMode('mine');
@@ -256,7 +259,29 @@ export default function Courses() {
   const contextualRecommendations = filteredModules.filter((module) => matchesLearnerContext(module, userSubjects, userLevels));
   const recommendedModules = contextualRecommendations.length > 0 ? contextualRecommendations : sortedByPopularity;
 
-  const handleOpen = (module: Course) => navigate(`/student/courses/${module.id}`);
+  const handleOpen = async (module: Course) => {
+    if (!currentUser?.uid || openingModuleId) return;
+    const alreadyEnrolled = myModules.some((item) => item.id === module.id);
+    if (alreadyEnrolled) {
+      navigate(`/student/courses/${module.id}`);
+      return;
+    }
+    if (!isFreeModule(module)) {
+      navigate(`/payments?moduleId=${encodeURIComponent(module.id)}`);
+      return;
+    }
+    try {
+      setOpeningModuleId(module.id);
+      await enrollStudent(module.id, currentUser.uid, userData?.fullName || currentUser.displayName || 'Student', currentUser.email || undefined, userData?.phone || undefined);
+      toast.success('You are enrolled. Opening the module…');
+      navigate(`/student/courses/${module.id}`);
+    } catch (error) {
+      console.error('Free module enrollment failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not open this free module. Please try again.');
+    } finally {
+      setOpeningModuleId(null);
+    }
+  };
   const displayedModules = viewMode === 'mine' ? myModules : filteredModules;
 
   return (

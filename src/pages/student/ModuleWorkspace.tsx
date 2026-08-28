@@ -266,7 +266,7 @@ export default function ModuleWorkspace() {
       .then((rates) => { if (mounted) setExchangeRates(rates); })
       .catch(() => { if (mounted) setExchangeRates(null); });
     return () => { mounted = false; };
-  }, [course?.currency, isFree]);
+  }, [course, isFree]);
 
   const convertedPrice = convertAmount(Number(course?.price || 0), exchangeRates, displayCurrency);
   const totalLearningItems = Math.max((course?.materials?.length || 0) + lessons.length, 1);
