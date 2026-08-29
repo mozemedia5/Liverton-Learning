@@ -1,8 +1,7 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { GraduationCap, Users, School, UserCircle, ArrowLeft, Lock } from 'lucide-react';
-import { toast } from 'sonner';
+import { GraduationCap, Users, School, UserCircle, ArrowLeft } from 'lucide-react';
 
 interface RoleOption {
   id: string;
@@ -10,7 +9,6 @@ interface RoleOption {
   description: string;
   icon: React.ReactNode;
   path: string;
-  comingSoon?: boolean;
 }
 
 const roles: RoleOption[] = [
@@ -23,18 +21,17 @@ const roles: RoleOption[] = [
   },
   {
     id: 'teacher',
-    title: 'Educator',
-    description: 'Create courses, share lessons, and help learners grow from your expertise',
+    title: 'Teacher',
+    description: 'Create courses, upload lessons, and earn from your expertise',
     icon: <Users className="w-8 h-8" />,
     path: '/register?role=teacher',
   },
   {
-    id: 'organization',
-    title: 'Organization',
-    description: 'Coordinate programs, people, resources, and learning opportunities across your organization',
+    id: 'school-admin',
+    title: 'School Administrator',
+    description: 'Manage your school, students, teachers, and operations',
     icon: <School className="w-8 h-8" />,
     path: '/register?role=school_admin',
-    comingSoon: true,
   },
   {
     id: 'parent',
@@ -42,14 +39,11 @@ const roles: RoleOption[] = [
     description: 'Monitor your child\'s performance and progress',
     icon: <UserCircle className="w-8 h-8" />,
     path: '/register?role=parent',
-    comingSoon: true,
   },
 ];
 
 export default function RoleSelection() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const intendedDestination = (location.state as { from?: string } | null)?.from;
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
@@ -77,7 +71,7 @@ export default function RoleSelection() {
           <div className="text-center space-y-3">
             <h1 className="text-3xl md:text-4xl font-bold">Who are you?</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Select the path that best describes how you participate in learning
+              Select your role to create your account
             </p>
           </div>
 
@@ -86,35 +80,15 @@ export default function RoleSelection() {
             {roles.map((role) => (
               <Card
                 key={role.id}
-                onClick={() => {
-                  if (role.comingSoon) {
-                    toast.info(`🚧 ${role.title} is a coming soon feature and is currently under development. Please continue as a Student or Educator for now.`, {
-                      duration: 5000,
-                    });
-                    return;
-                  }
-                  navigate(role.path, { state: { from: intendedDestination } });
-                }}
-                className={`relative border transition-all duration-200 bg-white dark:bg-black ${
-                  role.comingSoon
-                    ? 'cursor-not-allowed border-gray-200 dark:border-gray-800 opacity-75'
-                    : 'cursor-pointer border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white hover:shadow-lg'
-                }`}
+                className="cursor-pointer border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all duration-200 hover:shadow-lg bg-white dark:bg-black"
+                onClick={() => navigate(role.path)}
               >
                 <CardContent className="p-6 flex items-start gap-4">
                   <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center flex-shrink-0">
                     {role.icon}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold">{role.title}</h3>
-                      {role.comingSoon && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                          <Lock className="w-2.5 h-2.5" />
-                          Coming Soon
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-lg font-semibold mb-1">{role.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {role.description}
                     </p>
@@ -130,7 +104,7 @@ export default function RoleSelection() {
               Already have an account?{' '}
               <Button 
                 variant="link" 
-                onClick={() => navigate('/login', { state: { from: intendedDestination } })}
+                onClick={() => navigate('/login')}
                 className="p-0 h-auto font-semibold"
               >
                 Login here

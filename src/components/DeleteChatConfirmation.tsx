@@ -24,56 +24,69 @@ export function DeleteChatConfirmation({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-white/95 dark:bg-[#0a0a0f]/95 border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-xl animate-in zoom-in-95 duration-200">
+      <Card className="w-full max-w-md bg-white dark:bg-gray-900 overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-slate-200/50 dark:border-white/5 bg-red-500/10 dark:bg-red-500/5">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-red-50 dark:bg-red-900/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 dark:bg-red-950/50 rounded-xl flex items-center justify-center border border-red-200 dark:border-red-900/30">
-                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Delete Conversation</h2>
+              <h2 className="text-xl font-bold text-red-900 dark:text-red-200">Delete Chat</h2>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={onCancel}
-              className="rounded-full w-8 h-8 hover:bg-slate-200/50 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600"
+              className="rounded-full hover:bg-red-100 dark:hover:bg-red-900/30"
             >
-              <X className="w-4.5 h-4.5" />
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
         {/* Content */}
         <div className="p-6">
-          <div className="mb-5">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
-              Are you sure you want to delete this chat history? This action is permanent and cannot be undone.
+          <div className="mb-6">
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
+              Are you sure you want to delete this chat?
             </p>
-            {chatTitle && (
-              <div className="p-3.5 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-200/50 dark:border-white/5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">Target Chat:</p>
-                <p className="font-semibold text-xs text-slate-800 dark:text-slate-100 truncate">{chatTitle}</p>
-              </div>
-            )}
+            <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Chat:</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{chatTitle}</p>
+            </div>
           </div>
 
-          {/* Action Buttons: Red Delete and Blue Cancel */}
+          {/* Warning */}
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-6">
+            <div className="flex gap-3">
+              <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-900 dark:text-red-200 mb-1">
+                  This action cannot be undone
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-300">
+                  All messages, files, and chat history will be permanently deleted from your account.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
           <div className="flex gap-3">
             <Button 
               variant="outline" 
               onClick={onCancel}
-              className="flex-1 border-blue-500/30 hover:border-blue-500/50 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold rounded-xl text-xs h-10 transition-all active:scale-95"
+              className="flex-1 border-gray-300 dark:border-gray-600"
             >
               Cancel
             </Button>
             <Button 
               onClick={onConfirm}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs h-10 shadow-md shadow-red-600/10 transition-all active:scale-95"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
             >
-              <Trash2 className="w-4 h-4 mr-1.5" />
-              Delete
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Chat
             </Button>
           </div>
         </div>

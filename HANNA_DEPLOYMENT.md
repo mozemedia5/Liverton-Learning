@@ -38,7 +38,7 @@ npm install
 npm run build
 
 # Set environment variables
-firebase functions:config:set gemini.api_key="YOUR_GEMINI_API_KEY"
+firebase functions:config:set gemini.api_key="AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs"
 
 # Deploy functions
 firebase deploy --only functions
@@ -356,24 +356,3 @@ gcloud firestore operations list
 - Firestore: https://cloud.google.com/firestore/docs
 - Gemini API: https://ai.google.dev/docs
 
-
-
-## Active Vercel deployment path (current)
-
-The active production Hanna endpoint is the root-level Vercel function at `/api/hanna`. The browser must use the same-origin route in production; do not point the client back to the legacy Firebase Functions URL.
-
-Before deploying, set these server-only Vercel variables in Production and Preview: `GEMINI_API_KEY`, `GEMINI_MODEL=gemini-3.6-flash`, `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`. Keep `GEMINI_API_KEY` and Firebase Admin credentials unprefixed by `VITE_`. After deployment, request `/api/health`; the response must include `capabilities.hanna: true`, `capabilities.hannaConfig: true`, and `capabilities.hannaModel.reachable: true`.
-
-To repair existing chat discovery records, first run a dry run locally or in a trusted administrative environment:
-
-```bash
-FIREBASE_PROJECT_ID=... FIREBASE_CLIENT_EMAIL=... FIREBASE_PRIVATE_KEY='...' npm run backfill:user-directory -- --dry-run
-```
-
-If the dry-run counts are correct, run the idempotent write with explicit confirmation:
-
-```bash
-FIREBASE_PROJECT_ID=... FIREBASE_CLIENT_EMAIL=... FIREBASE_PRIVATE_KEY='...' BACKFILL_CONFIRM=1 npm run backfill:user-directory
-```
-
-The script writes only minimal searchable identity fields to `userDirectory/{uid}` and processes records in batches. It does not copy private profile fields or read data from the browser.

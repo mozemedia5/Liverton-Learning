@@ -3,15 +3,15 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration loaded dynamically from environment variables
+// Your Firebase configuration with API keys
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "dummy-api-key-for-development",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "liverton-learn.firebaseapp.com",
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://liverton-learn-default-rtdb.firebaseio.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "liverton-learn",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "liverton-learn.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "694304753308",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:694304753308:web:5ca134f5f85f428c0b0f59"
+  apiKey: "AIzaSyBjDFyYVoHQ2MYP870VqxHpqpEmKy-kaeQ",
+  authDomain: "liverton-learning-52b7c.firebaseapp.com",
+  databaseURL: "https://liverton-learning-52b7c-default-rtdb.firebaseio.com",
+  projectId: "liverton-learning-52b7c",
+  storageBucket: "liverton-learning-52b7c.firebasestorage.app",
+  messagingSenderId: "694304753308",
+  appId: "1:694304753308:web:5ca134f5f85f428c0b0f59"
 };
 
 // Initialize Firebase

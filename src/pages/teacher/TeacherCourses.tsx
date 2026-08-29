@@ -221,7 +221,7 @@ export default function TeacherCourses() {
               <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <span className="font-semibold">My Modules</span>
+              <span className="font-semibold">My Courses</span>
             </div>
           </div>
         </header>
@@ -245,7 +245,7 @@ export default function TeacherCourses() {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <BookOpen className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">My Modules</span>
+              <span className="font-semibold">My Courses</span>
             </div>
           </div>
           <Button 
@@ -265,7 +265,7 @@ export default function TeacherCourses() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search modules..."
+              placeholder="Search courses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -285,7 +285,7 @@ export default function TeacherCourses() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-gray-600">Total Modules</p>
+              <p className="text-sm text-gray-600">Total Courses</p>
               <p className="text-2xl font-bold">{courses.length}</p>
             </CardContent>
           </Card>
@@ -348,7 +348,7 @@ export default function TeacherCourses() {
       <AlertDialog open={!!courseToDelete} onOpenChange={() => setCourseToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Module</AlertDialogTitle>
+            <AlertDialogTitle>Delete Course</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{courseToDelete?.title}"? 
               This action cannot be undone and all course materials will be permanently deleted.

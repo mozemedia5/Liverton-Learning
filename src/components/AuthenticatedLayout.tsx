@@ -1,48 +1,64 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import SideNavbar from '@/components/SideNavbar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { DesktopNavbar } from '@/components/DesktopNavbar';
 import { HannaButton } from '@/components/HannaButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnnouncementListener } from '@/hooks/useAnnouncementListener';
-import { useChatMessageNotifications } from '@/hooks/useChatMessageNotifications';
 
 export default function AuthenticatedLayout(props: { children?: React.ReactNode }) {
   const { isAuthenticated, userRole } = useAuth();
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // Listen for real-time announcements
   useAnnouncementListener();
-  useChatMessageNotifications();
+
+  const show = isAuthenticated;
+
+  // Only show HannaButton on dashboard pages
+  const isDashboardPage = [
+    '/student/dashboard',
+    '/teacher/dashboard',
+    '/school-admin/dashboard',
+    '/parent/dashboard',
+    '/admin/dashboard'
+  ].includes(location.pathname);
 
   useEffect(() => {
-    // Keep the shell predictable on route changes and avoid stale mobile sheets.
+    // Close any open hanna modal on route change (optional future enhancement)
   }, [location.pathname]);
 
-  const isFullScreenPage = location.pathname.startsWith('/chat') || location.pathname === '/features/hanna-ai';
-  const isHannaAiFullScreenPage = location.pathname === '/features/hanna-ai';
-  const isDashboardPage = /^\/(?:dashboard|student\/dashboard|teacher\/dashboard|parent\/dashboard|school-admin\/dashboard|admin\/dashboard)\/?$/.test(location.pathname);
-
   return (
-    <div className="liv-shell">
-      {isAuthenticated && (
+    <div className="min-h-screen bg-white dark:bg-background">
+      {/* Mobile: BottomNav only */}
+      {show && (
         <>
-          <div className="hidden lg:block">
-            <DesktopNavbar userRole={userRole} isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+          {/* Mobile: Bottom Nav (visible on small screens) */}
+          <div className="lg:hidden">
+            <MobileBottomNav userRole={userRole} />
           </div>
-          {!isHannaAiFullScreenPage && (
-            <div className="lg:hidden">
-              <MobileBottomNav />
-            </div>
-          )}
+
+          {/* Desktop: Collapsible Sidebar (visible on large screens) */}
+          <div className="hidden lg:block">
+            <DesktopNavbar
+              userRole={userRole}
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+            />
+          </div>
         </>
       )}
 
-      <main className={`liv-main ${isSidebarCollapsed ? 'liv-main-collapsed' : ''} ${isFullScreenPage ? 'liv-main-fullscreen' : ''}`}>
+      {/* Main Content Area */}
+      <main className={`w-full min-h-screen pt-0 pb-24 lg:pb-4 transition-all duration-300 ${
+        show ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''
+      }`}>
         {props.children ?? <Outlet />}
       </main>
 
-      {isAuthenticated && isDashboardPage && !isFullScreenPage && <HannaButton />}
+      {show && isDashboardPage && <HannaButton />}
     </div>
   );
 }

@@ -1,536 +1,315 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ==================== HELPER FUNCTIONS ====================
+
+    // Check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
+
+    // Get the current user's ID
     function currentUserId() {
       return request.auth.uid;
     }
+
+    // Get the current user's data
     function currentUserData() {
       return get(/databases/$(database)/documents/users/$(currentUserId())).data;
     }
+
+    // Check if user is platform admin
     function isPlatformAdmin() {
       return isAuthenticated() && currentUserData().role == 'platform_admin';
     }
+
+    // Check if user is school admin
     function isSchoolAdmin() {
       return isAuthenticated() && currentUserData().role == 'school_admin';
     }
+
+    // Check if user is teacher
     function isTeacher() {
       return isAuthenticated() && currentUserData().role == 'teacher';
     }
+
+    // Check if user is parent
     function isParent() {
       return isAuthenticated() && currentUserData().role == 'parent';
     }
+
+    // Check if user is student
     function isStudent() {
       return isAuthenticated() && currentUserData().role == 'student';
     }
+
+    // Get current user's school ID
     function currentUserSchoolId() {
       return currentUserData().schoolId;
     }
+
+    // ==================== USERS COLLECTION ====================
+
     match /users/{userId} {
+      // Platform admins can read ALL users
       allow read: if isPlatformAdmin();
+
+      // Platform admins can write (update/delete) any user
       allow write: if isPlatformAdmin();
+
+      // Users can read and write their own data
       allow read, write: if isAuthenticated() && currentUserId() == userId;
+
+      // School admins can read teachers and students in their school
       allow read: if isSchoolAdmin() &&
         (resource.data.schoolId == currentUserSchoolId() ||
          resource.data.role == 'teacher' && resource.data.schoolId == currentUserSchoolId() ||
          resource.data.role == 'student' && resource.data.schoolId == currentUserSchoolId());
+
+      // Teachers can read students in their school
       allow read: if isTeacher() &&
         resource.data.role == 'student' &&
         resource.data.schoolId == currentUserSchoolId();
+
+      // Teachers can read other teachers in their school
       allow read: if isTeacher() &&
         resource.data.role == 'teacher' &&
         resource.data.schoolId == currentUserSchoolId();
+
+      // Parents can read their linked children's data
       allow read: if isParent() &&
         resource.data.role == 'student' &&
         currentUserData().linkedStudentIds != null &&
         userId in currentUserData().linkedStudentIds;
+
+      // Allow create during registration (user creating their own document)
       allow create: if isAuthenticated() && currentUserId() == userId;
     }
+
+    // ==================== SCHOOLS COLLECTION ====================
+
     match /schools/{schoolId} {
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
+
+      // Anyone can read school info
       allow read: if isAuthenticated();
+
+      // School admins can update their own school
       allow write: if isSchoolAdmin() &&
         currentUserData().schoolId == schoolId;
     }
+
+    // ==================== COURSES COLLECTION ====================
+
     match /courses/{courseId} {
-      function hasPublishFields() {
-        return request.resource.data.title is string && request.resource.data.title.size() > 0 &&
-          request.resource.data.description is string && request.resource.data.description.size() > 0 &&
-          request.resource.data.teacherId is string && request.resource.data.teacherId == currentUserId() &&
-          request.resource.data.teacherName is string && request.resource.data.teacherName.size() > 0 &&
-          request.resource.data.subject is string && request.resource.data.subject.size() > 0 &&
-          request.resource.data.currency is string && request.resource.data.currency.size() > 0 &&
-          request.resource.data.price is number && request.resource.data.price >= 0 &&
-          request.resource.data.visibility in ['public', 'unlisted'] &&
-          request.resource.data.materials is list && request.resource.data.materials.size() > 0 &&
-          request.resource.data.lessons is number && request.resource.data.lessons > 0;
-      }
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
+
+      // School admins can read all courses in their school
       allow read: if isSchoolAdmin() &&
         resource.data.schoolId == currentUserSchoolId();
+
+      // School admins can create courses for their school
       allow create: if isSchoolAdmin() &&
         request.resource.data.schoolId == currentUserSchoolId();
+
+      // Teachers can read courses they created or in their school
       allow read: if isTeacher() &&
         (resource.data.teacherId == currentUserId() ||
          resource.data.schoolId == currentUserSchoolId());
-      allow create: if isTeacher() &&
-        request.resource.data.teacherId == currentUserId() &&
-        (request.resource.data.status != 'active' || hasPublishFields());
+
+      // Teachers can create courses
+      allow create: if isTeacher();
+
+      // Teachers can update their own courses
       allow update: if isTeacher() &&
-        resource.data.teacherId == currentUserId() &&
-        request.resource.data.teacherId == resource.data.teacherId &&
-        (request.resource.data.status != 'active' || hasPublishFields());
+        resource.data.teacherId == currentUserId();
+
+      // Students can read courses they're enrolled in
       allow read: if isStudent() &&
-        (currentUserId() in resource.data.get('enrolledStudents', []) ||
-         (resource.data.status == 'active' && resource.data.get('visibility', 'public') in ['public', 'unlisted']));
+        currentUserId() in resource.data.enrolledStudents;
+
+      // Parents can read courses their children are enrolled in
       allow read: if isParent();
     }
+
+    // ==================== ANNOUNCEMENTS ====================
+
     match /announcements/{announcementId} {
-      allow read: if isAuthenticated();
-      allow write: if isPlatformAdmin();
-    }
-    // Platform-admin video updates are readable only while active and only by
-    // the authenticated role they target. Creation and management stay admin-only.
-    match /dashboardAnnouncements/{announcementId} {
-      allow read: if isPlatformAdmin() || (
-        isAuthenticated() &&
-        resource.data.isActive == true &&
-        resource.data.status == 'active' &&
-        resource.data.type == 'video' &&
-        resource.data.expiresAt > request.time &&
-        (
-          resource.data.targetAudience == 'all' ||
-          resource.data.get('targetRoles', []).hasAny(['all']) ||
-          (isStudent() && (resource.data.targetAudience == 'students' || resource.data.get('targetRoles', []).hasAny(['students']))) ||
-          (isTeacher() && (resource.data.targetAudience == 'teachers' || resource.data.get('targetRoles', []).hasAny(['teachers']))) ||
-          (isParent() && (resource.data.targetAudience == 'parents' || resource.data.get('targetRoles', []).hasAny(['parents']))) ||
-          (isSchoolAdmin() && (resource.data.targetAudience == 'school_admins' || resource.data.get('targetRoles', []).hasAny(['school_admins'])))
-        )
-      );
-      allow write: if isPlatformAdmin();
-    }
-    match /notifications/{notificationId} {
-      allow read: if isPlatformAdmin() ||
-        (isAuthenticated() && (
-          currentUserId() in resource.data.get('targetUsers', []) ||
-          resource.data.get('targetEmail', '') == request.auth.token.email ||
-          resource.data.get('senderId', '') == currentUserId() ||
-          resource.data.get('targetAudience', []).hasAny(['all']) ||
-          (isStudent() && resource.data.get('targetAudience', []).hasAny(['students'])) ||
-          (isTeacher() && resource.data.get('targetAudience', []).hasAny(['teachers'])) ||
-          (isParent() && resource.data.get('targetAudience', []).hasAny(['parents'])) ||
-          (isSchoolAdmin() && resource.data.get('targetAudience', []).hasAny(['school_admins']))
-        ));
-      allow create, update: if isPlatformAdmin();
-      // Account setup reminders are system-generated and may only target the
-      // authenticated user who owns the reminder document.
-      allow create, update: if isAuthenticated() &&
-        request.resource.data.senderRole == 'system' &&
-        request.resource.data.senderId == 'liverton-system' &&
-        request.resource.data.targetUsers.hasOnly([currentUserId()]);
-      allow delete: if isPlatformAdmin();
-    }
-    match /chats/{chatId} {
-      function isChatParticipant(chatData) {
-        return isAuthenticated() && currentUserId() in chatData.participants;
-      }
-
-      allow read: if isPlatformAdmin();
-      allow read: if isChatParticipant(resource.data);
-      allow create: if isAuthenticated() &&
-        currentUserId() in request.resource.data.participants &&
-        request.resource.data.participants.size() >= 2 &&
-        request.resource.data.participants.size() <= 50;
-      allow update: if isChatParticipant(resource.data) &&
-        request.resource.data.participants == resource.data.participants;
-      allow delete: if isChatParticipant(resource.data);
-
-      match /messages/{messageId} {
-        function parentChat() {
-          return get(/databases/$(database)/documents/chats/$(chatId));
-        }
-        function isMessageParticipant() {
-          return isAuthenticated() && currentUserId() in parentChat().data.participants;
-        }
-
-        allow read: if isMessageParticipant();
-        allow create: if isMessageParticipant() &&
-          request.resource.data.chatId == chatId &&
-          request.resource.data.senderId == currentUserId();
-        allow update: if isMessageParticipant() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
-          currentUserId() in request.resource.data.readBy;
-        allow delete: if isMessageParticipant();
-      }
-    }
-    match /documents/{documentId} {
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
-      allow get: if resource.data.visibility == 'public';
-      allow get, list: if isAuthenticated() &&
-        resource.data.visibility in ['public', 'internal'];
-      allow get, list: if isAuthenticated() &&
-        (resource.data.ownerId == currentUserId() ||
-         currentUserId() in resource.data.sharedWith);
+
+      // School admins can create announcements for their school
+      allow create: if isSchoolAdmin() &&
+        (request.resource.data.targetSchoolId == currentUserSchoolId() ||
+         request.resource.data.targetSchoolId == null);
+
+      // School admins can read announcements for their school
+      allow read: if isSchoolAdmin() &&
+        (resource.data.targetSchoolId == currentUserSchoolId() ||
+         resource.data.targetSchoolId == null);
+
+      // Everyone can read announcements
+      allow read: if isAuthenticated();
+
+      // Only platform and school admins can write
+      allow write: if isPlatformAdmin() || isSchoolAdmin();
+    }
+
+    // ==================== CHATS ====================
+
+    match /chats/{chatId} {
+      // Platform admins can read all chats
+      allow read: if isPlatformAdmin();
+
+      // Users can read chats they're participants in
+      allow read: if isAuthenticated() &&
+        currentUserId() in resource.data.participants;
+
+      // Users can create chats
+      allow create: if isAuthenticated();
+
+      // Users can update chats they're in
+      allow update: if isAuthenticated() &&
+        currentUserId() in resource.data.participants;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+          currentUserId() in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated();
+      }
+    }
+
+    // ==================== DOCUMENTS ====================
+
+    match /documents/{documentId} {
+      // Platform admins can do everything
+      allow read, write: if isPlatformAdmin();
+
+      // Users can read documents they own
+      allow read: if isAuthenticated() &&
+        resource.data.ownerId == currentUserId();
+
+      // Users can read documents shared with them
+      allow read: if isAuthenticated() &&
+        currentUserId() in resource.data.sharedWith;
+
+      // Users can create their own documents
       allow create: if isAuthenticated() &&
         request.resource.data.ownerId == currentUserId();
+
+      // Users can update their own documents
       allow update: if isAuthenticated() &&
-        (resource.data.ownerId == currentUserId() ||
-         currentUserId() in resource.data.sharedWith);
+        resource.data.ownerId == currentUserId();
+
+      // Users can delete their own documents
       allow delete: if isAuthenticated() &&
         resource.data.ownerId == currentUserId();
-      match /{sub=**} {
-        allow read, write: if isPlatformAdmin() ||
-          (isAuthenticated() &&
-            (get(/databases/$(database)/documents/documents/$(documentId)).data.ownerId == currentUserId() ||
-             currentUserId() in get(/databases/$(database)/documents/documents/$(documentId)).data.sharedWith));
-      }
     }
+
+    // ==================== QUIZZES ====================
+
     match /quizzes/{quizId} {
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
+
+      // Teachers can read and write quizzes for their courses
       allow read, write: if isTeacher();
+
+      // Students can read quizzes for their enrolled courses
       allow read: if isStudent();
+
+      // Parents can read quizzes
       allow read: if isParent();
+
+      // School admins can read quizzes in their school
       allow read: if isSchoolAdmin();
     }
+
+    // ==================== ATTENDANCE ====================
+
     match /attendance/{recordId} {
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
+
+      // School admins can read and write attendance for their school
       allow read, write: if isSchoolAdmin() &&
         resource.data.schoolId == currentUserSchoolId();
+
+      // Teachers can read and write attendance for their school
       allow read, write: if isTeacher() &&
         resource.data.schoolId == currentUserSchoolId();
+
+      // Students can read their own attendance
       allow read: if isStudent() &&
         resource.data.studentId == currentUserId();
+
+      // Parents can read their children's attendance
       allow read: if isParent();
     }
+
+    // ==================== PAYMENTS ====================
+
     match /payments/{paymentId} {
+      // Platform admins can do everything
       allow read, write: if isPlatformAdmin();
+
+      // Users can read their own payments
       allow read: if isAuthenticated() &&
         resource.data.userId == currentUserId();
+
+      // Users can create payments for themselves
       allow create: if isAuthenticated() &&
         request.resource.data.userId == currentUserId();
+
+      // School admins can read payments for their school
       allow read: if isSchoolAdmin();
     }
+
+    // ==================== DASHBOARD BANNERS ====================
+
     match /dashboardBanners/{bannerId} {
-      allow read: if true;
+      // All authenticated users can read banners (role filtering is done client-side)
+      allow read: if isAuthenticated();
+
+      // Only platform admins can create, update or delete banners
       allow write: if isPlatformAdmin();
     }
-    match /livTeamPromotions/{promotionId} {
-      // Approved, unexpired promotions are public; submitters and admins can
-      // also read their own moderation records.
-      allow read: if isPlatformAdmin() ||
-        (isAuthenticated() && resource.data.createdBy == currentUserId()) ||
-        (resource.data.status == 'approved' &&
-          (resource.data.get('expiresAt', null) == null || resource.data.get('expiresAt', null) > request.time));
-      allow create: if isAuthenticated() &&
-        request.resource.data.createdBy == currentUserId() &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.teamId is string &&
-        currentUserId() in get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.get('memberIds', []) &&
-        request.resource.data.title is string &&
-        request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 80 &&
-        request.resource.data.description is string &&
-        request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 240 &&
-        request.resource.data.destinationUrl is string &&
-        request.resource.data.destinationUrl.size() > 0;
-      allow update: if isPlatformAdmin();
-      allow delete: if isPlatformAdmin() ||
-        (isAuthenticated() && resource.data.createdBy == currentUserId() && resource.data.status == 'pending');
-    }
-    match /shorts/{shortId} {
-      allow read: if isAuthenticated();
-      allow create: if isTeacher() &&
-        request.resource.data.teacherId == currentUserId() &&
-        ((request.resource.data.get('courseId', null) != null && request.resource.data.get('lessonId', null) == null) ||
-         (request.resource.data.get('courseId', null) == null && request.resource.data.get('lessonId', null) != null));
-      allow update: if isTeacher() && resource.data.teacherId == currentUserId();
-      allow update: if isAuthenticated() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'views']);
-      allow delete: if isTeacher() && resource.data.teacherId == currentUserId();
-    }
-    match /events/{eventId} {
-      allow read, write: if isPlatformAdmin();
-      allow get, list: if isAuthenticated() &&
-        resource.data.creatorRole == 'platform_admin' &&
-        resource.data.visibility == 'public';
-      allow get, list: if isAuthenticated() &&
-        resource.data.creatorRole == 'platform_admin' &&
-        resource.data.visibility == 'school' &&
-        resource.data.schoolId == currentUserSchoolId();
-      allow get, list: if isAuthenticated() &&
-        resource.data.createdBy == currentUserId();
-      allow create: if isAuthenticated() &&
-        request.resource.data.createdBy == currentUserId() &&
-        (isPlatformAdmin() || request.resource.data.visibility == 'private');
-      allow update, delete: if isAuthenticated() &&
-        resource.data.createdBy == currentUserId() &&
-        (isPlatformAdmin() || request.resource.data.visibility == 'private');
-    }
+
+    // ==================== HANNA AI CHATS ====================
+
     match /hannaChats/{chatId} {
+      // Platform admins can read all
       allow read: if isPlatformAdmin();
+
+      // Users can read their own chats
       allow read, write: if isAuthenticated() &&
         resource.data.userId == currentUserId();
+
       allow create: if isAuthenticated() &&
         request.resource.data.userId == currentUserId();
+
       match /messages/{messageId} {
         allow read, write: if isAuthenticated() &&
           get(/databases/$(database)/documents/hannaChats/$(chatId)).data.userId == currentUserId();
         allow create: if isAuthenticated();
       }
     }
-    match /hanna_chats/{chatId} {
-      allow read, write: if isPlatformAdmin() ||
-        (isAuthenticated() && resource.data.userId == currentUserId());
-      allow create: if isAuthenticated() &&
-        request.resource.data.userId == currentUserId();
-    }
-    match /hanna_messages/{messageId} {
-      allow read: if isPlatformAdmin() ||
-        (isAuthenticated() &&
-          get(/databases/$(database)/documents/hanna_chats/$(resource.data.chatId)).data.userId == currentUserId());
-      allow create: if isAuthenticated() &&
-        get(/databases/$(database)/documents/hanna_chats/$(request.resource.data.chatId)).data.userId == currentUserId();
-      allow update, delete: if isPlatformAdmin() ||
-        (isAuthenticated() &&
-          get(/databases/$(database)/documents/hanna_chats/$(resource.data.chatId)).data.userId == currentUserId());
-    }
-    function isTeamMember(teamId) {
-      return isAuthenticated() &&
-        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('memberIds', []);
-    }
-    function isTeamManager(teamId) {
-      return isAuthenticated() && (
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
-        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('adminIds', [])
-      );
-    }
-    function isTeamFinanceManager(teamId) {
-      return isTeamMember(teamId) && (
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
-        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('financeManagerIds', [])
-      );
-    }
-    function isTeamAIManager(teamId) {
-      return isTeamMember(teamId) && (
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerId == currentUserId() ||
-        currentUserId() in get(/databases/$(database)/documents/teams/$(teamId)).data.get('aiManagerIds', [])
-      );
-    }
-    function hasPendingTeamInvite(teamId) {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/team_invitations/$(teamId + '_' + currentUserData().email));
-    }
-    function isJoiningSelf() {
-      return request.resource.data.get('memberIds', []).toSet()
-               .difference(resource.data.get('memberIds', []).toSet()) == [currentUserId()].toSet()
-        && resource.data.get('memberIds', []).toSet()
-             .difference(request.resource.data.get('memberIds', []).toSet()).size() == 0;
-    }
-    match /teams/{teamId} {
+
+    // ==================== DEFAULT RULE ====================
+
+    match /{document=**} {
+      // Platform admins can access everything
       allow read, write: if isPlatformAdmin();
-      allow read: if isAuthenticated() && resource.data.visibility == 'public';
-      allow read: if isTeamMember(teamId);
-      allow create: if isAuthenticated() &&
-        request.resource.data.ownerId == currentUserId() &&
-        request.resource.data.maxMembers == 1000 &&
-        request.resource.data.memberIds.size() == 1;
-      allow update: if isAuthenticated() &&
-        resource.data.ownerId == currentUserId() &&
-        request.resource.data.ownerId == resource.data.ownerId &&
-        request.resource.data.maxMembers == 1000;
-      // Team managers may edit only approved team settings; capacity remains platform-controlled.
-      allow update: if isTeamManager(teamId) &&
-        request.resource.data.ownerId == resource.data.ownerId &&
-        request.resource.data.maxMembers == 1000 &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'logoUrl', 'coverUrl', 'description', 'category', 'purpose',
-          'country', 'school', 'district', 'language', 'visibility', 'maxMembers',
-          'rules', 'welcomeMessage', 'tags', 'updatedAt'
-        ]);
-      allow update: if isAuthenticated() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedByUsers']);
-      allow update: if isAuthenticated() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds']) &&
-        request.resource.data.memberIds.size() <= 1000 &&
-        isJoiningSelf() &&
-        (resource.data.visibility == 'public' || hasPendingTeamInvite(teamId));
-      allow delete: if isAuthenticated() && resource.data.ownerId == currentUserId();
-      match /join_requests/{requesterId} {
-        allow read: if isPlatformAdmin() || isTeamManager(teamId) || (isAuthenticated() && requesterId == currentUserId());
-        allow create: if isAuthenticated() &&
-          requesterId == currentUserId() &&
-          request.resource.data.userId == currentUserId() &&
-          request.resource.data.status == 'pending' &&
-          get(/databases/$(database)/documents/teams/$(teamId)).data.visibility == 'public' &&
-          !isTeamMember(teamId);
-        allow update: if isTeamManager(teamId) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
-          request.resource.data.status in ['accepted', 'declined'];
-        allow delete: if isTeamManager(teamId) ||
-          (isAuthenticated() && requesterId == currentUserId() && resource.data.status != 'accepted');
-      }
-      match /folderRequests/{requestId} {
-        allow read: if isPlatformAdmin() || isTeamManager(teamId) ||
-          (isAuthenticated() && resource.data.requestedBy == currentUserId());
-        allow create: if isAuthenticated() && isTeamMember(teamId) &&
-          request.resource.data.teamId == teamId &&
-          request.resource.data.requestedBy == currentUserId() &&
-          request.resource.data.status == 'pending';
-        allow update: if isPlatformAdmin() ||
-          (isTeamManager(teamId) &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedBy', 'updatedAt']) &&
-           request.resource.data.status in ['approved', 'rejected']);
-        allow delete: if isPlatformAdmin() ||
-          (isTeamManager(teamId) && resource.data.status != 'approved');
-      }
-      match /{subCollection}/{documentId} {
-        allow read, write: if isPlatformAdmin() ||
-          (subCollection not in ['join_requests', 'folderRequests'] && isTeamMember(teamId));
-      }
-    }
-    match /team_invitations/{inviteId} {
-      allow read: if isPlatformAdmin() ||
-        (isAuthenticated() &&
-          (resource.data.invitedEmail == currentUserData().email ||
-           resource.data.senderId == currentUserId()));
-      allow create: if isAuthenticated() && request.resource.data.senderId == currentUserId();
-      allow update: if isPlatformAdmin() ||
-        (isAuthenticated() &&
-          (resource.data.invitedEmail == currentUserData().email ||
-           resource.data.senderId == currentUserId()));
-      allow delete: if isPlatformAdmin() ||
-        (isAuthenticated() && resource.data.senderId == currentUserId());
-    }
-    match /team_treasury_ledger/{entryId} {
-      allow read: if isPlatformAdmin() || isTeamFinanceManager(resource.data.teamId);
-      allow create: if isPlatformAdmin() || isTeamFinanceManager(request.resource.data.teamId);
-      allow update: if isPlatformAdmin() || isTeamFinanceManager(resource.data.teamId);
-      allow delete: if isPlatformAdmin();
-    }
-    match /team_ai_credit_ledger/{entryId} {
-      allow read: if isPlatformAdmin() || isTeamMember(resource.data.teamId);
-      allow create: if isPlatformAdmin() || isTeamAIManager(request.resource.data.teamId) || isTeamMember(request.resource.data.teamId);
-      allow update, delete: if isPlatformAdmin();
-    }
-    match /livfund_campaigns/{campaignId} {
-      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.status in ['Approved', 'Active', 'Paused', 'Funded', 'Completed'] || resource.data.ownerId == currentUserId()));
-      allow create: if isPlatformAdmin() || (isAuthenticated() && request.resource.data.ownerId == currentUserId() && isTeamMember(request.resource.data.teamId));
-      allow update: if isPlatformAdmin() || (isAuthenticated() && resource.data.ownerId == currentUserId() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'objective', 'purpose', 'deadline', 'minimumContributionMinor', 'updatedAt']));
-      allow delete: if isPlatformAdmin();
-    }
-    match /livfund_contributions/{contributionId} {
-      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.contributorId == currentUserId() || get(/databases/$(database)/documents/livfund_campaigns/$(resource.data.campaignId)).data.ownerId == currentUserId()));
-      allow create: if isAuthenticated() && get(/databases/$(database)/documents/livfund_campaigns/$(request.resource.data.campaignId)).data.status == 'Active' && request.resource.data.status == 'pending' && request.resource.data.amountMinor is int && request.resource.data.amountMinor > 0 && request.resource.data.contributorId == currentUserId();
-      allow update: if isPlatformAdmin();
-      allow delete: if false;
-    }
-    match /project_verifications/{verificationId} {
-      allow read: if isPlatformAdmin() || (isAuthenticated() && isTeamMember(resource.data.teamId));
-      allow create: if isPlatformAdmin() || (isAuthenticated() && isTeamMember(request.resource.data.teamId));
-      allow update: if isPlatformAdmin();
-      allow delete: if isPlatformAdmin();
-    }
-    match /livmart_orders/{orderId} {
-      allow read: if isPlatformAdmin() || (isAuthenticated() && (resource.data.buyerId == currentUserId() || resource.data.sellerId == currentUserId()));
-      allow create: if isAuthenticated() && request.resource.data.buyerId == currentUserId() && get(/databases/$(database)/documents/marketplace_items/$(request.resource.data.listingId)).data.status == 'Listed' && request.resource.data.status == 'Payment Pending';
-      allow update: if isPlatformAdmin();
-      allow delete: if false;
-    }
-    match /marketplace_items/{itemId} {
-      allow read: if isPlatformAdmin() ||
-        (isAuthenticated() && resource.data.status in ['Approved', 'Listed']);
-      allow read: if isAuthenticated() && resource.data.sellerId == currentUserId();
-      allow create: if isAuthenticated() &&
-        request.resource.data.sellerId == currentUserId() &&
-        request.resource.data.teamId is string &&
-        request.resource.data.status == 'Marketplace Review';
-      allow update: if isPlatformAdmin();
-      allow update: if isAuthenticated() &&
-        resource.data.sellerId == currentUserId() &&
-        resource.data.status == 'Marketplace Review' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'title', 'description', 'category', 'deliverables', 'licensingTerms',
-          'deliveryMethod', 'supportTerms', 'updatedAt'
-        ]);
-      allow update: if isAuthenticated() &&
-        resource.data.status in ['Approved', 'Listed'] &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'ratings', 'downloadsCount', 'purchasesCount'
-        ]);
-      allow delete: if isPlatformAdmin() ||
-        (isAuthenticated() && resource.data.sellerId == currentUserId() && resource.data.status == 'Marketplace Review');
-    }
-    match /ai_usage/{usageId} {
-      allow read: if isPlatformAdmin() || (isAuthenticated() && resource.data.userId == currentUserId());
-      allow write: if false;
-    }
-    // Authenticated learners and educators can search this deliberately minimal
-    // directory by username or email. Private profile fields stay in /users.
-    match /userDirectory/{userId} {
+
+      // Authenticated users can read by default
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && currentUserId() == userId && request.resource.data.uid == userId;
-      allow delete: if isAuthenticated() && currentUserId() == userId;
-    }
-    // Username claims are reserved atomically so two users cannot take one handle.
-    match /usernames/{username} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.uid == currentUserId() && !exists(/databases/$(database)/documents/usernames/$(username));
-      allow update: if isAuthenticated() && resource.data.uid == currentUserId() && request.resource.data.uid == currentUserId();
-      allow delete: if isAuthenticated() && resource.data.uid == currentUserId();
-    }
-    match /chats/{chatId} {
-      allow read: if isAuthenticated() && currentUserId() in resource.data.participants;
-      allow create: if isAuthenticated() && currentUserId() in request.resource.data.participants;
-      allow update, delete: if isAuthenticated() && currentUserId() in resource.data.participants && currentUserId() in request.resource.data.participants;
-    }
-    match /liveLessonArenaChats/{chatId} {
-      allow read, write: if isAuthenticated();
-    }
-    match /courseViews/{viewId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.userId == currentUserId() && request.resource.data.courseId is string;
-      allow update, delete: if isPlatformAdmin();
-    }
-    match /moduleProgress/{progressId} {
-      allow read: if isAuthenticated() && resource.data.studentId == currentUserId();
-      allow create, update: if isAuthenticated() && request.resource.data.studentId == currentUserId();
-      allow delete: if isAuthenticated() && resource.data.studentId == currentUserId();
-    }
-    match /moduleSubmissions/{submissionId} {
-      allow read: if isAuthenticated() && (resource.data.studentId == currentUserId() || resource.data.teacherId == currentUserId());
-      allow create: if isAuthenticated() && request.resource.data.studentId == currentUserId();
-      allow update: if isAuthenticated() && (resource.data.studentId == currentUserId() || resource.data.teacherId == currentUserId());
-      allow delete: if isAuthenticated() && resource.data.studentId == currentUserId();
-    }
-    match /payments/{paymentId} {
-      allow read: if isAuthenticated() && resource.data.userId == currentUserId();
-      allow write: if false;
-    }
-    match /courseReviews/{reviewId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-        request.resource.data.userId == currentUserId() &&
-        request.resource.data.courseId is string &&
-        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
-        request.resource.data.comment is string && request.resource.data.comment.size() > 0;
-      allow update, delete: if isAuthenticated() && resource.data.userId == currentUserId();
-    }
-    match /uploaded_assets/{assetId} {
-      allow read: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
-      allow create: if isAuthenticated() && request.resource.data.uploader == currentUserId();
-      allow update: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
-      allow delete: if isPlatformAdmin() || (isAuthenticated() && resource.data.uploader == currentUserId());
-    }
-    match /{collectionName}/{document=**} {
-      allow read, write: if isPlatformAdmin() ||
-        (isAuthenticated() && collectionName in [
-          'activities', 'activityLogs', 'assignments',
-          'enrollments', 'hanna_queue', 'lessonHistory',
-          'messages', 'parentStudentLinks',
-          'quizAttempts', 'quiz_attempts', 'studentEnrollments', 'zoomLessons',
-          'students', 'teachers', 'parents', 'school_admins'
-        ]);
+
+      // Authenticated users can write by default (for collections not specified above)
+      allow write: if isAuthenticated();
     }
   }
 }

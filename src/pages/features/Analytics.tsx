@@ -276,32 +276,11 @@ function TeacherAnalyticsView({ teacherId }: { teacherId: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let settled = false;
-    const loadingTimeout = window.setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        setLoading(false);
-      }
-    }, 8000);
-    const unsubscribe = subscribeToTeacherAnalytics(
-      teacherId,
-      (data) => {
-        settled = true;
-        window.clearTimeout(loadingTimeout);
-        setAnalytics(data);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Unable to load module analytics:', error);
-        settled = true;
-        window.clearTimeout(loadingTimeout);
-        setLoading(false);
-      },
-    );
-    return () => {
-      window.clearTimeout(loadingTimeout);
-      unsubscribe();
-    };
+    const unsubscribe = subscribeToTeacherAnalytics(teacherId, (data) => {
+      setAnalytics(data);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, [teacherId]);
 
   if (loading) {

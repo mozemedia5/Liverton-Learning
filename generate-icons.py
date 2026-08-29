@@ -13,25 +13,23 @@ ICON_SIZES = [
 ]
 
 def create_icon(input_path, output_path, size, maskable=False):
-    """Create a square icon with the logo centered on a white background.
-
-    The brand logo is a standalone green/blue mark with navy text on white,
-    so ALL icons (standard, maskable, apple-touch) use a solid white
-    background to guarantee the logo is never cropped or letterboxed by
-    Android adaptive icons or iOS squircle masks (Facebook/Pinterest style).
-    """
+    """Create a square icon with the logo centered"""
     # Open the original image
     img = Image.open(input_path)
 
+    # Create a new square image
+    # For maskable icons, we should use a solid background (white or brand color)
+    # to ensure it looks good when cropped by Android.
     if maskable:
         # Maskable icons need a safe zone. The logo should be within the center 80%
         # to avoid being cropped by the various mask shapes (circle, squircle, etc.)
-        padding = int(size * 0.22) # 22% padding for maskable safe zone
+        bg_color = (255, 255, 255, 255) # White background
+        square_img = Image.new('RGBA', (size, size), bg_color)
+        padding = int(size * 0.2) # 20% padding for maskable
     else:
-        padding = int(size * 0.08) # 8% padding
-
-    bg_color = (255, 255, 255, 255) # White background everywhere
-    square_img = Image.new('RGBA', (size, size), bg_color)
+        # Standard icons can have transparency
+        square_img = Image.new('RGBA', (size, size), (255, 255, 255, 0))
+        padding = int(size * 0.1) # 10% padding
         
     max_logo_size = size - (2 * padding)
     
@@ -52,7 +50,7 @@ def create_icon(input_path, output_path, size, maskable=False):
     print(f"Created: {output_path} ({size}x{size}){' [Maskable]' if maskable else ''}")
 
 def main():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = '/app'
     input_logo = os.path.join(base_dir, 'public/icons/original-logo.png')
     output_dir = os.path.join(base_dir, 'public/icons')
     

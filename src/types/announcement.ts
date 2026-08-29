@@ -13,7 +13,6 @@ export type AnnouncementType = 'image' | 'video' | 'text';
  * Announcement status
  */
 export type AnnouncementStatus = 'active' | 'expired' | 'draft';
-export type AnnouncementAudience = 'all' | 'students' | 'teachers' | 'parents' | 'school_admins' | 'platform_admins';
 
 /**
  * Dashboard Announcement Interface
@@ -58,8 +57,7 @@ export interface DashboardAnnouncement {
   
   // Visibility
   isActive: boolean;
-  targetAudience?: AnnouncementAudience;
-  targetRoles?: AnnouncementAudience[];
+  targetAudience?: 'all' | 'students' | 'teachers' | 'admins';
 }
 
 /**
@@ -75,7 +73,7 @@ export interface AnnouncementFormData {
   priority: number;
   backgroundColor: string;
   textColor: string;
-  targetAudience: AnnouncementAudience;
+  targetAudience: 'all' | 'students' | 'teachers' | 'admins';
   
   // Files
   imageFile?: File;
@@ -90,5 +88,5 @@ export interface AnnouncementFilters {
   status?: AnnouncementStatus;
   type?: AnnouncementType;
   createdBy?: string;
-  targetAudience?: AnnouncementAudience;
+  targetAudience?: 'all' | 'students' | 'teachers' | 'admins';
 }

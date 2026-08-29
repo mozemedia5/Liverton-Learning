@@ -4,7 +4,7 @@
  * Design features:
  *  • Smooth fluid overlay matching Pinterest's signature rounded cards (rounded-[2.5rem])
  *  • Real-time friend/email search input ("Search by name or email")
- *  • Firestore-backed Liverton member search with chat handoff
+ *  • Simulated high-fidelity Contact List with "Send" buttons that animate to "Sent! ✓"
  *  • Premium social circle icon carousel featuring signature brand colors:
  *    - Pinterest Red (#E60023)
  *    - WhatsApp Green (#25D366)
@@ -16,8 +16,7 @@
  *  • Role-aware link and message generation preserved
  */
 
-import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
@@ -26,8 +25,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { collection, getDocs, limit, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import {
   Search,
   Copy,
@@ -38,6 +35,7 @@ import {
   ExternalLink,
   MessageSquare,
   CheckCircle2,
+  Send,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,7 +47,7 @@ interface ShareAppDialogProps {
 
 // ─── App constants ─────────────────────────────────────────────────────────────
 
-const APP_BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
+const APP_BASE_URL = 'https://liverton-learning.vercel.app';
 const APP_NAME     = 'Liverton Learning';
 
 // Role-specific landing pages
@@ -68,33 +66,30 @@ const SHARE_MESSAGES: Record<string, string> = {
   teacher:
     `Liverton Learning is transforming how educators teach. Create courses, manage students, conduct live lessons, and track progress — all in one powerful platform. Come explore it with me.`,
   school_admin:
-    `Liverton Learning gives education organizations a complete digital workspace — from learner programs and collaboration to analytics and community communication. Discover how it can elevate your organization.`,
+    `Liverton Learning provides schools with a complete digital infrastructure — from student enrolment and class management to analytics and parent communication. Discover how it can elevate your institution.`,
   parent:
     `I've found a great platform to support my child's education. Liverton Learning keeps parents informed and involved in their child's academic journey. See what it's all about.`,
   platform_admin:
-    `Liverton Learning is a comprehensive learning platform connecting students, educators, organizations, and families for seamless, modern learning. Explore the platform today.`,
+    `Liverton Learning is a comprehensive educational platform connecting students, teachers, schools, and parents for seamless, modern learning. Explore the platform today.`,
 };
 
 const DEFAULT_MESSAGE =
-  `Liverton Learning is a comprehensive learning platform connecting students, educators, organizations, and families for seamless, modern learning. Explore the platform today.`;
+  `Liverton Learning is a comprehensive educational platform connecting students, teachers, schools, and parents for seamless, modern learning. Explore the platform today.`;
 
-interface ShareContact {
-  id: string;
-  name: string;
-  role: string;
-  email?: string;
-  avatar?: string;
-}
+// Mock High-Fidelity Contacts for simulated sharing
+const MOCK_CONTACTS = [
+  { id: 'hanna', name: 'Hanna AI', role: 'AI Assistant', avatar: '🤖', color: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600' },
+  { id: 'prof_james', name: 'Professor James', role: 'Teacher', avatar: '👨‍🏫', color: 'bg-blue-100 dark:bg-blue-950/40 text-blue-600' },
+  { id: 'sarah_m', name: 'Sarah Mitchell', role: 'Classmate', avatar: '👩‍🎓', color: 'bg-pink-100 dark:bg-pink-950/40 text-pink-600' },
+  { id: 'david_l', name: 'David Liverton', role: 'Administrator', avatar: '👨‍💼', color: 'bg-purple-100 dark:bg-purple-950/40 text-purple-600' }
+];
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
-  const navigate = useNavigate();
-  const { userRole, currentUser } = useAuth();
+  const { userRole } = useAuth();
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [contacts, setContacts] = useState<ShareContact[]>([]);
-  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
 
   const regPath    = ROLE_PATHS[userRole || 'student'] ?? '/get-started';
@@ -102,49 +97,22 @@ export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
   const shareText  = SHARE_MESSAGES[userRole || ''] ?? DEFAULT_MESSAGE;
   const fullMessage = `${shareText}\n\n${shareUrl}`;
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    const loadContacts = async () => {
-      setIsLoadingContacts(true);
-      try {
-        const snapshot = await getDocs(query(collection(db, 'users'), limit(30)));
-        const nextContacts = snapshot.docs
-          .filter((userDoc) => userDoc.id !== currentUser?.uid)
-          .map((userDoc) => {
-            const data = userDoc.data() as { fullName?: string; name?: string; role?: string; email?: string; profilePicture?: string; profileImageUrl?: string };
-            return {
-              id: userDoc.id,
-              name: data.fullName || data.name || data.email || 'Liverton member',
-              role: (data.role || 'member').replace('_', ' '),
-              email: data.email,
-              avatar: data.profilePicture || data.profileImageUrl,
-            };
-          });
-        if (!cancelled) setContacts(nextContacts);
-      } catch (error) {
-        console.error('Unable to load Liverton contacts:', error);
-        if (!cancelled) setContacts([]);
-      } finally {
-        if (!cancelled) setIsLoadingContacts(false);
-      }
-    };
-    loadContacts();
-    return () => { cancelled = true; };
-  }, [open, currentUser?.uid]);
-
+  // Filter contacts based on search query
   const filteredContacts = useMemo(() => {
-    const normalized = searchQuery.trim().toLowerCase();
-    if (!normalized) return contacts;
-    return contacts.filter((contact) => `${contact.name} ${contact.role} ${contact.email || ''}`.toLowerCase().includes(normalized));
-  }, [contacts, searchQuery]);
+    if (!searchQuery.trim()) return MOCK_CONTACTS;
+    return MOCK_CONTACTS.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.role.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
 
+  // Handle simulated contact send
   const handleSendToFriend = (id: string, name: string) => {
     if (sentStatus[id]) return;
+
     setSentStatus((prev) => ({ ...prev, [id]: true }));
-    navigate(`/chat?recipient=${encodeURIComponent(id)}&share=${encodeURIComponent(fullMessage)}`);
-    toast.success(`Opening a chat with ${name}`);
-    onClose();
+    toast.success(`✉️ App link shared successfully with ${name}!`);
   };
 
   // ── Copy to clipboard ──────────────────────────────────────────────────────
@@ -195,7 +163,7 @@ export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
   const sharePinterest = () => {
     const url = encodeURIComponent(shareUrl);
     const desc = encodeURIComponent(shareText);
-    const media = encodeURIComponent(`${APP_BASE_URL}/icons/liverton-icon-512.png`);
+    const media = encodeURIComponent('https://liverton-learning.vercel.app/logo.png');
     window.open(`https://pinterest.com/pin/create/button/?url=${url}&media=${media}&description=${desc}`, '_blank');
   };
 
@@ -235,9 +203,7 @@ export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
 
         {/* Scrollable Friends/Classmates list */}
         <div className="px-6 max-h-[180px] overflow-y-auto space-y-3 scrollbar-none">
-          {isLoadingContacts ? (
-            <div className="text-center py-6"><p className="text-xs text-gray-500">Loading Liverton members…</p></div>
-          ) : filteredContacts.length > 0 ? (
+          {filteredContacts.length > 0 ? (
             filteredContacts.map((contact) => {
               const sent = sentStatus[contact.id];
               return (
@@ -246,8 +212,8 @@ export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
                   className="flex items-center justify-between p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-900/50 transition-colors duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold shadow-sm bg-violet-100 text-violet-700">
-                      {contact.avatar ? <img src={contact.avatar} alt="" className="h-full w-full object-cover" /> : contact.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-sm ${contact.color}`}>
+                      {contact.avatar}
                     </div>
                     <div>
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
@@ -280,7 +246,7 @@ export default function ShareAppDialog({ open, onClose }: ShareAppDialogProps) {
             })
           ) : (
             <div className="text-center py-6">
-              <p className="text-xs text-gray-500">No Liverton members match this search yet.</p>
+              <p className="text-xs text-gray-500">No friends or contacts found</p>
             </div>
           )}
         </div>

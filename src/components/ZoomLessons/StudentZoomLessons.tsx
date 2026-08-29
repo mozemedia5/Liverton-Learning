@@ -11,7 +11,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +49,6 @@ import ShareContentDialog, { type ShareContentItem } from '@/components/ShareCon
  */
 export default function StudentZoomLessons() {
   const { currentUser } = useAuth();
-  const navigate = useNavigate();
 
   // State management
   const [allLessons, setAllLessons] = useState<any[]>([]);
@@ -376,9 +374,9 @@ export default function StudentZoomLessons() {
 
                     {/* Join Lesson Button */}
                     {new Date(lesson.scheduledDate) > new Date() && (
-                      <Button className="w-full" variant="default" onClick={() => navigate(`/liv-teams/live-lesson/${lesson.id}`)}>
+                      <Button className="w-full" variant="default">
                         <Video className="w-4 h-4 mr-2" />
-                        Open Liv Teams room
+                        Join Lesson
                       </Button>
                     )}
                   </CardContent>

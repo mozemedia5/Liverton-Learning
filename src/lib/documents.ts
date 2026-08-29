@@ -13,11 +13,14 @@ import {
   updateDoc,
   where,
   type Unsubscribe,
-  type DocumentData,
-  type QueryDocumentSnapshot
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { uploadToCloudinary } from '@/services/cloudinaryService';
+import {
+  getDownloadURL,
+  ref,
+  uploadBytes,
+  deleteObject,
+} from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { toDate } from '@/lib/date';
 import type {
   DocumentContent,
@@ -31,71 +34,6 @@ import type {
 
 const DOCUMENTS_COLLECTION = 'documents';
 const HANNA_QUEUE_COLLECTION = 'hanna_queue';
-
-const EXTENSION_TYPE_MAP: Record<string, DocumentType> = {
-  pdf: 'pdf',
-  doc: 'file',
-  docx: 'file',
-  xls: 'file',
-  xlsx: 'file',
-  ppt: 'file',
-  pptx: 'file',
-  txt: 'file',
-  csv: 'file',
-  zip: 'file',
-  rar: 'file',
-  jpg: 'image',
-  jpeg: 'image',
-  png: 'image',
-  gif: 'image',
-  webp: 'image',
-  svg: 'image',
-  mp4: 'video',
-  webm: 'video',
-  mov: 'video',
-  m4v: 'video',
-  mp3: 'audio',
-  wav: 'audio',
-  ogg: 'audio',
-  m4a: 'audio',
-};
-
-export function inferDocumentType(file: Pick<File, 'name' | 'type'>): DocumentType {
-  const mime = file.type.toLowerCase();
-  if (mime === 'application/pdf') return 'pdf';
-  if (mime.startsWith('image/')) return 'image';
-  if (mime.startsWith('video/')) return 'video';
-  if (mime.startsWith('audio/')) return 'audio';
-  const extension = file.name.toLowerCase().split('.').pop() || '';
-  return EXTENSION_TYPE_MAP[extension] || 'file';
-}
-
-export function documentTypeLabel(type: DocumentType, fileName = ''): string {
-  if (type === 'folder') return 'Folder';
-  if (type === 'pdf') return 'PDF document';
-  if (type === 'image') return 'Image';
-  if (type === 'video') return 'Video';
-  if (type === 'audio') return 'Audio';
-  if (type === 'doc') return 'Text document';
-  if (type === 'sheet') return 'Spreadsheet';
-  if (type === 'presentation') return 'Presentation';
-  const extension = fileName.toLowerCase().split('.').pop();
-  return extension ? `${extension.toUpperCase()} file` : 'File';
-}
-
-export function getDocumentDownloadName(document: Pick<DocumentMeta, 'title' | 'type' | 'fileName'>): string {
-  if (document.fileName) return document.fileName;
-  const extensionByType: Partial<Record<DocumentType, string>> = {
-    pdf: 'pdf',
-    image: 'jpg',
-    video: 'mp4',
-    audio: 'mp3',
-  };
-  const extension = extensionByType[document.type];
-  return extension && !document.title.toLowerCase().endsWith(`.${extension}`)
-    ? `${document.title}.${extension}`
-    : document.title;
-}
 
 export function getDefaultContent(type: DocumentType): DocumentContent {
   if (type === 'doc') {
@@ -153,9 +91,7 @@ export function createEmptyDocumentMeta(params: {
     type: params.type,
     ownerId: params.ownerId,
     role: params.role,
-    // Firestore rejects `undefined` field values in addDoc, so always
-    // coerce optional fields to null instead.
-    schoolId: params.schoolId ?? null,
+    schoolId: params.schoolId,
     folderId: params.folderId ?? null,
     sharedWith: [],
     visibility: params.visibility ?? 'private',
@@ -171,10 +107,9 @@ export async function createDocument(params: {
   schoolId?: string;
   folderId?: string | null;
   visibility?: DocumentVisibility;
-  content?: DocumentContent;
 }): Promise<string> {
   try {
-    const content = params.content ?? getDefaultContent(params.type);
+    const content = getDefaultContent(params.type);
     const meta = createEmptyDocumentMeta({
       title: params.title,
       type: params.type,
@@ -226,81 +161,48 @@ export function subscribeToDocuments(params: {
 }): Unsubscribe {
   const docsRef = collection(db, DOCUMENTS_COLLECTION);
 
-  // Rules-compatible queries: broad collection scans are rejected by the
-  // security rules for regular users, so we subscribe to constrained queries
-  // (owned + shared-with-me) and merge them client-side.
-  const toMeta = (d: QueryDocumentSnapshot<DocumentData>): DocumentMeta => {
-    const data = d.data();
-    return {
-      id: d.id,
-      ...data,
-      createdAt: toDate(data.createdAt),
-      updatedAt: toDate(data.updatedAt),
-    } as DocumentMeta;
-  };
+  // Basic permission scoping:
+  // - Platform admin sees all
+  // - School admin sees school docs
+  // - Others see owned + shared + public/internal
+  // NOTE: Firestore can't OR easily without multiple queries.
+  // We'll subscribe to a broad-ish set per role and filter client-side.
 
-  // Platform & school admins keep the broader (rules-permitted) queries
-  if (params.role === 'platform_admin' || (params.role === 'school_admin' && params.schoolId)) {
-    const q = params.role === 'platform_admin'
-      ? query(docsRef, orderBy('updatedAt', 'desc'))
-      : query(docsRef, where('schoolId', '==', params.schoolId), orderBy('updatedAt', 'desc'));
-    return onSnapshot(
-      q,
-      (snap) => params.onChange(snap.docs.map(toMeta)),
-      (err) => params.onError?.(err instanceof Error ? err.message : 'Failed to load documents')
-    );
+  let q = query(docsRef, orderBy('updatedAt', 'desc'));
+
+  if (params.role === 'school_admin' && params.schoolId) {
+    q = query(docsRef, where('schoolId', '==', params.schoolId), orderBy('updatedAt', 'desc'));
   }
 
-  const ownedQuery = query(docsRef, where('ownerId', '==', params.userId), orderBy('updatedAt', 'desc'));
-  const sharedQuery = query(docsRef, where('sharedWith', 'array-contains', params.userId), orderBy('updatedAt', 'desc'));
-
-  const ownedDocs = new Map<string, DocumentMeta>();
-  const sharedDocs = new Map<string, DocumentMeta>();
-  let ownedReady = false;
-  let sharedReady = false;
-  let errored = false;
-
-  const emit = () => {
-    if (!ownedReady || !sharedReady || errored) return;
-    const merged = new Map<string, DocumentMeta>([...ownedDocs, ...sharedDocs]);
-    const sorted = [...merged.values()].sort(
-      (a, b) => (b.updatedAt?.getTime?.() || 0) - (a.updatedAt?.getTime?.() || 0)
-    );
-    params.onChange(sorted);
-  };
-
-  const handleError = (err: Error) => {
-    if (errored) return;
-    errored = true;
-    params.onError?.(err.message || 'Failed to load documents');
-  };
-
-  const unsubOwned = onSnapshot(
-    ownedQuery,
+  return onSnapshot(
+    q,
     (snap) => {
-      ownedDocs.clear();
-      snap.docs.forEach((d) => ownedDocs.set(d.id, toMeta(d)));
-      ownedReady = true;
-      emit();
-    },
-    handleError
-  );
+      const raw = snap.docs.map((d) => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          ...data,
+          createdAt: toDate(data.createdAt),
+          updatedAt: toDate(data.updatedAt),
+        } as DocumentMeta;
+      });
 
-  const unsubShared = onSnapshot(
-    sharedQuery,
-    (snap) => {
-      sharedDocs.clear();
-      snap.docs.forEach((d) => sharedDocs.set(d.id, toMeta(d)));
-      sharedReady = true;
-      emit();
-    },
-    handleError
-  );
+      const filtered = raw.filter((d) => {
+        if (params.role === 'platform_admin') return true;
+        if (params.role === 'school_admin') return true;
+        if (d.ownerId === params.userId) return true;
+        if ((d.sharedWith || []).includes(params.userId)) return true;
+        if (d.visibility === 'public') return true;
+        if (d.visibility === 'internal') return true;
+        return false;
+      });
 
-  return () => {
-    unsubOwned();
-    unsubShared();
-  };
+      params.onChange(filtered);
+    },
+    (err) => {
+      params.onError?.(err instanceof Error ? err.message : 'Failed to load documents');
+    }
+  );
 }
 
 export async function getDocument(docId: string): Promise<DocumentRecord | null> {
@@ -313,7 +215,7 @@ export async function getDocument(docId: string): Promise<DocumentRecord | null>
       return null;
     }
     
-    const data = snap.data() as DocumentData;
+    const data = snap.data() as any;
     const record = {
       id: snap.id,
       ...data,
@@ -349,7 +251,7 @@ export async function updateDocumentContent(params: {
     const nextVersion = params.bumpVersion ? (current.version || 1) + 1 : (current.version || 1);
 
     // Update document with proper error handling
-    const updateData: Record<string, unknown> = {
+    const updateData: any = {
       content: params.content,
       version: nextVersion,
       updatedAt: serverTimestamp(),
@@ -430,49 +332,20 @@ export async function shareInternally(docId: string, userIds: string[]): Promise
   if (!snap.exists()) throw new Error('Document not found');
   const current = snap.data() as DocumentMeta;
   const existing = new Set([...(current.sharedWith || [])]);
-  userIds.filter(Boolean).forEach((id) => existing.add(id));
+  userIds.forEach((id) => existing.add(id));
   await updateDoc(refDoc, {
     sharedWith: Array.from(existing),
     updatedAt: serverTimestamp(),
   });
 }
 
-export async function shareDocumentWithUsers(params: {
-  docId: string;
-  title: string;
-  userIds: string[];
-  senderId: string;
-  senderName: string;
-  senderRole: UserRole;
-}): Promise<void> {
-  const userIds = Array.from(new Set(params.userIds.filter((id) => id && id !== params.senderId)));
-  if (userIds.length === 0) throw new Error('Choose at least one other user.');
-
-  await shareInternally(params.docId, userIds);
-  await Promise.all(userIds.map((userId) => addDoc(collection(db, 'notifications'), {
-    title: `Document shared with you: ${params.title}`,
-    body: `${params.senderName} shared “${params.title}” with you. Open it from Documents or use the link below.`,
-    content: `${params.senderName} shared “${params.title}” with you.`,
-    type: 'announcement',
-    targetAudience: [],
-    targetUsers: [userId],
-    link: `/dashboard/documents/${params.docId}`,
-    sender: params.senderName,
-    senderId: params.senderId,
-    senderRole: params.senderRole,
-    createdAt: serverTimestamp(),
-    isRead: false,
-  })));
-}
-
 export async function uploadFileToDocument(params: {
   docId: string;
   file: File;
 }): Promise<string> {
-  const url = await uploadToCloudinary(params.file, 'document', {
-    referenceId: params.docId,
-    purpose: 'document_attachment',
-  });
+  const objectRef = ref(storage, `documents/${params.docId}/${params.file.name}`);
+  await uploadBytes(objectRef, params.file);
+  const url = await getDownloadURL(objectRef);
   await updateDoc(doc(db, DOCUMENTS_COLLECTION, params.docId), {
     fileUrl: url,
     updatedAt: serverTimestamp(),
@@ -481,9 +354,8 @@ export async function uploadFileToDocument(params: {
 }
 
 export async function deleteDocumentFile(params: { docId: string; filePath: string }): Promise<void> {
-  // Cloudinary assets are managed outside Firebase Storage. Remove the
-  // document reference here; Cloudinary deletion requires a secured server
-  // destroy endpoint and is not attempted from the client.
+  const objectRef = ref(storage, params.filePath);
+  await deleteObject(objectRef);
   await updateDoc(doc(db, DOCUMENTS_COLLECTION, params.docId), {
     fileUrl: null,
     updatedAt: serverTimestamp(),
@@ -508,80 +380,4 @@ export async function enqueueForHanna(params: {
     payload: params.payload,
     createdAt: serverTimestamp(),
   });
-}
-
-export interface UserReadingProgress {
-  lastOpenedAt: any;
-  lastPageRead: number;
-  percentage: number;
-  bookmarkedPages: number[];
-  userId: string;
-  documentId: string;
-}
-
-export async function createFolder(params: {
-  title: string;
-  ownerId: string;
-  role: UserRole;
-  schoolId?: string | null;
-  parentId?: string | null;
-}): Promise<string> {
-  const docRef = await addDoc(collection(db, DOCUMENTS_COLLECTION), {
-    title: params.title,
-    type: 'folder',
-    ownerId: params.ownerId,
-    role: params.role,
-    schoolId: params.schoolId ?? null,
-    folderId: params.parentId ?? null,
-    sharedWith: [],
-    visibility: 'private',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return docRef.id;
-}
-
-export async function moveDocument(docId: string, targetFolderId: string | null): Promise<void> {
-  await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
-    folderId: targetFolderId,
-    updatedAt: serverTimestamp(),
-  });
-}
-
-export async function toggleDocumentFavorite(docId: string, isFavorite: boolean): Promise<void> {
-  await updateDoc(doc(db, DOCUMENTS_COLLECTION, docId), {
-    isFavorite,
-    updatedAt: serverTimestamp(),
-  });
-}
-
-export async function updateReadingProgress(params: {
-  docId: string;
-  userId: string;
-  lastPageRead: number;
-  totalPages: number;
-  bookmarkedPages?: number[];
-}): Promise<void> {
-  const progressRef = doc(db, DOCUMENTS_COLLECTION, params.docId, 'userProgress', params.userId);
-  const percentage = params.totalPages > 0 ? Math.round((params.lastPageRead / params.totalPages) * 100) : 0;
-
-  const data: Record<string, any> = {
-    lastOpenedAt: serverTimestamp(),
-    lastPageRead: params.lastPageRead,
-    percentage,
-    userId: params.userId,
-    documentId: params.docId,
-  };
-
-  if (params.bookmarkedPages !== undefined) {
-    data.bookmarkedPages = params.bookmarkedPages;
-  }
-
-  await setDoc(progressRef, data, { merge: true });
-}
-
-export async function getReadingProgress(docId: string, userId: string): Promise<UserReadingProgress | null> {
-  const snap = await getDoc(doc(db, DOCUMENTS_COLLECTION, docId, 'userProgress', userId));
-  if (!snap.exists()) return null;
-  return snap.data() as UserReadingProgress;
 }

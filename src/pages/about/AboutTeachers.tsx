@@ -9,7 +9,7 @@ export default function AboutTeachers() {
     'Create and sell courses to students worldwide',
     'Upload video lessons, notes, and study materials',
     'Earn per course sold - passive income opportunity',
-    'Teach up to 3 subjects or learning areas where you have expertise',
+    'Teach up to 3 subjects you are expert in',
     'Track student progress and engagement',
     'Communicate directly with your students',
     'View detailed earnings and sales analytics',
@@ -25,7 +25,7 @@ export default function AboutTeachers() {
     {
       icon: <DollarSign className="w-6 h-6" />,
       title: 'Earn Per Sale',
-      description: 'Get paid when learners enroll in your course',
+      description: 'Get paid every time a student enrolls in your course',
     },
     {
       icon: <BarChart className="w-6 h-6" />,
@@ -34,8 +34,8 @@ export default function AboutTeachers() {
     },
     {
       icon: <MessageSquare className="w-6 h-6" />,
-      title: 'Learner Interaction',
-      description: 'Chat with learners and answer their questions',
+      title: 'Student Interaction',
+      description: 'Chat with students and answer their questions',
     },
     {
       icon: <BookOpen className="w-6 h-6" />,
@@ -44,8 +44,8 @@ export default function AboutTeachers() {
     },
     {
       icon: <Users className="w-6 h-6" />,
-      title: 'Learner Management',
-      description: 'View and support all your enrolled learners',
+      title: 'Student Management',
+      description: 'View and manage all your enrolled students',
     },
   ];
 
@@ -63,7 +63,7 @@ export default function AboutTeachers() {
           Back
         </Button>
         <div className="flex-1 flex justify-center">
-          <span className="text-lg font-semibold">For Educators</span>
+          <span className="text-lg font-semibold">For Teachers</span>
         </div>
         <div className="w-20"></div>
       </header>
@@ -73,15 +73,16 @@ export default function AboutTeachers() {
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Hero */}
           <div className="text-center space-y-4">
-            <h1 className="text-4xl font-bold">Teach, create & grow</h1>
+            <h1 className="text-4xl font-bold">Teach & Earn</h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Share your knowledge with learners anywhere. Create courses, upload lessons, collaborate with organizations, and earn from your expertise.
+              Share your knowledge with students around the world. Create courses,
+              upload lessons, and earn money for every student who enrolls.
             </p>
           </div>
 
           {/* Benefits */}
           <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-8">
-            <h2 className="text-2xl font-semibold mb-6 text-center">Why Educate on Liverton?</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-center">Why Teach on Liverton?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-start gap-3">
@@ -149,7 +150,7 @@ export default function AboutTeachers() {
               <div className="text-center p-4">
                 <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">1</div>
                 <h3 className="font-semibold mb-1">Register</h3>
-                <p className="text-sm text-gray-500">Create your educator account</p>
+                <p className="text-sm text-gray-500">Create your teacher account</p>
               </div>
               <div className="text-center p-4">
                 <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">2</div>
@@ -176,7 +177,7 @@ export default function AboutTeachers() {
               onClick={() => navigate('/register/teacher')}
               className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
             >
-              Register as Educator
+              Register as Teacher
             </Button>
           </div>
         </div>

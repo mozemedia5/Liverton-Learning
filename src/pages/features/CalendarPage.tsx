@@ -52,8 +52,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { subscribeToEvents, type AppEvent } from '@/services/eventService';
-import { getTeacherLessons, type ZoomLesson } from '@/lib/zoomService';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,9 +69,6 @@ export interface CalendarEvent {
   createdAt: string;
   updatedAt: string;
   userId: string;
-  source?: 'local' | 'firestore' | 'live-lesson';
-  sourceId?: string;
-  readOnly?: boolean;
 }
 
 type EventCategory =
@@ -215,63 +210,6 @@ function formatTimeDisplay(time: string): string {
   return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-function timeFromDate(date: Date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-function addMinutes(date: Date, minutes: number) {
-  return new Date(date.getTime() + minutes * 60 * 1000);
-}
-
-function toCalendarEvent(event: AppEvent): CalendarEvent {
-  const hasTime = Boolean(event.time);
-  const startDate = hasTime ? new Date(`${event.date}T${event.time}`) : null;
-  const endTime = startDate && !Number.isNaN(startDate.getTime()) ? timeFromDate(addMinutes(startDate, 60)) : '23:59';
-  return {
-    id: `firestore-${event.id}`,
-    title: event.title,
-    description: event.description || 'Synced from Liverton events.',
-    date: event.date,
-    startTime: event.time || '00:00',
-    endTime,
-    category: event.category === 'workshop' ? 'class' : event.category === 'social' || event.category === 'sports' ? 'event' : event.category === 'meeting' ? 'meeting' : event.category === 'holiday' ? 'holiday' : event.category === 'class' || event.category === 'exam' ? event.category : 'other',
-    location: event.location || '',
-    reminder: 'none',
-    isAllDay: !hasTime,
-    createdAt: event.createdAt?.toISOString() || '',
-    updatedAt: event.updatedAt?.toISOString() || '',
-    userId: event.createdBy,
-    source: 'firestore',
-    sourceId: event.id,
-    readOnly: true,
-  };
-}
-
-function toLiveLessonCalendarEvent(lesson: ZoomLesson): CalendarEvent | null {
-  const scheduled = new Date(lesson.scheduledDate);
-  if (Number.isNaN(scheduled.getTime())) return null;
-  const duration = Number.isFinite(lesson.duration) && lesson.duration > 0 ? lesson.duration : 60;
-  const end = addMinutes(scheduled, duration);
-  return {
-    id: `live-lesson-${lesson.id}`,
-    title: `Live lesson · ${lesson.title}`,
-    description: lesson.description || 'Synced from your live lessons.',
-    date: formatDate(scheduled),
-    startTime: timeFromDate(scheduled),
-    endTime: timeFromDate(end),
-    category: 'class',
-    location: 'Liverton live lesson room',
-    reminder: 'none',
-    isAllDay: false,
-    createdAt: lesson.createdAt || '',
-    updatedAt: lesson.updatedAt || '',
-    userId: lesson.teacherId,
-    source: 'live-lesson',
-    sourceId: lesson.id,
-    readOnly: true,
-  };
-}
-
 function isToday(dateStr: string): boolean {
   return dateStr === formatDate(new Date());
 }
@@ -293,13 +231,11 @@ const DEFAULT_FORM: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt' | 'user
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
-  const { currentUser, userData, userRole } = useAuth();
+  const { currentUser } = useAuth();
   const userId = currentUser?.uid || 'anonymous';
 
   // State
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [firestoreEvents, setFirestoreEvents] = useState<AppEvent[]>([]);
-  const [liveLessons, setLiveLessons] = useState<ZoomLesson[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(formatDate(new Date()));
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -310,49 +246,22 @@ export default function CalendarPage() {
   const [filterCategory, setFilterCategory] = useState<EventCategory | 'all'>('all');
   const [form, setForm] = useState(DEFAULT_FORM);
 
-  // Load local reminders on mount. Firestore-backed events and live lessons are merged below.
+  // Load events on mount
   useEffect(() => {
     setEvents(loadEvents(userId));
   }, [userId]);
-
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const schoolId = (userData as (typeof userData & { schoolId?: string }) | null)?.schoolId;
-    const unsubscribe = subscribeToEvents(currentUser.uid, schoolId, setFirestoreEvents, (message) => {
-      console.error('Unable to load Firestore calendar events:', message);
-      toast.error('Some shared calendar events could not be loaded.');
-    });
-
-    if (userRole === 'teacher') {
-      getTeacherLessons(currentUser.uid)
-        .then(setLiveLessons)
-        .catch((error) => console.error('Unable to load live lessons into calendar:', error));
-    } else {
-      setLiveLessons([]);
-    }
-
-    return unsubscribe;
-  }, [currentUser?.uid, userData, userRole]);
-
-  const syncedEvents = useMemo(() => {
-    const eventItems = firestoreEvents.map(toCalendarEvent);
-    const lessonItems = liveLessons.map(toLiveLessonCalendarEvent).filter((event): event is CalendarEvent => Boolean(event));
-    return [...eventItems, ...lessonItems];
-  }, [firestoreEvents, liveLessons]);
-
-  const allEvents = useMemo(() => [...events, ...syncedEvents], [events, syncedEvents]);
 
   // Derived data
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
   const filteredEvents = useMemo(() => {
-    let filtered = allEvents;
+    let filtered = events;
     if (filterCategory !== 'all') {
       filtered = filtered.filter((e) => e.category === filterCategory);
     }
     return filtered;
-  }, [allEvents, filterCategory]);
+  }, [events, filterCategory]);
 
   const eventsForDate = useMemo(() => {
     return filteredEvents
@@ -631,11 +540,6 @@ export default function CalendarPage() {
             <p className="text-gray-600 dark:text-gray-400">
               Manage your schedule, events, and reminders
             </p>
-            <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-              {syncedEvents.length > 0
-                ? `${syncedEvents.length} real learning and shared event${syncedEvents.length === 1 ? '' : 's'} synced from Liverton.`
-                : 'Shared events and teacher live lessons sync here when available.'}
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={goToToday}>
@@ -804,7 +708,7 @@ export default function CalendarPage() {
                                 )}
                               </div>
                             </div>
-                            {!event.readOnly && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <button
                                 onClick={() => openEditDialog(event)}
                                 className="p-1 rounded hover:bg-white/50 dark:hover:bg-black/20 transition-colors"
@@ -817,7 +721,7 @@ export default function CalendarPage() {
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-red-500" />
                               </button>
-                            </div>}
+                            </div>
                           </div>
                           <div className="mt-2">
                             <Badge
@@ -826,7 +730,6 @@ export default function CalendarPage() {
                             >
                               {cat.label}
                             </Badge>
-                            {event.readOnly && <Badge variant="outline" className="ml-1 text-[10px] text-emerald-600 dark:text-emerald-400">Synced</Badge>}
                           </div>
                         </div>
                       );
@@ -906,7 +809,7 @@ export default function CalendarPage() {
                   <div className="text-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                     <p className="text-2xl font-bold">
                       {
-                            allEvents.filter(
+                        events.filter(
                           (e) =>
                             new Date(e.date + 'T00:00:00').getMonth() === currentMonth &&
                             new Date(e.date + 'T00:00:00').getFullYear() === currentYear

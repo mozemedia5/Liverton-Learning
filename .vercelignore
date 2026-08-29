@@ -1,8 +1,0 @@
-# Test suites are run in CI/local validation and must not become serverless functions.
-api/**/*.test.ts
-src/**/*.test.ts
-
-# Local build and inspection artifacts.
-dist
-coverage
-*.log

@@ -1,6 +1,5 @@
 // Payments component
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,13 +11,10 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Download,
-  Loader2
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { initializeModulePayment, subscribeToPaymentHistory, verifyModulePayment, type PaymentRecord } from '@/services/paymentService';
-import { getCourse, type Course } from '@/services/courseService';
-import { toast } from 'sonner';
+// import { toast } from 'sonner';
 
 interface Payment {
   id: string;
@@ -37,10 +33,6 @@ const mockPayments: Payment[] = [
   { id: '4', item: 'Chemistry Basics', type: 'Course Purchase', amount: 40, status: 'failed', date: '2026-02-01', reference: 'PAY-001230' },
   { id: '5', item: 'Computer Science 101', type: 'Course Purchase', amount: 60, status: 'refunded', date: '2026-01-28', reference: 'PAY-001225' },
 ];
-
-function formatPaymentDate(value: string | Date | undefined) {
-  return value instanceof Date ? value.toLocaleDateString() : value || 'Pending';
-}
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -64,80 +56,13 @@ const getStatusBadge = (status: string) => {
 
 export default function Payments() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { currentUser } = useAuth();
-  const [verifying, setVerifying] = useState(false);
-  const [livePayments, setLivePayments] = useState<PaymentRecord[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const courseId = searchParams.get('courseId');
+  useAuth();
 
-  useEffect(() => {
-    if (!currentUser) return;
-    return subscribeToPaymentHistory(currentUser.uid, setLivePayments);
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (!courseId) {
-      setSelectedCourse(null);
-      return;
-    }
-    let active = true;
-    getCourse(courseId).then((course) => { if (active) setSelectedCourse(course); }).catch(() => { if (active) setSelectedCourse(null); });
-    return () => { active = false; };
-  }, [courseId]);
-
-  const beginCheckout = async () => {
-    if (!selectedCourse) return;
-    setCheckoutLoading(true);
-    try {
-      const result = await initializeModulePayment(selectedCourse.id);
-      if (result.alreadyEnrolled) {
-        toast.success('Your access is already active.');
-        navigate(`/student/courses/${selectedCourse.id}`, { replace: true });
-        return;
-      }
-      if (!result.checkoutUrl) throw new Error('Payment checkout link was not returned.');
-      window.location.assign(result.checkoutUrl);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'We could not start payment.');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const transactionId = searchParams.get('transaction_id');
-    const txRef = searchParams.get('tx_ref');
-    const status = searchParams.get('status');
-    if (!currentUser || (!transactionId && !status)) return;
-    if (status && status !== 'successful' && !transactionId) {
-      toast.error('Payment was not completed. Your module access remains protected.');
-      return;
-    }
-    if (!transactionId || !txRef) return;
-    let active = true;
-    setVerifying(true);
-    verifyModulePayment(transactionId, txRef).then((result) => {
-      if (!active) return;
-      if (result.accessGranted && result.courseId) {
-        toast.success('Payment verified. Your module is now available.');
-        navigate(`/student/courses/${result.courseId}`, { replace: true });
-      } else {
-        toast.error('Payment could not be verified. No module access was granted.');
-      }
-    }).catch((error) => {
-      if (active) toast.error(error instanceof Error ? error.message : 'Payment verification failed.');
-    }).finally(() => { if (active) setVerifying(false); });
-    return () => { active = false; };
-  }, [currentUser, navigate, searchParams]);
-
-  const displayedPayments: Array<Payment | PaymentRecord> = livePayments.length ? livePayments : mockPayments;
-  const totalSpent = displayedPayments
+  const totalSpent = mockPayments
     .filter(p => p.status === 'completed')
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const pendingAmount = displayedPayments
+  const pendingAmount = mockPayments
     .filter(p => p.status === 'pending')
     .reduce((sum, p) => sum + p.amount, 0);
 
@@ -161,7 +86,7 @@ export default function Payments() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 lg:p-6 space-y-6">{selectedCourse && <Card className="border-emerald-200 bg-white shadow-sm dark:border-emerald-900 dark:bg-zinc-950"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-600">Complete enrollment</p><h1 className="mt-1 text-xl font-bold">{selectedCourse.title}</h1><p className="mt-1 text-sm text-gray-500">{selectedCourse.currency || 'UGX'} {Number(selectedCourse.price || 0).toLocaleString()} · Secure payment with Flutterwave</p></div><Button onClick={beginCheckout} disabled={checkoutLoading} className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700">{checkoutLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}<CreditCard className="mr-2 h-4 w-4" /> Pay now</Button></CardContent></Card>}{courseId && !selectedCourse && <Card><CardContent className="p-5 text-sm text-gray-500">Loading the selected module…</CardContent></Card>}{verifying && <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"><CardContent className="flex items-center gap-3 p-4 text-sm font-semibold text-emerald-800 dark:text-emerald-200"><Loader2 className="h-4 w-4 animate-spin" /> Verifying payment and preparing your module access...</CardContent></Card>}
+      <main className="p-4 lg:p-6 space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
@@ -198,7 +123,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Transactions</p>
-                  <p className="text-xl font-bold">{displayedPayments.length}</p>
+                  <p className="text-xl font-bold">{mockPayments.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -212,7 +137,7 @@ export default function Payments() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {displayedPayments.map((payment) => (
+              {mockPayments.map((payment) => (
                 <div 
                   key={payment.id} 
                   className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
@@ -222,7 +147,7 @@ export default function Payments() {
                     <div>
                       <p className="font-medium">{payment.item}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {payment.type} • {formatPaymentDate('date' in payment ? payment.date : undefined)}
+                        {payment.type} • {payment.date}
                       </p>
                       <p className="text-xs text-gray-500">
                         Ref: {payment.reference}

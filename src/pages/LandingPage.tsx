@@ -1,206 +1,143 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ArrowRight,
-  BookOpen,
-  Check,
-  ChevronDown,
-  Compass,
-  GraduationCap,
-  Heart,
-  Lock,
-  Menu,
-  MessageCircle,
-  Moon,
-  Play,
-  School,
-  Sparkles,
-  Sun,
-  UserCircle,
-  Users,
-  X,
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import AskHannaIcon from '@/components/AskHannaIcon';
-import './landing.css';
-import './auth.css';
-
-type Role = 'student' | 'educator';
-
-const roleContent: Record<Role, { label: string; title: string; body: string; stat: string; statLabel: string }> = {
-  student: {
-    label: 'For learners',
-    title: 'Find your people. Build your next chapter.',
-    body: 'Explore learning paths, join live teams, and turn every small win into momentum you can feel.',
-    stat: '84%',
-    statLabel: 'average progress this week',
-  },
-  educator: {
-    label: 'For educators',
-    title: 'Teach with more room to make an impact.',
-    body: 'Create rich modules, bring collaborators in, and give every learner a clearer path forward.',
-    stat: '4.9/5',
-    statLabel: 'creator satisfaction score',
-  },
-};
-
-const imageSources = [
-  'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=85',
-  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=85',
-  'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=85',
-];
-
-function Logo() {
-  return (
-    <span className="liverton-logo" aria-label="Liverton">
-      <span className="liverton-logo-mark"><img src="/liverton-mark.jpg" alt="" /></span>
-      <span className="liverton-logo-wordmark">liverton <span className="liverton-logo-learning">learning</span><span className="liverton-logo-dot">.</span></span>
-    </span>
-  );
-}
+import { Button } from '@/components/ui/button';
+import { BookOpen, GraduationCap, School, Users } from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [role, setRole] = useState<Role>('student');
-  const [showVideo, setShowVideo] = useState(false);
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-  const [heroWord, setHeroWord] = useState('future');
-  const [heroWordPhase, setHeroWordPhase] = useState<'hold' | 'delete' | 'write'>('hold');
-  const heroWords = ['future', 'ideas', 'confidence', 'community', 'impact'];
-  const content = roleContent[role];
-
-  useEffect(() => {
-    let wordIndex = 0;
-    let cycleTimer: number | undefined;
-    const cycle = () => {
-      setHeroWordPhase('delete');
-      window.setTimeout(() => {
-        wordIndex = (wordIndex + 1) % heroWords.length;
-        setHeroWord(heroWords[wordIndex]);
-        setHeroWordPhase('write');
-      }, 360);
-      cycleTimer = window.setTimeout(() => {
-        setHeroWordPhase('hold');
-        cycle();
-      }, 3200);
-    };
-    cycleTimer = window.setTimeout(cycle, 2600);
-    return () => { if (cycleTimer) window.clearTimeout(cycleTimer); };
-  }, []);
-
-  useEffect(() => {
-    document.title = 'Liverton — Learn together. Go further.';
-  }, []);
-
-  const go = (path: string) => {
-    setMenuOpen(false);
-    if (!isAuthenticated && path.startsWith('/features')) {
-      navigate('/login', { state: { from: path } });
-      return;
-    }
-    navigate(path);
-  };
-
-  const scrollTo = (id: string) => {
-    setMenuOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   return (
-    <div className="liverton-home">
-      <nav className="home-nav">
-        <button className="home-brand" onClick={() => scrollTo('top')}><Logo /></button>
-        <div className={`home-nav-links ${menuOpen ? 'is-open' : ''}`}>
-          <button onClick={() => scrollTo('why-liverton')}>Why Liverton</button>
-          <button onClick={() => scrollTo('ecosystem')}>Explore</button>
-          <button onClick={() => scrollTo('stories')}>Stories</button>
-          <button className="nav-theme" onClick={toggleTheme} aria-pressed={theme === 'dark'} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button className="nav-login" onClick={() => navigate('/login')}>Log in</button>
-          <button className="nav-cta" onClick={() => navigate('/get-started')}>Get started <ArrowRight size={16} /></button>
+    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
+      {/* Navigation */}
+      <nav className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center gap-3">
+          {/* Main Navigation Logo Container with custom style to hover cleanly and prevent cropping */}
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer">
+            <img
+              src="/logo.png"
+              alt="Liverton Learning"
+              className="w-[90%] h-[90%] object-contain transition-transform duration-300 hover:rotate-3"
+            />
+          </div>
+          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
+            Liverton Learning
+          </span>
         </div>
-        <button className="nav-menu" aria-label="Open navigation" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X /> : <Menu />}</button>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/about')}
+            className="hidden sm:inline-flex font-medium hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl"
+          >
+            About
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/login')}
+            className="rounded-xl font-medium px-5 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-950"
+          >
+            Login
+          </Button>
+        </div>
       </nav>
 
-      <main id="top">
-        <section className="home-hero">
-          <div className="hero-copy">
-            <div className="eyebrow"><span className="eyebrow-spark">✦</span> One home for every learning journey</div>
-            <h1>Make room for<br /><em className={`hero-word hero-word-${heroWordPhase}`}>{heroWord}.</em></h1>
-            <p className="hero-lede">Liverton brings learning, collaboration, and opportunity into one beautifully simple workspace.</p>
-            <div className="hero-actions">
-              <button className="primary-cta" onClick={() => navigate('/get-started')}>Start your journey <ArrowRight size={18} /></button>
-              <button className="secondary-cta" onClick={() => setShowVideo(true)}><span className="play-chip"><Play size={13} fill="currentColor" /></span> Watch the story</button>
+      {/* Hero Section */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 md:py-28">
+        <div className="max-w-2xl mx-auto text-center space-y-8">
+          {/* Logo Large (Hero) - Styled with a beautiful pulsing shadow glow, hovers beautifully */}
+          <div className="flex justify-center">
+            <div className="w-24 h-24 rounded-3xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 border border-gray-100/50 dark:border-gray-800/50 transition-all duration-500 hover:scale-110 hover:rotate-3 hover:shadow-2xl hover:shadow-blue-500/20 shadow-xl relative group">
+              <div className="absolute inset-0 bg-blue-500/5 dark:bg-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"></div>
+              <img
+                src="/logo.png"
+                alt="Liverton Learning Big Logo"
+                className="w-[85%] h-[85%] object-contain transition-transform duration-500 relative z-10"
+              />
             </div>
-            <div className="hero-proof"><div className="proof-avatars"><span>AM</span><span>JD</span><span>SK</span><span>LV</span></div><div><div className="proof-stars">★★★★★</div><small>Loved by learners, educators & teams</small></div></div>
           </div>
-          <div className="hero-visual" aria-label="Liverton learning community preview">
-            <div className="hero-sun" />
-            <div className="hero-image-card hero-image-main"><img src={imageSources[0]} alt="Students learning together in a bright classroom" /><div className="image-caption"><span>Learning looks better together.</span><strong>01 / 03</strong></div></div>
-            <div className="hero-float-card hero-float-streak"><Sparkles size={16} /><strong>7 day<br />streak</strong><span>Keep going</span></div>
-            <div className="hero-float-card hero-float-rate"><Heart size={16} fill="currentColor" /><strong>4.9</strong><span>community rating</span></div><div className="hero-flying-note flying-note-one">Learn together <span>✦</span></div><div className="hero-flying-note flying-note-two">Build what matters <span>↗</span></div>
-            <div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" />
+
+          {/* Title */}
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight bg-gradient-to-b from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+            Liverton Learning
+          </h1>
+
+          {/* Short Description */}
+          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-lg mx-auto leading-relaxed font-normal">
+            A comprehensive educational platform connecting students, teachers, and schools for seamless learning and management.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Button
+              size="lg"
+              onClick={() => navigate('/get-started')}
+              className="bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 px-8 rounded-xl font-semibold shadow-lg shadow-blue-500/10 transition-all duration-300 hover:scale-105"
+            >
+              Get Started
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => navigate('/login')}
+              className="px-8 rounded-xl font-semibold border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-950 transition-all duration-300 hover:scale-105"
+            >
+              Login
+            </Button>
           </div>
-        </section>
+        </div>
 
-        <section className="trust-strip"><span>Built for the people moving learning forward</span><div><span>LEARNERS</span><span>EDUCATORS</span><span>CREATORS</span></div></section>
-
-        <section className="section-shell why-section" id="why-liverton">
-          <div className="section-heading"><div><span className="section-kicker">A clearer way forward</span><h2>Everything you need<br /><em>to keep going.</em></h2></div><p>From your first lesson to your boldest project, Liverton keeps the right people, tools, and opportunities close at hand.</p></div>
-          <div className="feature-grid">
-            <article className="feature-card feature-card-lime"><div className="feature-icon"><Compass size={21} /></div><span className="feature-index">01</span><h3>Find your path</h3><p>Discover focused modules and learning spaces that feel personal, practical, and worth returning to.</p><button onClick={() => go('/student/courses')}>Explore learning <ArrowRight size={16} /></button></article>
-            <article className="feature-card feature-card-lilac"><div className="feature-icon"><Users size={21} /></div><span className="feature-index">02</span><h3>Move as a team</h3><p>Bring learners, educators, and collaborators into the same rhythm with Liv Teams.</p><button onClick={() => go('/features/liv-teams')}>Meet your team <ArrowRight size={16} /></button></article>
+        {/* Role Cards Preview */}
+        <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto w-full">
+          <div className="p-6 border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-black/20 rounded-2xl text-center hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group">
+            <Users className="w-8 h-8 mx-auto mb-3 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-blue-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">Students</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Learn & Grow</p>
           </div>
-        </section>
-
-        <section className="section-shell role-section" id="stories">
-          <div className="role-header"><div><span className="section-kicker">A space for every perspective</span><h2>Choose your<br /><em>point of view.</em></h2></div><div className="role-tabs">{(['student', 'educator'] as Role[]).map((item) => <button key={item} className={role === item ? 'active' : ''} onClick={() => setRole(item)}>{roleContent[item].label}<span>↗</span></button>)}</div></div>
-          <div className="role-showcase"><div className="role-showcase-copy"><span className="role-label">{content.label}</span><h3>{content.title}</h3><p>{content.body}</p><button className="dark-cta" onClick={() => navigate('/get-started')}>Build your space <ArrowRight size={17} /></button><div className="role-stat"><strong>{content.stat}</strong><span>{content.statLabel}</span></div></div><div className="role-image-stack"><img src={imageSources[1]} alt="A diverse group collaborating around a laptop" /><div className="mini-profile-card"><span className="mini-avatar">LL</span><div><strong>A new learner joined your space</strong><span>Just now · Liverton Learning</span></div><Check size={17} /></div></div></div>
-        </section>
-
-        <section className="section-shell ecosystem-section" id="ecosystem">
-          <div className="section-heading"><div><span className="section-kicker">The Liverton ecosystem</span><h2>More than modules.<br /><em>A whole world of momentum.</em></h2></div><p>One identity, many ways to learn, build, share, and grow. Your work travels with you.</p></div>
-          <div className="ecosystem-grid"><button className="ecosystem-card ecosystem-teams" onClick={() => go('/features/liv-teams')}><div className="ecosystem-card-top"><MessageCircle size={20} /><span>01</span></div><span className="feature-index">COLLABORATE</span><h3>Liv Teams</h3><p>Chat, plan projects, schedule sessions, and keep the whole team moving together.</p><span className="card-link">Open Liv Teams <ArrowRight size={16} /></span><img src={imageSources[2]} alt="Students collaborating in a modern learning space" /></button><button className="ecosystem-card ecosystem-ai" onClick={() => go('/features/hanna-ai')}><div className="ecosystem-card-top"><AskHannaIcon size={24} /><span>02</span></div><span className="feature-index">THINK WITH YOU</span><h3>Hanna AI</h3><p>A thoughtful AI partner for learning, project management, planning, writing, and Liv Teams collaboration.</p><span className="card-link">Meet Hanna <ArrowRight size={16} /></span><div className="hanna-chat"><AskHannaIcon size={30} /><div><strong>Ask Hanna anything</strong><small>Try: "Help me plan my team project"</small></div><ArrowRight size={15} /></div></button></div>
-        </section>
-
-        {/* Coming Soon: Organization & Parent roles */}
-        <section className="section-shell" id="coming-soon">
-          <div className="section-heading"><div><span className="section-kicker">On the horizon</span><h2>Built for<br /><em>everyone.</em></h2></div><p>More roles are on the way. Here's what's cooking.</p></div>
-          <div className="feature-grid" style={{ marginTop: 48 }}>
-            <article className="feature-card feature-card-peach" style={{ opacity: 0.85 }}>
-              <div className="feature-icon"><School size={21} /></div>
-              <span className="feature-index">COMING SOON</span>
-              <h3>Organization</h3>
-              <p>Coordinate programs, manage teams, track progress, and handle funding from one calm workspace built for schools, nonprofits, and learning providers.</p>
-              <span className="inline-flex items-center gap-1.5 mt-5 text-xs font-bold text-gray-500 uppercase tracking-wider"><Lock size={12} /> Under development</span>
-            </article>
-            <article className="feature-card feature-card-lilac" style={{ opacity: 0.85 }}>
-              <div className="feature-icon"><UserCircle size={21} /></div>
-              <span className="feature-index">COMING SOON</span>
-              <h3>Parent</h3>
-              <p>Monitor your child's activities, track learning progress, review performance reports, and stay connected with educators in real time.</p>
-              <span className="inline-flex items-center gap-1.5 mt-5 text-xs font-bold text-gray-500 uppercase tracking-wider"><Lock size={12} /> Under development</span>
-            </article>
+          <div className="p-6 border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-black/20 rounded-2xl text-center hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group">
+            <GraduationCap className="w-8 h-8 mx-auto mb-3 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-blue-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">Teachers</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Teach & Earn</p>
           </div>
-        </section>
-
-        <section className="visual-mosaic section-shell"><div className="section-heading"><div><span className="section-kicker">A community in motion</span><h2>Many places.<br /><em>One shared momentum.</em></h2></div><p>Liverton is designed for real people, real programs, and real progress across classrooms, homes, teams, and communities.</p></div><div className="mosaic-grid"><figure className="mosaic-large"><img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=85" alt="Students collaborating around a table" /><figcaption>Learn side by side</figcaption></figure><figure className="mosaic-small mosaic-top"><img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=85" alt="Learner working with a laptop" /><figcaption>Make ideas visible</figcaption></figure><figure className="mosaic-small mosaic-bottom"><img src="https://images.unsplash.com/photo-1529390079861-591de354faf5?auto=format&fit=crop&w=700&q=85" alt="Diverse friends learning together" /><figcaption>Grow with community</figcaption></figure></div></section>
-
-        <section className="home-quote"><div className="quote-mark">"</div><blockquote>Liverton makes progress feel less like a solo climb and more like a shared horizon.</blockquote><div className="quote-byline"><span className="quote-avatar">NK</span><span><strong>Liverton community</strong><small>Learners, educators & teams</small></span></div></section>
-
-        <section className="section-shell faq-section"><div><span className="section-kicker">Learn more, by role</span><h2>See how Liverton<br /><em>fits your world.</em></h2><p className="faq-intro">Read the practical guide for your role, from first sign-up to the everyday workflows that make Liverton useful.</p><div className="role-doc-links"><button onClick={() => navigate('/about/students')}><BookOpen size={16} /> Student guide <ArrowRight size={15} /></button><button onClick={() => navigate('/about/teachers')}><GraduationCap size={16} /> Educator guide <ArrowRight size={15} /></button></div></div><div className="faq-list">{['Can I join Liverton as a learner or educator?', 'What is Hanna AI?'].map((question, index) => <div className={`faq-item ${expandedFaq === index ? 'open' : ''}`} key={question}><button onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}><span>{question}</span><ChevronDown size={18} /></button>{expandedFaq === index && <p>{index === 0 ? 'Yes. Start with the role that fits you best, then move between learning, teams, projects, and opportunity with one Liverton identity. Organization and Parent roles are coming soon.' : 'Hanna is Liverton\'s AI partner for study, project planning, writing, team coordination, and everyday work. Hanna helps you clarify ideas, organize next steps, and create stronger outcomes.'}</p>}</div>)}</div></section>
-
-        <section className="final-cta"><div className="final-cta-glow" /><span className="section-kicker">Your next chapter starts here</span><h2>Make room for<br /><em>what's next.</em></h2><p>Learning is better when you don't have to do it alone.</p><button className="light-cta" onClick={() => navigate('/get-started')}>Get started free <ArrowRight size={18} /></button></section>
+          <div className="p-6 border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-black/20 rounded-2xl text-center hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group">
+            <School className="w-8 h-8 mx-auto mb-3 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-blue-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">Schools</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Manage & Monitor</p>
+          </div>
+          <div className="p-6 border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-black/20 rounded-2xl text-center hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group">
+            <BookOpen className="w-8 h-8 mx-auto mb-3 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-blue-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">Parents</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Track Progress</p>
+          </div>
+        </div>
       </main>
 
-      <footer className="home-footer"><div className="footer-brand"><Logo /><span>Learn together. Go further.</span></div><div className="footer-links"><button onClick={() => scrollTo('why-liverton')}>Why Liverton</button><button onClick={() => scrollTo('ecosystem')}>Explore</button><button onClick={() => navigate('/about')}>About</button><button onClick={() => navigate('/login')}>Log in</button></div><span className="footer-copy">© 2026 Liverton Learning</span></footer>
-
-      {showVideo && <div className="video-modal" role="dialog" aria-modal="true" aria-label="Liverton story"><button className="video-close" onClick={() => setShowVideo(false)} aria-label="Close video"><X /></button><div className="video-frame"><video controls autoPlay poster={imageSources[0]}><source src="https://videos.pexels.com/video-files/3129595/3129595-hd_1920_1080_25fps.mp4" type="video/mp4" /></video><div className="video-fallback"><Play size={28} fill="currentColor" /><span>Liverton in motion</span></div></div></div>}
+      {/* Footer */}
+      <footer className="w-full px-6 py-8 border-t border-gray-200 dark:border-gray-800">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-gray-500 dark:text-gray-500">
+            © 2026 Liverton Learning. All rights reserved.
+          </p>
+          <div className="flex flex-wrap gap-6 text-sm text-gray-500 dark:text-gray-500 justify-center">
+            <button onClick={() => navigate('/about')} className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              About
+            </button>
+            <button onClick={() => navigate('/about/schools')} className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              For Schools
+            </button>
+            <button onClick={() => navigate('/about/teachers')} className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              For Teachers
+            </button>
+            <button onClick={() => navigate('/about/students')} className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              For Students
+            </button>
+            <button onClick={() => navigate("/support")} className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              Support
+            </button>
+            <button onClick={() => navigate("/privacy-policy")} className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+              Privacy Policy
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

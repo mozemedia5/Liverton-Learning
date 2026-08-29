@@ -1,108 +1,372 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import LogoutConfirmDialog from '@/components/LogoutConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, BookOpen, FileText, LogOut, ShieldCheck, Sparkles, User } from 'lucide-react';
+import {
+  BookOpen,
+  ArrowLeft,
+  Moon,
+  Bell,
+  Mail,
+  Shield,
+  Volume2,
+  Phone,
+  MapPin,
+  Edit2,
+  Check,
+  X
+} from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
-import type { HannaPersonalizationSettings } from '@/types';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
-const DEFAULT_HANNA_PERSONALIZATION: HannaPersonalizationSettings = {
-  profile: true,
-  learning: true,
-  documents: false,
-  teams: false,
-  projects: false,
-  funds: false,
-  marketplace: false,
-  chats: false,
-  autoAnalyze: false,
-  customInstructions: '',
-};
-
-const HANNA_SCOPES: Array<[Exclude<keyof HannaPersonalizationSettings, 'customInstructions'>, string, string]> = [
-  ['profile', 'Profile and role', 'Use your name, role, school, subjects, and education level.'],
-  ['learning', 'Modules and progress', 'Use enrolled modules, lessons, quizzes, exams, and progress signals.'],
-  ['documents', 'Document library', 'Read authorized document titles and excerpts to summarize or analyze them.'],
-  ['teams', 'Liv Teams', 'Use teams you belong to and member-safe team resources.'],
-  ['projects', 'Projects and tasks', 'Use authorized team projects, task status, and task summaries.'],
-  ['funds', 'LivFund campaigns', 'Use campaigns you own or are authorized to manage.'],
-  ['marketplace', 'LivMart listings', 'Use authorized team listings and project resources.'],
-  ['chats', 'Hanna conversation index', 'Use your Hanna conversation titles and counts for continuity.'],
-  ['autoAnalyze', 'Analyze enabled content automatically', 'Let Hanna use selected context proactively when it is relevant.'],
-];
-
+/**
+ * Settings Page Component
+ *
+ * Features:
+ * - Dark mode toggle with improved dark theme (not too dark)
+ * - Notification preferences
+ * - Privacy & Security settings
+ * - Profile editing: Phone number and Address with Firebase Firestore persistence
+ * - Removed Language & Region settings
+ * - Real-time Firebase updates
+ */
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { userData, logout, updateUserProfile } = useAuth();
-  const [hannaPersonalization, setHannaPersonalization] = useState<HannaPersonalizationSettings>({ ...DEFAULT_HANNA_PERSONALIZATION, ...userData?.hannaPersonalization });
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { userData, currentUser } = useAuth();
+
+  // Profile editing state
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState(userData?.phone || '');
+  const [address, setAddress] = useState(userData?.address || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (userData?.hannaPersonalization) setHannaPersonalization({ ...DEFAULT_HANNA_PERSONALIZATION, ...userData.hannaPersonalization });
-  }, [userData?.hannaPersonalization]);
+  /**
+   * Save phone number to Firebase Firestore
+   * Updates user profile with new phone number
+   */
+  const handleSavePhoneNumber = async () => {
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
 
-  const handleSave = async () => {
-    setIsSaving(true);
+    if (!phoneNumber.trim()) {
+      toast.error('Phone number cannot be empty');
+      return;
+    }
+
     try {
-      await updateUserProfile({ hannaPersonalization });
-      toast.success('Settings saved successfully.');
-    } catch {
-      toast.error('Could not save settings. Please try again.');
+      setIsSaving(true);
+      const userDocRef = doc(db, 'users', currentUser.uid);
+
+      // Update Firestore with new phone number
+      await updateDoc(userDocRef, {
+        phone: phoneNumber.trim(),
+        updatedAt: new Date(),
+      });
+
+      toast.success('Phone number updated successfully!');
+      setIsEditingPhone(false);
+    } catch (error) {
+      console.error('Error updating phone number:', error);
+      toast.error('Failed to update phone number');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try { await logout(); toast.success('You are signed out'); navigate('/login'); }
-    catch { toast.error('Could not sign out'); }
-    finally { setIsLoggingOut(false); setShowLogoutConfirm(false); }
+  /**
+   * Save address to Firebase Firestore
+   * Updates user profile with new address
+   */
+  const handleSaveAddress = async () => {
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    if (!address.trim()) {
+      toast.error('Address cannot be empty');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const userDocRef = doc(db, 'users', currentUser.uid);
+
+      // Update Firestore with new address
+      await updateDoc(userDocRef, {
+        address: address.trim(),
+        updatedAt: new Date(),
+      });
+
+      toast.success('Address updated successfully!');
+      setIsEditingAddress(false);
+    } catch (error) {
+      console.error('Error updating address:', error);
+      toast.error('Failed to update address');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /**
+   * Cancel editing and revert to original values
+   */
+  const handleCancelPhoneEdit = () => {
+    setPhoneNumber(userData?.phone || '');
+    setIsEditingPhone(false);
+  };
+
+  const handleCancelAddressEdit = () => {
+    setAddress(userData?.address || '');
+    setIsEditingAddress(false);
+  };
+
+  const handleSave = () => {
+    toast.success('Settings saved successfully!');
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur">
-        <div className="flex items-center justify-between px-4 py-3 lg:px-6">
-          <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back"><ArrowLeft className="h-5 w-5" /></Button><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black dark:bg-white"><BookOpen className="h-5 w-5 text-white dark:text-black" /></div><span className="font-semibold">Settings</span></div></div>
-          <Button size="sm" className="rounded-xl" onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving…' : 'Save changes'}</Button>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-black dark:text-white transition-colors duration-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <span className="font-semibold">Settings</span>
+            </div>
+          </div>
+          <Button onClick={handleSave}>Save Changes</Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-6 p-4 lg:p-6">
-        <Card className="border-blue-200/70 dark:border-blue-900/50">
-          <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-blue-500" /> Hanna personalization</CardTitle><p className="text-sm text-muted-foreground">Choose the information Hanna may use for personalized answers. You can change these permissions at any time.</p></CardHeader>
+      {/* Main Content */}
+      <main className="p-4 lg:p-6 space-y-6 max-w-3xl mx-auto">
+        {/* Profile Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Information</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-900 dark:bg-blue-950/30 dark:text-blue-100 sm:flex-row sm:items-center sm:justify-between"><span>Hanna only receives scopes you enable. Backend permissions still apply, and private records remain protected.</span><Button type="button" size="sm" variant="outline" className="shrink-0 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-transparent dark:text-blue-200" onClick={() => setHannaPersonalization(prev => ({ ...prev, profile: true, learning: true, documents: true, teams: true, projects: true, funds: true, marketplace: true }))}>Enable recommended context</Button></div>
-            <div className="space-y-2 rounded-2xl border border-slate-200/70 p-3 dark:border-white/10"><label htmlFor="hanna-custom-instructions" className="font-medium">Custom instructions</label><p className="text-sm text-muted-foreground">Tell Hanna how you prefer explanations, examples, tone, or study support. Safety, privacy, and authorization rules always remain active.</p><Textarea id="hanna-custom-instructions" value={hannaPersonalization.customInstructions || ''} maxLength={2000} onChange={event => setHannaPersonalization(prev => ({ ...prev, customInstructions: event.target.value.slice(0, 2000) }))} placeholder="For example: Explain mathematics step by step, define new terms, and finish with one practice question." className="min-h-28 rounded-xl" /><p className="text-right text-xs text-muted-foreground">{(hannaPersonalization.customInstructions || '').length}/2000</p></div>
-            {HANNA_SCOPES.map(([key, label, description]) => <div key={key} className="flex items-center justify-between gap-4"><div className="min-w-0"><p className="font-medium">{label}</p><p className="text-sm text-muted-foreground">{description}</p></div><Switch checked={hannaPersonalization[key]} onCheckedChange={checked => setHannaPersonalization(prev => ({ ...prev, [key]: checked }))} aria-label={`Allow Hanna to use ${label}`} /></div>)}
+            {/* Phone Number */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Phone Number</Label>
+              {isEditingPhone ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="tel"
+                    placeholder="Enter your phone number"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSavePhoneNumber}
+                    disabled={isSaving}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancelPhoneEdit}
+                    disabled={isSaving}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm">
+                      {phoneNumber || 'No phone number added'}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingPhone(true)}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Address */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Address</Label>
+              {isEditingAddress ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Enter your address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveAddress}
+                    disabled={isSaving}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancelAddressEdit}
+                    disabled={isSaving}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <span className="text-sm">
+                      {address || 'No address added'}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingAddress(true)}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
+        {/* Appearance */}
         <Card>
-          <CardHeader><CardTitle>Appearance</CardTitle></CardHeader>
-          <CardContent><div className="flex items-center justify-between"><div><p className="font-medium">Dark mode</p><p className="text-sm text-muted-foreground">Use a darker workspace theme.</p></div><Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} /></div></CardContent>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  <Moon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Dark Mode</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Toggle between light and dark theme
+                  </p>
+                </div>
+              </div>
+              <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+            </div>
+          </CardContent>
         </Card>
 
+        {/* Notifications */}
         <Card>
-          <CardHeader><CardTitle>Legal and privacy</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2"><Button variant="outline" className="justify-start rounded-xl" onClick={() => navigate('/privacy-policy')}><ShieldCheck className="mr-2 h-4 w-4" /> Privacy policy</Button><Button variant="outline" className="justify-start rounded-xl" onClick={() => navigate('/terms')}><FileText className="mr-2 h-4 w-4" /> Terms of service</Button></CardContent>
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Push Notifications</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Receive notifications about courses and announcements
+                  </p>
+                </div>
+              </div>
+              <Switch defaultChecked />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Email Notifications</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Receive email updates about your account
+                  </p>
+                </div>
+              </div>
+              <Switch defaultChecked />
+            </div>
+          </CardContent>
         </Card>
 
-        <Card className="border-border">
-          <CardHeader><CardTitle>Account</CardTitle><p className="text-sm text-muted-foreground">Manage your profile or sign out of Liverton.</p></CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row"><Button variant="outline" className="rounded-xl" onClick={() => navigate('/profile')}><User className="mr-2 h-4 w-4" /> Edit profile</Button><Button variant="outline" className="rounded-xl border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300" onClick={() => setShowLogoutConfirm(true)}><LogOut className="mr-2 h-4 w-4" /> Log out</Button></CardContent>
+        {/* Privacy & Security */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Privacy & Security</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Two-Factor Authentication</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Add an extra layer of security to your account
+                  </p>
+                </div>
+              </div>
+              <Switch />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Preferences */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Preferences</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  <Volume2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium">Sound Effects</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Play sounds for notifications and actions
+                  </p>
+                </div>
+              </div>
+              <Switch defaultChecked />
+            </div>
+          </CardContent>
         </Card>
       </main>
-      <LogoutConfirmDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm} onConfirm={handleLogout} isLoading={isLoggingOut} />
     </div>
   );
 }

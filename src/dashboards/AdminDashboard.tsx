@@ -5,7 +5,6 @@ import { Users, BarChart3, Shield, Activity, AlertCircle, RefreshCw, Loader2 } f
 import { useNavigate } from 'react-router-dom';
 import { getDashboardStats } from '@/services/userService';
 import { toast } from 'sonner';
-import AnimatedWord from '@/components/AnimatedWord';
 
 interface DashboardStats {
   totalUsers: number;
@@ -98,7 +97,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard <AnimatedWord words={['secure', 'support', 'improve', 'grow']} /></h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">Platform administration and monitoring</p>
         </div>
         <Button 
@@ -180,7 +179,7 @@ export default function AdminDashboard() {
           </Card>
           <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
             <CardContent className="p-4 text-center">
-              <p className="text-sm text-green-600 dark:text-green-400">Educators</p>
+              <p className="text-sm text-green-600 dark:text-green-400">Teachers</p>
               <p className="text-2xl font-bold text-green-700 dark:text-green-300">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : stats.totalTeachers}
               </p>
@@ -188,7 +187,7 @@ export default function AdminDashboard() {
           </Card>
           <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
             <CardContent className="p-4 text-center">
-              <p className="text-sm text-purple-600 dark:text-purple-400">Organizations</p>
+              <p className="text-sm text-purple-600 dark:text-purple-400">Schools</p>
               <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : stats.totalSchools}
               </p>

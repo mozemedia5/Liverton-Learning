@@ -106,7 +106,7 @@ Create a `.env.local` file in the project root:
 
 ```bash
 # Firebase Configuration
-VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+VITE_FIREBASE_API_KEY=AIzaSyBjDFyYVoHQ2MYP870VqxHpqpEmKy-kaeQ
 VITE_FIREBASE_AUTH_DOMAIN=liverton-learning-52b7c.firebaseapp.com
 VITE_FIREBASE_DATABASE_URL=https://liverton-learning-52b7c-default-rtdb.firebaseio.com
 VITE_FIREBASE_PROJECT_ID=liverton-learning-52b7c
@@ -115,7 +115,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=694304753308
 VITE_FIREBASE_APP_ID=1:694304753308:web:5ca134f5f85f428c0b0f59
 
 # Gemini API Key (for Cloud Functions)
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs
 ```
 
 ### 2. Firebase Cloud Functions Setup
@@ -143,7 +143,7 @@ npm run logs
 
 ```bash
 # Set Gemini API key in Firebase
-firebase functions:config:set gemini.api_key="YOUR_GEMINI_API_KEY"
+firebase functions:config:set gemini.api_key="AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs"
 
 # Deploy with environment variables
 firebase deploy --only functions

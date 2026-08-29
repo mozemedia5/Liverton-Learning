@@ -6,14 +6,14 @@ export default function AboutSchools() {
   const navigate = useNavigate();
 
   const benefits = [
-    'Coordinate learners, members, or program participants',
-    'Work with educators, creators, and partners',
-    'Track participation, delivery, and outcomes',
-    'Manage funding, payments, and operational resources',
-    'Plan programs, events, and delivery calendars',
-    'Review learning and impact insights',
-    'Coordinate communities, cohorts, and initiatives',
-    'Communicate with learners, families, educators, and partners',
+    'Complete student management system',
+    'Teacher management and assignment',
+    'Attendance tracking and reporting',
+    'School fees payment monitoring',
+    'Term schedules and academic calendar',
+    'Academic performance overview',
+    'Inter-school competitions management',
+    'Direct communication with parents',
   ];
 
   const features = [
@@ -24,8 +24,8 @@ export default function AboutSchools() {
     },
     {
       icon: <School className="w-6 h-6" />,
-      title: 'Educator & Partner Management',
-      description: 'Coordinate educators, contributors, and partner assignments',
+      title: 'Teacher Management',
+      description: 'Manage teachers and their assignments',
     },
     {
       icon: <Calendar className="w-6 h-6" />,
@@ -35,7 +35,7 @@ export default function AboutSchools() {
     {
       icon: <CreditCard className="w-6 h-6" />,
       title: 'Fee Management',
-      description: 'Track funding, fees, and organization payments',
+      description: 'Track and manage school fee payments',
     },
     {
       icon: <BarChart3 className="w-6 h-6" />,
@@ -45,7 +45,7 @@ export default function AboutSchools() {
     {
       icon: <Bell className="w-6 h-6" />,
       title: 'Announcements',
-      description: 'Share announcements with learners, families, teams, and partners',
+      description: 'Send announcements to students and parents',
     },
   ];
 
@@ -63,7 +63,7 @@ export default function AboutSchools() {
           Back
         </Button>
         <div className="flex-1 flex justify-center">
-          <span className="text-lg font-semibold">For Organizations</span>
+          <span className="text-lg font-semibold">For Schools</span>
         </div>
         <div className="w-20"></div>
       </header>
@@ -73,15 +73,16 @@ export default function AboutSchools() {
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Hero */}
           <div className="text-center space-y-4">
-            <h1 className="text-4xl font-bold">Make Your Education Organization More Effective</h1>
+            <h1 className="text-4xl font-bold">Manage Your School Better</h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              A connected workspace for organizations that teach, create, assess, supply, fund, research, or otherwise support learning. Coordinate people, programs, resources, and communication in one place.
+              A comprehensive school management system that helps you organize students,
+              teachers, attendance, fees, and communication all in one place.
             </p>
           </div>
 
           {/* Benefits */}
           <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-8">
-            <h2 className="text-2xl font-semibold mb-6 text-center">Organization Capabilities</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-center">School Management Features</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-start gap-3">
@@ -121,13 +122,13 @@ export default function AboutSchools() {
                 <h3 className="font-semibold mb-3">Required Information</h3>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li className="flex items-center gap-2">
-                    <span className="text-red-500">*</span> Organization name
+                    <span className="text-red-500">*</span> School name
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="text-red-500">*</span> Registration number
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-red-500">*</span> Organization type
+                    <span className="text-red-500">*</span> School type
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="text-red-500">*</span> Contact information
@@ -138,7 +139,7 @@ export default function AboutSchools() {
                 <h3 className="font-semibold mb-3">Required Documents</h3>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li className="flex items-center gap-2">
-                    <span className="text-red-500">*</span> License, registration, or relevant authorization
+                    <span className="text-red-500">*</span> License / Ministry approval
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="text-red-500">*</span> Registration certificate
@@ -158,7 +159,7 @@ export default function AboutSchools() {
               <div className="text-center p-4">
                 <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">1</div>
                 <h3 className="font-semibold mb-1">Register</h3>
-                <p className="text-sm text-gray-500">Create your organization account</p>
+                <p className="text-sm text-gray-500">Create your school account</p>
               </div>
               <div className="text-center p-4">
                 <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">2</div>
@@ -168,12 +169,12 @@ export default function AboutSchools() {
               <div className="text-center p-4">
                 <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">3</div>
                 <h3 className="font-semibold mb-1">Setup</h3>
-                <p className="text-sm text-gray-500">Invite learners, educators, members, and partners</p>
+                <p className="text-sm text-gray-500">Add students and teachers</p>
               </div>
               <div className="text-center p-4">
                 <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">4</div>
                 <h3 className="font-semibold mb-1">Manage</h3>
-                <p className="text-sm text-gray-500">Run your organization and programs effectively</p>
+                <p className="text-sm text-gray-500">Run your school efficiently</p>
               </div>
             </div>
           </div>
@@ -185,7 +186,7 @@ export default function AboutSchools() {
               onClick={() => navigate('/register/school-admin')}
               className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
             >
-              Register Your Organization
+              Register Your School
             </Button>
           </div>
         </div>

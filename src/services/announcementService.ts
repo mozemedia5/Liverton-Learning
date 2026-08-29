@@ -11,40 +11,27 @@ import {
   doc,
   deleteDoc
 } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 
-export interface Notification {
-  id?: string;
-  type: 'announcement' | 'quiz' | 'course' | 'reminder' | 'motivation';
-  title: string;
-  body: string;
-  link?: string;
-  isRead?: boolean;
-  targetAudience: string[]; // students, teachers, parents, school_admins, platform_admin
-  targetUsers?: string[];
-  sender: string;
-  senderId: string;
-  senderRole: string;
-  createdAt: Timestamp | Date;
-  expiresAt?: Timestamp | Date;
-  isHidden?: boolean;
-  hiddenBy?: string;
-  hiddenAt?: Timestamp | Date;
-  hideReason?: string;
-}
-
-// Map backward compatibility for raw mapping
 export interface Announcement {
   id?: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'video';
-  redirectUrl?: string;
-  openInNewTab?: boolean;
+
+  // Media content (image or video URL)
+  mediaUrl: string; // Required: image or video URL (external URLs supported)
+  mediaType: 'image' | 'video'; // Type of media
+
+  // Optional redirect URL (where users go when clicking the banner)
+  redirectUrl?: string; // Optional: URL to redirect when clicked
+  openInNewTab?: boolean; // Whether to open redirect in new tab
+
+  // Metadata
   sender: string;
   senderId: string;
   senderRole: string;
-  targetAudience: string[];
+  targetAudience: string[]; // students, teachers, parents, school_admins, platform_admin
   createdAt: Timestamp | Date;
+
+  // Moderation fields
   isHidden?: boolean;
   hiddenBy?: string;
   hiddenAt?: Timestamp | Date;
@@ -52,20 +39,18 @@ export interface Announcement {
   expiresAt?: Timestamp | Date;
 }
 
-const convertDocToNotification = (doc: QueryDocumentSnapshot<DocumentData>): Notification => {
+const convertDocToAnnouncement = (doc: QueryDocumentSnapshot<DocumentData>): Announcement => {
   const data = doc.data();
   return {
     id: doc.id,
-    type: data.type || 'announcement',
-    title: data.title || '',
-    body: data.body || data.message || '',
-    link: data.link || data.redirectUrl || '',
-    isRead: data.isRead ?? false,
+    mediaUrl: data.mediaUrl || '',
+    mediaType: data.mediaType || 'image',
+    redirectUrl: data.redirectUrl || undefined,
+    openInNewTab: data.openInNewTab ?? true,
     sender: data.sender || 'Unknown',
     senderId: data.senderId || '',
     senderRole: data.senderRole || '',
     targetAudience: data.targetAudience || [],
-    targetUsers: Array.isArray(data.targetUsers) ? data.targetUsers : [],
     createdAt: data.createdAt?.toDate() || new Date(),
     isHidden: data.isHidden || false,
     hiddenBy: data.hiddenBy || undefined,
@@ -76,93 +61,180 @@ const convertDocToNotification = (doc: QueryDocumentSnapshot<DocumentData>): Not
 };
 
 /**
- * Create a new notification (replaces textAnnouncement)
+ * Create a new announcement
+ * Automatically sets expiry to 2 days from creation
  */
-export const createNotification = async (notification: Omit<Notification, 'id' | 'createdAt' | 'expiresAt'>) => {
+export const createAnnouncement = async (announcement: Omit<Announcement, 'id' | 'createdAt' | 'expiresAt'>) => {
   try {
+    // Set expiry to 2 days from now
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Default to 7 days expiry
+    expiresAt.setDate(expiresAt.getDate() + 2);
 
-    const docRef = await addDoc(collection(db, 'notifications'), {
-      ...notification,
+    const docRef = await addDoc(collection(db, 'announcements'), {
+      ...announcement,
       createdAt: Timestamp.now(),
       expiresAt: Timestamp.fromDate(expiresAt),
       isHidden: false,
-      isRead: false,
     });
-    const signedInUser = auth.currentUser;
-    if (signedInUser) {
-      try {
-        await fetch('/api/notifications/dispatch', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${await signedInUser.getIdToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notificationId: docRef.id }),
-        });
-      } catch (pushError) {
-        console.warn('Broadcast push dispatch unavailable; in-app notification remains active:', pushError);
-      }
-    }
     return docRef.id;
   } catch (error) {
-    console.error('Error creating notification:', error);
+    console.error('Error creating announcement:', error);
     throw error;
   }
 };
 
 /**
- * Get notifications with filtering matching userRole & targetAudience
+ * Get announcements with filtering
+ * - Regular users: only see non-expired, non-hidden announcements
+ * - Creators: can see their own announcements even if expired
+ * - Admins: can see all announcements including hidden and expired
  */
-export const getNotifications = async (role?: string, userId?: string) => {
+export const getAnnouncements = async (role?: string, userId?: string) => {
   try {
-    let q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
+    let q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+
     const snapshot = await getDocs(q);
-    const notifications = snapshot.docs.map(convertDocToNotification);
+    const announcements = snapshot.docs.map(convertDocToAnnouncement);
+
     const now = new Date();
 
+    // Filter based on role and ownership
     if (role === 'platform_admin') {
-      return notifications;
+      // Admin sees all announcements (including hidden and expired)
+      return announcements;
     }
 
-    return notifications.filter(n => {
-      if (userId && n.senderId === userId) {
+    // For non-admin users
+    return announcements.filter(a => {
+      // User can see their own announcements (even if expired)
+      if (userId && a.senderId === userId) {
         return true;
       }
-      const isNotHidden = !n.isHidden;
-      const isNotExpired = !n.expiresAt || n.expiresAt > now;
-      const isTargetUser = Boolean(userId && n.targetUsers?.includes(userId));
-      const isTargetAudience = n.targetAudience.includes('all') ||
-                               Boolean(role && n.targetAudience.includes(role + 's'));
-      return isNotHidden && isNotExpired && (isTargetUser || isTargetAudience);
+
+      // User can see announcements targeted to their role that are:
+      // 1. Not hidden
+      // 2. Not expired
+      const isNotHidden = !a.isHidden;
+      const isNotExpired = !a.expiresAt || a.expiresAt > now;
+      const isTargetAudience = a.targetAudience.includes('all') ||
+                               (role && a.targetAudience.includes(role + 's'));
+
+      return isNotHidden && isNotExpired && isTargetAudience;
     });
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    console.error('Error fetching announcements:', error);
     throw error;
   }
 };
 
 /**
- * Soft delete/hide a notification
+ * Hide an announcement (soft delete)
+ * Content is kept in Firebase but hidden from regular users
  */
-export const hideNotification = async (notificationId: string, adminId: string, reason?: string) => {
+export const hideAnnouncement = async (
+  announcementId: string,
+  adminId: string,
+  reason?: string
+) => {
   try {
-    const ref = doc(db, 'notifications', notificationId);
-    await updateDoc(ref, {
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await updateDoc(announcementRef, {
       isHidden: true,
       hiddenBy: adminId,
       hiddenAt: Timestamp.now(),
-      hideReason: reason || 'Moderated',
+      hideReason: reason || 'Moderated by admin',
     });
   } catch (error) {
-    console.error('Error hiding notification:', error);
+    console.error('Error hiding announcement:', error);
     throw error;
   }
 };
 
-export const deleteNotification = async (notificationId: string) => {
+/**
+ * Unhide an announcement (restore visibility)
+ */
+export const unhideAnnouncement = async (announcementId: string) => {
   try {
-    await deleteDoc(doc(db, 'notifications', notificationId));
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await updateDoc(announcementRef, {
+      isHidden: false,
+      hiddenBy: null,
+      hiddenAt: null,
+      hideReason: null,
+    });
   } catch (error) {
-    console.error('Error deleting notification:', error);
+    console.error('Error unhiding announcement:', error);
+    throw error;
+  }
+};
+
+/**
+ * Permanently delete an announcement
+ * Use with caution - prefer hideAnnouncement for moderation
+ */
+export const deleteAnnouncement = async (announcementId: string) => {
+  try {
+    await deleteDoc(doc(db, 'announcements', announcementId));
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if an announcement is expired
+ */
+export const isAnnouncementExpired = (announcement: Announcement): boolean => {
+  if (!announcement.expiresAt) return false;
+  const expiry = announcement.expiresAt instanceof Date
+    ? announcement.expiresAt
+    : announcement.expiresAt.toDate();
+  return expiry < new Date();
+};
+
+/**
+ * Get announcement display name
+ * - For platform admin announcements: show "Liverton" instead of "Liverton Admin"
+ * - For regular users: show their name
+ */
+export const getAnnouncementDisplayName = (announcement: Announcement): string => {
+  if (announcement.senderRole === 'platform_admin') {
+    return 'Liverton';
+  }
+  return announcement.sender;
+};
+
+/**
+ * Get all announcements for moderation (admin only)
+ */
+export const getAllAnnouncementsForModeration = async () => {
+  try {
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(convertDocToAnnouncement);
+  } catch (error) {
+    console.error('Error fetching announcements for moderation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update announcement expiry date
+ */
+export const updateAnnouncementExpiry = async (
+  announcementId: string,
+  daysFromNow: number
+) => {
+  try {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + daysFromNow);
+
+    const announcementRef = doc(db, 'announcements', announcementId);
+    await updateDoc(announcementRef, {
+      expiresAt: Timestamp.fromDate(expiresAt),
+    });
+  } catch (error) {
+    console.error('Error updating announcement expiry:', error);
     throw error;
   }
 };

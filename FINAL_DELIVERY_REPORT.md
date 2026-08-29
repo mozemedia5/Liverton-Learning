@@ -119,7 +119,7 @@ All endpoints are serverless Cloud Functions:
 
 **Step 1: Set Environment Variables**
 ```bash
-firebase functions:config:set gemini.api_key="YOUR_GEMINI_API_KEY"
+firebase functions:config:set gemini.api_key="AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs"
 ```
 
 **Step 2: Deploy Cloud Functions**
@@ -284,7 +284,7 @@ Before production deployment, complete:
 
 **Firebase Project**: `liverton-learning-52b7c`
 
-**Gemini API Key**: `YOUR_GEMINI_API_KEY`
+**Gemini API Key**: `AIzaSyB2NhwwKGbvdq1wR1sAxWSIDLrIibH3VJs`
 
 ---
 
