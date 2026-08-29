@@ -4,9 +4,8 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
-import LogoLoader from '@/components/LogoLoader';
-import { getDashboardRoute } from '@/lib/authNavigation';
-import RouteMetadata from '@/components/RouteMetadata';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
+import { Analytics } from '@vercel/analytics/react';
 
 // Pages
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
@@ -76,7 +75,7 @@ const Events = lazy(() => import('@/pages/features/Events'));
 const CreateEvent = lazy(() => import('@/pages/features/CreateEvent'));
 const Calculator = lazy(() => import('@/pages/features/Calculator'));
 const HannaChatIntegrated = lazy(() => import('@/pages/features/HannaChatIntegrated'));
-const Analytics = lazy(() => import('@/pages/features/Analytics'));
+const AnalyticsPage = lazy(() => import('@/pages/features/Analytics'));
 const MoreHub = lazy(() => import('@/pages/features/MoreHub'));
 const LiveFeatureGate = lazy(() => import('@/pages/features/LiveFeatureGate'));
 
@@ -93,15 +92,11 @@ const BookReader = lazy(() => import('@/pages/features/tearn/BookReader'));
 const ZoomLessonArena = lazy(() => import('@/pages/zoom-lessons/ZoomLessonArena'));
 
 // About Pages
-const About = lazy(() => import('@/pages/about/About'));
-const AboutSchools = lazy(() => import('@/pages/about/AboutSchools'));
-const AboutTeachers = lazy(() => import('@/pages/about/AboutTeachers'));
-const AboutStudents = lazy(() => import('@/pages/about/AboutStudents'));
-const AboutParents = lazy(() => import('@/pages/about/AboutParents'));
-
-// Support & Legal Pages
-const Support = lazy(() => import('@/pages/Support'));
-const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
+import About from '@/pages/about/About';
+import AboutSchools from '@/pages/about/AboutSchools';
+import AboutTeachers from '@/pages/about/AboutTeachers';
+import AboutStudents from '@/pages/about/AboutStudents';
+import PWADebug from '@/pages/PWADebug';
 
 import './App.css';
 
@@ -465,123 +460,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Document Routes - Protected, accessible to all authenticated users */}
-      <Route path="/dashboard/documents" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><Documents /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/dashboard/documents/:docId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><DocumentEditor /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      {/* Public document sharing - accessible without authentication */}
-      <Route path="/documents/public/:token" element={<PublicDocument />} />
+      {/* PWA Debug */}
+      <Route path="/pwa-debug" element={<PWADebug />} />
 
-      {/* Calendar Route - Protected, accessible to all authenticated users */}
-      <Route path="/calendar" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <CalendarPage />
-        </ProtectedRoute>
-      } />
-
-      {/* Events Routes - Protected, accessible to all authenticated users */}
-      <Route path="/events" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <Events />
-        </ProtectedRoute>
-      } />
-      <Route path="/events/create" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <CreateEvent />
-        </ProtectedRoute>
-      } />
-
-      {/* Global Feature Routes - Protected, accessible to all authenticated users */}
-      <Route path="/features/tearn" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><TearnDashboard /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/features/tearn/shorts" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><ShortsArena /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/features/books/:bookId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><BookReader /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/liv-teams/meeting/:teamId/:meetingId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <TeamMeetingRoom />
-        </ProtectedRoute>
-      } />
-      <Route path="/liv-teams/live-lesson/:lessonId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <ZoomLessonArena />
-        </ProtectedRoute>
-      } />
-      <Route path="/zoom-lessons/:lessonId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><ZoomLessonArena /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-
-
-      <Route path="/features/liv-fund" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <LiveFeatureGate feature="fund" />
-        </ProtectedRoute>
-      } />
-      <Route path="/features/liv-mart" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <LiveFeatureGate feature="mart" />
-        </ProtectedRoute>
-      } />
-      <Route path="/features/liv-teams" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><LivTeams /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/features/liv-teams/workspace/:teamId" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><TeamWorkspace /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      {/* Legacy document-management route removed — consolidated into /dashboard/documents */}
-      <Route path="/features/calculator" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><Calculator /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      {/* Legacy profile URL now uses the canonical editor so username updates work everywhere. */}
-      <Route path="/features/profile" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><Profile /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/features/hanna-ai" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><HannaChatIntegrated /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/features/analytics" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><Analytics /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/more" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
-          <AuthenticatedLayout><MoreHub /></AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-
-      {/* 404 - Page not found */}
-      <Route path="*" element={<NotFound />} />
-      </Routes>
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
       </Suspense>
     </>
   );
@@ -606,6 +490,8 @@ function App() {
         <Router>
           <AppRoutes />
           <Toaster position="top-right" />
+          <PWAInstallPrompt />
+          <Analytics />
         </Router>
       </AuthProvider>
     </ThemeProvider>
