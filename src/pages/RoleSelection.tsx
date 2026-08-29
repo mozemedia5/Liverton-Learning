@@ -42,8 +42,7 @@ const roles: RoleOption[] = [
   },
 ];
 
-// Parent and organization roles remain defined for future revival, but are intentionally hidden from this in-development UI.
-const visibleRoles = roles.filter((role) => role.id === 'student' || role.id === 'teacher');
+const visibleRoles = roles;
 
 export default function RoleSelection() {
   const navigate = useNavigate();
