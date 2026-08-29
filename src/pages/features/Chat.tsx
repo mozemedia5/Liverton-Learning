@@ -738,10 +738,10 @@ export default function Chat() {
             )}
 
             {/* Message Input */}
-            <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
+            <footer className="sticky bottom-0 z-20 shrink-0 p-3 sm:p-4 bg-white/95 dark:bg-[#080a0f]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10">
               <form 
                 onSubmit={handleSendMessage}
-                className="liv-chat-composer-form flex items-end gap-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
+                className="liv-chat-composer-form relative flex flex-col gap-2 rounded-[24px] border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[.05] p-3 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] focus-within:border-emerald-500/80 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all max-w-4xl mx-auto w-full"
               >
                 <input
                   ref={fileInputRef}
@@ -750,69 +750,84 @@ export default function Chat() {
                   className="hidden"
                   accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full text-gray-500"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile}
-                >
-                  <Paperclip className="w-5 h-5" />
-                </Button>
-                <div className="flex-1 relative">
+
+                <div className="w-full">
                   <textarea 
                     value={messageInput}
                     onChange={(e) => {
                       setMessageInput(e.target.value);
-                      // Auto-resize the textarea
                       const target = e.target;
-                      target.style.height = 'auto';
-                      target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
+                      target.style.height = "auto";
+                      target.style.height = `${Math.min(target.scrollHeight, 112)}px`;
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                    rows={1}
                     placeholder="Type a message..." 
-                    className="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-full py-6 px-6 pr-12 focus-visible:ring-1 focus-visible:ring-blue-500"
+                    className="w-full min-h-[38px] max-h-[112px] bg-transparent resize-none border-none outline-none px-2 py-1.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-white/5">
+                  <div className="flex items-center gap-1.5">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="rounded-full text-gray-500"
-                      onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                      className="h-8 w-8 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-white/10"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                      title="Attach file"
                     >
-                      <Smile className="w-5 h-5" />
+                      <Paperclip className="w-4 h-4" />
                     </Button>
-                    {isEmojiPickerOpen && (
-                      <EmojiPicker
-                        onEmojiSelect={handleEmojiSelect}
-                        onClose={() => setIsEmojiPickerOpen(false)}
-                      />
-                    )}
+
+                    <div className="relative">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-white/10"
+                        onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                        title="Add emoji"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </Button>
+                      {isEmojiPickerOpen && (
+                        <div className="absolute bottom-10 left-0 z-50">
+                          <EmojiPicker
+                            onEmojiSelect={handleEmojiSelect}
+                            onClose={() => setIsEmojiPickerOpen(false)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleVoiceInput}
+                      disabled={uploadingFile}
+                      className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isRecording ? "text-red-500 animate-pulse bg-red-500/10" : "text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/10"}`}
+                      title="Voice Input"
+                    >
+                      <Mic className="w-4 h-4" />
+                    </Button>
                   </div>
+
+                  <Button
+                    type="submit"
+                    disabled={!messageInput.trim() || uploadingFile}
+                    className="h-8 w-8 rounded-full p-0 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white shadow-md shadow-emerald-600/20 transition-transform active:scale-95 flex items-center justify-center shrink-0"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
                 </div>
-
-                {/* Voice Input Button */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleVoiceInput}
-                  disabled={uploadingFile}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 mb-0.5 ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5'}`}
-                  title="Voice Input"
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
-
-                {/* Submit button */}
-                <Button 
-                  type="submit" 
-                  disabled={!messageInput.trim() || uploadingFile}
-                  className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
               </form>
             </footer>
           </>
