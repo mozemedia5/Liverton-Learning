@@ -76,7 +76,7 @@ export function DashboardShell(props: {
     return {
       home,
       courses: computeCoursesPath(props.userRole),
-      documents: '/features/document-management',
+      documents: '/dashboard/documents',
       chat: '/chat',
       announcements: '/announcements',
     };
@@ -87,7 +87,7 @@ export function DashboardShell(props: {
    */
   const activeKey = useMemo(() => {
     const p = location.pathname;
-    if (p.startsWith('/features/document-management')) return 'documents';
+    if (p.startsWith('/dashboard/documents')) return 'documents';
     if (p.startsWith('/chat')) return 'chat';
     if (p.startsWith('/announcements')) return 'announcements';
     if (p.includes('/courses')) return 'courses';

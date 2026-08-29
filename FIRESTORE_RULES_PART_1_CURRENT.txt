@@ -1,0 +1,180 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function currentUserId() {
+      return request.auth.uid;
+    }
+    function currentUserData() {
+      return get(/databases/$(database)/documents/users/$(currentUserId())).data;
+    }
+    function isPlatformAdmin() {
+      return isAuthenticated() && currentUserData().role == 'platform_admin';
+    }
+    function isSchoolAdmin() {
+      return isAuthenticated() && currentUserData().role == 'school_admin';
+    }
+    function isTeacher() {
+      return isAuthenticated() && currentUserData().role == 'teacher';
+    }
+    function isParent() {
+      return isAuthenticated() && currentUserData().role == 'parent';
+    }
+    function isStudent() {
+      return isAuthenticated() && currentUserData().role == 'student';
+    }
+    function currentUserSchoolId() {
+      return currentUserData().schoolId;
+    }
+    match /users/{userId} {
+      allow read: if isPlatformAdmin();
+      allow write: if isPlatformAdmin();
+      allow read, write: if isAuthenticated() && currentUserId() == userId;
+      allow read: if isSchoolAdmin() &&
+        (resource.data.schoolId == currentUserSchoolId() ||
+         resource.data.role == 'teacher' && resource.data.schoolId == currentUserSchoolId() ||
+         resource.data.role == 'student' && resource.data.schoolId == currentUserSchoolId());
+      allow read: if isTeacher() &&
+        resource.data.role == 'student' &&
+        resource.data.schoolId == currentUserSchoolId();
+      allow read: if isTeacher() &&
+        resource.data.role == 'teacher' &&
+        resource.data.schoolId == currentUserSchoolId();
+      allow read: if isParent() &&
+        resource.data.role == 'student' &&
+        currentUserData().linkedStudentIds != null &&
+        userId in currentUserData().linkedStudentIds;
+      allow create: if isAuthenticated() && currentUserId() == userId;
+    }
+    match /schools/{schoolId} {
+      allow read, write: if isPlatformAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isSchoolAdmin() &&
+        currentUserData().schoolId == schoolId;
+    }
+    match /courses/{courseId} {
+      function hasPublishFields() {
+        return request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+          request.resource.data.description is string && request.resource.data.description.size() > 0 &&
+          request.resource.data.teacherId is string && request.resource.data.teacherId == currentUserId() &&
+          request.resource.data.teacherName is string && request.resource.data.teacherName.size() > 0 &&
+          request.resource.data.subject is string && request.resource.data.subject.size() > 0 &&
+          request.resource.data.currency is string && request.resource.data.currency.size() > 0 &&
+          request.resource.data.price is number && request.resource.data.price >= 0 &&
+          request.resource.data.visibility in ['public', 'unlisted'] &&
+          request.resource.data.materials is list && request.resource.data.materials.size() > 0 &&
+          request.resource.data.lessons is number && request.resource.data.lessons > 0;
+      }
+      allow read, write: if isPlatformAdmin();
+      allow read: if isSchoolAdmin() &&
+        resource.data.schoolId == currentUserSchoolId();
+      allow create: if isSchoolAdmin() &&
+        request.resource.data.schoolId == currentUserSchoolId();
+      allow read: if isTeacher() &&
+        (resource.data.teacherId == currentUserId() ||
+         resource.data.schoolId == currentUserSchoolId());
+      allow create: if isTeacher() &&
+        request.resource.data.teacherId == currentUserId() &&
+        (request.resource.data.status != 'active' || hasPublishFields());
+      allow update: if isTeacher() &&
+        resource.data.teacherId == currentUserId() &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        (request.resource.data.status != 'active' || hasPublishFields());
+      allow read: if isStudent() &&
+        (currentUserId() in resource.data.get('enrolledStudents', []) ||
+         (resource.data.status == 'active' && resource.data.get('visibility', 'public') in ['public', 'unlisted']));
+      allow read: if isParent();
+    }
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow write: if isPlatformAdmin();
+    }
+    // Platform-admin video updates are readable only while active and only by
+    // the authenticated role they target. Creation and management stay admin-only.
+    match /dashboardAnnouncements/{announcementId} {
+      allow read: if isPlatformAdmin() || (
+        isAuthenticated() &&
+        resource.data.isActive == true &&
+        resource.data.status == 'active' &&
+        resource.data.type == 'video' &&
+        resource.data.expiresAt > request.time &&
+        (
+          resource.data.targetAudience == 'all' ||
+          resource.data.get('targetRoles', []).hasAny(['all']) ||
+          (isStudent() && (resource.data.targetAudience == 'students' || resource.data.get('targetRoles', []).hasAny(['students']))) ||
+          (isTeacher() && (resource.data.targetAudience == 'teachers' || resource.data.get('targetRoles', []).hasAny(['teachers']))) ||
+          (isParent() && (resource.data.targetAudience == 'parents' || resource.data.get('targetRoles', []).hasAny(['parents']))) ||
+          (isSchoolAdmin() && (resource.data.targetAudience == 'school_admins' || resource.data.get('targetRoles', []).hasAny(['school_admins'])))
+        )
+      );
+      allow write: if isPlatformAdmin();
+    }
+    match /notifications/{notificationId} {
+      allow read: if isPlatformAdmin() ||
+        (isAuthenticated() && (
+          currentUserId() in resource.data.get('targetUsers', []) ||
+          resource.data.get('targetEmail', '') == request.auth.token.email ||
+          resource.data.get('senderId', '') == currentUserId() ||
+          resource.data.get('targetAudience', []).hasAny(['all']) ||
+          (isStudent() && resource.data.get('targetAudience', []).hasAny(['students'])) ||
+          (isTeacher() && resource.data.get('targetAudience', []).hasAny(['teachers'])) ||
+          (isParent() && resource.data.get('targetAudience', []).hasAny(['parents'])) ||
+          (isSchoolAdmin() && resource.data.get('targetAudience', []).hasAny(['school_admins']))
+        ));
+      allow create, update: if isPlatformAdmin();
+      // Account setup reminders are system-generated and may only target the
+      // authenticated user who owns the reminder document.
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.senderRole == 'system' &&
+        request.resource.data.senderId == 'liverton-system' &&
+        request.resource.data.targetUsers.hasOnly([currentUserId()]);
+      allow delete: if isPlatformAdmin();
+    }
+    match /chats/{chatId} {
+      function isChatParticipant(chatData) {
+        return isAuthenticated() && currentUserId() in chatData.participants;
+      }
+
+      allow read: if isPlatformAdmin();
+      allow read: if isChatParticipant(resource.data);
+      allow create: if isAuthenticated() &&
+        currentUserId() in request.resource.data.participants &&
+        request.resource.data.participants.size() >= 2 &&
+        request.resource.data.participants.size() <= 50;
+      allow update: if isChatParticipant(resource.data) &&
+        request.resource.data.participants == resource.data.participants;
+      allow delete: if isChatParticipant(resource.data);
+
+      match /messages/{messageId} {
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId));
+        }
+        function isMessageParticipant() {
+          return isAuthenticated() && currentUserId() in parentChat().data.participants;
+        }
+
+        allow read: if isMessageParticipant();
+        allow create: if isMessageParticipant() &&
+          request.resource.data.chatId == chatId &&
+          request.resource.data.senderId == currentUserId();
+        allow update: if isMessageParticipant() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+          currentUserId() in request.resource.data.readBy;
+        allow delete: if isMessageParticipant();
+      }
+    }
+    match /documents/{documentId} {
+      allow read, write: if isPlatformAdmin();
+      allow get: if resource.data.visibility == 'public';
+      allow get, list: if isAuthenticated() &&
+        resource.data.visibility in ['public', 'internal'];
+      allow get, list: if isAuthenticated() &&
+        (resource.data.ownerId == currentUserId() ||
+         currentUserId() in resource.data.sharedWith);
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerId == currentUserId();
+      allow update: if isAuthenticated() &&
+        (resource.data.ownerId == currentUserId() ||
+         currentUserId() in resource.data.sharedWith);

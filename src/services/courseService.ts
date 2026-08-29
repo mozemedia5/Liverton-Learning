@@ -18,16 +18,11 @@ import {
   arrayUnion,
   serverTimestamp
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL, 
-  deleteObject 
-} from 'firebase/storage';
-import type { Unsubscribe } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
-import { isCloudinaryConfigured, uploadToCloudinary } from '@/services/cloudinaryService';
 
+import type { Unsubscribe } from 'firebase/firestore';
+import { uploadToCloudinary } from './cloudinaryService';
+import { dispatchEnrollmentNotification } from './notificationService';
+import { auth, db } from '@/lib/firebase';
 
 // ==========================================
 // TYPES
@@ -40,6 +35,9 @@ export interface CourseMaterial {
   url: string;
   size: number;
   uploadedAt: Date;
+  documentId?: string;
+  fileName?: string;
+  mimeType?: string;
 }
 
 export interface QuizQuestion {
@@ -63,21 +61,57 @@ export interface Course {
   id: string;
   title: string;
   description: string;
+  shortDescription?: string;
   teacherId: string;
   teacherName: string;
   subject: string;
+  category?: string;
   grade?: string;
+  level?: string;
+  language?: string;
   price: number;
   currency?: string;
-  status: 'draft' | 'active' | 'archived';
+  isFree?: boolean;
+  status: 'draft' | 'ready_for_review' | 'active' | 'updated' | 'archived';
   materials: CourseMaterial[];
   enrolledStudents: string[];
   maxStudents?: number;
   thumbnail?: string;
+  coverUrl?: string;
   duration?: string;
+  estimatedDuration?: number;
+  learningObjectives?: string[];
+  prerequisites?: string[];
+  learningOutcomes?: string[];
+  tags?: string[];
+  certificateEligible?: boolean;
+  visibility?: 'public' | 'unlisted' | 'private';
   lessons: number;
+  lessonsList?: unknown[];
+  finalExam?: unknown;
+  teamConfig?: unknown;
+  promoVideoUrl?: string;
+  moduleShorts?: unknown[];
+  advertising?: unknown;
+  readiness?: { complete: boolean; missing: string[]; checkedAt?: Date };
+  analytics?: Record<string, number>;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export function validateCourseForPublishing(course: Partial<Course>): string[] {
+  const errors: string[] = [];
+  if (!course.title?.trim()) errors.push('a module title');
+  if (!course.description?.trim()) errors.push('a module description');
+  if (!course.teacherId?.trim()) errors.push('a teacher owner');
+  if (!course.teacherName?.trim()) errors.push('a teacher name');
+  if (!course.subject?.trim()) errors.push('a subject');
+  if (!course.currency?.trim()) errors.push('a currency');
+  if (typeof course.price !== 'number' || !Number.isFinite(course.price) || course.price < 0) errors.push('a valid non-negative price');
+  if (!['public', 'unlisted'].includes(course.visibility || '')) errors.push('public or unlisted visibility');
+  if (!Array.isArray(course.materials) || course.materials.length === 0) errors.push('at least one uploaded material');
+  if (typeof course.lessons !== 'number' || course.lessons < 1) errors.push('at least one lesson');
+  return errors;
 }
 
 export interface Enrollment {
@@ -146,27 +180,22 @@ export async function uploadCourseMaterial(
     throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
 
+  // Determine Cloudinary upload category preset
+  let cloudinaryCategory: 'image' | 'course_video' | 'short_video' | 'audio' | 'document' = 'document';
+  if (fileType === 'video') {
+    cloudinaryCategory = 'course_video';
+  } else if (fileType === 'audio') {
+    cloudinaryCategory = 'audio';
+  } else if (fileType === 'image') {
+    cloudinaryCategory = 'image';
+  }
+
+  // Upload to Cloudinary with matching preset
+  const downloadUrl = await uploadToCloudinary(file, cloudinaryCategory);
   const timestamp = Date.now();
-  const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  let downloadUrl = '';
-
-  if (isCloudinaryConfigured()) {
-    try {
-      const category = fileType === 'video' ? 'course_lesson' : 'document';
-      downloadUrl = await uploadToCloudinary(file, category);
-    } catch (err) {
-      console.warn('Cloudinary upload failed, falling back to Firebase Storage:', err);
-    }
-  }
-
-  if (!downloadUrl) {
-    const storageRef = ref(storage, `courses/${courseId}/materials/${timestamp}_${safeFileName}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    downloadUrl = await getDownloadURL(snapshot.ref);
-  }
 
   const material: CourseMaterial = {
-    id: `${timestamp}_${safeFileName}`,
+    id: `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
     name: file.name,
     type: fileType,
     url: downloadUrl,
@@ -187,14 +216,9 @@ export async function deleteCourseMaterial(courseId: string, materialId: string)
   // First remove from Firestore
   await removeCourseMaterial(courseId, materialId);
   
-  // Then delete from storage
-  try {
-    const storageRef = ref(storage, `courses/${courseId}/materials/${materialId}`);
-    await deleteObject(storageRef);
-  } catch (error) {
-    console.error('Error deleting file from storage:', error);
-    // Continue even if storage deletion fails
-  }
+  // Course files are stored in Cloudinary. Firestore metadata is removed
+  // above; Cloudinary deletion requires a secured server-side destroy call.
+  // The old client-side Firebase Storage deletion has been removed.
 }
 
 // ==========================================
@@ -211,8 +235,13 @@ export async function createCourse(
 ): Promise<string> {
   const courseRef = collection(db, 'courses');
   
+  const normalizedPrice = Number(courseData.price || 0);
   const newCourse = {
     ...courseData,
+    price: Number.isFinite(normalizedPrice) ? normalizedPrice : 0,
+    currency: String(courseData.currency || 'UGX').toUpperCase(),
+    isFree: courseData.isFree ?? normalizedPrice <= 0,
+    visibility: courseData.visibility || 'public',
     teacherId,
     teacherName,
     materials: [],
@@ -256,7 +285,7 @@ export async function deleteCourse(courseId: string): Promise<void> {
   // Delete all materials from storage
   for (const material of course.materials || []) {
     try {
-      await deleteCourseMaterial(courseId, material);
+      await deleteCourseMaterial(courseId, material.id);
     } catch (error) {
       console.error('Error deleting material:', error);
     }
@@ -269,21 +298,43 @@ export async function deleteCourse(courseId: string): Promise<void> {
 /**
  * Get a single course by ID
  */
-export async function getCourse(courseId: string): Promise<Course | null> {
-  const courseRef = doc(db, 'courses', courseId);
-  const courseSnap = await getDoc(courseRef);
-  
-  if (!courseSnap.exists()) {
-    return null;
+function asCourseDate(value: unknown): Date {
+  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate?: unknown }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate();
   }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const parsed = value ? new Date(value as string | number) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
 
+function mapCourseSnapshot(courseSnap: { id: string; data: () => Record<string, any> }): Course {
   const data = courseSnap.data();
   return {
     id: courseSnap.id,
     ...data,
-    createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
-    updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt)
+    materials: Array.isArray(data.materials) ? data.materials : [],
+    enrolledStudents: Array.isArray(data.enrolledStudents) ? data.enrolledStudents : [],
+    lessons: Number(data.lessons || 0),
+    createdAt: asCourseDate(data.createdAt),
+    updatedAt: asCourseDate(data.updatedAt),
   } as Course;
+}
+
+export async function getCourse(courseId: string): Promise<Course | null> {
+  const normalizedCourseId = courseId.trim();
+  if (!normalizedCourseId) return null;
+  const courseSnap = await getDoc(doc(db, 'courses', normalizedCourseId));
+  return courseSnap.exists() ? mapCourseSnapshot(courseSnap) : null;
+}
+
+/**
+ * Get a course that is intentionally published for public sharing.
+ * Draft and archived courses remain available to authenticated owner workflows
+ * through getCourse, but are never exposed by the public course route.
+ */
+export async function getPublicCourse(courseId: string): Promise<Course | null> {
+  const course = await getCourse(courseId);
+  return course?.status === 'active' ? course : null;
 }
 
 // ==========================================
@@ -411,6 +462,19 @@ export function subscribeToAllCoursesAdmin(
   });
 }
 
+export async function notifyCourseUpdate(courseId: string): Promise<number> {
+  const signedInUser = auth.currentUser;
+  if (!signedInUser) throw new Error('Please sign in before notifying learners.');
+  const response = await fetch('/api/courses/notify-update', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await signedInUser.getIdToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ courseId }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Could not notify enrolled learners.');
+  return Number(body.notified || 0);
+}
+
 // ==========================================
 // ENROLLMENT OPERATIONS
 // ==========================================
@@ -421,18 +485,38 @@ export function subscribeToAllCoursesAdmin(
 export async function enrollStudent(
   courseId: string,
   studentId: string,
-  studentName: string
+  studentName: string,
+  studentEmail?: string,
+  studentPhone?: string
 ): Promise<void> {
   const courseRef = doc(db, 'courses', courseId);
   const enrollmentRef = collection(db, 'enrollments');
 
-  // Get course to get teacher info
+  const signedInUser = auth.currentUser;
+  if (signedInUser?.uid === studentId) {
+    const response = await fetch('/api/courses/enroll', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await signedInUser.getIdToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Could not enroll in the module.');
+    return;
+  }
+
+  // Get course to get teacher info for legacy or administrative callers.
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) {
     throw new Error('Course not found');
   }
 
   const course = courseSnap.data() as Course;
+
+  // Prevent duplicate enrollment
+  if (course.enrolledStudents?.includes(studentId)) {
+    console.log(`Student ${studentId} is already enrolled in course ${courseId}.`);
+    return;
+  }
 
   // Update course enrolledStudents array
   await updateDoc(courseRef, {
@@ -449,6 +533,22 @@ export async function enrollStudent(
     progress: 0,
     status: 'active'
   });
+
+  // Dispatch real enrollment notifications (Firestore + PWA + Email + WhatsApp provider abstractions)
+  try {
+    await dispatchEnrollmentNotification({
+      courseId,
+      courseTitle: course.title,
+      studentId,
+      studentName,
+      studentEmail,
+      studentPhone,
+      teacherId: course.teacherId,
+      teacherName: course.teacherName
+    });
+  } catch (notifyErr) {
+    console.warn('Enrollment notification dispatch warning:', notifyErr);
+  }
 }
 
 /**
@@ -734,6 +834,44 @@ export async function addCourseMaterial(
   await updateDoc(courseRef, {
     materials: arrayUnion(material),
     updatedAt: serverTimestamp()
+  });
+}
+
+export async function shareDocumentToCourse(params: {
+  courseId: string;
+  documentId: string;
+  title: string;
+  type: CourseMaterial['type'];
+  fileUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+  viewerUrl: string;
+}): Promise<void> {
+  const courseRef = doc(db, 'courses', params.courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) throw new Error('Module not found');
+  const course = courseSnap.data() as Course;
+  if ((course.materials || []).some((material) => material.documentId === params.documentId)) return;
+
+  const documentRef = doc(db, 'documents', params.documentId);
+  const documentSnap = await getDoc(documentRef);
+  if (!documentSnap.exists()) throw new Error('Document not found');
+  if (documentSnap.data().ownerId !== course.teacherId) {
+    throw new Error('Only the document owner can add this document to the module.');
+  }
+  await updateDoc(documentRef, { visibility: 'internal', updatedAt: serverTimestamp() });
+
+  await addCourseMaterial(params.courseId, {
+    id: `document_${params.documentId}`,
+    name: params.fileName || params.title,
+    type: params.type,
+    url: params.fileUrl || params.viewerUrl,
+    size: params.size || 0,
+    uploadedAt: new Date(),
+    documentId: params.documentId,
+    fileName: params.fileName,
+    mimeType: params.mimeType,
   });
 }
 

@@ -1,5 +1,5 @@
 /**
- * Edit Course Page - Teacher Interface
+ * Edit Module Page - Teacher Interface
  * Allows teachers to update course information, materials, and settings
  */
 
@@ -43,6 +43,8 @@ import {
   uploadCourseMaterial,
   deleteCourseMaterial,
   subscribeToCourseMaterials,
+  notifyCourseUpdate,
+  validateCourseForPublishing,
   type Course,
   type CourseMaterial
 } from '@/services/courseService';
@@ -83,7 +85,7 @@ interface UploadedFile {
 export default function EditCourse() {
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId: string }>();
-  const { currentUser, userData } = useAuth();
+  const { currentUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Course state
@@ -100,7 +102,7 @@ export default function EditCourse() {
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [maxStudents, setMaxStudents] = useState('');
-  const [status, setStatus] = useState<'active' | 'draft' | 'archived'>('active');
+  const [status, setStatus] = useState<'active' | 'draft' | 'ready_for_review' | 'updated' | 'archived'>('active');
 
   // Materials state
   const [existingMaterials, setExistingMaterials] = useState<CourseMaterial[]>([]);
@@ -128,6 +130,12 @@ export default function EditCourse() {
         setLoading(true);
         const courseData = await getCourse(courseId);
         
+        if (!courseData) {
+          toast.error('Course not found');
+          navigate('/teacher/courses');
+          return;
+        }
+
         // Check if user is the owner
         if (courseData.teacherId !== currentUser.uid) {
           toast.error('You do not have permission to edit this course');
@@ -311,35 +319,55 @@ export default function EditCourse() {
       return;
     }
 
+    const hasVideo = existingMaterials.some((material) => material.type === 'video') || newFiles.some(({ file }) => file.type.startsWith('video/'));
+    if (status === 'active' && !hasVideo) {
+      toast.error('A published module must contain at least one video lesson or video material.');
+      setActiveTab('materials');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      // Update course
       const finalSubject = subject === 'Other' ? subjectOther.trim() : subject;
       const finalGrade = grade === 'Other' ? gradeOther.trim() : (grade || undefined);
-      
+      const requestedPrice = parseFloat(price) || 0;
+      const draftStatus = status === 'active' ? 'draft' : status;
       await updateCourse(courseId, {
         title: title.trim(),
         description: description.trim(),
         subject: finalSubject,
         grade: finalGrade,
-        price: parseFloat(price) || 0,
+        price: requestedPrice,
         currency,
-        status,
+        status: draftStatus,
+        visibility: 'public',
         ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
-        lessons: existingMaterials.length + newFiles.length
+        lessons: existingMaterials.length
       });
 
-      // Upload new materials
+      let uploadedCount = 0;
       for (const fileObj of newFiles) {
         try {
           await uploadCourseMaterial(courseId, fileObj.file);
+          uploadedCount += 1;
         } catch (error) {
           console.error('Error uploading material:', error);
         }
       }
 
-      toast.success('Course updated successfully!');
+      const finalMaterials = [...existingMaterials, ...newFiles.map(({ material }) => material).filter((material): material is CourseMaterial => Boolean(material))];
+      const finalHasVideo = finalMaterials.some((material) => material.type === 'video') || newFiles.some(({ file }) => file.type.startsWith('video/'));
+      const publishErrors = validateCourseForPublishing({ title: title.trim(), description: description.trim(), teacherId: currentUser?.uid, teacherName: currentUser?.displayName || course?.teacherName || 'Teacher', subject: finalSubject, price: requestedPrice, currency, visibility: 'public', materials: finalMaterials, lessons: finalMaterials.length });
+      if (status === 'active' && (publishErrors.length > 0 || !finalHasVideo)) {
+        throw new Error('The module remains a draft until all required fields and at least one video lesson/material are present.');
+      }
+      await updateCourse(courseId, { status, visibility: 'public', lessons: finalMaterials.length });
+      if (uploadedCount > 0) {
+        try { await notifyCourseUpdate(courseId); } catch (notificationError) { console.warn('Learner notification warning:', notificationError); }
+      }
+
+      toast.success(status === 'active' ? 'Module published successfully!' : 'Module updated successfully!');
       navigate(`/teacher/courses/${courseId}`);
     } catch (error) {
       console.error('Error updating course:', error);
@@ -364,7 +392,7 @@ export default function EditCourse() {
               <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <span className="font-semibold">Edit Course</span>
+              <span className="font-semibold">Edit Module</span>
             </div>
           </div>
         </header>
@@ -388,7 +416,7 @@ export default function EditCourse() {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <BookOpen className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Edit Course</span>
+              <span className="font-semibold">Edit Module</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -424,7 +452,7 @@ export default function EditCourse() {
       <main className="p-4 lg:p-6 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="details">Course Details</TabsTrigger>
+            <TabsTrigger value="details">Module Details</TabsTrigger>
             <TabsTrigger value="materials">
               Materials
               {(existingMaterials.length + newFiles.length) > 0 && (
@@ -435,11 +463,11 @@ export default function EditCourse() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Course Details Tab */}
+          {/* Module Details Tab */}
           <TabsContent value="details" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Information</CardTitle>
+                <CardTitle>Module Information</CardTitle>
                 <CardDescription>
                   Update the basic details for your course
                 </CardDescription>
@@ -570,7 +598,7 @@ export default function EditCourse() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="status">Course Status</Label>
+                  <Label htmlFor="status">Module Status</Label>
                   <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -590,7 +618,7 @@ export default function EditCourse() {
           <TabsContent value="materials" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Course Materials</CardTitle>
+                <CardTitle>Module Materials</CardTitle>
                 <CardDescription>
                   Manage videos, PDFs, documents, spreadsheets, presentations, and more
                 </CardDescription>

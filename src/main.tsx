@@ -6,9 +6,10 @@ import { registerSW } from 'virtual:pwa-register'
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
-  registerSW({
+  const updateSW = registerSW({
     onNeedRefresh() {
-      console.log('New content available, please refresh.');
+      console.log('New content available; activating the latest Liverton build.');
+      void updateSW(true);
     },
     onOfflineReady() {
       console.log('App ready to work offline');

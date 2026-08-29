@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-35c88359'], (function (workbox) { 'use strict';
+define(['./workbox-af8ff8c3'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -79,12 +79,21 @@ define(['./workbox-35c88359'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "index.html",
-    "revision": "0.j9uom00l3i"
+    "revision": "0.bfhr6oi8feo"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
+  workbox.registerRoute(/\/assets\/.*\.js$/i, new workbox.StaleWhileRevalidate({
+    "cacheName": "liverton-route-chunks",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 80,
+      maxAgeSeconds: 2592000
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
   workbox.registerRoute(/^https:\/\/fonts\.googleapis\.com\/.*/i, new workbox.CacheFirst({
     "cacheName": "google-fonts-cache",
     plugins: [new workbox.ExpirationPlugin({

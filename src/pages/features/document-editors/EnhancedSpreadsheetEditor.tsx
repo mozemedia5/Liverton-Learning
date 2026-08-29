@@ -25,7 +25,6 @@ import {
   Star,
   Palette,
   Type,
-  Filter,
   Calculator,
 } from 'lucide-react';
 
@@ -55,6 +54,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocument, renameDocument, updateDocumentContent } from '@/lib/documents';
 import { updateEnhancedDocument, trackDocumentAccess, toggleFavorite } from '@/lib/documentEnhancements';
 import { ShareWithHannaDialog } from '@/components/ShareWithHannaDialog';
+import { evaluateFormula, formatComputed } from '@/lib/spreadsheetFormulas';
 import type { DocumentContent, DocumentRecord } from '@/types';
 
 import './editorStyles.css';
@@ -149,7 +149,7 @@ export default function EnhancedSpreadsheetEditor() {
           });
           setCells(cellsData);
         }
-      } catch (error) {
+      } catch {
         toast.error('Failed to load document');
         navigate('/dashboard/documents');
       } finally {
@@ -226,6 +226,18 @@ export default function EnhancedSpreadsheetEditor() {
       },
     }));
     setHasChanges(true);
+  };
+
+  /**
+   * Display value of a cell: formulas (=...) are evaluated live,
+   * plain values are shown as-is. The formula itself stays editable
+   * in the formula bar / when the cell is selected.
+   */
+  const getDisplayValue = (cellRef: string): string => {
+    const raw = cells[cellRef]?.value || '';
+    if (!raw.startsWith('=')) return raw;
+    const result = evaluateFormula(raw, (ref) => cells[ref]?.value || '');
+    return formatComputed(result);
   };
 
   /**
@@ -420,8 +432,15 @@ export default function EnhancedSpreadsheetEditor() {
           <Separator orientation="vertical" className="h-6" />
           <div className="flex items-center gap-1 px-2">
             <Button variant="ghost" size="sm" title="Sum" onClick={() => handleCellChange(selectedCell, '=SUM()')}><Calculator className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="sm" title="Filter"><Filter className="w-4 h-4" /></Button>
           </div>
+          {(cells[selectedCell]?.value || '').startsWith('=') && (
+            <>
+              <Separator orientation="vertical" className="h-6" />
+              <div className="px-2 text-xs text-gray-500">
+                Computed: <span className="font-bold text-emerald-600">{getDisplayValue(selectedCell)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Formula Bar */}
@@ -481,8 +500,9 @@ export default function EnhancedSpreadsheetEditor() {
                       >
                         <input
                           className="w-full h-full border-0 bg-transparent px-2 focus:outline-none"
-                          value={cellData?.value || ''}
+                          value={isSelected ? (cellData?.value || '') : getDisplayValue(cellRef)}
                           onChange={(e) => handleCellChange(cellRef, e.target.value)}
+                          onFocus={() => setSelectedCell(cellRef)}
                         />
                       </td>
                     );

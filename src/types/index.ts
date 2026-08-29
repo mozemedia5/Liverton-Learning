@@ -1,6 +1,19 @@
 export type UserRole = 'student' | 'teacher' | 'school_admin' | 'parent' | 'platform_admin';
 
-export type DocumentType = 'doc' | 'sheet' | 'presentation';
+export interface HannaPersonalizationSettings {
+  profile: boolean;
+  learning: boolean;
+  documents: boolean;
+  teams: boolean;
+  projects: boolean;
+  funds: boolean;
+  marketplace: boolean;
+  chats: boolean;
+  autoAnalyze: boolean;
+  customInstructions?: string;
+}
+
+export type DocumentType = 'doc' | 'sheet' | 'presentation' | 'pdf' | 'image' | 'video' | 'audio' | 'file' | 'folder';
 export type DocumentVisibility = 'private' | 'internal' | 'public';
 export type DocumentSharePermission = 'view' | 'edit';
 
@@ -14,6 +27,15 @@ export interface User {
   country: string;
   profilePicture?: string;
   profileImageUrl?: string; // New field for profile image URL from Firebase Storage
+  /** Safe unique handle used for chat discovery, without exposing private profile fields. */
+  username?: string;
+  usernameLower?: string;
+  /** Provider IDs associated with the Firebase account (password, Google, Apple, etc.). */
+  providerIds?: string[];
+  /** Mirror of Firebase Auth email verification state for profile/setup displays. */
+  emailVerified?: boolean;
+  /** Last calculated account setup completion percentage. */
+  setupProgress?: number;
   phone?: string; // New field for phone number
   address?: string; // New field for address
   bio?: string; // New field for bio/about
@@ -23,6 +45,8 @@ export interface User {
   schoolName?: string;
   schoolRegistrationNumber?: string;
   schoolType?: string;
+  /** Public-facing organization category; schoolType remains for legacy records. */
+  organizationType?: string;
   contactInfo?: {
     phone: string;
     address: string;
@@ -62,6 +86,7 @@ export interface User {
     global: number;
   };
   name?: string;
+  hannaPersonalization?: HannaPersonalizationSettings;
 }
 
 export interface Student extends User {
@@ -220,12 +245,30 @@ export interface Chat {
   id: string;
   participants: string[];
   participantNames: Record<string, string>;
+  participantUsernames?: Record<string, string>;
+  participantEmails?: Record<string, string>;
   participantRoles: Record<string, UserRole>;
   title?: string;
   type?: 'hanna' | 'direct';
   lastMessage?: Message;
+  unreadCounts?: Record<string, number>;
+  pinnedBy?: string[];
   createdAt: Date | any;
   updatedAt: Date | any;
+}
+
+export interface SharedContent {
+  type: 'course' | 'module' | 'lesson' | 'resource' | 'book';
+  id: string;
+  title: string;
+  description?: string;
+  teacherName?: string;
+  subject?: string;
+  path?: string;
+  coverUrl?: string;
+  isFree?: boolean;
+  price?: number;
+  currency?: string;
 }
 
 export interface Message {
@@ -242,7 +285,9 @@ export interface Message {
     type: string;
     url: string;
     name: string;
+    mimeType?: string;
   }>;
+  sharedContent?: SharedContent;
 }
 
 export interface Attendance {
@@ -289,7 +334,7 @@ export interface DocumentMeta {
   type: DocumentType;
   ownerId: string;
   role: UserRole;
-  schoolId?: string;
+  schoolId?: string | null;
   folderId?: string | null;
   sharedWith: string[];
   sharedWithPermissions?: Record<string, DocumentSharePermission>;
@@ -299,6 +344,11 @@ export interface DocumentMeta {
   updatedAt: Date;
   version: number;
   isFavorite?: boolean;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  pageCount?: number;
 }
 
 export type DocumentContent =

@@ -9,17 +9,17 @@ export default function About() {
     {
       icon: <GraduationCap className="w-6 h-6" />,
       title: 'eLearning Platform',
-      description: 'Access quality courses, video lessons, and interactive quizzes from expert teachers.',
+      description: 'Access quality courses, video lessons, and interactive quizzes from expert educators.',
     },
     {
       icon: <School className="w-6 h-6" />,
-      title: 'School Management',
-      description: 'Comprehensive tools for schools to manage students, teachers, attendance, and fees.',
+      title: 'Organization Workspaces',
+      description: 'Connected tools for education organizations to coordinate learners, educators, programs, resources, and outcomes.',
     },
     {
       icon: <Users className="w-6 h-6" />,
       title: 'Course Marketplace',
-      description: 'Teachers can create and sell courses, earning from their expertise.',
+      description: 'Educators can create and share courses, earning from their expertise.',
     },
     {
       icon: <MessageCircle className="w-6 h-6" />,
@@ -73,8 +73,7 @@ export default function About() {
             </div>
             <h1 className="text-4xl font-bold">About Liverton Learning</h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              A comprehensive educational platform that connects students, teachers, and schools 
-              in a seamless learning ecosystem designed for the modern age.
+              A connected learning ecosystem for learners, educators, and organizations across formal, non-formal, and community education.
             </p>
           </div>
 
@@ -84,7 +83,7 @@ export default function About() {
             <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
               At Liverton Learning, we believe education should be accessible, engaging, and effective. 
               Our mission is to bridge the gap between traditional schooling and modern technology, 
-              creating a platform where knowledge flows freely between students, teachers, and institutions.
+              creating a platform where knowledge flows freely between learners, educators, institutions, publishers, suppliers, nonprofits, researchers, and other education partners.
             </p>
           </div>
 
@@ -126,16 +125,16 @@ export default function About() {
                 className="p-6 border border-gray-200 dark:border-gray-800 rounded-xl text-center hover:border-black dark:hover:border-white transition-colors"
               >
                 <Users className="w-8 h-8 mx-auto mb-3" />
-                <h3 className="font-semibold">Teachers</h3>
-                <p className="text-sm text-gray-500 mt-1">Teach & Earn</p>
+                <h3 className="font-semibold">Educators</h3>
+                <p className="text-sm text-gray-500 mt-1">Teach & Create</p>
               </button>
               <button 
                 onClick={() => navigate('/about/schools')}
                 className="p-6 border border-gray-200 dark:border-gray-800 rounded-xl text-center hover:border-black dark:hover:border-white transition-colors"
               >
                 <School className="w-8 h-8 mx-auto mb-3" />
-                <h3 className="font-semibold">Schools</h3>
-                <p className="text-sm text-gray-500 mt-1">Manage & Monitor</p>
+                <h3 className="font-semibold">Organizations</h3>
+                <p className="text-sm text-gray-500 mt-1">Coordinate & Grow</p>
               </button>
               <div className="p-6 border border-gray-200 dark:border-gray-800 rounded-xl text-center">
                 <BookOpen className="w-8 h-8 mx-auto mb-3" />

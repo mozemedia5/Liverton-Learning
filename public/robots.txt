@@ -1,0 +1,30 @@
+# Liverton Learning crawler policy
+# The only production/public origin is https://liverton-learning.vercel.app.
+
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /verify-email
+Disallow: /settings
+Disallow: /profile
+Disallow: /student/
+Disallow: /teacher/
+Disallow: /parent/
+Disallow: /school-admin/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /chat
+Disallow: /payments
+Disallow: /documents/
+Disallow: /features/
+Disallow: /zoom-lessons/
+Disallow: /announcements/
+Disallow: /calendar
+Disallow: /events
+
+# GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Googlebot, and other
+# crawlers use the default policy above: public pages are allowed, while
+# account-scoped and private paths are blocked.
+
+Sitemap: https://liverton-learning.vercel.app/sitemap.xml
