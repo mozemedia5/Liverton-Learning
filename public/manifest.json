@@ -1,0 +1,97 @@
+{
+  "name": "Liverton Learning",
+  "short_name": "Liverton",
+  "description": "A comprehensive learning platform for students, teachers, and educational institutions",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1E40AF",
+  "background_color": "#FFFFFF",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-16x16.jpg",
+      "sizes": "16x16",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-32x32.jpg",
+      "sizes": "32x32",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-64x64.jpg",
+      "sizes": "64x64",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-128x128.jpg",
+      "sizes": "128x128",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-180x180.jpg",
+      "sizes": "180x180",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-256x256.jpg",
+      "sizes": "256x256",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384x384.jpg",
+      "sizes": "384x384",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/icon-512x512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/icons/icon-192x192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Access your learning dashboard",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.jpg",
+          "sizes": "192x192",
+          "type": "image/jpeg"
+        }
+      ]
+    }
+  ]
+}
