@@ -8,12 +8,15 @@ import {
   Compass,
   GraduationCap,
   Heart,
+  Lock,
   Menu,
   MessageCircle,
   Moon,
   Play,
+  School,
   Sparkles,
   Sun,
+  UserCircle,
   Users,
   X,
 } from 'lucide-react';
@@ -23,9 +26,7 @@ import AskHannaIcon from '@/components/AskHannaIcon';
 import './landing.css';
 import './auth.css';
 
-type Role = 'student' | 'educator' | 'organization';
-
-const visibleRoles: Role[] = ['student', 'educator'];
+type Role = 'student' | 'educator';
 
 const roleContent: Record<Role, { label: string; title: string; body: string; stat: string; statLabel: string }> = {
   student: {
@@ -41,13 +42,6 @@ const roleContent: Record<Role, { label: string; title: string; body: string; st
     body: 'Create rich modules, bring collaborators in, and give every learner a clearer path forward.',
     stat: '4.9/5',
     statLabel: 'creator satisfaction score',
-  },
-  organization: {
-    label: 'For organizations',
-    title: 'Make learning a shared advantage.',
-    body: 'Coordinate programs, teams, projects, funding, and opportunity from one calm workspace.',
-    stat: '31',
-    statLabel: 'active community members',
   },
 };
 
@@ -165,20 +159,43 @@ export default function LandingPage() {
         </section>
 
         <section className="section-shell role-section" id="stories">
-          <div className="role-header"><div><span className="section-kicker">A space for every perspective</span><h2>Choose your<br /><em>point of view.</em></h2></div><div className="role-tabs">{visibleRoles.map((item) => <button key={item} className={role === item ? 'active' : ''} onClick={() => setRole(item)}>{roleContent[item].label}<span>↗</span></button>)}</div></div>
+          <div className="role-header"><div><span className="section-kicker">A space for every perspective</span><h2>Choose your<br /><em>point of view.</em></h2></div><div className="role-tabs">{(['student', 'educator'] as Role[]).map((item) => <button key={item} className={role === item ? 'active' : ''} onClick={() => setRole(item)}>{roleContent[item].label}<span>↗</span></button>)}</div></div>
           <div className="role-showcase"><div className="role-showcase-copy"><span className="role-label">{content.label}</span><h3>{content.title}</h3><p>{content.body}</p><button className="dark-cta" onClick={() => navigate('/get-started')}>Build your space <ArrowRight size={17} /></button><div className="role-stat"><strong>{content.stat}</strong><span>{content.statLabel}</span></div></div><div className="role-image-stack"><img src={imageSources[1]} alt="A diverse group collaborating around a laptop" /><div className="mini-profile-card"><span className="mini-avatar">LL</span><div><strong>A new learner joined your space</strong><span>Just now · Liverton Learning</span></div><Check size={17} /></div></div></div>
         </section>
 
         <section className="section-shell ecosystem-section" id="ecosystem">
           <div className="section-heading"><div><span className="section-kicker">The Liverton ecosystem</span><h2>More than modules.<br /><em>A whole world of momentum.</em></h2></div><p>One identity, many ways to learn, build, share, and grow. Your work travels with you.</p></div>
-          <div className="ecosystem-grid"><button className="ecosystem-card ecosystem-teams" onClick={() => go('/features/liv-teams')}><div className="ecosystem-card-top"><MessageCircle size={20} /><span>01</span></div><span className="feature-index">COLLABORATE</span><h3>Liv Teams</h3><p>Chat, plan projects, schedule sessions, and keep the whole team moving together.</p><span className="card-link">Open Liv Teams <ArrowRight size={16} /></span><img src={imageSources[2]} alt="Students collaborating in a modern learning space" /></button><button className="ecosystem-card ecosystem-ai" onClick={() => go('/features/hanna-ai')}><div className="ecosystem-card-top"><AskHannaIcon size={24} /><span>02</span></div><span className="feature-index">THINK WITH YOU</span><h3>Hanna AI</h3><p>A thoughtful AI partner for learning, project management, planning, writing, and Liv Teams collaboration.</p><span className="card-link">Meet Hanna <ArrowRight size={16} /></span><div className="hanna-chat"><AskHannaIcon size={30} /><div><strong>Ask Hanna anything</strong><small>Try: “Help me plan my team project”</small></div><ArrowRight size={15} /></div></button></div>
+          <div className="ecosystem-grid"><button className="ecosystem-card ecosystem-teams" onClick={() => go('/features/liv-teams')}><div className="ecosystem-card-top"><MessageCircle size={20} /><span>01</span></div><span className="feature-index">COLLABORATE</span><h3>Liv Teams</h3><p>Chat, plan projects, schedule sessions, and keep the whole team moving together.</p><span className="card-link">Open Liv Teams <ArrowRight size={16} /></span><img src={imageSources[2]} alt="Students collaborating in a modern learning space" /></button><button className="ecosystem-card ecosystem-ai" onClick={() => go('/features/hanna-ai')}><div className="ecosystem-card-top"><AskHannaIcon size={24} /><span>02</span></div><span className="feature-index">THINK WITH YOU</span><h3>Hanna AI</h3><p>A thoughtful AI partner for learning, project management, planning, writing, and Liv Teams collaboration.</p><span className="card-link">Meet Hanna <ArrowRight size={16} /></span><div className="hanna-chat"><AskHannaIcon size={30} /><div><strong>Ask Hanna anything</strong><small>Try: "Help me plan my team project"</small></div><ArrowRight size={15} /></div></button></div>
         </section>
 
-        <section className="visual-mosaic section-shell"><div className="section-heading"><div><span className="section-kicker">A community in motion</span><h2>Many places.<br /><em>One shared momentum.</em></h2></div><p>Liverton is designed for real people, real programs, and real progress across classrooms, homes, teams, and communities.</p></div><div className="mosaic-grid"><figure className="mosaic-large"><img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=85" alt="Students collaborating around a table" /><figcaption>Learn side by side</figcaption></figure><figure className="mosaic-small mosaic-top"><img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=85" alt="Learner working with a laptop" /><figcaption>Make ideas visible</figcaption></figure><figure className="mosaic-small mosaic-bottom"><img src="https://images.unsplash.com/photo-1529390079861-591de354faf5?auto=format&fit=crop&w=700&q=85" alt="Diverse friends learning together" /><figcaption>Grow with community</figcaption></figure></div></section>\n\n        <section className="home-quote"><div className="quote-mark">“</div><blockquote>Liverton makes progress feel less like a solo climb and more like a shared horizon.</blockquote><div className="quote-byline"><span className="quote-avatar">NK</span><span><strong>Liverton community</strong><small>Learners, educators & teams</small></span></div></section>
+        {/* Coming Soon: Organization & Parent roles */}
+        <section className="section-shell" id="coming-soon">
+          <div className="section-heading"><div><span className="section-kicker">On the horizon</span><h2>Built for<br /><em>everyone.</em></h2></div><p>More roles are on the way. Here's what's cooking.</p></div>
+          <div className="feature-grid" style={{ marginTop: 48 }}>
+            <article className="feature-card feature-card-peach" style={{ opacity: 0.85 }}>
+              <div className="feature-icon"><School size={21} /></div>
+              <span className="feature-index">COMING SOON</span>
+              <h3>Organization</h3>
+              <p>Coordinate programs, manage teams, track progress, and handle funding from one calm workspace built for schools, nonprofits, and learning providers.</p>
+              <span className="inline-flex items-center gap-1.5 mt-5 text-xs font-bold text-gray-500 uppercase tracking-wider"><Lock size={12} /> Under development</span>
+            </article>
+            <article className="feature-card feature-card-lilac" style={{ opacity: 0.85 }}>
+              <div className="feature-icon"><UserCircle size={21} /></div>
+              <span className="feature-index">COMING SOON</span>
+              <h3>Parent</h3>
+              <p>Monitor your child's activities, track learning progress, review performance reports, and stay connected with educators in real time.</p>
+              <span className="inline-flex items-center gap-1.5 mt-5 text-xs font-bold text-gray-500 uppercase tracking-wider"><Lock size={12} /> Under development</span>
+            </article>
+          </div>
+        </section>
 
-        <section className="section-shell faq-section"><div><span className="section-kicker">Learn more, by role</span><h2>See how Liverton<br /><em>fits your world.</em></h2><p className="faq-intro">Read the practical guide for your role, from first sign-up to the everyday workflows that make Liverton useful.</p><div className="role-doc-links"><button onClick={() => navigate('/about/students')}><BookOpen size={16} /> Student guide <ArrowRight size={15} /></button><button onClick={() => navigate('/about/teachers')}><GraduationCap size={16} /> Educator guide <ArrowRight size={15} /></button></div></div><div className="faq-list">{['Can I join Liverton as a learner or educator?', 'What is Hanna AI?'].map((question, index) => <div className={`faq-item ${expandedFaq === index ? 'open' : ''}`} key={question}><button onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}><span>{question}</span><ChevronDown size={18} /></button>{expandedFaq === index && <p>{index === 0 ? 'Yes. Start with the role that fits you best, then move between learning, teams, projects, and opportunity with one Liverton identity.' : 'Hanna is Liverton’s AI partner for study, project planning, writing, team coordination, and everyday work. Hanna helps you clarify ideas, organize next steps, and create stronger outcomes.'}</p>}</div>)}</div></section>
+        <section className="visual-mosaic section-shell"><div className="section-heading"><div><span className="section-kicker">A community in motion</span><h2>Many places.<br /><em>One shared momentum.</em></h2></div><p>Liverton is designed for real people, real programs, and real progress across classrooms, homes, teams, and communities.</p></div><div className="mosaic-grid"><figure className="mosaic-large"><img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=85" alt="Students collaborating around a table" /><figcaption>Learn side by side</figcaption></figure><figure className="mosaic-small mosaic-top"><img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=85" alt="Learner working with a laptop" /><figcaption>Make ideas visible</figcaption></figure><figure className="mosaic-small mosaic-bottom"><img src="https://images.unsplash.com/photo-1529390079861-591de354faf5?auto=format&fit=crop&w=700&q=85" alt="Diverse friends learning together" /><figcaption>Grow with community</figcaption></figure></div></section>
 
-        <section className="final-cta"><div className="final-cta-glow" /><span className="section-kicker">Your next chapter starts here</span><h2>Make room for<br /><em>what’s next.</em></h2><p>Learning is better when you don’t have to do it alone.</p><button className="light-cta" onClick={() => navigate('/get-started')}>Get started free <ArrowRight size={18} /></button></section>
+        <section className="home-quote"><div className="quote-mark">"</div><blockquote>Liverton makes progress feel less like a solo climb and more like a shared horizon.</blockquote><div className="quote-byline"><span className="quote-avatar">NK</span><span><strong>Liverton community</strong><small>Learners, educators & teams</small></span></div></section>
+
+        <section className="section-shell faq-section"><div><span className="section-kicker">Learn more, by role</span><h2>See how Liverton<br /><em>fits your world.</em></h2><p className="faq-intro">Read the practical guide for your role, from first sign-up to the everyday workflows that make Liverton useful.</p><div className="role-doc-links"><button onClick={() => navigate('/about/students')}><BookOpen size={16} /> Student guide <ArrowRight size={15} /></button><button onClick={() => navigate('/about/teachers')}><GraduationCap size={16} /> Educator guide <ArrowRight size={15} /></button></div></div><div className="faq-list">{['Can I join Liverton as a learner or educator?', 'What is Hanna AI?'].map((question, index) => <div className={`faq-item ${expandedFaq === index ? 'open' : ''}`} key={question}><button onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}><span>{question}</span><ChevronDown size={18} /></button>{expandedFaq === index && <p>{index === 0 ? 'Yes. Start with the role that fits you best, then move between learning, teams, projects, and opportunity with one Liverton identity. Organization and Parent roles are coming soon.' : 'Hanna is Liverton\'s AI partner for study, project planning, writing, team coordination, and everyday work. Hanna helps you clarify ideas, organize next steps, and create stronger outcomes.'}</p>}</div>)}</div></section>
+
+        <section className="final-cta"><div className="final-cta-glow" /><span className="section-kicker">Your next chapter starts here</span><h2>Make room for<br /><em>what's next.</em></h2><p>Learning is better when you don't have to do it alone.</p><button className="light-cta" onClick={() => navigate('/get-started')}>Get started free <ArrowRight size={18} /></button></section>
       </main>
 
       <footer className="home-footer"><div className="footer-brand"><Logo /><span>Learn together. Go further.</span></div><div className="footer-links"><button onClick={() => scrollTo('why-liverton')}>Why Liverton</button><button onClick={() => scrollTo('ecosystem')}>Explore</button><button onClick={() => navigate('/about')}>About</button><button onClick={() => navigate('/login')}>Log in</button></div><span className="footer-copy">© 2026 Liverton Learning</span></footer>

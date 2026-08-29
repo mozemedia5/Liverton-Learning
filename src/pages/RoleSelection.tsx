@@ -1,7 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { GraduationCap, Users, School, UserCircle, ArrowLeft } from 'lucide-react';
+import { GraduationCap, Users, School, UserCircle, ArrowLeft, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface RoleOption {
   id: string;
@@ -9,6 +10,7 @@ interface RoleOption {
   description: string;
   icon: React.ReactNode;
   path: string;
+  comingSoon?: boolean;
 }
 
 const roles: RoleOption[] = [
@@ -32,6 +34,7 @@ const roles: RoleOption[] = [
     description: 'Coordinate programs, people, resources, and learning opportunities across your organization',
     icon: <School className="w-8 h-8" />,
     path: '/register?role=school_admin',
+    comingSoon: true,
   },
   {
     id: 'parent',
@@ -39,10 +42,9 @@ const roles: RoleOption[] = [
     description: 'Monitor your child\'s performance and progress',
     icon: <UserCircle className="w-8 h-8" />,
     path: '/register?role=parent',
+    comingSoon: true,
   },
 ];
-
-const visibleRoles = roles;
 
 export default function RoleSelection() {
   const navigate = useNavigate();
@@ -81,18 +83,38 @@ export default function RoleSelection() {
 
           {/* Role Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {visibleRoles.map((role) => (
+            {roles.map((role) => (
               <Card
                 key={role.id}
-                className="cursor-pointer border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all duration-200 hover:shadow-lg bg-white dark:bg-black"
-                onClick={() => navigate(role.path, { state: { from: intendedDestination } })}
+                onClick={() => {
+                  if (role.comingSoon) {
+                    toast.info(`🚧 ${role.title} is a coming soon feature and is currently under development. Please continue as a Student or Educator for now.`, {
+                      duration: 5000,
+                    });
+                    return;
+                  }
+                  navigate(role.path, { state: { from: intendedDestination } });
+                }}
+                className={`relative border transition-all duration-200 bg-white dark:bg-black ${
+                  role.comingSoon
+                    ? 'cursor-not-allowed border-gray-200 dark:border-gray-800 opacity-75'
+                    : 'cursor-pointer border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white hover:shadow-lg'
+                }`}
               >
                 <CardContent className="p-6 flex items-start gap-4">
                   <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center flex-shrink-0">
                     {role.icon}
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-1">{role.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold">{role.title}</h3>
+                      {role.comingSoon && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                          <Lock className="w-2.5 h-2.5" />
+                          Coming Soon
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {role.description}
                     </p>
