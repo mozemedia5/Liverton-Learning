@@ -15,7 +15,8 @@ import { toast } from 'sonner';
 import type { UserProfile } from '@/types/chat';
 
 interface ViewUserProfileProps {
-  userId: string;
+  userId?: string;
+  profile?: UserProfile;
   onClose: () => void;
 }
 
@@ -23,18 +24,28 @@ interface ViewUserProfileProps {
  * Modal component to view another user's profile
  * Fetches user data from Firestore and displays it with appropriate privacy controls
  */
-export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+export function ViewUserProfile({ userId, profile: initialProfile, onClose }: ViewUserProfileProps) {
+  const [profile, setProfile] = useState<UserProfile | null>(initialProfile || null);
+  const [loading, setLoading] = useState(!initialProfile);
 
   useEffect(() => {
+    if (initialProfile) {
+      setLoading(false);
+      return;
+    }
+
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     const fetchUserProfile = async () => {
       try {
         const userDoc = await getDoc(doc(db, 'users', userId));
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          
+
           // Map user data to profile interface with privacy-conscious fields
           const userProfile: UserProfile = {
             id: userDoc.id,
@@ -52,7 +63,7 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
             status: userData.status || '',
             location: userData.location || userData.school || ''
           };
-          
+
           setProfile(userProfile);
         } else {
           toast.error('User profile not found');
@@ -77,10 +88,10 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
   const formatDate = (date: any) => {
     if (!date) return 'Unknown';
     const dateObj = date.toDate ? date.toDate() : new Date(date);
-    return dateObj.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -90,7 +101,7 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
     const now = new Date();
     const diffMs = now.getTime() - lastSeenDate.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins} minutes ago`;
     const diffHours = Math.floor(diffMins / 60);
@@ -119,9 +130,9 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900">
           <h2 className="text-2xl font-bold">User Profile</h2>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
             className="rounded-full hover:bg-white/50"
           >
@@ -184,7 +195,7 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
                   <School className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Organization</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">School</p>
                   <p className="text-sm font-medium">{profile.school}</p>
                 </div>
               </div>
@@ -222,7 +233,7 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Enrolled Courses</p>
                 <div className="flex flex-wrap gap-2">
                   {profile.courses.map((course, idx) => (
-                    <span 
+                    <span
                       key={idx}
                       className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full"
                     >
@@ -263,7 +274,7 @@ export function ViewUserProfile({ userId, onClose }: ViewUserProfileProps) {
 
         {/* Footer */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-          <Button 
+          <Button
             onClick={onClose}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
