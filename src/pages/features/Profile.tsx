@@ -38,6 +38,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { storage } from '@/lib/firebase';
+import { isCloudinaryConfigured, uploadToCloudinary } from '@/services/cloudinaryService';
+
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { sendEmailVerification } from 'firebase/auth';
 
@@ -146,15 +148,23 @@ export default function Profile() {
     setIsUploadingImage(true);
     try {
       // Create a unique filename using timestamp and user ID
-      const timestamp = Date.now();
-      const fileName = `profile-${userData?.uid}-${timestamp}`;
-      const storageRef = ref(storage, `profile-images/${fileName}`);
+      let downloadUrl = '';
 
-      // Upload file to Firebase Storage
-      await uploadBytes(storageRef, file);
-      
-      // Get download URL
-      const downloadUrl = await getDownloadURL(storageRef);
+      if (isCloudinaryConfigured()) {
+        try {
+          downloadUrl = await uploadToCloudinary(file, 'image');
+        } catch (err) {
+          console.warn('Cloudinary upload failed, falling back to Firebase Storage:', err);
+        }
+      }
+
+      if (!downloadUrl) {
+        const timestamp = Date.now();
+        const fileName = `profile-${userData?.uid}-${timestamp}`;
+        const storageRef = ref(storage, `profile-images/${fileName}`);
+        await uploadBytes(storageRef, file);
+        downloadUrl = await getDownloadURL(storageRef);
+      }
       
       // Update user profile with image URL
       await updateUserProfile({

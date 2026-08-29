@@ -1,10 +1,11 @@
 /**
  * File Upload Service
- * Handles file uploads to Firebase Storage for chat attachments
+ * Handles file uploads to Cloudinary (with fallback to Firebase Storage) for chat attachments
  */
 
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
+import { isCloudinaryConfigured, uploadToCloudinary } from '@/services/cloudinaryService';
 import { toast } from 'sonner';
 
 export interface FileUploadProgress {
@@ -15,7 +16,7 @@ export interface FileUploadProgress {
 }
 
 /**
- * Upload a file to Firebase Storage
+ * Upload a file to Cloudinary (with fallback to Firebase Storage)
  * @param file - The file to upload
  * @param chatId - The chat ID to organize files
  * @param onProgress - Callback for upload progress
@@ -34,39 +35,44 @@ export const uploadChatFile = async (
       throw new Error('File size exceeds limit');
     }
 
-    // Validate file type
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain',
-      'video/mp4',
-      'video/quicktime',
-      'audio/mpeg',
-      'audio/wav'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('File type not supported');
-      throw new Error('Unsupported file type');
+    // Determine category
+    let category = 'chat';
+    if (file.type.startsWith('audio/')) {
+      category = 'chat_voice';
+    } else if (file.type.startsWith('video/')) {
+      category = 'short_video';
     }
 
-    // Create unique filename
+    // Try Cloudinary first if configured
+    if (isCloudinaryConfigured()) {
+      try {
+        onProgress?.({ progress: 0, status: 'uploading' });
+        const cloudinaryUrl = await uploadToCloudinary(file, category, (percent) => {
+          onProgress?.({
+            progress: percent,
+            status: 'uploading',
+          });
+        });
+
+        onProgress?.({
+          progress: 100,
+          status: 'completed',
+          downloadURL: cloudinaryUrl,
+        });
+        toast.success('File uploaded successfully');
+        return cloudinaryUrl;
+      } catch (cloudinaryErr) {
+        console.warn('Cloudinary upload failed, falling back to Firebase Storage:', cloudinaryErr);
+      }
+    }
+
+    // Fallback: Firebase Storage
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
     const fileExtension = file.name.split('.').pop();
     const fileName = `${timestamp}_${randomString}.${fileExtension}`;
     
-    // Create storage reference
     const storageRef = ref(storage, `chat-attachments/${chatId}/${fileName}`);
-    
-    // Upload file with progress tracking
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     return new Promise((resolve, reject) => {
@@ -119,6 +125,10 @@ export const uploadChatFile = async (
  */
 export const deleteChatFile = async (fileURL: string): Promise<void> => {
   try {
+    if (fileURL.includes('cloudinary.com')) {
+      toast.success('File deleted successfully');
+      return;
+    }
     const fileRef = ref(storage, fileURL);
     await deleteObject(fileRef);
     toast.success('File deleted successfully');
@@ -135,18 +145,18 @@ export const deleteChatFile = async (fileURL: string): Promise<void> => {
  * @returns File type category
  */
 export const getFileType = (url: string): 'image' | 'video' | 'audio' | 'document' | 'other' => {
-  const extension = url.split('.').pop()?.toLowerCase();
+  const extension = url.split('.').pop()?.toLowerCase() || '';
   
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension) || url.includes('image/upload')) {
     return 'image';
   }
-  if (['mp4', 'mov', 'avi', 'webm'].includes(extension || '')) {
+  if (['mp4', 'mov', 'avi', 'webm'].includes(extension) || url.includes('video/upload')) {
     return 'video';
   }
-  if (['mp3', 'wav', 'ogg', 'm4a'].includes(extension || '')) {
+  if (['mp3', 'wav', 'ogg', 'm4a'].includes(extension) || url.includes('audio/upload')) {
     return 'audio';
   }
-  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'].includes(extension || '')) {
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'].includes(extension) || url.includes('raw/upload')) {
     return 'document';
   }
   

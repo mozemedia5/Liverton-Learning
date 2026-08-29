@@ -130,7 +130,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       case 'platform_admin':
         baseItems.push(
           { icon: Activity, label: 'Global Monitoring', path: '/admin/monitoring' },
-          { icon: Bell, label: 'Announcements', path: '/admin/dashboard-announcements' },
+          { icon: Bell, label: 'Motivations & Notifications', path: '/admin/dashboard-announcements' },
           { icon: ImageIcon, label: 'Dashboard Banners', path: '/admin/dashboard-banners' },
           { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
@@ -146,7 +146,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: CreditCard, label: 'Earnings', path: '/payments' },
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
-          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Bell, label: 'Motivations & Notifications', path: '/motivations' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
         );
         break;
@@ -158,7 +158,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: FileText, label: 'Quizzes', path: '/parent/quizzes' },
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
-          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Bell, label: 'Motivations & Notifications', path: '/motivations' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
         );
         break;
@@ -168,7 +168,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: FileText, label: 'Documents', path: '/features/document-workspace' },
           { icon: MessageSquare, label: 'Chat', path: '/chat' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
-          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Bell, label: 'Motivations & Notifications', path: '/motivations' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
         );
         break;
@@ -178,7 +178,7 @@ export function MobileBottomNav({ userRole }: MobileBottomNavProps) {
           { icon: FileText, label: 'Quizzes', path: '/student/quizzes' },
           { icon: Video, label: 'Live Lessons', path: '/student/zoom-lessons' },
           { icon: Calendar, label: 'Calendar', path: '/calendar' },
-          { icon: Bell, label: 'Announcements', path: '/announcements' },
+          { icon: Bell, label: 'Motivations & Notifications', path: '/motivations' },
           { icon: Sparkles, label: 'Hanna AI', path: '/features/hanna-ai' },
           { icon: Calculator, label: 'Calculator', path: '/features/calculator' },
         );

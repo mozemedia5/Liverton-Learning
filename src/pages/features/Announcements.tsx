@@ -208,7 +208,7 @@ export default function Announcements() {
       case 'info':
         return { icon: Info, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', badge: 'secondary' as const, label: 'ℹ️ Info' };
       default:
-        return { icon: Megaphone, color: 'text-gray-700', bg: 'bg-white dark:bg-gray-900', border: 'border-gray-200 dark:border-gray-800', badge: 'outline' as const, label: '📢 Announcement' };
+        return { icon: Megaphone, color: 'text-gray-700', bg: 'bg-white dark:bg-gray-900', border: 'border-gray-200 dark:border-gray-800', badge: 'outline' as const, label: '💡 Motivation' };
     }
   };
 
@@ -240,14 +240,14 @@ export default function Announcements() {
               <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
                 <Bell className="w-5 h-5 text-white dark:text-black" />
               </div>
-              <span className="font-semibold">Announcements</span>
+              <span className="font-semibold">Motivations & Notifications</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {canCreate && (
-              <Button onClick={() => navigate('/announcements/create')}>
+              <Button onClick={() => navigate('/motivations/create')}>
                 <Plus className="w-4 h-4 mr-2" />
-                New Announcement
+                New Motivation
               </Button>
             )}
           </div>
@@ -308,9 +308,9 @@ export default function Announcements() {
         ) : filteredAnnouncements.length === 0 ? (
           <div className="text-center py-16">
             <Bell className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">No announcements yet</h3>
+            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">No motivations or notifications yet</h3>
             <p className="text-gray-500 dark:text-gray-500 mt-1">
-              {canCreate ? 'Click "New Announcement" to create one.' : 'Check back later for updates.'}
+              {canCreate ? 'Click "New Motivation" to create one.' : 'Check back later for updates.'}
             </p>
           </div>
         ) : (

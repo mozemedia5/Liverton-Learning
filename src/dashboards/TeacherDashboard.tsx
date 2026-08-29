@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   BookOpen, 
-  Bell, 
   CreditCard, 
   TrendingUp,
   DollarSign,
@@ -14,10 +13,17 @@ import {
   CheckCircle,
   Loader2,
   HelpCircle,
+  ChevronRight,
+  Sparkles,
+  MessageSquare,
+  FileText,
+  Video,
+  Award
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
+import SalafDashboardHeader from '@/components/SalafDashboardHeader';
 import { 
   subscribeToTeacherAnalytics, 
   subscribeToTeacherEnrollments,
@@ -26,29 +32,14 @@ import {
 } from '@/services/analyticsService';
 import { subscribeToTeacherCourses, type Course } from '@/services/courseService';
 import { subscribeToTeacherQuizzes, type Quiz } from '@/services/quizService';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import type { DashboardAnnouncement } from '@/types/announcement';
 
-/**
- * TeacherDashboard Component
- * 
- * Features:
- * - Uses AuthenticatedLayout for standardized navigation
- * - Displays real-time teacher-specific statistics (earnings, courses, students)
- * - Course management and student tracking
- * - Quiz management with real-time analytics
- * - Responsive design with mobile support
- * - Dark mode support
- */
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const { userData, currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
   const [recentEnrollments, setRecentEnrollments] = useState<Enrollment[]>([]);
   const [myCourses, setMyCourses] = useState<Course[]>([]);
   const [myQuizzes, setMyQuizzes] = useState<Quiz[]>([]);
-  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Real-time data subscription
@@ -57,7 +48,7 @@ export default function TeacherDashboard() {
 
     setLoading(true);
     let loadedCount = 0;
-    const totalSubscriptions = 5;
+    const totalSubscriptions = 4;
     
     // Subscribe to teacher analytics
     const unsubscribeAnalytics = subscribeToTeacherAnalytics(
@@ -65,9 +56,7 @@ export default function TeacherDashboard() {
       (data) => {
         setAnalytics(data);
         loadedCount++;
-        if (loadedCount === totalSubscriptions) {
-          setLoading(false);
-        }
+        if (loadedCount === totalSubscriptions) setLoading(false);
       }
     );
 
@@ -77,9 +66,7 @@ export default function TeacherDashboard() {
       (data) => {
         setRecentEnrollments(data);
         loadedCount++;
-        if (loadedCount === totalSubscriptions) {
-          setLoading(false);
-        }
+        if (loadedCount === totalSubscriptions) setLoading(false);
       }
     );
 
@@ -89,9 +76,7 @@ export default function TeacherDashboard() {
       (data) => {
         setMyCourses(data);
         loadedCount++;
-        if (loadedCount === totalSubscriptions) {
-          setLoading(false);
-        }
+        if (loadedCount === totalSubscriptions) setLoading(false);
       }
     );
 
@@ -101,44 +86,10 @@ export default function TeacherDashboard() {
       (data) => {
         setMyQuizzes(data);
         loadedCount++;
-        if (loadedCount === totalSubscriptions) {
-          setLoading(false);
-        }
+        if (loadedCount === totalSubscriptions) setLoading(false);
       }
     );
 
-    // Subscribe to dashboard announcements
-    const announcementsQuery = query(
-      collection(db, 'dashboardAnnouncements'),
-      where('isActive', '==', true),
-      where('status', '==', 'active')
-    );
-
-    const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (snapshot) => {
-      const announcementsList = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }) as DashboardAnnouncement)
-        .filter(announcement => {
-          // Filter by target audience
-          if (announcement.targetAudience === 'all' || announcement.targetAudience === 'teachers') {
-            // Check if not expired
-            const expiresAt = announcement.expiresAt?.toMillis?.() || 0;
-            return expiresAt > Date.now();
-          }
-          return false;
-        })
-        .sort((a, b) => b.priority - a.priority); // Sort by priority
-
-      setAnnouncements(announcementsList);
-      loadedCount++;
-      if (loadedCount === totalSubscriptions) {
-        setLoading(false);
-      }
-    });
-
-    // Set a timeout to stop loading after 5 seconds even if data hasn't arrived
     const timeout = setTimeout(() => {
       setLoading(false);
     }, 5000);
@@ -149,13 +100,16 @@ export default function TeacherDashboard() {
       unsubscribeEnrollments();
       unsubscribeCourses();
       unsubscribeQuizzes();
-      unsubscribeAnnouncements();
     };
   }, [currentUser?.uid]);
 
-  const courseAnnouncements = [
-    { id: 1, title: 'New Course Guidelines', sender: 'Platform Admin', date: new Date().toISOString().split('T')[0] },
-    { id: 2, title: 'Payment Processing Update', sender: 'Platform Admin', date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
+  const categoryButtons = [
+    { label: 'Create Course', icon: Plus, path: '/teacher/courses/create', color: 'bg-blue-600' },
+    { label: 'Create Quiz', icon: Plus, path: '/teacher/quizzes/create', color: 'bg-indigo-600' },
+    { label: 'My Courses', icon: BookOpen, path: '/teacher/courses', color: 'bg-purple-600' },
+    { label: 'My Quizzes', icon: Award, path: '/teacher/quizzes', color: 'bg-teal-600' },
+    { label: 'Hanna AI', icon: Sparkles, path: '/features/hanna-ai', color: 'bg-pink-600' },
+    { label: 'Chat', icon: MessageSquare, path: '/chat', color: 'bg-emerald-600' },
   ];
 
   if (loading) {
@@ -170,229 +124,111 @@ export default function TeacherDashboard() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-4 lg:p-6 space-y-6">
-        {/* Dashboard Banner */}
+      <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* SALAF App Header (User Greeting, Corner Notification Bell, Search Bar & Category Buttons) */}
+        <SalafDashboardHeader
+          searchPlaceholder="Search my courses, students, quizzes..."
+          categoryButtons={categoryButtons}
+        />
+
+        {/* Dashboard Banner Carousel (SALAF Blue Banner Theme) */}
         <BannerCarousel />
 
-        {/* Quick Actions */}
-        <div className="flex justify-end gap-2">
-          <Button
-            onClick={() => navigate('/teacher/quizzes/create')}
-            className="bg-black dark:bg-white text-white dark:text-black"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Quiz
-          </Button>
-          <Button
-            onClick={() => navigate('/teacher/courses/create')}
-            className="bg-black dark:bg-white text-white dark:text-black"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Course
-          </Button>
-        </div>
-
-        {/* Dashboard Announcements Banner */}
-        {announcements.length > 0 && (
-          <AnnouncementBanner
-            announcements={announcements}
-            autoSlideInterval={5000}
-          />
-        )}
-
-        {/* Earnings Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Total Earnings Card */}
-          <Card>
+        {/* Earnings & Overview Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Earnings</p>
-                  <p className="text-xl font-bold">${(analytics?.totalEarnings || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Total Earnings</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">${(analytics?.totalEarnings || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Pending Earnings Card */}
-          <Card>
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-yellow-600" />
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                  <p className="text-xl font-bold">${(analytics?.pendingEarnings || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Total Students</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{analytics?.totalStudents || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* This Month Earnings Card */}
-          <Card>
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">This Month</p>
-                  <p className="text-xl font-bold">${(analytics?.monthlyEarnings || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Courses</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{analytics?.totalCourses || myCourses.length || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <HelpCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Quizzes</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{myQuizzes.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Courses</p>
-                  <p className="text-xl font-bold">{analytics?.totalCourses || 0}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-indigo-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Students</p>
-                  <p className="text-xl font-bold">{analytics?.totalStudents || 0}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-pink-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg Rating</p>
-                  <p className="text-xl font-bold">{analytics?.averageCourseRating || 0}/5</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center">
-                  <HelpCircle className="w-5 h-5 text-teal-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Quizzes</p>
-                  <p className="text-xl font-bold">{myQuizzes.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* My Quizzes Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <HelpCircle className="w-5 h-5" />
-              My Quizzes
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => navigate('/teacher/quizzes')}>
-              View All
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {myQuizzes.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">You haven't created any quizzes yet</p>
-                <Button onClick={() => navigate('/teacher/quizzes/create')}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Quiz
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {myQuizzes.slice(0, 5).map((quiz) => (
-                  <div 
-                    key={quiz.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/teacher/quizzes/${quiz.id}/analytics`)}
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{quiz.title}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {quiz.questionCount} questions 
-                        {quiz.totalAttempts && quiz.totalAttempts > 0 && ` • ${quiz.totalAttempts} attempt${quiz.totalAttempts !== 1 ? 's' : ''}`}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {quiz.averageScore !== undefined && quiz.totalAttempts && quiz.totalAttempts > 0 && (
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-green-600">{quiz.averageScore.toFixed(1)}%</p>
-                          <p className="text-xs text-gray-500">avg score</p>
-                        </div>
-                      )}
-                      <Badge variant={quiz.status === 'published' ? 'default' : 'secondary'}>
-                        {quiz.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* My Courses Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
+        <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900 overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-blue-600" />
               My Courses
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => navigate('/teacher/courses')}>
-              View All
+            <Button variant="ghost" size="sm" onClick={() => navigate('/teacher/courses')} className="text-xs text-blue-600">
+              View All <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0">
             {myCourses.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">You haven't created any courses yet</p>
-                <Button onClick={() => navigate('/teacher/courses/create')}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <p className="text-xs text-gray-500 mb-3">You haven't created any courses yet</p>
+                <Button onClick={() => navigate('/teacher/courses/create')} className="bg-blue-600 text-white rounded-xl text-xs">
+                  <Plus className="w-4 h-4 mr-1.5" />
                   Create Your First Course
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {myCourses.slice(0, 5).map((course) => (
                   <div 
                     key={course.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer"
+                    className="flex items-center justify-between p-3.5 border border-gray-100 dark:border-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                     onClick={() => navigate(`/teacher/courses`)}
                   >
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{course.title}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <h3 className="font-semibold text-sm truncate">{course.title}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         {course.enrolledStudents?.length || 0} students 
                         {course.price > 0 && ` • $${course.price}`}
                       </p>
                     </div>
-                    <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
+                    <Badge variant={course.status === 'active' ? 'default' : 'secondary'} className="rounded-lg text-xs">
                       {course.status}
                     </Badge>
                   </div>
@@ -402,60 +238,48 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Students Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Recent Enrollments
+        {/* My Quizzes Section */}
+        <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900 overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Award className="w-5 h-5 text-indigo-600" />
+              My Quizzes
             </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/teacher/quizzes')} className="text-xs text-indigo-600">
+              View All <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentEnrollments.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No recent enrollments</p>
-              ) : (
-                recentEnrollments.slice(0, 5).map((enrollment) => (
+          <CardContent className="p-4 pt-0">
+            {myQuizzes.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-xs text-gray-500 mb-3">You haven't created any quizzes yet</p>
+                <Button onClick={() => navigate('/teacher/quizzes/create')} className="bg-indigo-600 text-white rounded-xl text-xs">
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Create Your First Quiz
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {myQuizzes.slice(0, 5).map((quiz) => (
                   <div 
-                    key={enrollment.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
+                    key={quiz.id}
+                    className="flex items-center justify-between p-3.5 border border-gray-100 dark:border-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/teacher/quizzes/${quiz.id}/analytics`)}
                   >
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{enrollment.studentName}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {enrollment.courseName} 
+                    <div className="flex-1 min-w-0 pr-3">
+                      <h3 className="font-semibold text-sm truncate">{quiz.title}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {quiz.questionCount} questions
+                        {quiz.totalAttempts && quiz.totalAttempts > 0 && ` • ${quiz.totalAttempts} attempts`}
                       </p>
                     </div>
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <Badge variant={quiz.status === 'published' ? 'default' : 'secondary'} className="rounded-lg text-xs">
+                      {quiz.status}
+                    </Badge>
                   </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Announcements Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Announcements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {courseAnnouncements.map((announcement) => (
-                <div 
-                  key={announcement.id}
-                  className="p-3 border border-gray-200 dark:border-gray-800 rounded-lg"
-                >
-                  <h3 className="font-semibold">{announcement.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {announcement.sender} • {announcement.date}
-                  </p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

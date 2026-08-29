@@ -26,6 +26,8 @@ import {
 } from 'firebase/storage';
 import type { Unsubscribe } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
+import { isCloudinaryConfigured, uploadToCloudinary } from '@/services/cloudinaryService';
+
 
 // ==========================================
 // TYPES
@@ -144,14 +146,24 @@ export async function uploadCourseMaterial(
     throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
 
-  // Create storage reference
   const timestamp = Date.now();
   const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const storageRef = ref(storage, `courses/${courseId}/materials/${timestamp}_${safeFileName}`);
+  let downloadUrl = '';
 
-  // Upload file
-  const snapshot = await uploadBytes(storageRef, file);
-  const downloadUrl = await getDownloadURL(snapshot.ref);
+  if (isCloudinaryConfigured()) {
+    try {
+      const category = fileType === 'video' ? 'course_lesson' : 'document';
+      downloadUrl = await uploadToCloudinary(file, category);
+    } catch (err) {
+      console.warn('Cloudinary upload failed, falling back to Firebase Storage:', err);
+    }
+  }
+
+  if (!downloadUrl) {
+    const storageRef = ref(storage, `courses/${courseId}/materials/${timestamp}_${safeFileName}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    downloadUrl = await getDownloadURL(snapshot.ref);
+  }
 
   const material: CourseMaterial = {
     id: `${timestamp}_${safeFileName}`,

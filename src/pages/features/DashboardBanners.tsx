@@ -48,6 +48,8 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { isCloudinaryConfigured, uploadToCloudinary } from '@/services/cloudinaryService';
+
 import {
   Dialog,
   DialogContent,
@@ -291,37 +293,49 @@ export default function DashboardBanners() {
     setUploadProgress(0);
 
     try {
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `banners/${currentUser?.uid || 'admin'}/${Date.now()}_${sanitizedName}`;
-      const storageRef = ref(storage, path);
+      let downloadUrl = '';
 
-      // Use resumable upload with proper state tracking
-      await new Promise<void>((resolve, reject) => {
-        const task = uploadBytesResumable(storageRef, file, {
-          contentType: file.type,
+      if (isCloudinaryConfigured()) {
+        try {
+          const category = type === 'image' ? 'image' : 'short_video';
+          downloadUrl = await uploadToCloudinary(file, category, (pct) => {
+            setUploadProgress(pct);
+          });
+        } catch (cloudinaryErr) {
+          console.warn('Cloudinary banner upload failed, falling back to Firebase Storage:', cloudinaryErr);
+        }
+      }
+
+      if (!downloadUrl) {
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `banners/${currentUser?.uid || 'admin'}/${Date.now()}_${sanitizedName}`;
+        const storageRef = ref(storage, path);
+
+        await new Promise<void>((resolve, reject) => {
+          const task = uploadBytesResumable(storageRef, file, {
+            contentType: file.type,
+          });
+
+          task.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = Math.round(
+                (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+              );
+              setUploadProgress(progress);
+            },
+            (error) => {
+              console.error('Upload state error:', error.code, error.message);
+              reject(error);
+            },
+            () => {
+              resolve();
+            }
+          );
         });
 
-        task.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = Math.round(
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-            );
-            setUploadProgress(progress);
-          },
-          (error) => {
-            console.error('Upload state error:', error.code, error.message);
-            reject(error);
-          },
-          () => {
-            // Upload completed successfully
-            resolve();
-          }
-        );
-      });
-
-      // Get download URL only after upload fully completes
-      const downloadUrl = await getDownloadURL(storageRef);
+        downloadUrl = await getDownloadURL(storageRef);
+      }
 
       setForm(prev => ({ ...prev, mediaUrl: downloadUrl, mediaType: type }));
       toast.success(`${type === 'image' ? 'Image' : 'Video'} uploaded successfully!`);

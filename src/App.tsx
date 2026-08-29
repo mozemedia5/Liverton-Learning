@@ -367,7 +367,17 @@ function AppRoutes() {
           <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
         </ProtectedRoute>
       } />
+      <Route path="/motivations" element={
+        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+          <AuthenticatedLayout><Announcements /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
       <Route path="/announcements/create" element={
+        <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
+          <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/motivations/create" element={
         <ProtectedRoute allowedRoles={['teacher', 'school_admin', 'platform_admin']}>
           <AuthenticatedLayout><CreateAnnouncement /></AuthenticatedLayout>
         </ProtectedRoute>

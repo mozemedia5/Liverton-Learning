@@ -96,8 +96,8 @@ export default function CreateAnnouncement() {
         isHidden: false,
       });
 
-      toast.success('Announcement created successfully!');
-      navigate('/announcements');
+      toast.success('Motivation & Notification created successfully!');
+      navigate('/motivations');
     } catch (error) {
       console.error('Error creating announcement:', error);
       toast.error('Failed to create announcement');
@@ -117,7 +117,7 @@ export default function CreateAnnouncement() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Bell className="w-6 h-6 text-blue-600" />
-              Create Announcement
+              Create Motivation & Notification
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
               Send a message or notification to your audience
@@ -127,7 +127,7 @@ export default function CreateAnnouncement() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Announcement Details</CardTitle>
+            <CardTitle>Motivation & Notification Details</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -237,7 +237,7 @@ export default function CreateAnnouncement() {
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Send Announcement
+                      Send Motivation
                     </>
                   )}
                 </Button>

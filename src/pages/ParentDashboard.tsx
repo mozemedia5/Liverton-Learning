@@ -1,64 +1,39 @@
-/**
- * Parent Dashboard
- * Main dashboard for parents to view real-time overview of children's education
- * Features:
- * - Quick stats (children, courses, performance)
- * - Real-time activity feed
- * - Upcoming events
- * - Quick links to other sections
- */
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2, Users, BookOpen, TrendingUp, Calendar, AlertCircle, DollarSign, GraduationCap, Trophy } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Users,
+  BookOpen,
+  Award,
+  CreditCard,
+  Clock,
+  Loader2,
+  ChevronRight,
+  Sparkles,
+  MessageSquare,
+  FileText
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import BannerCarousel from '@/components/BannerCarousel';
-import { getLinkedStudents } from '@/lib/parentService';
+import SalafDashboardHeader from '@/components/SalafDashboardHeader';
 import { 
   subscribeToParentAnalytics,
-  subscribeToChildrenActivities,
-  type ParentAnalytics,
-  type Activity
+  type ParentAnalytics
 } from '@/services/analyticsService';
-import type { LinkedStudent } from '@/lib/parentService';
 
-/**
- * Parent Dashboard Component
- * Main overview page for parents with real-time data
- */
 export default function ParentDashboard() {
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
+  const { currentUser } = useAuth();
   const [analytics, setAnalytics] = useState<ParentAnalytics | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /**
-   * Load linked students and subscribe to real-time data
-   */
   useEffect(() => {
     if (!currentUser?.uid) return;
 
     setLoading(true);
-
-    // Load linked students
-    const loadStudents = async () => {
-      try {
-        const students = await getLinkedStudents(currentUser.uid);
-        setLinkedStudents(students);
-      } catch (error) {
-        console.error('Error loading students:', error);
-      }
-    };
-
-    loadStudents();
-
-    // Subscribe to parent analytics
-    const unsubscribeAnalytics = subscribeToParentAnalytics(
+    const unsubscribe = subscribeToParentAnalytics(
       currentUser.uid,
       (data) => {
         setAnalytics(data);
@@ -66,39 +41,17 @@ export default function ParentDashboard() {
       }
     );
 
-    // Subscribe to children activities
-    const unsubscribeActivities = subscribeToChildrenActivities(
-      currentUser.uid,
-      (data) => {
-        setActivities(data);
-      }
-    );
-
-    return () => {
-      unsubscribeAnalytics();
-      unsubscribeActivities();
-    };
+    return () => unsubscribe();
   }, [currentUser?.uid]);
 
-  /**
-   * Get activity icon based on type
-   */
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'grade':
-        return <TrendingUp className="h-4 w-4 text-green-600" />;
-      case 'assignment':
-        return <BookOpen className="h-4 w-4 text-blue-600" />;
-      case 'event':
-        return <Calendar className="h-4 w-4 text-purple-600" />;
-      case 'announcement':
-        return <AlertCircle className="h-4 w-4 text-orange-600" />;
-      case 'attendance':
-        return <GraduationCap className="h-4 w-4 text-teal-600" />;
-      default:
-        return null;
-    }
-  };
+  const categoryButtons = [
+    { label: 'My Children', icon: Users, path: '/parent/students', color: 'bg-blue-600' },
+    { label: 'Performance', icon: Award, path: '/parent/performance', color: 'bg-emerald-600' },
+    { label: 'Fee Payments', icon: CreditCard, path: '/parent/fees', color: 'bg-amber-600' },
+    { label: 'Hanna AI', icon: Sparkles, path: '/features/hanna-ai', color: 'bg-pink-600' },
+    { label: 'Chat', icon: MessageSquare, path: '/chat', color: 'bg-teal-600' },
+    { label: 'Documents', icon: FileText, path: '/documents', color: 'bg-indigo-600' },
+  ];
 
   if (loading) {
     return (
@@ -112,190 +65,111 @@ export default function ParentDashboard() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-4 md:p-8 lg:ml-0">
-        {/* Dashboard Banner */}
+      <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* SALAF Header */}
+        <SalafDashboardHeader searchPlaceholder="Search children, courses, grades..." categoryButtons={categoryButtons} />
+
+        {/* Banner Carousel */}
         <BannerCarousel />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6 mb-8">
-          {/* Children Count */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Children</CardTitle>
-              <Users className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.childrenCount || linkedStudents.length || 0}</div>
-              <p className="text-xs text-gray-600 mt-1">Linked to your account</p>
-            </CardContent>
-          </Card>
-
-          {/* Active Courses */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Courses</CardTitle>
-              <BookOpen className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.totalCourses || 0}</div>
-              <p className="text-xs text-gray-600 mt-1">Across all children</p>
-            </CardContent>
-          </Card>
-
-          {/* Average Performance */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Performance</CardTitle>
-              <TrendingUp className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.averageScore || 0}%</div>
-              <p className="text-xs text-gray-600 mt-1">Overall average</p>
-            </CardContent>
-          </Card>
-
-          {/* Attendance */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-              <GraduationCap className="h-4 w-4 text-teal-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.attendanceRate || 0}%</div>
-              <p className="text-xs text-gray-600 mt-1">Average across children</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Additional Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Pending Assignments */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Assignments</CardTitle>
-              <BookOpen className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics?.pendingAssignments || 0}</div>
-              <p className="text-xs text-gray-600 mt-1">Due soon</p>
-            </CardContent>
-          </Card>
-
-          {/* Fees Due */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Fees Due</CardTitle>
-              <DollarSign className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${(analytics?.feesDue || 0).toLocaleString()}</div>
-              <p className="text-xs text-gray-600 mt-1">Total pending</p>
-            </CardContent>
-          </Card>
-
-          {/* Fees Paid */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Fees Paid</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${(analytics?.feesPaid || 0).toLocaleString()}</div>
-              <p className="text-xs text-gray-600 mt-1">This academic year</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {activities.length === 0 ? (
-                    <p className="text-gray-600 text-center py-8">No recent activity</p>
-                  ) : (
-                    activities.map(activity => (
-                      <div key={activity.id} className="flex gap-4 pb-4 border-b last:border-b-0">
-                        <div className="flex-shrink-0">
-                          {getActivityIcon(activity.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                          <p className="text-sm text-gray-600">{activity.description}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {activity.childName} • {new Date(activity.timestamp).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+        {/* Parent Overview Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Links */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Links</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/students')}>
-                  <Users className="h-4 w-4 mr-2" />
-                  My Children
-                </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/performance')}>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Performance
-                </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/courses')}>
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Courses
-                </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/quizzes')}>
-                  <Trophy className="h-4 w-4 mr-2" />
-                  Quizzes & Results
-                </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/parent/fees')}>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Fees & Payments
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Linked Children */}
-            <Card>
-              <CardHeader>
-                <CardTitle>My Children</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {linkedStudents.length === 0 ? (
-                    <p className="text-gray-600 text-center py-4">No children linked yet</p>
-                  ) : (
-                    linkedStudents.map(student => (
-                      <div key={student.studentId} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                          <Users className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium">{student.studentName}</p>
-                          <p className="text-xs text-gray-500">{student.relationship}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Children</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{analytics?.totalChildren || 0}</p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Active Courses</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{analytics?.totalActiveCourses || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Award className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Avg Grade</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{analytics?.averageGrade || 'N/A'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Pending Fees</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">${analytics?.pendingFees || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Children Progress Cards */}
+        <Card className="rounded-2xl border-0 shadow-sm bg-white dark:bg-gray-900 overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Users className="w-5 h-5 text-blue-600" />
+              Children Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {(!analytics?.studentIds || analytics.studentIds.length === 0) ? (
+              <div className="text-center py-8 text-xs text-gray-500">
+                No children linked to your account yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {analytics.studentIds.map((studentId) => (
+                  <div
+                    key={studentId}
+                    className="flex items-center justify-between p-3.5 border border-gray-100 dark:border-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                    onClick={() => navigate('/parent/performance')}
+                  >
+                    <div>
+                      <h3 className="font-semibold text-sm">Student ID: {studentId}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Active Student
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-0 text-xs font-semibold">
+                        View Performance
+                      </Badge>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AuthenticatedLayout>
   );

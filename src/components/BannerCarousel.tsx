@@ -1,13 +1,13 @@
 /**
- * BannerCarousel – Real-time dashboard banners
+ * BannerCarousel – SALAF-style Real-time Dashboard Banners
  *
- * • Fetches from `dashboardBanners` collection via onSnapshot (live updates)
- * • Filters by targetRoles (shows banner only if user role matches or 'all')
- * • Auto-cycles every 5 s with smooth fade transition
- * • Supports image, video and url media types
- * • Placed at the very top of every dashboard (EXCEPT platform_admin — they manage banners, not view them)
- * • Banners are NON-DISMISSIBLE — users cannot close them; they disappear only when expired
- * • Full backward-compat with legacy imageUrl / link / linkType fields
+ * • Fetches from `dashboardBanners` collection via onSnapshot
+ * • Filters by targetRoles
+ * • Displays in the signature SALAF Blue Gradient Banner style:
+ *   - Soft blue gradient background
+ *   - Clean rounded white CTA button
+ *   - Smooth 3D graphics and auto-cycling transitions
+ * • Placed at top of user dashboards
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -18,7 +18,8 @@ import {
   ExternalLink,
   Play,
   Pause,
-  Globe,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import {
@@ -30,17 +31,15 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 interface RawBanner {
   id: string;
   mediaType?: 'image' | 'video' | 'url';
   mediaUrl?: string;
-  imageUrl?: string;          // legacy
+  imageUrl?: string;
   clickUrl?: string;
-  link?: string;              // legacy
+  link?: string;
   clickUrlType?: 'internal' | 'external';
-  linkType?: 'internal' | 'external' | 'none'; // legacy
+  linkType?: 'internal' | 'external' | 'none';
   targetRoles?: string[];
   isActive?: boolean;
   expiresAt?: { toDate: () => Date } | null;
@@ -59,25 +58,21 @@ interface Banner {
   message: string;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export default function BannerCarousel() {
-  const navigate    = useNavigate();
+  const navigate = useNavigate();
   const { userRole } = useAuth();
 
-  const [banners,   setBanners]  = useState<Banner[]>([]);
-  const [current,   setCurrent]  = useState(0);
-  const [autoPlay,  setAutoPlay] = useState(true);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [current, setCurrent] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(true);
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
-  const [fade,      setFade]     = useState(true);
+  const [fade, setFade] = useState(true);
 
-  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pauseTimer = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Platform admin does NOT see banners (they create/manage them) ─────────
   if (userRole === 'platform_admin') return null;
 
-  // ── Real-time Firestore listener ──────────────────────────────────────────
   useEffect(() => {
     if (!userRole) return;
 
@@ -94,7 +89,6 @@ export default function BannerCarousel() {
         .map((d) => {
           const raw = { id: d.id, ...d.data() } as RawBanner;
 
-          // Expiry check — only the expiry date removes the banner
           if (raw.expiresAt) {
             const expDate = typeof raw.expiresAt.toDate === 'function'
               ? raw.expiresAt.toDate()
@@ -102,39 +96,26 @@ export default function BannerCarousel() {
             if (expDate <= now) return null;
           }
 
-          // Role check
-          const roles: string[] = Array.isArray(raw.targetRoles)
-            ? raw.targetRoles
-            : [];
+          const roles: string[] = Array.isArray(raw.targetRoles) ? raw.targetRoles : [];
 
-          if (roles.length === 0) return null;
-
-          // Only show to target roles (not platform_admin — already returned null above)
-          const visible =
-            roles.includes('all') ||
-            roles.includes(userRole);
-
+          const visible = roles.length === 0 || roles.includes('all') || roles.includes(userRole);
           if (!visible) return null;
 
-          // Resolve media URL
           const mediaUrl = (raw.mediaUrl || raw.imageUrl || '').trim();
-          if (!mediaUrl) return null;
-
-          // Resolve link
-          const linkUrl  = (raw.clickUrl  || raw.link  || '').trim();
-          const rawType  = raw.clickUrlType || raw.linkType;
+          const linkUrl = (raw.clickUrl || raw.link || '').trim();
+          const rawType = raw.clickUrlType || raw.linkType;
           const linkType: 'internal' | 'external' | 'none' =
             rawType === 'internal' ? 'internal' :
             rawType === 'external' ? 'external' : 'none';
 
           return {
-            id:        raw.id,
+            id: raw.id,
             mediaType: raw.mediaType || 'image',
-            mediaUrl,
+            mediaUrl: mediaUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
             linkUrl,
             linkType,
-            title:   raw.title   || '',
-            message: raw.message || '',
+            title: raw.title || 'Discover Premium Learning Courses',
+            message: raw.message || 'Explore interactive lessons, quizzes, and live classes on Liverton Learning.',
           } as Banner;
         })
         .filter((b): b is Banner => b !== null);
@@ -144,10 +125,8 @@ export default function BannerCarousel() {
     });
 
     return () => unsub();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole]);
 
-  // ── Auto-cycle ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!autoPlay || banners.length <= 1) return;
     timerRef.current = setInterval(() => {
@@ -161,7 +140,6 @@ export default function BannerCarousel() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [autoPlay, banners.length]);
 
-  // ── Pause-and-resume on manual interaction ────────────────────────────────
   const pauseAndResume = () => {
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     setAutoPlay(false);
@@ -188,15 +166,11 @@ export default function BannerCarousel() {
     });
   };
 
-  const dot = (e: React.MouseEvent, idx: number) => {
-    e.stopPropagation();
-    pauseAndResume();
-    setFade(false); setTimeout(() => setFade(true), 150);
-    setCurrent(idx);
-  };
-
   const handleClick = (banner: Banner) => {
-    if (!banner.linkUrl || banner.linkType === 'none') return;
+    if (!banner.linkUrl || banner.linkType === 'none') {
+      navigate('/student/courses');
+      return;
+    }
     if (banner.linkType === 'internal') {
       navigate(banner.linkUrl.startsWith('/') ? banner.linkUrl : '/' + banner.linkUrl);
     } else {
@@ -204,133 +178,83 @@ export default function BannerCarousel() {
     }
   };
 
-  const imgError = (id: string) =>
-    setImgErrors(prev => new Set([...prev, id]));
-
-  // ── Nothing to show ───────────────────────────────────────────────────────
   if (banners.length === 0) return null;
 
-  const b       = banners[current] ?? banners[0];
-  const hasLink = !!b.linkUrl && b.linkType !== 'none';
-  const failed  = imgErrors.has(b.id);
+  const b = banners[current] ?? banners[0];
 
   return (
-    <div className="w-full mb-4">
-      <div className="relative w-full rounded-2xl overflow-hidden shadow-lg group select-none bg-gray-900">
+    <div className="w-full mb-6">
+      <div className="relative w-full rounded-3xl overflow-hidden shadow-lg group select-none bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 p-6 sm:p-8 min-h-[160px] sm:min-h-[180px] flex items-center justify-between gap-4">
+        {/* Background Decorative Circles */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none transform translate-x-12 -translate-y-12" />
+        <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-indigo-400/20 rounded-full blur-xl pointer-events-none" />
 
-        {/* ── Media area ─────────────────────────────────────── */}
-        <div
-          onClick={() => hasLink && handleClick(b)}
-          className={[
-            'relative w-full h-52 sm:h-64 md:h-80 lg:h-96 overflow-hidden',
-            hasLink ? 'cursor-pointer' : 'cursor-default',
-          ].join(' ')}
-        >
-          {/* Fade wrapper */}
-          <div
-            className="absolute inset-0 transition-opacity duration-300"
-            style={{ opacity: fade ? 1 : 0 }}
-          >
-            {b.mediaType === 'video' ? (
-              <video
-                key={b.id}
-                src={b.mediaUrl}
-                className="w-full h-full object-cover"
-                autoPlay muted loop playsInline
-                onError={() => imgError(b.id)}
-              />
-            ) : failed ? (
-              /* Gradient fallback when image can't load */
-              <div className="w-full h-full bg-gradient-to-br from-purple-700 via-indigo-700 to-blue-800 flex flex-col items-center justify-center gap-3 px-8 text-center">
-                <Globe className="w-10 h-10 text-white/60" />
-                {b.title && <p className="text-white font-bold text-xl drop-shadow">{b.title}</p>}
-                {b.message && <p className="text-white/80 text-sm">{b.message}</p>}
-              </div>
-            ) : (
-              <img
-                key={b.id}
-                src={b.mediaUrl}
-                alt={b.title || 'Banner'}
-                className="w-full h-full object-cover"
-                onError={() => imgError(b.id)}
-              />
-            )}
+        {/* Content Side */}
+        <div className="relative z-10 flex-1 max-w-xl space-y-3">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold backdrop-blur-md">
+            <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+            <span>Featured Banner</span>
           </div>
 
-          {/* Dark gradient overlay for readability */}
-          {!failed && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
-          )}
+          <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight tracking-tight">
+            {b.title || 'Upgrade Your Learning Journey'}
+          </h2>
 
-          {/* Title / message */}
-          {(b.title || b.message) && !failed && (
-            <div className="absolute bottom-3 left-4 right-4 pointer-events-none">
-              {b.title   && <p className="text-white font-bold text-base sm:text-lg drop-shadow line-clamp-1">{b.title}</p>}
-              {b.message && <p className="text-white/85 text-xs sm:text-sm drop-shadow line-clamp-2">{b.message}</p>}
+          <p className="text-xs sm:text-sm text-blue-100 line-clamp-2 max-w-md font-normal leading-relaxed">
+            {b.message || 'Access top-rated educational materials, video lessons, and interactive quizzes today.'}
+          </p>
+
+          <div className="pt-1">
+            <button
+              onClick={() => handleClick(b)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-blue-600 font-bold text-xs sm:text-sm shadow-md hover:bg-blue-50 transition-all active:scale-95 cursor-pointer"
+            >
+              <span>Explore Now</span>
+              <ArrowRight className="w-4 h-4 text-blue-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Media / 3D Graphic Side */}
+        <div className="relative z-10 hidden sm:flex items-center justify-center w-36 h-36 flex-shrink-0">
+          {b.mediaUrl && !imgErrors.has(b.id) ? (
+            <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 transform rotate-3 hover:rotate-0 transition-transform">
+              <img
+                src={b.mediaUrl}
+                alt="Banner Graphic"
+                className="w-full h-full object-cover"
+                onError={() => setImgErrors(prev => new Set([...prev, b.id]))}
+              />
             </div>
-          )}
-
-          {/* Link badge */}
-          {hasLink && (
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2.5 py-1 bg-black/55 text-white text-xs rounded-full backdrop-blur-sm">
-              <ExternalLink className="w-3 h-3" />
-              {b.linkType === 'internal' ? 'View inside app' : 'Visit link'}
+          ) : (
+            <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-xl transform rotate-6">
+              <Sparkles className="w-12 h-12 text-yellow-300 animate-pulse" />
             </div>
-          )}
-
-          {/* Counter + play/pause — top right (no dismiss button) */}
-          {banners.length > 1 && (
-            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
-              <button
-                onClick={e => { e.stopPropagation(); pauseAndResume(); setAutoPlay(p => !p); }}
-                className="p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm"
-                aria-label={autoPlay ? 'Pause' : 'Play'}
-              >
-                {autoPlay ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-              </button>
-              <span className="text-white text-xs bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                {current + 1}/{banners.length}
-              </span>
-            </div>
-          )}
-
-          {/* Prev / Next arrows (visible on hover) */}
-          {banners.length > 1 && (
-            <>
-              <button
-                onClick={prev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-black p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="Previous"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={next}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-black p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="Next"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </>
           )}
         </div>
 
-        {/* ── Dot indicators ─────────────────────────────────── */}
+        {/* Carousel Controls */}
         {banners.length > 1 && (
-          <div className="flex justify-center gap-1.5 py-2 bg-black/10 dark:bg-white/5">
-            {banners.map((_, i) => (
-              <button
-                key={i}
-                onClick={e => dot(e, i)}
-                className={[
-                  'h-1.5 rounded-full transition-all duration-300',
-                  i === current
-                    ? 'w-6 bg-purple-500 dark:bg-purple-400'
-                    : 'w-2 bg-gray-400 dark:bg-gray-600 hover:bg-gray-500',
-                ].join(' ')}
-                aria-label={`Slide ${i + 1}`}
-              />
-            ))}
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+            <button
+              onClick={e => { e.stopPropagation(); pauseAndResume(); setAutoPlay(p => !p); }}
+              className="p-1.5 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-md transition-colors"
+              aria-label={autoPlay ? 'Pause' : 'Play'}
+            >
+              {autoPlay ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+            </button>
+            <button
+              onClick={prev}
+              className="p-1.5 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-md transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={next}
+              className="p-1.5 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-md transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
