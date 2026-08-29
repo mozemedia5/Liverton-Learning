@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Search,
   Send,
@@ -93,6 +93,9 @@ export default function Chat() {
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   
+  // Profile pictures cache
+  const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
+
   // Chat settings state
   const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
     theme: 'light',
@@ -142,6 +145,39 @@ export default function Chat() {
     return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, chatIdParam]);
+
+  // Fetch profile pictures for chat participants
+  useEffect(() => {
+    if (!currentUser || chats.length === 0) return;
+    const fetchProfiles = async () => {
+      const uniqueIds = new Set<string>();
+      chats.forEach(chat => {
+        chat.participants.forEach(id => {
+          if (id !== currentUser.uid) uniqueIds.add(id);
+        });
+      });
+      const newPictures: Record<string, string> = {};
+      for (const uid of uniqueIds) {
+        if (profilePictures[uid]) continue; // already cached
+        try {
+          const { getDoc, doc: docFn } = await import('firebase/firestore');
+          const { db } = await import('@/lib/firebase');
+          const snap = await getDoc(docFn(db, 'users', uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            const pic = data.profilePicture || data.profileImageUrl || '';
+            if (pic) newPictures[uid] = pic;
+          }
+        } catch {
+          // silently skip - avatar will show initials fallback
+        }
+      }
+      if (Object.keys(newPictures).length > 0) {
+        setProfilePictures(prev => ({ ...prev, ...newPictures }));
+      }
+    };
+    fetchProfiles();
+  }, [currentUser, chats, profilePictures]);
 
   // Selecting a conversation updates the URL (shareable deep link) and marks it read
   const openChat = (chat: ChatType) => {
@@ -569,6 +605,11 @@ export default function Chat() {
                   `}
                 >
                   <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800">
+                    {(() => {
+                      const otherId = chat.participants.find(id => id !== currentUser?.uid);
+                      const pic = otherId ? profilePictures[otherId] : '';
+                      return pic ? <AvatarImage src={pic} alt={getOtherParticipantName(chat)} className="object-cover" /> : null;
+                    })()}
                     <AvatarFallback className="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 font-semibold">
                       {getInitials(getOtherParticipantName(chat))}
                     </AvatarFallback>
@@ -662,6 +703,11 @@ export default function Chat() {
                   <Menu className="w-5 h-5" />
                 </Button>
                 <Avatar className="w-10 h-10">
+                  {(() => {
+                    const otherId = selectedChat.participants.find(id => id !== currentUser?.uid);
+                    const pic = otherId ? profilePictures[otherId] : '';
+                    return pic ? <AvatarImage src={pic} alt={getOtherParticipantName(selectedChat)} className="object-cover" /> : null;
+                  })()}
                   <AvatarFallback className="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
                     {getInitials(getOtherParticipantName(selectedChat))}
                   </AvatarFallback>
@@ -759,11 +805,11 @@ export default function Chat() {
               </div>
             )}
 
-            {/* Elegant Premium Message Input Composer Unified with Hanna AI */}
-            <footer className="liv-chat-composer p-4 bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5">
+            {/* Stationary Message Input Composer */}
+            <footer className="liv-chat-composer sticky bottom-0 z-20 p-3 sm:p-4 bg-white/95 dark:bg-[#07070a]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/5">
               <form 
                 onSubmit={handleSendMessage}
-                className="liv-chat-composer-form flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
+                className="liv-chat-composer-form flex items-end gap-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
               >
                 <input
                   ref={fileInputRef}
@@ -778,23 +824,36 @@ export default function Chat() {
                   type="button" 
                   variant="ghost" 
                   size="icon" 
-                  className="rounded-full w-10 h-10 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+                  className="rounded-full w-10 h-10 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex-shrink-0 mb-0.5"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingFile}
                 >
                   <Paperclip className="w-5 h-5" />
                 </Button>
 
-                {/* Text Input area */}
+                {/* Auto-growing Textarea Input */}
                 <div className="flex-1 relative">
-                  <Input 
+                  <textarea 
                     value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
+                    onChange={(e) => {
+                      setMessageInput(e.target.value);
+                      // Auto-resize the textarea
+                      const target = e.target;
+                      target.style.height = 'auto';
+                      target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
+                    }}
                     placeholder="Type a message..." 
-                    className="w-full bg-transparent border-none py-2 px-1 focus-visible:ring-0 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
+                    className="w-full bg-transparent border-none py-2.5 px-1 focus-visible:ring-0 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none resize-none min-h-[40px] max-h-[160px] leading-relaxed"
+                    rows={1}
                     disabled={uploadingFile}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                  <div className="absolute right-2 bottom-1.5 flex items-center">
                     <Button 
                       type="button" 
                       variant="ghost" 
@@ -820,7 +879,7 @@ export default function Chat() {
                   size="icon"
                   onClick={handleVoiceInput}
                   disabled={uploadingFile}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5'}`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 mb-0.5 ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5'}`}
                   title="Voice Input"
                 >
                   <Mic className="w-5 h-5" />
@@ -830,7 +889,7 @@ export default function Chat() {
                 <Button 
                   type="submit" 
                   disabled={!messageInput.trim() || uploadingFile}
-                  className="rounded-full w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all"
+                  className="rounded-full w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all mb-0.5"
                 >
                   <Send className="w-4 h-4" />
                 </Button>

@@ -532,12 +532,12 @@ function AppRoutes() {
 
 
       <Route path="/features/liv-fund" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['school_admin', 'platform_admin']}>
           <LiveFeatureGate feature="fund" />
         </ProtectedRoute>
       } />
       <Route path="/features/liv-mart" element={
-        <ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}>
+        <ProtectedRoute allowedRoles={['school_admin', 'platform_admin']}>
           <LiveFeatureGate feature="mart" />
         </ProtectedRoute>
       } />

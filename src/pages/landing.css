@@ -66,6 +66,67 @@
 @media (max-width:900px){.hero-flying-note{display:none}.mosaic-grid{grid-template-rows:160px 160px}.mosaic-large{grid-row:1 / span 2}}
 @media (prefers-reduced-motion:reduce){.hero-word-write,.hero-flying-note{animation:none}.hero-word{transition:none}}
 
+/* Enhanced animations for sections */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeInScale { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-15px) rotate(2deg); } }
+@keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(167,29,244,0.15); } 50% { box-shadow: 0 0 40px rgba(167,29,244,0.35); } }
+@keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+
+/* Animate sections on scroll (CSS-only fallback for above-fold sections) */
+.hero-copy { animation: fadeInUp 0.8s var(--ease) both; }
+.hero-visual { animation: fadeInScale 0.9s 0.2s var(--ease) both; }
+.hero-float-streak { animation: float 4s ease-in-out infinite; }
+.hero-float-rate { animation: float 5s 0.5s ease-in-out infinite; }
+.hero-image-main { animation: slideInRight 1s 0.3s var(--ease) both; }
+.feature-card { animation: fadeInUp 0.6s var(--ease) both; }
+.feature-card:nth-child(1) { animation-delay: 0.1s; }
+.feature-card:nth-child(2) { animation-delay: 0.25s; }
+.feature-card:nth-child(3) { animation-delay: 0.4s; }
+.ecosystem-card { animation: fadeInScale 0.6s var(--ease) both; }
+.ecosystem-card:nth-child(1) { animation-delay: 0.15s; }
+.ecosystem-card:nth-child(2) { animation-delay: 0.3s; }
+.ecosystem-card:nth-child(3) { animation-delay: 0.45s; }
+.role-showcase { animation: fadeInUp 0.8s var(--ease) both; }
+.mosaic-grid figure { transition: transform 0.5s var(--ease), box-shadow 0.5s var(--ease); }
+.mosaic-grid figure:hover { box-shadow: 0 20px 50px rgba(0,0,0,0.18); }
+.mosaic-large:hover { z-index: 2; }
+.home-quote blockquote { animation: fadeInUp 0.8s var(--ease) both; }
+.final-cta { animation: fadeInUp 0.6s var(--ease) both; }
+.final-cta-glow { animation: pulse-glow 4s ease-in-out infinite; }
+.nav-cta, .primary-cta, .dark-cta { transition: transform 0.22s var(--ease), background 0.22s var(--ease), box-shadow 0.22s var(--ease); }
+.nav-cta:hover, .primary-cta:hover, .dark-cta:hover { box-shadow: 0 8px 30px rgba(167,29,244,0.25); }
+
+/* Hero image hover parallax effect */
+.hero-image-main:hover { transform: rotate(1deg) scale(1.02); transition: transform 0.5s var(--ease); }
+.hero-image-main { transition: transform 0.5s var(--ease); }
+
+/* Trust strip animated underline */
+.trust-strip>div span { position: relative; }
+.trust-strip>div span::after { content: ''; display: block; height: 2px; background: #a71df4; width: 0; transition: width 0.4s var(--ease); }
+.trust-strip>div span:hover::after { width: 100%; }
+
+/* Eco card image zoom on hover */
+.ecosystem-card img { transition: transform 0.6s var(--ease); }
+.ecosystem-card:hover img { transform: scale(1.08); }
+
+/* Quote mark animation */
+.quote-mark { animation: fadeInUp 0.6s var(--ease) both; }
+
+/* FAQ item smooth expand */
+.faq-item p { transition: max-height 0.4s var(--ease), opacity 0.3s var(--ease); }
+
+/* Mosaic images gentle float on hover */
+.mosaic-top { transition: transform 0.4s var(--ease); }
+.mosaic-top:hover { transform: rotate(0deg) scale(1.02); }
+.mosaic-bottom { transition: transform 0.4s var(--ease); }
+.mosaic-bottom:hover { transform: rotate(0deg) scale(1.02); }
+
+/* Logo shimmer text gradient */
+.liverton-logo-wordmark { background: linear-gradient(90deg, currentColor 0%, #a71df4 50%, currentColor 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; animation: shimmer 4s linear infinite; }
+
 
 /* Public theme control and calm charcoal mode. */
 .nav-theme {
