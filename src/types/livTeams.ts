@@ -24,9 +24,15 @@ export interface TeamInvitation {
   teamId: string;
   teamName: string;
   teamLogo?: string;
-  invitedEmail: string;
+  invitedEmail?: string;
+  invitedUsername?: string;
   invitedUserId?: string;
   role: TeamRole;
+  inviteType?: 'direct' | 'link';
+  token?: string;
+  expiresAt?: Date | any;
+  maxUses?: number;
+  useCount?: number;
   senderId: string;
   senderName: string;
   status: 'pending' | 'accepted' | 'declined';
