@@ -149,7 +149,11 @@ export default function Chat() {
   // Fetch profile pictures for chat participants
   useEffect(() => {
     if (!currentUser || chats.length === 0) return;
+    let cancelled = false;
     const fetchProfiles = async () => {
+      const { getDoc, doc: docFn } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+      if (cancelled) return;
       const uniqueIds = new Set<string>();
       chats.forEach(chat => {
         chat.participants.forEach(id => {
@@ -158,10 +162,8 @@ export default function Chat() {
       });
       const newPictures: Record<string, string> = {};
       for (const uid of uniqueIds) {
-        if (profilePictures[uid]) continue; // already cached
+        if (profilePictures[uid]) continue;
         try {
-          const { getDoc, doc: docFn } = await import('firebase/firestore');
-          const { db } = await import('@/lib/firebase');
           const snap = await getDoc(docFn(db, 'users', uid));
           if (snap.exists()) {
             const data = snap.data();
@@ -169,14 +171,15 @@ export default function Chat() {
             if (pic) newPictures[uid] = pic;
           }
         } catch {
-          // silently skip - avatar will show initials fallback
+          // silently skip
         }
       }
-      if (Object.keys(newPictures).length > 0) {
+      if (!cancelled && Object.keys(newPictures).length > 0) {
         setProfilePictures(prev => ({ ...prev, ...newPictures }));
       }
     };
     fetchProfiles();
+    return () => { cancelled = true; };
   }, [currentUser, chats, profilePictures]);
 
   // Selecting a conversation updates the URL (shareable deep link) and marks it read
