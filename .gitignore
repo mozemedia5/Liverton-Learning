@@ -39,3 +39,8 @@ logs/
 
 # OS
 Thumbs.db
+
+# Build artifacts
+dev-dist/
+functions/lib/
+functions/node_modules/
