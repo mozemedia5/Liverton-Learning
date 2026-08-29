@@ -7,7 +7,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Palette, Type, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Palette, Type, Image as ImageIcon, Lock } from 'lucide-react';
 import type { ChatSettings as ChatSettingsType, ChatTheme, FontStyle } from '@/types/chat';
 import { CHAT_THEMES, getThemeNames } from '@/lib/chatThemes';
 
@@ -33,9 +34,8 @@ export function ChatSettings({
   const [selectedTheme, setSelectedTheme] = useState<string>(currentSettings.theme);
   const [fontSize, setFontSize] = useState<number>(currentSettings.fontSize || 14);
   const [fontStyle, setFontStyle] = useState<FontStyle>(currentSettings.fontStyle || 'normal');
-  const [accentColor, setAccentColor] = useState<string>(
-    currentSettings.colors?.accentColor || '#007AFF'
-  );
+  const [wallpaper, setWallpaper] = useState<string>(currentSettings.wallpaper || '');
+  const [encryptionEnabled, setEncryptionEnabled] = useState<boolean>(currentSettings.encryptionEnabled || false);
 
   // Handle theme selection
   const handleThemeSelect = (themeName: string) => {
@@ -86,6 +86,15 @@ export function ChatSettings({
       },
     };
     onSettingsChange(newSettings);
+  };
+
+  // Handle encryption toggle
+  const handleEncryptionChange = (checked: boolean) => {
+    setEncryptionEnabled(checked);
+    onSettingsChange({
+      ...currentSettings,
+      encryptionEnabled: checked,
+    });
   };
 
   const themeNames = getThemeNames();
@@ -227,6 +236,21 @@ export function ChatSettings({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Encryption */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock size={20} />
+            <div>
+              <h3 className="font-semibold">End-to-End Encryption</h3>
+              <p className="text-xs text-gray-500">Enable enhanced security for this chat</p>
+            </div>
+          </div>
+          <Switch
+            checked={encryptionEnabled}
+            onCheckedChange={handleEncryptionChange}
+          />
         </div>
 
         {/* Action Buttons */}

@@ -3,7 +3,7 @@
  * Helper functions for message formatting and grouping
  */
 
-import type { Message } from '@/types/chat';
+import type { Message } from '@/types';
 
 /**
  * Formats a date into a human-readable label

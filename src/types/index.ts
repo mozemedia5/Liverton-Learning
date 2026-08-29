@@ -281,13 +281,13 @@ export interface Message {
   fileUrl?: string;
   createdAt: Date | any;
   readBy: string[];
+  readStatus?: 'sent' | 'delivered' | 'read';
+  senderRole?: 'user' | 'hanna';
   attachments?: Array<{
     type: string;
     url: string;
     name: string;
-    mimeType?: string;
   }>;
-  sharedContent?: SharedContent;
 }
 
 export interface Attendance {

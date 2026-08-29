@@ -11,10 +11,7 @@ import {
   Timestamp,
   limit,
   getDoc,
-  writeBatch,
-  increment,
-  arrayUnion,
-  type FieldValue
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { Chat, Message, SharedContent, UserRole } from '@/types';
@@ -573,19 +570,19 @@ export const getChatDisplayTitle = (chat: Chat): string => {
 export const deleteChat = async (chatId: string): Promise<void> => {
   try {
     const batch = writeBatch(db);
-    
+
     // Delete all messages in the chat
     const messagesRef = collection(db, 'chats', chatId, 'messages');
     const messagesSnapshot = await getDocs(messagesRef);
-    
+
     messagesSnapshot.docs.forEach((messageDoc) => {
       batch.delete(messageDoc.ref);
     });
-    
+
     // Delete the chat document
     const chatRef = doc(db, 'chats', chatId);
     batch.delete(chatRef);
-    
+
     // Commit the batch
     await batch.commit();
   } catch (error) {
@@ -605,9 +602,9 @@ export const deleteChat = async (chatId: string): Promise<void> => {
  * @param fileType - Optional file type
  */
 export const sendMessageWithFile = async (
-  chatId: string, 
-  senderId: string, 
-  senderName: string, 
+  chatId: string,
+  senderId: string,
+  senderName: string,
   content: string,
   fileURL?: string,
   fileName?: string,
@@ -616,7 +613,7 @@ export const sendMessageWithFile = async (
 ) => {
   try {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
-    const messageData: Record<string, unknown> = {
+    const messageData: any = {
       chatId,
       senderId,
       senderName,
@@ -625,7 +622,7 @@ export const sendMessageWithFile = async (
       createdAt: Timestamp.now(),
       readBy: [senderId]
     };
-    
+
     // Add file attachment info if present
     if (fileURL) {
       messageData.attachments = [{
@@ -634,25 +631,17 @@ export const sendMessageWithFile = async (
         name: fileName || 'file'
       }];
     }
-    
+
     await addDoc(messagesRef, messageData);
 
-    // Update chat's last message and updatedAt + bump unread counters for the other participants
+    // Update chat's last message and updatedAt
     const chatRef = doc(db, 'chats', chatId);
-    const chatSnap = await getDoc(chatRef);
-    const participants: string[] = chatSnap.exists() ? (chatSnap.data().participants || []) : [];
-    const unreadUpdates: Record<string, FieldValue> = {};
-    participants
-      .filter(p => p !== senderId && p !== 'hanna-ai')
-      .forEach(p => { unreadUpdates[`unreadCounts.${p}`] = increment(1); });
-
     await updateDoc(chatRef, {
       lastMessage: {
         ...messageData,
         content: fileURL ? `📎 ${fileName || 'File'}` : content
       },
-      updatedAt: Timestamp.now(),
-      ...unreadUpdates
+      updatedAt: Timestamp.now()
     });
 
     // Update chat title based on message gist (for first message or generic titles)

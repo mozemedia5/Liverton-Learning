@@ -19,23 +19,19 @@ import {
   MessageSquare,
   Plus,
   FileText,
-  CheckCheck,
-  Mic,
-  Pin
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import {
-  listenToUserChats,
-  listenToMessages,
-  sendMessage,
+import { 
+  listenToUserChats, 
+  listenToMessages, 
+  sendMessage, 
   sendMessageWithFile,
-  searchUsers,
+  searchUsers, 
   getOrCreateChat,
   deleteChat,
-  markChatAsRead,
-  togglePinChat,
-  type ChatContact
+  type ChatContact 
 } from '@/services/chatService';
 import { uploadChatFile, getFileType } from '@/services/fileUploadService';
 import type { Chat as ChatType, Message } from '@/types';
@@ -52,9 +48,6 @@ import { EmojiPicker } from '@/components/EmojiPicker';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { groupMessagesByDate } from '@/lib/dateUtils';
 import { DateSeparator } from '@/components/DateSeparator';
-import { SEO } from '@/components/SEO';
-import UnifiedMediaViewer, { type UnifiedMediaItem } from '@/components/UnifiedMediaViewer';
-import type { SharedContent } from '@/types';
 
 export default function Chat() {
   const { currentUser, userData } = useAuth();
@@ -306,7 +299,7 @@ export default function Chat() {
       );
 
       toast.success('File sent successfully!');
-    } catch {
+    } catch (error) {
       toast.error('Failed to upload file');
     } finally {
       setUploadingFile(false);
@@ -315,50 +308,6 @@ export default function Chat() {
         fileInputRef.current.value = '';
       }
     }
-  };
-
-  // Start Voice input simulation / Web Speech API
-  const handleVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.info('Voice input is not supported directly in this browser. Simulating mic input...', { duration: 3000 });
-      setIsRecording(true);
-      setTimeout(() => {
-        setMessageInput(prev => prev + (prev ? ' ' : '') + "Hello! Let's schedule a call.");
-        setIsRecording(false);
-        toast.success('Voice transcription complete!');
-      }, 3000);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-      toast.info('Listening... Speak now!', { id: 'voice-toast' });
-    };
-
-    recognition.onerror = () => {
-      setIsRecording(false);
-      toast.error('Voice input failed. Please try again or type directly.', { id: 'voice-toast' });
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const result = event.results[0][0].transcript;
-      if (result) {
-        setMessageInput(prev => prev + (prev ? ' ' : '') + result);
-        toast.success('Voice recognized successfully!', { id: 'voice-toast' });
-      }
-    };
-
-    recognition.start();
   };
 
   const handleStartChat = async (contact: ChatContact) => {
@@ -371,12 +320,12 @@ export default function Chat() {
         userData,
         contact
       );
-
+      
       const chat = chats.find(c => c.id === chatId);
       if (chat) {
         openChat(chat);
       } else {
-        navigate(`/chat/${chatId}`);
+        toast.success('Starting new chat...');
       }
 
       setIsSearchOpen(false);
@@ -388,13 +337,13 @@ export default function Chat() {
 
   const handleDeleteChat = async () => {
     if (!deleteConfirmation.chatId) return;
-    
+
     try {
       await deleteChat(deleteConfirmation.chatId);
       toast.success('Chat deleted successfully');
       setSelectedChat(null);
       setDeleteConfirmation({ isOpen: false });
-    } catch {
+    } catch (error) {
       toast.error('Failed to delete chat');
     }
   };
@@ -427,62 +376,10 @@ export default function Chat() {
     return otherId ? chat.participantRoles[otherId] : 'student';
   };
 
-  const getOtherParticipantUsername = (chat: ChatType) => {
-    if (!currentUser) return '';
-    const otherId = chat.participants.find(id => id !== currentUser.uid);
-    return otherId ? chat.participantUsernames?.[otherId] || '' : '';
-  };
-
-  const getOtherParticipantEmail = (chat: ChatType) => {
-    if (!currentUser) return '';
-    const otherId = chat.participants.find(id => id !== currentUser.uid);
-    return otherId ? chat.participantEmails?.[otherId] || '' : '';
-  };
-
-  const getUnreadCount = (chat: ChatType): number => {
-    if (!currentUser) return 0;
-    return chat.unreadCounts?.[currentUser.uid] || 0;
-  };
-
-  const filteredChats = useMemo(() => {
-    const q = chatFilter.trim().toLowerCase();
-    if (!q) return chats;
-    return chats.filter(chat =>
-      (getOtherParticipantUsername(chat) || '').toLowerCase().includes(q) ||
-      (getOtherParticipantEmail(chat) || '').toLowerCase().includes(q) ||
-      (chat.title || '').toLowerCase().includes(q) ||
-      (chat.lastMessage?.content || '').toLowerCase().includes(q)
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chats, chatFilter, currentUser]);
-
-  const sortedChats = useMemo(() => {
-    return [...filteredChats].sort((a, b) => {
-      const aPinned = a.pinnedBy?.includes(currentUser?.uid || '') ? 1 : 0;
-      const bPinned = b.pinnedBy?.includes(currentUser?.uid || '') ? 1 : 0;
-      if (aPinned !== bPinned) return bPinned - aPinned; // pinned first
-
-      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [filteredChats, currentUser]);
-
-  const handleTogglePin = async (chat: ChatType, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!currentUser) return;
-    try {
-      const isPinnedNow = await togglePinChat(chat.id, currentUser.uid);
-      toast.success(isPinnedNow ? '📌 Conversation pinned to the top!' : 'Conversation unpinned');
-    } catch {
-      toast.error('Could not update pin status');
-    }
-  };
-
   // Get wallpaper style
   const getWallpaperStyle = (): React.CSSProperties => {
     if (!chatSettings.wallpaper) return {};
-    
+
     if (chatSettings.wallpaperType === 'image') {
       return {
         backgroundImage: `url(${chatSettings.wallpaper})`,
@@ -725,9 +622,22 @@ export default function Chat() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full text-slate-600 dark:text-slate-300"><MoreVertical className="w-5 h-5" /></Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-[#111115] border border-slate-200 dark:border-white/10">
-                    <DropdownMenuItem className="gap-2 text-slate-700 dark:text-slate-200" onClick={handleViewProfile}>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem className="gap-2" onClick={handleViewProfile}>
                       <Info className="w-4 h-4" /> View Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={() => setIsSettingsOpen(true)}>
+                      <Settings className="w-4 h-4" /> Chat Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gap-2 text-red-600"
+                      onClick={() => setDeleteConfirmation({
+                        isOpen: true,
+                        chatId: selectedChat.id,
+                        chatTitle: getOtherParticipantName(selectedChat)
+                      })}
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete Chat
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -735,30 +645,30 @@ export default function Chat() {
             </header>
 
             {/* Messages Area with Wallpaper */}
-            <div 
-              className="liv-chat-thread flex-1 overflow-y-auto p-4 space-y-1"
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-1"
               style={getWallpaperStyle()}
             >
               {messageGroups.map((group, groupIdx) => (
                 <div key={groupIdx}>
                   {/* Date Separator */}
                   <DateSeparator dateLabel={group.dateLabel} />
-                  
+
                   {/* Messages for this date */}
                   {group.messages.map((msg, idx) => {
                     const isMe = msg.senderId === currentUser?.uid;
                     const hasAttachment = msg.attachments && msg.attachments.length > 0;
-                    
+
                     return (
-                      <div 
-                        key={msg.id || idx} 
+                      <div
+                        key={msg.id || idx}
                         className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}
                       >
                         <div className={`
                           max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
-                          ${isMe 
-                            ? `liv-chat-bubble-sent bg-emerald-600 text-white rounded-tr-none`
-                            : 'liv-chat-bubble-received bg-white dark:bg-[#111115] text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-white/5'}
+                          ${isMe
+                            ? `bg-blue-600 text-white rounded-tr-none`
+                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
                         `}
                         style={{
                           fontSize: `${chatSettings.fontSize}px`,
@@ -766,18 +676,37 @@ export default function Chat() {
                           fontWeight: chatSettings.fontStyle.includes('bold') ? 'bold' : 'normal',
                         }}
                         >
-                          {hasAttachment && <div className="mb-2 space-y-2">{msg.attachments?.map((attachment, attIdx) => <button type="button" key={attIdx} onClick={() => setSelectedMedia({ url: attachment.url, name: attachment.name, type: attachment.type as UnifiedMediaItem['type'], mimeType: attachment.mimeType })} className="flex w-full items-center gap-2 rounded-xl bg-black/5 p-2 text-left transition hover:bg-emerald-500/10 dark:bg-white/10"><span className="grid h-12 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">{attachment.type === 'image' || attachment.mimeType?.startsWith('image/') ? <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover" /> : <FileText className="h-5 w-5" />}</span><span className="min-w-0 flex-1 truncate text-sm">{attachment.name}</span><span className="text-[10px] font-bold text-emerald-600">View</span></button>)}</div>}
-                          {msg.sharedContent && <button type="button" onClick={() => navigate(msg.sharedContent?.path || `/courses/${msg.sharedContent?.id}`)} className="mb-3 flex w-full overflow-hidden rounded-2xl border border-emerald-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-400/20 dark:bg-slate-900"><div className="h-24 w-24 shrink-0 bg-gradient-to-br from-emerald-400 to-cyan-500">{msg.sharedContent.coverUrl ? <img src={msg.sharedContent.coverUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-2xl font-black text-white">L</div>}</div><span className="min-w-0 flex-1 p-3"><span className="block text-[10px] font-black uppercase tracking-wider text-emerald-600">Shared learning {msg.sharedContent.type}</span><strong className="mt-1 block truncate text-sm text-slate-900 dark:text-white">{msg.sharedContent.title}</strong><span className="mt-1 block line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{msg.sharedContent.description || 'Open this learning experience in Liverton Learning.'}</span><span className="mt-2 block text-[10px] font-bold text-emerald-600">{msg.sharedContent.isFree || msg.sharedContent.price === 0 ? 'Free access' : 'Open to view access options'}</span></span></button>}
-                          <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content.split(/(https?:\/\/[^\s]+)/g).map((part, partIndex) => /^https?:\/\//.test(part) ? <a key={partIndex} href={part} target="_blank" rel="noopener noreferrer" className="font-semibold underline decoration-emerald-400 underline-offset-2 hover:text-emerald-600">{part}</a> : <span key={partIndex}>{part}</span>)}</p>
-                          <span className={`text-[10px] mt-1 flex items-center gap-1 ${isMe ? 'justify-end text-emerald-100' : 'text-gray-400'}`}>
+                          {hasAttachment && (
+                            <div className="mb-2">
+                              {msg.attachments?.map((attachment, attIdx) => (
+                                <div key={attIdx} className="flex items-center gap-2 p-2 bg-white/10 rounded-lg">
+                                  {attachment.type === 'image' ? (
+                                    <img
+                                      src={attachment.url}
+                                      alt={attachment.name}
+                                      className="max-w-full rounded-lg"
+                                    />
+                                  ) : (
+                                    <>
+                                      <FileText className="w-5 h-5" />
+                                      <span className="text-sm flex-1">{attachment.name}</span>
+                                      <a
+                                        href={attachment.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-1 hover:bg-white/20 rounded"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </a>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-sm sm:text-base whitespace-pre-wrap break-words">{msg.content}</p>
+                          <span className={`text-[10px] mt-1 block ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            {isMe && (
-                              <CheckCheck className={`w-3.5 h-3.5 ${
-                                selectedChat.participants.some(p => p !== currentUser?.uid && (msg.readBy || []).includes(p))
-                                  ? 'text-emerald-300'
-                                  : 'text-emerald-200/60'
-                              }`} />
-                            )}
                           </span>
                         </div>
                       </div>
@@ -791,25 +720,25 @@ export default function Chat() {
 
             {/* Upload Progress */}
             {uploadingFile && (
-              <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/10 border-t border-emerald-200 dark:border-white/5">
+              <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
                 <div className="flex items-center gap-3">
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                   <div className="flex-1">
-                    <p className="text-sm text-emerald-900 dark:text-emerald-200">Uploading file...</p>
-                    <div className="w-full bg-emerald-200 dark:bg-emerald-900 rounded-full h-1.5 mt-1">
-                      <div 
-                        className="bg-emerald-600 h-1.5 rounded-full transition-all"
+                    <p className="text-sm text-blue-900 dark:text-blue-200">Uploading file...</p>
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 mt-1">
+                      <div
+                        className="bg-blue-600 h-1.5 rounded-full transition-all"
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
                   </div>
-                  <span className="text-xs text-emerald-600">{Math.round(uploadProgress)}%</span>
+                  <span className="text-xs text-blue-600">{Math.round(uploadProgress)}%</span>
                 </div>
               </div>
             )}
 
-            {/* Stationary Message Input Composer */}
-            <footer className="liv-chat-composer sticky bottom-0 z-20 p-3 sm:p-4 bg-white/95 dark:bg-[#07070a]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/5">
+            {/* Message Input */}
+            <footer className="p-4 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800">
               <form 
                 onSubmit={handleSendMessage}
                 className="liv-chat-composer-form flex items-end gap-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
@@ -821,20 +750,16 @@ export default function Chat() {
                   className="hidden"
                   accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                 />
-
-                {/* File Attachment Button */}
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full w-10 h-10 text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex-shrink-0 mb-0.5"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full text-gray-500"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingFile}
                 >
                   <Paperclip className="w-5 h-5" />
                 </Button>
-
-                {/* Auto-growing Textarea Input */}
                 <div className="flex-1 relative">
                   <textarea 
                     value={messageInput}
@@ -846,28 +771,20 @@ export default function Chat() {
                       target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
                     }}
                     placeholder="Type a message..." 
-                    className="w-full bg-transparent border-none py-2.5 px-1 focus-visible:ring-0 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none resize-none min-h-[40px] max-h-[160px] leading-relaxed"
-                    rows={1}
-                    disabled={uploadingFile}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
+                    className="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-full py-6 px-6 pr-12 focus-visible:ring-1 focus-visible:ring-blue-500"
                   />
-                  <div className="absolute right-2 bottom-1.5 flex items-center">
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      className="rounded-full text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-white/5"
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full text-gray-500"
                       onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
                     >
                       <Smile className="w-5 h-5" />
                     </Button>
                     {isEmojiPickerOpen && (
-                      <EmojiPicker 
+                      <EmojiPicker
                         onEmojiSelect={handleEmojiSelect}
                         onClose={() => setIsEmojiPickerOpen(false)}
                       />
@@ -892,7 +809,7 @@ export default function Chat() {
                 <Button 
                   type="submit" 
                   disabled={!messageInput.trim() || uploadingFile}
-                  className="rounded-full w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white flex-shrink-0 shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all mb-0.5"
+                  className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95"
                 >
                   <Send className="w-4 h-4" />
                 </Button>
@@ -1004,7 +921,7 @@ export default function Chat() {
         />
       )}
 
-      {/* Delete Chat Confirmation Dialog */}
+      {/* Delete Chat Confirmation */}
       <DeleteChatConfirmation
         isOpen={deleteConfirmation.isOpen}
         chatTitle={deleteConfirmation.chatTitle || ''}
