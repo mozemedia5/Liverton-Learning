@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Palette, Type, Image as ImageIcon, Lock } from 'lucide-react';
+import { Palette, Type, Lock, X } from 'lucide-react';
 import type { ChatSettings as ChatSettingsType, ChatTheme, FontStyle } from '@/types/chat';
 import { CHAT_THEMES, getThemeNames } from '@/lib/chatThemes';
 
@@ -34,7 +34,7 @@ export function ChatSettings({
   const [selectedTheme, setSelectedTheme] = useState<string>(currentSettings.theme);
   const [fontSize, setFontSize] = useState<number>(currentSettings.fontSize || 14);
   const [fontStyle, setFontStyle] = useState<FontStyle>(currentSettings.fontStyle || 'normal');
-  const [wallpaper, setWallpaper] = useState<string>(currentSettings.wallpaper || '');
+  const [accentColor, setAccentColor] = useState<string>(currentSettings.colors?.accentColor || '#007AFF');
   const [encryptionEnabled, setEncryptionEnabled] = useState<boolean>(currentSettings.encryptionEnabled || false);
 
   // Handle theme selection

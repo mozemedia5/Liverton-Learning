@@ -6,6 +6,9 @@ import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import { Toaster } from '@/components/ui/sonner';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { Analytics } from '@vercel/analytics/react';
+import LogoLoader from '@/components/LogoLoader';
+import RouteMetadata from '@/components/RouteMetadata';
+import { getDashboardRoute } from '@/lib/authNavigation';
 
 // Pages
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
@@ -13,7 +16,6 @@ const RoleSelection = lazy(() => import('@/pages/RoleSelection'));
 const Login = lazy(() => import('@/pages/Login'));
 const Register = lazy(() => import('@/pages/register/Register'));
 const VerifyEmail = lazy(() => import('@/pages/register/VerifyEmail'));
-const NotFound = lazy(() => import('@/pages/NotFound'));
 const CourseView = lazy(() => import('@/pages/CourseView'));
 const PublicProfile = lazy(() => import('@/pages/PublicProfile'));
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
@@ -62,41 +64,29 @@ const CreateCourse = lazy(() => import('@/pages/teacher/CreateCourse'));
 const TeacherCourses = lazy(() => import('@/pages/teacher/TeacherCourses'));
 const ViewCourse = lazy(() => import('@/pages/teacher/ViewCourse'));
 const EditCourse = lazy(() => import('@/pages/teacher/EditCourse'));
-const Documents = lazy(() => import('@/pages/features/Documents'));
-const DocumentEditor = lazy(() => import('@/pages/features/DocumentEditor'));
-const PublicDocument = lazy(() => import('@/pages/features/PublicDocument'));
 
 // New Global Features
 const LivTeams = lazy(() => import('@/pages/features/liv-teams/LivTeams'));
 const TeamWorkspace = lazy(() => import('@/pages/features/liv-teams/TeamWorkspace'));
 const TeamMeetingRoom = lazy(() => import('@/pages/features/liv-teams/TeamMeetingRoom'));
 const TeamInvitationPage = lazy(() => import('@/pages/features/liv-teams/TeamInvitationPage'));
-const CalendarPage = lazy(() => import('@/pages/features/CalendarPage'));
-const Events = lazy(() => import('@/pages/features/Events'));
-const CreateEvent = lazy(() => import('@/pages/features/CreateEvent'));
-const Calculator = lazy(() => import('@/pages/features/Calculator'));
-const HannaChatIntegrated = lazy(() => import('@/pages/features/HannaChatIntegrated'));
-const AnalyticsPage = lazy(() => import('@/pages/features/Analytics'));
-const MoreHub = lazy(() => import('@/pages/features/MoreHub'));
-const LiveFeatureGate = lazy(() => import('@/pages/features/LiveFeatureGate'));
 
 const TeacherZoomLessons = lazy(() => import('@/components/ZoomLessons/TeacherZoomLessons'));
 const StudentZoomLessons = lazy(() => import('@/components/ZoomLessons/StudentZoomLessons'));
 const ParentZoomLessons = lazy(() => import('@/components/ZoomLessons/ParentZoomLessons'));
 
 // TEARN Features
-const TearnDashboard = lazy(() => import('@/pages/features/tearn/TearnDashboard'));
-const ShortsArena = lazy(() => import('@/pages/features/tearn/ShortsArena'));
 const ShortUpload = lazy(() => import('@/pages/teacher/ShortUpload'));
 const ShortAnalytics = lazy(() => import('@/pages/teacher/ShortAnalytics'));
-const BookReader = lazy(() => import('@/pages/features/tearn/BookReader'));
-const ZoomLessonArena = lazy(() => import('@/pages/zoom-lessons/ZoomLessonArena'));
 
 // About Pages
 import About from '@/pages/about/About';
 import AboutSchools from '@/pages/about/AboutSchools';
 import AboutTeachers from '@/pages/about/AboutTeachers';
 import AboutStudents from '@/pages/about/AboutStudents';
+import AboutParents from '@/pages/about/AboutParents';
+import Support from '@/pages/Support';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import PWADebug from '@/pages/PWADebug';
 
 import './App.css';

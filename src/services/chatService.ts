@@ -11,7 +11,10 @@ import {
   Timestamp,
   limit,
   getDoc,
-  writeBatch
+  writeBatch,
+  arrayUnion,
+  increment,
+  type FieldValue
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { Chat, Message, SharedContent, UserRole } from '@/types';
