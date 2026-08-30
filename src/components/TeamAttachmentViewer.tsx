@@ -1,4 +1,4 @@
-import { Download, FileText, FileType2, Image as ImageIcon, Music2, PlaySquare } from 'lucide-react';
+import { Download, FileText, FileType2, Music2, PlaySquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface TeamAttachmentViewerProps {
