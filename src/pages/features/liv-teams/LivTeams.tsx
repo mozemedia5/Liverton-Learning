@@ -153,7 +153,7 @@ export default function LivTeams() {
     try {
       const [allTeams, invites, mItems] = await Promise.all([
         getTeamsForUser(currentUser.uid),
-        getInvitationsForUser(currentUser.email || ''),
+        getInvitationsForUser(currentUser.email || '', userData?.username, currentUser.uid),
         getMarketplaceItems()
       ]);
       setTeams(allTeams);
@@ -226,7 +226,7 @@ export default function LivTeams() {
 
   const handleDeclineInvite = async (inviteId: string) => {
     try {
-      await respondToInvitation(inviteId, false, '', '');
+      await respondToInvitation(inviteId, false, currentUser?.uid || '', userData?.fullName || 'Anonymous', currentUser?.email || '');
       toast.success('Invitation declined');
       loadData();
     } catch {
