@@ -32,8 +32,8 @@ vi.mock('./_lib/server.js', () => ({
   }),
 }));
 
-import sendOtp from './send-otp.js';
-import verifyOtp from './verify-otp.js';
+import { handleSendOtp, handleVerifyOtp } from './_lib/modules/authModule.js';
+import authHandler from './auth.js';
 
 function response() {
   const state: any = { statusCode: 0, body: undefined, headers: {} };
@@ -44,8 +44,8 @@ function response() {
   return state;
 }
 
-function request(body: unknown, ip = '198.51.100.10', method = 'POST') {
-  return { method, body, headers: { 'x-forwarded-for': ip, origin: 'https://liverton-learning.vercel.app' }, socket: { remoteAddress: ip } } as any;
+function request(body: unknown, ip = '198.51.100.10', method = 'POST', url = '/api/send-otp', query: Record<string, string> = { action: 'send-otp' }) {
+  return { method, url, query, body, headers: { 'x-forwarded-for': ip, origin: 'https://liverton-learning.vercel.app' }, socket: { remoteAddress: ip } } as any;
 }
 
 describe('OTP endpoint security', () => {
@@ -61,7 +61,7 @@ describe('OTP endpoint security', () => {
 
   it('does not require or accept a client-supplied OTP when sending', async () => {
     const res = response();
-    await sendOtp(request({ email: 'student@example.com', otp: '000000' }), res);
+    await handleSendOtp(request({ email: 'student@example.com', otp: '000000' }), res);
     expect(res.statusCode).toBe(200);
     expect(resendFetch).toHaveBeenCalledTimes(1);
     const otpRecord = [...records.values()].find(record => record.otpHash);
@@ -72,18 +72,18 @@ describe('OTP endpoint security', () => {
 
   it('rejects invalid input and disallows non-POST methods', async () => {
     const invalid = response();
-    await sendOtp(request({ email: 'not-an-email' }), invalid);
+    await handleSendOtp(request({ email: 'not-an-email' }), invalid);
     expect(invalid.statusCode).toBe(400);
     const method = response();
-    await verifyOtp(request({ email: 'student@example.com', otp: '123456' }, '198.51.100.11', 'GET'), method);
+    await authHandler(request({ email: 'student@example.com', otp: '123456' }, '198.51.100.11', 'GET', '/api/verify-otp', { action: 'verify-otp' }), method);
     expect(method.statusCode).toBe(405);
   });
 
   it('enforces the resend cooldown before calling the email provider again', async () => {
     const first = response();
-    await sendOtp(request({ email: 'cooldown@example.com' }), first);
+    await handleSendOtp(request({ email: 'cooldown@example.com' }), first);
     const second = response();
-    await sendOtp(request({ email: 'cooldown@example.com' }), second);
+    await handleSendOtp(request({ email: 'cooldown@example.com' }), second);
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(429);
     expect(resendFetch).toHaveBeenCalledTimes(1);
@@ -91,13 +91,13 @@ describe('OTP endpoint security', () => {
 
   it('rejects wrong and malformed verification codes without revealing the stored hash', async () => {
     const send = response();
-    await sendOtp(request({ email: 'verify@example.com' }), send);
+    await handleSendOtp(request({ email: 'verify@example.com' }), send);
     const wrong = response();
-    await verifyOtp(request({ email: 'verify@example.com', otp: '111111' }), wrong);
+    await handleVerifyOtp(request({ email: 'verify@example.com', otp: '111111' }), wrong);
     expect(wrong.statusCode).toBe(400);
     expect(JSON.stringify(wrong.body)).not.toMatch(/[a-f0-9]{64}/);
     const malformed = response();
-    await verifyOtp(request({ email: 'verify@example.com', otp: '1' }), malformed);
+    await handleVerifyOtp(request({ email: 'verify@example.com', otp: '1' }), malformed);
     expect(malformed.statusCode).toBe(400);
   });
 });

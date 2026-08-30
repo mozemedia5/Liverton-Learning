@@ -119,8 +119,8 @@ const handlerRequest = (body: Record<string, unknown>): FakeRequest => ({ method
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
 
-const { default: verifyPayment } = await import('./flutterwave/verify');
-const { default: notifyCourseUpdate } = await import('./courses/notify-update');
+const { handleFlutterwaveVerify: verifyPayment } = await import('./_lib/modules/flutterwaveModule');
+const { handleCourseNotifyUpdate: notifyCourseUpdate } = await import('./_lib/modules/courseModule');
 
 describe('payment verification and student notification integration', () => {
   beforeEach(() => {

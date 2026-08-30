@@ -3,7 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { AlignmentType, Document, Footer, Header, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import PptxGenJS from 'pptxgenjs';
 import JSZip from 'jszip';
-import { applyCors, json, parseBody, requireIdentity, safeString } from './_lib/server.js';
+import { applyCors, json, parseBody, requireIdentity, safeString } from './server.js';
 
 const MAX_CONTENT = 60_000;
 const MAX_TITLE = 120;

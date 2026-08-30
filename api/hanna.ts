@@ -5,6 +5,7 @@ import { getApplicationKnowledgeParts } from './_lib/appKnowledge.js';
 import { generateGemini, operationPolicy, streamGemini } from './_lib/gemini.js';
 import { formatResearchContext, performWebResearch } from './_lib/webResearch.js';
 import { loadAuthorizedHannaContext } from './_lib/userContext.js';
+import { handleHannaArtifact, handleHannaMedia, handleHannaResearch } from './_lib/modules/hannaSubModule.js';
 
 const MAX_HISTORY = 20;
 const MAX_ATTACHMENTS = 5;
@@ -111,7 +112,7 @@ function systemPrompt(identity: { name: string; email: string }, operation: stri
   const greeting = hasConversationContext
     ? `- This conversation already has context. Do not introduce yourself; answer directly and use the user's first name only when it sounds natural.`
     : `- Do not introduce yourself with a biography or repeat that you are built into Liverton Learning. A brief greeting using the user's first name (${firstName}) is allowed when natural, then answer the request.`;
-    return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\nActive mode: ${mode}\nMode guidance: ${MODE_INSTRUCTIONS[mode]}\n\nRules:\n
+  return `You are Hanna, Liverton Learning's secure contextual assistant.\n\nAuthenticated user: ${identity.name || identity.email}\nOperation: ${operation}\nActive mode: ${mode}\nMode guidance: ${MODE_INSTRUCTIONS[mode]}\n\nRules:\n
 \n- Use only authorized facts provided in the request or retrieved server context.\n- Never invent records, grades, balances, permissions, deadlines, project status, or transactions.\n- If information is unavailable, state exactly what is missing.\n- You may prepare suggestions, but do not claim that you executed an action.\n- Do not reveal secrets or records outside the authenticated user's permissions.\n- Be concise, clear, and supportive.
 - For chat requests, use the supplied web-research context when present. Cite or link sources for externally sourced claims, distinguish official requirements from suggestions, and explain when current information could not be verified.
 - For tables, use a clear Markdown table with a header row, consistent columns, concise cell content, and a short definition or interpretation immediately before or after it. Never output pseudo-tables made from spaces, repeated symbols, or decorative characters.
@@ -143,12 +144,55 @@ async function recordUsage(uid: string, operation: string, model: string, credit
   }
 }
 
+async function handleHannaSearch(req: VercelRequest, res: VercelResponse) {
+  try {
+    const identity = await requireIdentity(req);
+    const body = parseBody(req);
+    const queryTerm = safeString(body.query, 200).toLowerCase().trim();
+    if (!queryTerm) return json(res, 200, { results: [], count: 0 });
+
+    const db = getAdminFirestore();
+    const userChatsSnapshot = await db.collection('hanna_chats').where('userId', '==', identity.uid).get();
+    const chatIds = userChatsSnapshot.docs.map(doc => doc.id);
+
+    if (chatIds.length === 0) return json(res, 200, { results: [], count: 0 });
+
+    const messagesSnapshot = await db.collection('hanna_messages').where('chatId', 'in', chatIds.slice(0, 30)).get();
+    const results = messagesSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as any))
+      .filter(msg => typeof msg.content === 'string' && msg.content.toLowerCase().includes(queryTerm))
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+
+    return json(res, 200, { results, count: results.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown';
+    if (message === 'AUTH_REQUIRED' || message.includes('auth/')) return json(res, 401, { error: 'Authentication required.' });
+    return json(res, 500, { error: 'Search failed' });
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
+
+  const url = new URL(req.url || '', 'http://localhost');
+  const pathname = url.pathname.replace(/\/+$/, '');
+  const action = req.query?.action;
+
+  if (pathname.endsWith('/media') || pathname.endsWith('/hanna-media') || action === 'media') {
+    return handleHannaMedia(req, res);
+  }
+  if (pathname.endsWith('/artifact') || pathname.endsWith('/hanna-artifact') || action === 'artifact') {
+    return handleHannaArtifact(req, res);
+  }
+  if (pathname.endsWith('/research') || pathname.endsWith('/hanna-research') || action === 'research') {
+    return handleHannaResearch(req, res);
+  }
+  if (pathname.endsWith('/search') || action === 'search') {
+    return handleHannaSearch(req, res);
+  }
 
   let identity: { uid: string; email: string; name: string } | undefined;
   let operation = 'chat';
@@ -157,13 +201,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isRateLimited(rateLimitKey(req, identity.uid))) return json(res, 429, { error: 'Hanna is receiving many requests. Please try again shortly.' });
     const body = parseBody(req);
     operation = safeString(body.operation || 'chat', 40) || 'chat';
+    const isNonStreamingChat = pathname.endsWith('/chat') || action === 'chat' || body.stream === false;
     const mode = parseHannaMode(body.mode);
     const requestedModel = safeString(body.model, 100);
-    const message = safeString(body.message, operationPolicy(operation, requestedModel).maxChars);
+    const message = safeString(body.message || body.userMessage, operationPolicy(operation, requestedModel).maxChars);
     if (!message) return json(res, 400, { error: 'A message is required' });
 
     const chatId = safeString(body.chatId, 160);
-    const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history);
+    const requestHistory = chatId ? await loadAuthorizedHistory(chatId, identity.uid) : history(body.history || body.conversationHistory);
     const applicationKnowledge = await getApplicationKnowledgeParts(operation === 'chat' && !chatId);
     let personalContext: { text: string; preferences?: { customInstructions?: string } } = { text: '' };
     if (operation === 'chat') {
@@ -197,10 +242,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const prompt = `${systemPrompt(identity, operation, mode, personalContext.preferences?.customInstructions || '', requestHistory.length > 0)}${mediaInstruction}`;
     const policy = operationPolicy(operation, requestedModel);
 
-    if (operation !== 'chat') {
+    if (operation !== 'chat' || isNonStreamingChat) {
       const result = await generateGemini(operation, prompt, requestHistory, parts, requestedModel);
       await recordUsage(identity.uid, operation, result.model, result.credits, true);
-      return json(res, 200, { success: true, result: result.text, model: result.model });
+      return json(res, 200, { success: true, response: result.text, result: result.text, model: result.model });
     }
 
     res.statusCode = 200;
