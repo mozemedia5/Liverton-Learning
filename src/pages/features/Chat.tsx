@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,9 @@ import {
   MessageSquare,
   Plus,
   FileText,
-  Download
+  Download,
+  Pin,
+  Mic
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -31,8 +33,14 @@ import {
   searchUsers, 
   getOrCreateChat,
   deleteChat,
+  markChatAsRead,
   type ChatContact 
 } from '@/services/chatService';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { SEO } from '@/components/SEO';
+import UnifiedMediaViewer, { type UnifiedMediaItem } from '@/components/UnifiedMediaViewer';
+import type { SharedContent } from '@/types';
 import { uploadChatFile, getFileType } from '@/services/fileUploadService';
 import type { Chat as ChatType, Message } from '@/types';
 import type { ChatSettings as ChatSettingsType } from '@/types/chat';
@@ -84,7 +92,7 @@ export default function Chat() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Voice recording state
-  const [isRecording, setIsRecording] = useState(false);
+  const [isRecording] = useState(false);
   
   // Profile pictures cache
   const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
@@ -405,6 +413,46 @@ export default function Chat() {
     </div>
   );
 }
+
+  // Filter and sort chats (pinned chats first)
+  const sortedChats = chats
+    .filter(chat => {
+      if (!chatFilter) return true;
+      const otherName = getOtherParticipantName(chat).toLowerCase();
+      const lastMsg = (chat.lastMessage?.content || '').toLowerCase();
+      return otherName.includes(chatFilter.toLowerCase()) || lastMsg.includes(chatFilter.toLowerCase());
+    })
+    .sort((a, b) => {
+      const aPinned = a.pinnedBy?.includes(currentUser?.uid || '') ? 1 : 0;
+      const bPinned = b.pinnedBy?.includes(currentUser?.uid || '') ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+
+  const getUnreadCount = (chat: ChatType): number => {
+    if (!currentUser) return 0;
+    return chat.unreadCounts?.[currentUser.uid] || 0;
+  };
+
+  const handleTogglePin = async (chat: ChatType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+    const isPinned = chat.pinnedBy?.includes(currentUser.uid);
+    try {
+      const chatRef = doc(db, 'chats', chat.id);
+      await updateDoc(chatRef, {
+        pinnedBy: isPinned ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid)
+      });
+      toast.success(isPinned ? 'Chat unpinned' : 'Chat pinned');
+    } catch (err) {
+      console.error('Error toggling pin:', err);
+      toast.error('Failed to update pin state');
+    }
+  };
+
+  const handleVoiceInput = () => {
+    toast.info('Voice input is not supported in this browser environment.');
+  };
 
   // Group messages by date
   const messageGroups = groupMessagesByDate(messages);

@@ -14,7 +14,7 @@ import {
 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { isCloudinaryConfigured, uploadToCloudinary } from '../../services/cloudinaryService';
+import { uploadToCloudinary } from '../../services/cloudinaryService';
 
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
@@ -134,14 +134,10 @@ export default function DocumentManagement() {
 
       // Upload file if provided
       if (file) {
-        if (isCloudinaryConfigured()) {
-          try {
-            fileUrl = await uploadToCloudinary(file, 'document');
-          } catch (err) {
-            console.warn('Cloudinary upload failed, falling back to Firebase Storage:', err);
-          }
-        }
-        if (!fileUrl) {
+        try {
+          fileUrl = await uploadToCloudinary(file, 'document');
+        } catch (err) {
+          console.warn('Cloudinary upload failed, falling back to Firebase Storage:', err);
           const storageRef = ref(storage, `documents/${currentUser.uid}/${Date.now()}-${file.name}`);
           await uploadBytes(storageRef, file);
           fileUrl = await getDownloadURL(storageRef);

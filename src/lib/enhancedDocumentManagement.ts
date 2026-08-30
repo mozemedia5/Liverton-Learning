@@ -538,6 +538,12 @@ export async function getDocumentStatistics(userId: string): Promise<DocumentSta
       doc: 0,
       sheet: 0,
       presentation: 0,
+      pdf: 0,
+      image: 0,
+      video: 0,
+      audio: 0,
+      file: 0,
+      folder: 0,
     };
 
     docs.forEach((d) => {

@@ -272,6 +272,7 @@ function StudentAnalyticsView({ studentId }: { studentId: string }) {
 // TEACHER ANALYTICS VIEW
 // ==========================================
 function TeacherAnalyticsView({ teacherId }: { teacherId: string }) {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<TeacherAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
