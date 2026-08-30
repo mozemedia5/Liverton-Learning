@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, json, parseBody, requireIdentity, safeString } from '../_lib/server.js';
+import { applyCors, json, parseBody, requireIdentity, safeString } from '../server.js';
 
 const UPLOAD_TYPES = {
   image: { resourceType: 'image', maxBytes: 20 * 1024 * 1024 },
@@ -31,12 +31,7 @@ function isAllowedContentType(uploadType: UploadType, contentType: string, fileN
   return false;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  applyCors(req, res);
-  res.setHeader('Cache-Control', 'no-store');
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
-
+export async function handleCloudinarySign(req: VercelRequest, res: VercelResponse) {
   try {
     const identity = await requireIdentity(req);
     const body = parseBody(req);

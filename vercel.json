@@ -1,6 +1,21 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/api/send-otp", "destination": "/api/auth?action=send-otp" },
+    { "source": "/api/verify-otp", "destination": "/api/auth?action=verify-otp" },
+    { "source": "/api/search-users", "destination": "/api/auth?action=search-users" },
+    { "source": "/api/hanna-media", "destination": "/api/hanna?action=media" },
+    { "source": "/api/hanna-artifact", "destination": "/api/hanna?action=artifact" },
+    { "source": "/api/hanna-research", "destination": "/api/hanna?action=research" },
+    { "source": "/api/hanna/chat", "destination": "/api/hanna?action=chat" },
+    { "source": "/api/hanna/search", "destination": "/api/hanna?action=search" },
+    { "source": "/api/cloudinary/sign", "destination": "/api/cloudinary?action=sign" },
+    { "source": "/api/courses/enroll", "destination": "/api/courses?action=enroll" },
+    { "source": "/api/courses/notify-update", "destination": "/api/courses?action=notify-update" },
+    { "source": "/api/flutterwave/initialize", "destination": "/api/flutterwave?action=initialize" },
+    { "source": "/api/flutterwave/verify", "destination": "/api/flutterwave?action=verify" },
+    { "source": "/api/notifications/dispatch", "destination": "/api/notifications?action=dispatch" },
+    { "source": "/api/notifications/register-token", "destination": "/api/notifications?action=register-token" },
     {
       "source": "/((?!robots\\.txt$|sitemap\\.xml$|llms\\.txt$|manifest\\.webmanifest$|sw\\.js$|workbox-.*\\.js$|assets/.*|icons/.*|api/.*).*)",
       "destination": "/index.html"
