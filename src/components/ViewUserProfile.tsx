@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Mail, Calendar, School, Users, MapPin, Clock, Shield } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -146,6 +146,9 @@ export function ViewUserProfile({ userId, profile: initialProfile, onClose }: Vi
           <div className="flex flex-col items-center mb-8">
             <div className="relative">
               <Avatar className="w-28 h-28 border-4 border-white dark:border-gray-800 shadow-xl">
+                {profile.avatar && (
+                  <AvatarImage src={profile.avatar} alt={profile.name} className="object-cover" />
+                )}
                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-3xl font-bold">
                   {getInitials(profile.name)}
                 </AvatarFallback>

@@ -121,11 +121,12 @@ export default function TeacherCourses() {
     setDeleting(true);
     try {
       await deleteCourse(courseToDelete.id);
-      toast.success('Course deleted successfully');
+      setCourses(prev => prev.filter(c => c.id !== courseToDelete.id));
+      toast.success('Module deleted successfully');
       setCourseToDelete(null);
     } catch (error) {
-      console.error('Error deleting course:', error);
-      toast.error('Failed to delete course');
+      console.error('Error deleting module:', error);
+      toast.error('Failed to delete module');
     } finally {
       setDeleting(false);
     }

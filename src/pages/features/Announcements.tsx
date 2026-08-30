@@ -499,13 +499,33 @@ export default function Announcements() {
             Back
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => setSortAsc(!sortAsc)}
-            className="rounded-xl px-6 h-10 border-slate-300 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 shadow-sm"
-          >
-            {sortAsc ? 'Oldest' : 'Recent'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {notifications.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (window.confirm('Clear all visible notifications?')) {
+                    try {
+                      await Promise.all(notifications.filter(n => Boolean(n.id)).map(n => deleteDoc(doc(db, 'notifications', n.id!))));
+                      toast.success('All notifications cleared');
+                    } catch {
+                      toast.error('Failed to clear some notifications');
+                    }
+                  }
+                }}
+                className="rounded-xl px-4 h-10 font-medium shadow-sm"
+              >
+                Clear All
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setSortAsc(!sortAsc)}
+              className="rounded-xl px-6 h-10 border-slate-300 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 shadow-sm"
+            >
+              {sortAsc ? 'Oldest' : 'Recent'}
+            </Button>
+          </div>
         </div>
       </footer>
 

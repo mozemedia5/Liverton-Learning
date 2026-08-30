@@ -650,19 +650,25 @@ export default function Chat() {
                 >
                   <Menu className="w-5 h-5" />
                 </Button>
-                <Avatar className="w-10 h-10">
-                  {(() => {
-                    const otherId = selectedChat.participants.find(id => id !== currentUser?.uid);
-                    const pic = otherId ? profilePictures[otherId] : '';
-                    return pic ? <AvatarImage src={pic} alt={getOtherParticipantName(selectedChat)} className="object-cover" /> : null;
-                  })()}
-                  <AvatarFallback className="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
-                    {getInitials(getOtherParticipantName(selectedChat))}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-bold leading-tight">{getOtherParticipantName(selectedChat)}</h2>
-                  <span className="text-xs text-gray-500 capitalize">{getOtherParticipantRole(selectedChat).replace('_', ' ')}</span>
+                <div
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={handleViewProfile}
+                  title="Click to view profile"
+                >
+                  <Avatar className="w-10 h-10">
+                    {(() => {
+                      const otherId = selectedChat.participants.find(id => id !== currentUser?.uid);
+                      const pic = otherId ? profilePictures[otherId] : '';
+                      return pic ? <AvatarImage src={pic} alt={getOtherParticipantName(selectedChat)} className="object-cover" /> : null;
+                    })()}
+                    <AvatarFallback className="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                      {getInitials(getOtherParticipantName(selectedChat))}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h2 className="font-bold leading-tight">{getOtherParticipantName(selectedChat)}</h2>
+                    <span className="text-xs text-gray-500 capitalize">{getOtherParticipantRole(selectedChat).replace('_', ' ')}</span>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -713,7 +719,7 @@ export default function Chat() {
                         className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}
                       >
                         <div className={`
-                          max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm
+                          max-w-[85%] sm:max-w-[70%] rounded-2xl p-2.5 sm:p-3 shadow-sm transition-all
                           ${isMe
                             ? `bg-blue-600 text-white rounded-tr-none`
                             : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-gray-700'}
@@ -725,28 +731,30 @@ export default function Chat() {
                         }}
                         >
                           {hasAttachment && (
-                            <div className="mb-2">
+                            <div className="mb-1.5 space-y-1.5">
                               {msg.attachments?.map((attachment, attIdx) => (
-                                <div key={attIdx} className="flex items-center gap-2 p-2 bg-white/10 rounded-lg">
+                                <div key={attIdx} className="overflow-hidden rounded-xl">
                                   {attachment.type === 'image' ? (
-                                    <img
-                                      src={attachment.url}
-                                      alt={attachment.name}
-                                      className="max-w-full rounded-lg"
-                                    />
+                                    <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block cursor-pointer">
+                                      <img
+                                        src={attachment.url}
+                                        alt="Shared media"
+                                        className="w-full max-h-80 object-cover rounded-xl shadow-md hover:scale-[1.01] transition-transform"
+                                      />
+                                    </a>
                                   ) : (
-                                    <>
-                                      <FileText className="w-5 h-5" />
-                                      <span className="text-sm flex-1">{attachment.name}</span>
+                                    <div className="flex items-center gap-2 p-2 bg-black/10 dark:bg-white/10 rounded-lg">
+                                      <FileText className="w-5 h-5 flex-shrink-0" />
+                                      <span className="text-xs font-medium truncate flex-1">{attachment.name}</span>
                                       <a
                                         href={attachment.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="p-1 hover:bg-white/20 rounded"
+                                        className="p-1 hover:bg-black/20 dark:hover:bg-white/20 rounded transition-colors"
                                       >
                                         <Download className="w-4 h-4" />
                                       </a>
-                                    </>
+                                    </div>
                                   )}
                                 </div>
                               ))}
