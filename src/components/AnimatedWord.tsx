@@ -8,7 +8,7 @@ interface AnimatedWordProps {
 
 export default function AnimatedWord({ words: inputWords, intervalMs = 2400, className = '' }: AnimatedWordProps) {
   const wordsKey = inputWords.join('|');
-  const words = useMemo(() => inputWords.length ? inputWords : ['learn'], [wordsKey]);
+  const words = useMemo(() => inputWords.length ? inputWords : ['learn'], [inputWords]);
   const [index, setIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [visible, setVisible] = useState(true);

@@ -391,7 +391,7 @@ service cloud.firestore {
       }
       match /{subCollection}/{documentId} {
         allow read, write: if isPlatformAdmin() ||
-          (subCollection not in ['join_requests', 'folderRequests'] && isTeamMember(teamId));
+          (subCollection != 'join_requests' && subCollection != 'folderRequests' && isTeamMember(teamId));
       }
     }
     match /team_invitations/{inviteId} {

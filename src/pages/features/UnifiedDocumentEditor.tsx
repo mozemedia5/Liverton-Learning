@@ -361,7 +361,7 @@ export const UnifiedDocumentEditor: React.FC = () => {
   };
 
   const mergeCells = () => {
-    if (true) {
+    if (selectedCell) {
       toast.success('Cells merged');
     } else {
       toast.error('Please select a range of cells');

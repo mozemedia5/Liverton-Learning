@@ -1,6 +1,7 @@
 {
   "name": "my-app",
   "private": true,
+  "packageManager": "pnpm@11.24.0",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -10,10 +11,11 @@
     "build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
     "build:full": "NODE_OPTIONS='--max-old-space-size=8192' tsc -b && vite build",
     "typecheck:api": "tsc -p tsconfig.api.json",
-    "test": "vitest",
+    "test": "vitest run",
     "lint": "eslint .",
     "preview": "vite preview",
-    "backfill:user-directory": "node scripts/backfill-user-directory.mjs"
+    "backfill:user-directory": "node scripts/backfill-user-directory.mjs",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

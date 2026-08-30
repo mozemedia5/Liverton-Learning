@@ -10,6 +10,23 @@ interface PWAStatus {
   isOnline: boolean;
 }
 
+function StatusItem({ label, value }: { label: string; value: boolean }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+      <span className="font-medium">{label}</span>
+      {value ? (
+        <div className="flex items-center gap-2 text-green-600">
+          <Check size={20} />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-red-600">
+          <X size={20} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PWADebug() {
   const [status, setStatus] = useState<PWAStatus>({
     serviceWorkerSupported: false,
@@ -83,21 +100,6 @@ export default function PWADebug() {
       window.removeEventListener('offline', () => {});
     };
   }, []);
-
-  const StatusItem = ({ label, value }: { label: string; value: boolean }) => (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <span className="font-medium">{label}</span>
-      {value ? (
-        <div className="flex items-center gap-2 text-green-600">
-          <Check size={20} />
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-red-600">
-          <X size={20} />
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
