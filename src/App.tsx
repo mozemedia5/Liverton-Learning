@@ -70,6 +70,7 @@ const PublicDocument = lazy(() => import('@/pages/features/PublicDocument'));
 const LivTeams = lazy(() => import('@/pages/features/liv-teams/LivTeams'));
 const TeamWorkspace = lazy(() => import('@/pages/features/liv-teams/TeamWorkspace'));
 const TeamMeetingRoom = lazy(() => import('@/pages/features/liv-teams/TeamMeetingRoom'));
+const TeamInvitationPage = lazy(() => import('@/pages/features/liv-teams/TeamInvitationPage'));
 const CalendarPage = lazy(() => import('@/pages/features/CalendarPage'));
 const Events = lazy(() => import('@/pages/features/Events'));
 const CreateEvent = lazy(() => import('@/pages/features/CreateEvent'));
@@ -411,6 +412,12 @@ function AppRoutes() {
           <AdminLayout><LivMartModeration /></AdminLayout>
         </ProtectedRoute>
       } />
+
+      {/* Liv Teams invite links are public landing pages; workspaces require auth. */}
+      <Route path="/features/liv-teams/invite/:inviteId" element={<PublicAccessibleRoute><TeamInvitationPage /></PublicAccessibleRoute>} />
+      <Route path="/features/liv-teams" element={<ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}><AuthenticatedLayout><LivTeams /></AuthenticatedLayout></ProtectedRoute>} />
+      <Route path="/features/liv-teams/workspace/:teamId" element={<ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}><AuthenticatedLayout><TeamWorkspace /></AuthenticatedLayout></ProtectedRoute>} />
+      <Route path="/features/liv-teams/meeting/:teamId/:meetingId" element={<ProtectedRoute allowedRoles={['student', 'teacher', 'school_admin', 'parent', 'platform_admin']}><AuthenticatedLayout><TeamMeetingRoom /></AuthenticatedLayout></ProtectedRoute>} />
 
       {/* Shared Feature Routes - Protected, accessible to all authenticated users */}
       <Route path="/announcements" element={
