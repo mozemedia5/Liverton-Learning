@@ -15,7 +15,7 @@ import {
   Users, Calendar, FileText, Landmark, MessageSquare, TrendingUp,
   ArrowLeft, Trophy, CalendarDays, Wallet, Activity, Trash2, Bot,
   Shield, Loader2, LogIn, LogOut, Pencil, Lock, LayoutGrid, Megaphone,
-  Globe, UserPlus
+  Globe, UserPlus, Copy, Share2
 } from 'lucide-react';
 
 import {
@@ -26,6 +26,7 @@ import {
   updateMemberRole,
   getTeamActivityFeed,
   sendTeamInvitation,
+  getTeamInvitationUrl,
   syncTeamMemberIds,
   requestToJoinTeam,
   getTeamJoinRequests,
@@ -82,11 +83,14 @@ export default function TeamWorkspace() {
   const isMember = !!currentMember;
   const canParticipate = isMember || userRole === 'platform_admin';
   const isFull = team ? team.members.length >= (team.maxMembers || 50) : false;
+  const canInvite = userRole === 'platform_admin' || (!!currentMember && currentMemberRole !== 'guest');
 
   // Invite state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteType, setInviteType] = useState<'direct' | 'link'>('direct');
   const [inviteRole, setInviteRole] = useState<TeamRole>('student_member');
+  const [inviteUrl, setInviteUrl] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
 
   // Edit workspace state
@@ -268,21 +272,18 @@ export default function TeamWorkspace() {
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!team || !currentUser || !inviteEmail.trim()) return;
+    if (!team || !currentUser || (inviteType === 'direct' && !inviteEmail.trim())) return;
     setSendingInvite(true);
     try {
-      await sendTeamInvitation({
-        teamId: team.id,
-        teamName: team.name,
-        teamLogo: team.logoUrl,
-        invitedEmail: inviteEmail.trim(),
-        role: inviteRole,
-        senderId: currentUser.uid,
-        senderName: userData?.fullName || 'Anonymous'
+      const inviteId = await sendTeamInvitation({
+        teamId: team.id, teamName: team.name, teamLogo: team.logoUrl, inviteType,
+        ...(inviteType === 'direct' && inviteEmail.includes('@') ? { invitedEmail: inviteEmail.trim() } : {}),
+        ...(inviteType === 'direct' && !inviteEmail.includes('@') ? { invitedUsername: inviteEmail.trim() } : {}),
+        role: isAdminOrOwner ? inviteRole : 'student_member', senderId: currentUser.uid, senderName: userData?.fullName || 'Anonymous'
       });
-      toast.success(`Invitation sent to ${inviteEmail.trim()}`);
+      setInviteUrl(getTeamInvitationUrl(inviteId));
+      toast.success(inviteType === 'link' ? 'Secure team link created' : `Invitation sent to ${inviteEmail.trim()}`);
       setInviteEmail('');
-      setInviteOpen(false);
     } catch {
       toast.error('Failed to send invitation');
     } finally {
@@ -301,6 +302,20 @@ export default function TeamWorkspace() {
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    toast.success('Invitation link copied');
+  };
+
+  const handleShareInvite = async () => {
+    if (!inviteUrl) return;
+    if (navigator.share) {
+      try { await navigator.share({ title: `Join ${team?.name || 'our LivTeam'}`, text: `Join ${team?.name || 'our LivTeam'} on Liverton`, url: inviteUrl }); return; } catch { /* cancelled share sheet */ }
+    }
+    await handleCopyInvite();
   };
 
   const handleLeaveTeam = async () => {
@@ -820,7 +835,7 @@ export default function TeamWorkspace() {
             title={`Members (${team.members.length})`}
             subtitle="Roles control what each member can do inside this workspace."
           >
-            {isAdminOrOwner && (
+            {canInvite && (
               <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg" onClick={() => setInviteOpen(true)}>
                 <UserPlus className="w-4 h-4 mr-1.5" /> Invite Member
               </Button>
@@ -1007,38 +1022,21 @@ export default function TeamWorkspace() {
       </Tabs>
 
       {/* Invite dialog */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+      <Dialog open={inviteOpen} onOpenChange={(open) => { setInviteOpen(open); if (!open) { setInviteUrl(''); setInviteEmail(''); } }}>
         <DialogContent className="rounded-2xl max-w-sm">
           <DialogHeader>
             <DialogTitle>Invite to {team.name}</DialogTitle>
-            <DialogDescription>
-              They will see the invitation in their Liv Teams hub and can join with one tap.
-            </DialogDescription>
+            <DialogDescription>Invite a Liverton account directly or create a secure link to share in WhatsApp, email, or any other app.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSendInvite} className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="inviteEmail">Email address</Label>
-              <Input id="inviteEmail" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="member@school.com" required />
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={inviteType === 'direct' ? 'default' : 'outline'} onClick={() => setInviteType('direct')} className="rounded-lg">Username or email</Button>
+              <Button type="button" variant={inviteType === 'link' ? 'default' : 'outline'} onClick={() => setInviteType('link')} className="rounded-lg">Shareable link</Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="inviteRole">Workspace role</Label>
-              <Select value={inviteRole} onValueChange={(val) => setInviteRole(val as TeamRole)}>
-                <SelectTrigger id="inviteRole">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamRoleOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={sendingInvite} className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                {sendingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Invitation'}
-              </Button>
-            </DialogFooter>
+            {inviteType === 'direct' ? <div className="space-y-2"><Label htmlFor="inviteEmail">Liverton username or email</Label><Input id="inviteEmail" type="text" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="@username or member@school.com" required /><p className="text-xs text-slate-500">Username matches an existing Liverton account. Email also works for people who have not registered yet.</p></div> : <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">Anyone with this link can sign in or register, then join this team. It expires in 7 days and supports up to 1,000 uses.</div>}
+            {isAdminOrOwner ? <div className="space-y-2"><Label htmlFor="inviteRole">Workspace role</Label><Select value={inviteRole} onValueChange={(val) => setInviteRole(val as TeamRole)}><SelectTrigger id="inviteRole"><SelectValue /></SelectTrigger><SelectContent>{teamRoleOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select></div> : <p className="text-xs text-slate-500">New members join as Student Members. Owners and admins can change roles later.</p>}
+            {inviteUrl && <div className="space-y-2 rounded-xl border border-slate-200 dark:border-white/10 p-3"><Label htmlFor="inviteUrl">Secure invitation link</Label><div className="flex gap-2"><Input id="inviteUrl" value={inviteUrl} readOnly className="text-xs" /><Button type="button" variant="outline" size="icon" onClick={handleCopyInvite} aria-label="Copy invitation link"><Copy className="w-4 h-4" /></Button></div><Button type="button" variant="outline" className="w-full" onClick={handleShareInvite}><Share2 className="w-4 h-4 mr-2" /> Share link</Button></div>}
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Close</Button>{!inviteUrl && <Button type="submit" disabled={sendingInvite} className="bg-emerald-500 hover:bg-emerald-600 text-white">{sendingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : inviteType === 'link' ? 'Create Secure Link' : 'Send Invitation'}</Button>}</DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
