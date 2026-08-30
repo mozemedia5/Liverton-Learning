@@ -13,9 +13,11 @@ import {
   arrayUnion,
   arrayRemove,
   onSnapshot,
-  Timestamp
+  Timestamp,
+  increment
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { normalizeEmail, normalizeUsername } from '@/services/userProfileService';
 import type { Team, TeamMember, TeamRole, TeamInvitation, TeamActivityFeedItem } from '@/types/livTeams';
 
 export const teamCategories = [
@@ -815,39 +817,93 @@ export async function updateMemberRole(teamId: string, userId: string, newRole: 
 /**
  * Team Invitations CRUD
  *
- * Invitation documents use a deterministic ID (`{teamId}_{email}`) so that
- * Firestore security rules can verify a pending invitation when someone
- * accepts one (self-join), and duplicate invites are impossible.
+ * Direct invitations target a Liverton account by username or email. Link
+ * invitations use a random, expiring bearer token and support multiple uses.
  */
+export function getTeamInvitationUrl(inviteId: string): string {
+  const path = `/features/liv-teams/invite/${encodeURIComponent(inviteId)}`;
+  return typeof window === 'undefined' ? path : `${window.location.origin}${path}`;
+}
+
+function createSecureInvitationId(): string {
+  const webCrypto = globalThis.crypto;
+  if (webCrypto?.randomUUID) return webCrypto.randomUUID().replace(/-/g, '');
+  if (webCrypto?.getRandomValues) {
+    const bytes = new Uint8Array(24);
+    webCrypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  throw new Error('This browser cannot create a secure invitation link. Please update your browser.');
+}
+
+const TEAM_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function sendTeamInvitation(invitation: Partial<TeamInvitation>): Promise<string> {
   try {
-    const invitedEmail = (invitation.invitedEmail || '').toLowerCase();
-    if (!invitation.teamId || !invitedEmail) {
-      throw new Error('Team and email are required for an invitation');
+    const inviteType = invitation.inviteType || 'direct';
+    const teamId = invitation.teamId || '';
+    const senderId = invitation.senderId || '';
+    const senderName = invitation.senderName || 'Liverton member';
+    if (!teamId || !senderId) throw new Error('A team and authenticated sender are required');
+    const teamSnapshot = await getDoc(doc(db, 'teams', teamId));
+    if (!teamSnapshot.exists()) throw new Error('Team not found');
+    const teamData = teamSnapshot.data() as Team;
+    if (!teamData.memberIds?.includes(senderId) && teamData.ownerId !== senderId) throw new Error('Only a member of this team can create an invitation');
+
+    let invitedEmail = normalizeEmail(invitation.invitedEmail);
+    let invitedUsername = normalizeUsername(invitation.invitedUsername);
+    let invitedUserId = invitation.invitedUserId;
+    if (inviteType === 'direct') {
+      if (!invitedEmail && !invitedUsername) throw new Error('Enter a Liverton username or email address');
+      const directoryQuery = invitedUsername
+        ? query(collection(db, 'userDirectory'), where('usernameLower', '==', invitedUsername))
+        : query(collection(db, 'userDirectory'), where('emailLower', '==', invitedEmail));
+      const directorySnapshot = await getDocs(directoryQuery);
+      const directoryEntry = directorySnapshot.docs[0];
+      if (directoryEntry) {
+        const directoryData = directoryEntry.data();
+        invitedUserId = invitedUserId || directoryEntry.id;
+        invitedEmail = normalizeEmail(directoryData.email) || invitedEmail;
+        invitedUsername = normalizeUsername(directoryData.username) || invitedUsername;
+      } else if (invitedUsername) {
+        throw new Error('No Liverton account was found with that username');
+      }
+    } else {
+      invitedEmail = '';
+      invitedUsername = '';
+      invitedUserId = undefined;
     }
-    const inviteId = `${invitation.teamId}_${invitedEmail}`;
+
+    const inviteId = createSecureInvitationId();
     const inviteRef = doc(db, 'team_invitations', inviteId);
-    const directorySnapshot = await getDocs(query(
-      collection(db, 'userDirectory'),
-      where('emailLower', '==', invitedEmail),
-    ));
-    const invitedUserId = invitation.invitedUserId || directorySnapshot.docs[0]?.id;
     await setDoc(inviteRef, {
-      ...invitation,
-      invitedEmail,
+      id: inviteId,
+      teamId,
+      teamName: invitation.teamName || teamData.name,
+      teamLogo: invitation.teamLogo || teamData.logoUrl || '',
+      ...(invitedEmail ? { invitedEmail } : {}),
+      ...(invitedUsername ? { invitedUsername } : {}),
       ...(invitedUserId ? { invitedUserId } : {}),
+      inviteType,
+      token: inviteId,
+      role: invitation.role === 'owner' ? 'student_member' : (invitation.role || 'student_member'),
+      senderId,
+      senderName,
       status: 'pending',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      expiresAt: Timestamp.fromMillis(Date.now() + TEAM_INVITATION_LIFETIME_MS),
+      maxUses: inviteType === 'link' ? 1000 : 1,
+      useCount: 0,
     });
     await createTeamNotification({
       targetUsers: invitedUserId ? [invitedUserId] : [],
-      targetEmail: invitedEmail,
-      title: `Invitation to join ${invitation.teamName || 'a LivTeam'}`,
-      body: `${invitation.senderName || 'A team member'} invited you to join "${invitation.teamName || 'a LivTeam'}". Tap to review and join.`,
-      link: `/features/liv-teams?tab=invitations&invite=${encodeURIComponent(inviteId)}`,
-      senderId: invitation.senderId,
-      sender: invitation.senderName,
-      metadata: { notificationType: 'team_invitation', teamId: invitation.teamId, invitationId: inviteId },
+      targetEmail: invitedEmail || undefined,
+      title: `Invitation to join ${invitation.teamName || teamData.name}`,
+      body: `${senderName} invited you to join "${invitation.teamName || teamData.name}". Tap to review and join.`,
+      link: getTeamInvitationUrl(inviteId),
+      senderId,
+      sender: senderName,
+      metadata: { notificationType: 'team_invitation', teamId, invitationId: inviteId },
     });
     return inviteId;
   } catch (error) {
@@ -856,46 +912,66 @@ export async function sendTeamInvitation(invitation: Partial<TeamInvitation>): P
   }
 }
 
-export async function getInvitationsForUser(email: string): Promise<TeamInvitation[]> {
+export async function getTeamInvitation(inviteId: string): Promise<TeamInvitation | null> {
+  const snapshot = await getDoc(doc(db, 'team_invitations', inviteId));
+  return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as TeamInvitation) : null;
+}
+
+export async function getInvitationsForUser(email: string, username?: string, userId?: string): Promise<TeamInvitation[]> {
   try {
-    const ref = collection(db, 'team_invitations');
-    const q = query(ref, where('invitedEmail', '==', email.toLowerCase()), where('status', '==', 'pending'));
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamInvitation));
+    const refs = [
+      ...(email ? [query(collection(db, 'team_invitations'), where('invitedEmail', '==', normalizeEmail(email)), where('status', '==', 'pending'))] : []),
+      ...(username ? [query(collection(db, 'team_invitations'), where('invitedUsername', '==', normalizeUsername(username)), where('status', '==', 'pending'))] : []),
+      ...(userId ? [query(collection(db, 'team_invitations'), where('invitedUserId', '==', userId), where('status', '==', 'pending'))] : []),
+    ];
+    const snapshots = await Promise.all(refs.map((ref) => getDocs(ref)));
+    const invitations = new Map<string, TeamInvitation>();
+    snapshots.forEach((snapshot) => snapshot.docs.forEach((inviteDoc) => invitations.set(inviteDoc.id, { id: inviteDoc.id, ...inviteDoc.data() } as TeamInvitation)));
+    return Array.from(invitations.values());
   } catch (error) {
     console.error('Error fetching user invitations:', error);
     return [];
   }
 }
 
-export async function respondToInvitation(inviteId: string, accept: boolean, userId: string, fullName: string): Promise<void> {
+export async function claimTeamInvitation(invitation: TeamInvitation, userId: string, email: string): Promise<string> {
+  if (!invitation.teamId || !userId) throw new Error('A signed-in account is required to join a team');
+  if (invitation.status !== 'pending') throw new Error('This invitation is no longer active');
+  const emailLower = normalizeEmail(email);
+  const isTarget = invitation.inviteType === 'link' || invitation.invitedUserId === userId || (!!invitation.invitedEmail && invitation.invitedEmail === emailLower);
+  if (!isTarget) throw new Error('This invitation was sent to a different Liverton account');
+  const claimId = `${invitation.teamId}_${userId}`;
+  const claimRef = doc(db, 'team_invitation_claims', claimId);
+  const existing = await getDoc(claimRef);
+  if (existing.exists()) {
+    if (existing.data().status === 'accepted') throw new Error('You are already a member of this team');
+    if (existing.data().status === 'pending' && existing.data().invitationId === invitation.id) return claimId;
+  }
+  await setDoc(claimRef, { id: claimId, teamId: invitation.teamId, invitationId: invitation.id, userId, status: 'pending', createdAt: Timestamp.now() });
+  return claimId;
+}
+
+export async function respondToInvitation(inviteId: string, accept: boolean, userId: string, fullName: string, email = ''): Promise<void> {
   try {
     const inviteRef = doc(db, 'team_invitations', inviteId);
     const inviteSnap = await getDoc(inviteRef);
     if (!inviteSnap.exists()) throw new Error('Invitation not found');
-
-    const inviteData = inviteSnap.data() as TeamInvitation;
-    const status = accept ? 'accepted' : 'declined';
-    await updateDoc(inviteRef, { status });
-
-    if (accept) {
-      await addMemberToTeam(inviteData.teamId, {
-        userId,
-        fullName,
-        email: inviteData.invitedEmail,
-        role: inviteData.role,
-        joinedAt: new Date()
-      });
-      await createTeamNotification({
-        targetUsers: [userId],
-        title: `You joined "${inviteData.teamName}"`,
-        body: `You are now a ${inviteData.role.replace('_', ' ')} in this team.`,
-        link: `/features/liv-teams/workspace/${inviteData.teamId}`,
-        senderId: inviteData.senderId,
-        sender: inviteData.senderName,
-        metadata: { notificationType: 'team_invitation_accepted', teamId: inviteData.teamId, invitationId: inviteId },
-      });
+    const inviteData = { id: inviteSnap.id, ...inviteSnap.data() } as TeamInvitation;
+    if (!accept) {
+      if (inviteData.inviteType === 'link') return;
+      await updateDoc(inviteRef, { status: 'declined' });
+      return;
     }
+    const claimId = await claimTeamInvitation(inviteData, userId, email);
+    await addMemberToTeam(inviteData.teamId, { userId, fullName, email: email || inviteData.invitedEmail || '', role: inviteData.role, joinedAt: new Date() });
+    const nextUseCount = (inviteData.useCount || 0) + 1;
+    if (inviteData.inviteType === 'link') {
+      await updateDoc(inviteRef, { useCount: increment(1), ...(nextUseCount >= (inviteData.maxUses || 1000) ? { status: 'accepted' } : {}) });
+    } else {
+      await updateDoc(inviteRef, { status: 'accepted', acceptedAt: Timestamp.now(), acceptedBy: userId });
+    }
+    await updateDoc(doc(db, 'team_invitation_claims', claimId), { status: 'accepted', acceptedAt: Timestamp.now() });
+    await createTeamNotification({ targetUsers: [userId], title: `You joined "${inviteData.teamName}"`, body: `You are now a ${inviteData.role.replace('_', ' ')} in this team.`, link: `/features/liv-teams/workspace/${inviteData.teamId}`, senderId: inviteData.senderId, sender: inviteData.senderName, metadata: { notificationType: 'team_invitation_accepted', teamId: inviteData.teamId, invitationId: inviteId } });
   } catch (error) {
     console.error('Error responding to invitation:', error);
     throw error;
