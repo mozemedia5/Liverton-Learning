@@ -651,11 +651,11 @@ export default function TeamWorkspace() {
         </div>
 
         <div className="p-4 md:p-6 pt-14 relative flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="absolute left-4 md:left-6 -top-10 rounded-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-950 shadow-xl overflow-hidden">
+          <div className="absolute left-4 md:left-6 -top-10 rounded-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-950 shadow-xl overflow-hidden flex-shrink-0 z-10">
             <TeamLogo name={team.name} logoUrl={team.logoUrl} size="xl" />
           </div>
 
-          <div className="space-y-1.5 min-w-0">
+          <div className="space-y-1.5 min-w-0 md:pl-28">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl md:text-2xl font-bold truncate">{team.name}</h1>
               <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 capitalize">

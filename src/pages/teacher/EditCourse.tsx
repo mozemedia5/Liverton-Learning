@@ -44,7 +44,6 @@ import {
   deleteCourseMaterial,
   subscribeToCourseMaterials,
   notifyCourseUpdate,
-  validateCourseForPublishing,
   type Course,
   type CourseMaterial
 } from '@/services/courseService';
@@ -332,20 +331,6 @@ export default function EditCourse() {
       const finalSubject = subject === 'Other' ? subjectOther.trim() : subject;
       const finalGrade = grade === 'Other' ? gradeOther.trim() : (grade || undefined);
       const requestedPrice = parseFloat(price) || 0;
-      const draftStatus = status === 'active' ? 'draft' : status;
-      await updateCourse(courseId, {
-        title: title.trim(),
-        description: description.trim(),
-        subject: finalSubject,
-        grade: finalGrade,
-        price: requestedPrice,
-        currency,
-        status: draftStatus,
-        visibility: 'public',
-        ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
-        lessons: existingMaterials.length
-      });
-
       let uploadedCount = 0;
       for (const fileObj of newFiles) {
         try {
@@ -357,12 +342,18 @@ export default function EditCourse() {
       }
 
       const finalMaterials = [...existingMaterials, ...newFiles.map(({ material }) => material).filter((material): material is CourseMaterial => Boolean(material))];
-      const finalHasVideo = finalMaterials.some((material) => material.type === 'video') || newFiles.some(({ file }) => file.type.startsWith('video/'));
-      const publishErrors = validateCourseForPublishing({ title: title.trim(), description: description.trim(), teacherId: currentUser?.uid, teacherName: currentUser?.displayName || course?.teacherName || 'Teacher', subject: finalSubject, price: requestedPrice, currency, visibility: 'public', materials: finalMaterials, lessons: finalMaterials.length });
-      if (status === 'active' && (publishErrors.length > 0 || !finalHasVideo)) {
-        throw new Error('The module remains a draft until all required fields and at least one video lesson/material are present.');
-      }
-      await updateCourse(courseId, { status, visibility: 'public', lessons: finalMaterials.length });
+      await updateCourse(courseId, {
+        title: title.trim(),
+        description: description.trim(),
+        subject: finalSubject,
+        grade: finalGrade,
+        price: requestedPrice,
+        currency,
+        status,
+        visibility: 'public',
+        ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
+        lessons: finalMaterials.length
+      });
       if (uploadedCount > 0) {
         try { await notifyCourseUpdate(courseId); } catch (notificationError) { console.warn('Learner notification warning:', notificationError); }
       }

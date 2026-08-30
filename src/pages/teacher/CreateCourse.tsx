@@ -52,7 +52,6 @@ import {
   createCourse,
   updateCourse,
   uploadCourseMaterial,
-  validateCourseForPublishing,
   createQuiz,
   type CourseMaterial,
   type QuizQuestion
@@ -347,7 +346,7 @@ export default function CreateCourse() {
           currency,
           isFree: (parseFloat(price) || 0) <= 0,
           visibility: 'public',
-          status: 'draft',
+          status: 'active',
           ...(maxStudents ? { maxStudents: parseInt(maxStudents) } : {}),
           lessons: 0
         }
@@ -364,24 +363,6 @@ export default function CreateCourse() {
         }
       }
 
-      const publishedCourse: Partial<import('@/services/courseService').Course> = {
-        title: title.trim(),
-        description: description.trim(),
-        teacherId: currentUser.uid,
-        teacherName: userData?.fullName || 'Unknown Teacher',
-        subject: finalSubject,
-        grade: finalGrade,
-        price: parseFloat(price) || 0,
-        currency,
-        visibility: 'public',
-        materials: uploadedMaterials,
-        lessons: uploadedMaterials.length,
-      };
-      const publishErrors = validateCourseForPublishing(publishedCourse);
-      if (publishErrors.length > 0 || !uploadedMaterials.some((material) => material.type === 'video')) {
-        await updateCourse(courseId, { status: 'draft', lessons: uploadedMaterials.length });
-        throw new Error('Module saved as draft. Upload at least one successful video lesson/material before publishing.');
-      }
       await updateCourse(courseId, { status: 'active', visibility: 'public', lessons: uploadedMaterials.length });
 
       // Create quiz if questions exist
