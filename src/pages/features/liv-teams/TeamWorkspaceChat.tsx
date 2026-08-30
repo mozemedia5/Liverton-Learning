@@ -63,6 +63,8 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
 
   // Voice Recording State
   const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const isModeratorOrAbove = ['owner', 'admin', 'moderator'].includes(teamRole);
 
@@ -180,48 +182,75 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
     }
   };
 
-  // Start Voice input simulation / Web Speech API
-  const handleVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.info('Voice input is not supported directly in this browser. Simulating mic input...', { duration: 3000 });
-      setIsRecording(true);
-      setTimeout(() => {
-        setInputText(prev => prev + (prev ? ' ' : '') + "Hello team! Let's finalize our project.");
-        setIsRecording(false);
-        toast.success('Voice transcription complete!');
-      }, 3000);
+  // Real Voice Note Recording with MediaRecorder API
+  const handleVoiceInput = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-      toast.info('Listening... Speak now!', { id: 'voice-toast' });
-    };
-
-    recognition.onerror = () => {
-      setIsRecording(false);
-      toast.error('Voice input failed. Please try again or type directly.', { id: 'voice-toast' });
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const result = event.results[0][0].transcript;
-      if (result) {
-        setInputText(prev => prev + (prev ? ' ' : '') + result);
-        toast.success('Voice recognized successfully!', { id: 'voice-toast' });
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast.error('Audio recording is not supported in this browser.');
+        return;
       }
-    };
 
-    recognition.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (audioBlob.size < 100 || !currentUser) return;
+
+        setUploading(true);
+        try {
+          const file = new File([audioBlob], `team-voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+          const url = await uploadToCloudinary(file, 'audio', {
+            userId: currentUser.uid,
+            referenceId: teamId,
+            purpose: 'chat_audio'
+          });
+
+          await sendTeamMessage(
+            teamId,
+            currentUser.uid,
+            userData?.fullName || 'Anonymous',
+            teamRole,
+            'Voice Note',
+            'audio',
+            {
+              url,
+              name: 'Voice Note.webm',
+              size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
+            }
+          );
+          toast.success('Voice note sent to team!');
+        } catch {
+          toast.error('Failed to send voice note');
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast.info('Recording voice note for team... Click mic again to send.', { duration: 4000 });
+    } catch {
+      toast.error('Microphone access denied or unavailable.');
+      setIsRecording(false);
+    }
   };
 
   const handleEditMessage = async (messageId: string) => {
@@ -481,11 +510,11 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Unified High-Fidelity Input panel matching Hanna AI */}
-        <footer className="p-4 bg-white dark:bg-[#07070a] border-t border-gray-200 dark:border-white/5">
+        {/* Unified High-Fidelity Input panel matching Hanna AI - Sticky & Responsive Auto-Resizing */}
+        <footer className="sticky bottom-0 z-20 shrink-0 p-4 bg-white/95 dark:bg-[#07070a]/95 backdrop-blur-xl border-t border-gray-200 dark:border-white/5">
           <form
             onSubmit={handleSendMessage}
-            className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto"
+            className="flex items-end gap-2.5 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#0c0c10]/95 shadow-xl p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all duration-200 max-w-5xl mx-auto w-full"
           >
             <input
               ref={fileInputRef}
@@ -510,12 +539,24 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
             </Button>
 
             {/* Text Input Composer */}
-            <div className="flex-1 relative">
-              <Input
+            <div className="flex-1 relative min-w-0">
+              <textarea
                 value={inputText}
-                onChange={e => setInputText(e.target.value)}
+                onChange={e => {
+                  setInputText(e.target.value);
+                  const target = e.target;
+                  target.style.height = "auto";
+                  target.style.height = `${Math.min(target.scrollHeight, 112)}px`;
+                }}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                rows={1}
                 placeholder={uploading ? 'Uploading attachment...' : 'Type a message...'}
-                className="w-full bg-transparent border-none py-2 px-1 focus-visible:ring-0 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
+                className="w-full min-h-[38px] max-h-[112px] bg-transparent resize-none border-none outline-none px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                 disabled={uploading}
               />
             </div>

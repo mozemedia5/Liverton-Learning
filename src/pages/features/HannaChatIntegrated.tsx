@@ -194,7 +194,11 @@ export default function HannaChatIntegrated() {
   const researchEnabled = hannaMode === 'web_search' || hannaMode === 'deep_research';
   const selectedMode = HANNA_MODE_OPTIONS.find(option => option.value === hannaMode) || HANNA_MODE_OPTIONS[0];
   const rolePrompts = ROLE_PROMPTS[userRole || 'student'] || PROMPTS;
-  const visibleSessions = useMemo(() => filterHannaSessions(sessions, showArchivedSessions, searchQuery, currentUser?.uid || ''), [sessions, searchQuery, currentUser, showArchivedSessions]);
+  const visibleSessions = useMemo(() => {
+    const filtered = filterHannaSessions(sessions, showArchivedSessions, searchQuery, currentUser?.uid || '');
+    // Hide empty 0-message sessions unless it's currently active to keep history clean
+    return filtered.filter(session => (session.messageCount || 0) > 0 || session.id === currentChatId);
+  }, [sessions, showArchivedSessions, searchQuery, currentUser, currentChatId]);
   const archivedSessionCount = useMemo(() => sessions.filter(session => session.archived).length, [sessions]);
   const latestHannaMessage = [...messages].reverse().find(m => m.senderRole === 'hanna');
 

@@ -32,15 +32,11 @@ export default function TeamAttachmentViewer({ url, name = 'Shared file', type, 
 
   if (type === 'image') {
     return (
-      <figure className="space-y-2">
-        <a href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
-          <img src={url} alt={name} loading="lazy" className="max-w-full max-h-72 w-auto rounded-xl object-contain" />
+      <div className="overflow-hidden rounded-2xl">
+        <a href={url} target="_blank" rel="noreferrer" className="block cursor-pointer">
+          <img src={url} alt="Shared media" loading="lazy" className="w-full max-h-80 rounded-2xl object-cover shadow-sm hover:scale-[1.01] transition-transform" />
         </a>
-        <figcaption className="flex items-center gap-2 text-xs opacity-80">
-          <ImageIcon className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{name}</span>
-        </figcaption>
-      </figure>
+      </div>
     );
   }
 
