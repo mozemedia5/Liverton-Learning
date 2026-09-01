@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AskHannaIcon } from '@/components/AskHannaIcon';
+import GeminiSparkle from '@/components/GeminiSparkle';
 
 type HannaStage = 'idle' | 'planning' | 'searching' | 'synthesizing' | 'ready' | 'partial' | 'streaming';
 
 const STAGE_LABELS: Record<HannaStage, string[]> = {
-  idle: ['Ready', 'Standing by'],
-  planning: ['Thinking', 'Sharpening the pencil', 'Planning the response'],
-  searching: ['Searching the Web', 'Gathering info', 'Checking sources'],
-  synthesizing: ['Noting', 'Compiling', 'Comparing evidence'],
-  partial: ['Gathering info', 'Checking what is available', 'Preparing a useful answer'],
-  streaming: ['Implementing', 'Writing the answer', 'Putting it together'],
-  ready: ['Compiling', 'Finishing the response', 'Almost ready'],
+  idle: ['Standing by', 'Ready to assist'],
+  planning: ['Finishing preparing, please wait...', 'Synthesizing response...', 'Structuring insights...'],
+  searching: ['Searching authoritative web sources...', 'Gathering citations...', 'Verifying data points...'],
+  synthesizing: ['Synthesizing response...', 'Comparing evidence...', 'Polishing final insights...'],
+  partial: ['Checking available information...', 'Formatting notes...', 'Just about to finish...'],
+  streaming: ['Streaming response...', 'Finishing preparing, almost ready...', 'Compiling output...'],
+  ready: ['Polishing final insights...', 'Just about to finish...', 'Finishing preparing, please wait...'],
 };
 
 export default function HannaActivityIndicator({ stage, compact = false }: { stage: HannaStage; compact?: boolean }) {
@@ -20,19 +20,21 @@ export default function HannaActivityIndicator({ stage, compact = false }: { sta
   useEffect(() => {
     setLabelIndex(0);
     if (labels.length < 2) return;
-    const timer = window.setInterval(() => setLabelIndex(index => (index + 1) % labels.length), 1700);
+    const timer = window.setInterval(() => setLabelIndex(index => (index + 1) % labels.length), 1800);
     return () => window.clearInterval(timer);
   }, [labels]);
 
   return (
     <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`} role="status" aria-live="polite">
-      <div className={`relative grid shrink-0 place-items-center rounded-2xl bg-slate-950 ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
-        <AskHannaIcon size={compact ? 24 : 34} active alt="Hanna is working" />
-        <span className="absolute inset-0 rounded-2xl border border-cyan-300/40 animate-ping opacity-20" aria-hidden="true" />
+      <div className={`relative grid shrink-0 place-items-center rounded-2xl bg-[#1e1f20] ${compact ? 'h-8 w-8' : 'h-11 w-11'}`}>
+        <GeminiSparkle size={compact ? 20 : 28} animating />
+        <span className="absolute inset-0 rounded-2xl border border-[#4285F4]/40 animate-ping opacity-25" aria-hidden="true" />
       </div>
       <div className="min-w-0">
-        <p className={`${compact ? 'text-[10px]' : 'text-xs'} font-black text-slate-700 dark:text-slate-100`}>{labels[labelIndex]}</p>
-        {!compact && <p className="mt-0.5 text-[10px] text-slate-400">Hanna is showing what she is doing</p>}
+        <p className={`${compact ? 'text-[11px]' : 'text-xs'} font-medium text-slate-700 dark:text-[#e3e3e3]`}>
+          {labels[labelIndex]}
+        </p>
+        {!compact && <p className="mt-0.5 text-[10px] text-slate-400 dark:text-[#c4c7c5]">Gemini AI is generating your response</p>}
       </div>
     </div>
   );
