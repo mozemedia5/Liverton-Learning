@@ -34,7 +34,7 @@ import {
   Archive, ArrowUpRight, BookOpen, Camera, Check, Code2, ChevronDown, ChevronLeft, ClipboardList, Copy, Download, ExternalLink, FileDown,
   Globe2, Image as ImageIcon, Library, Menu, MessageSquare, Paperclip, Pin, Plus,
   FolderPlus, Home, Layers3, MoreVertical, Pencil, RefreshCw, Search, Send, Share2, Sparkles, StopCircle, Trash2, X,
-  ThumbsUp, ThumbsDown, SlidersHorizontal, Mic, CheckCircle2,
+  ThumbsUp, ThumbsDown, SlidersHorizontal, Mic,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -111,6 +111,30 @@ function domain(url: string) {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'web source'; }
 }
 
+function safeFilename(title: string) { return (title || 'gemini-image').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'gemini-image'; }
+
+async function downloadImage(image: HannaImageResult) {
+  const response = await fetch(image.url, { mode: 'cors' });
+  if (!response.ok) throw new Error('Image download failed');
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = `${safeFilename(image.title)}.${blob.type.split('/')[1] || 'jpg'}`;
+  document.body.appendChild(anchor); anchor.click(); anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+async function exportImage(image: HannaImageResult) {
+  if (!navigator.share) { await downloadImage(image); return 'downloaded'; }
+  const response = await fetch(image.url, { mode: 'cors' });
+  if (!response.ok) throw new Error('Image export failed');
+  const blob = await response.blob();
+  const file = new File([blob], `${safeFilename(image.title)}.${blob.type.split('/')[1] || 'jpg'}`, { type: blob.type || 'image/jpeg' });
+  if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: image.title, text: `Image from Gemini research. Source: ${image.sourceUrl}` }); return 'shared'; }
+  await downloadImage(image); return 'downloaded';
+}
+
 function SourceCard({ source, index, onOpen }: { source: HannaSource; index: number; onOpen: (source: HannaSource) => void }) {
   return (
     <button onClick={() => onOpen(source)} className="group w-full rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1e1f20] p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#4285F4]/60 hover:shadow-md">
@@ -155,6 +179,7 @@ export default function HannaChatIntegrated() {
   const [attachments, setAttachments] = useState<HannaAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isImageSearching, setIsImageSearching] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
   const [openModifyMenuId, setOpenModifyMenuId] = useState<string | null>(null);
   const [showPromptMenu, setShowPromptMenu] = useState(false);
@@ -282,13 +307,48 @@ export default function HannaChatIntegrated() {
       casual: 'Rewrite the response above in a casual, warm, conversational tone.',
       professional: 'Rewrite the response above in a formal, highly professional academic style.',
     };
-    setInputValue(prompts[type] || 'Modify the response.');
+    setInputValue(`${prompts[type] || 'Modify the response.'}\n\nHere is the response to modify:\n${msg.content}`);
     composerRef.current?.focus();
   };
 
   const googleSearchResponse = (queryText: string) => {
     const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(queryText.slice(0, 100))}`;
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
+  };
+  const applyCreationPrompt = (prompt: string, action?: 'image' | 'slides') => {
+    setPendingCreationAction(action || null);
+    setInputValue(previous => `${prompt}${previous.trim()}`.trimEnd());
+    setShowPromptMenu(false);
+    requestAnimationFrame(() => composerRef.current?.focus());
+  };
+  const searchImages = async () => {
+    if (!inputValue.trim() || isImageSearching) return;
+    setIsImageSearching(true);
+    try { const result = await searchImagesForHanna(inputValue.trim()); setImages(result.images || []); toast.success(`${result.images?.length || 0} visual references found`); }
+    catch { toast.error('Image search is unavailable right now.'); }
+    finally { setIsImageSearching(false); }
+  };
+  const handleDownloadImage = async (image: HannaImageResult) => {
+    try { await downloadImage(image); toast.success('Image downloaded.'); }
+    catch { window.open(image.url, '_blank', 'noopener,noreferrer'); toast.info('Opened the image in a new tab.'); }
+  };
+  const handleExportImage = async (image: HannaImageResult) => {
+    try { const mode = await exportImage(image); toast.success(mode === 'shared' ? 'Image shared.' : 'Image downloaded for export.'); }
+    catch { toast.error('Could not export this image.'); }
+  };
+  const exportLatestArtifact = async (format: HannaArtifactFormat) => {
+    if (!latestHannaMessage?.content || artifactFormat || !currentUser) return;
+    setArtifactFormat(format);
+    try {
+      const sessionTitle = sessions.find(session => session.id === currentChatId)?.title || 'Gemini learning document';
+      const result = await exportHannaArtifact({ title: sessionTitle, content: latestHannaMessage.content, format, template: format === 'pptx' ? pptxTemplate : undefined, animation: format === 'pptx' ? pptxAnimation : undefined });
+      const mimeType = format === 'pdf' ? 'application/pdf' : format === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      const file = new File([result.blob], result.fileName, { type: mimeType });
+      const fileUrl = await uploadToCloudinary(file, 'document', { showErrorToast: false, userId: currentUser.uid, referenceId: currentChatId || undefined, purpose: 'hanna_artifact' });
+      await addDoc(collection(db, 'documents'), { title: sessionTitle.slice(0, 120), type: format === 'pdf' ? 'pdf' : 'file', ownerId: currentUser.uid, role: userRole || 'student', schoolId: (userData as any)?.schoolId ?? null, folderId: null, sharedWith: [], visibility: 'private', fileUrl, fileName: result.fileName, fileSize: result.blob.size, mimeType, pageCount: format === 'pdf' ? 0 : null, source: 'hanna', sourceChatId: currentChatId || null, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), version: 1 });
+      toast.success(`${result.format.toUpperCase()} saved to Documents.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Gemini could not create this document.'); }
+    finally { setArtifactFormat(null); }
   };
 
   const copyMessage = async (message: Message) => { await navigator.clipboard.writeText(message.content); setCopiedId(message.id); setTimeout(() => setCopiedId(null), 1600); };
@@ -298,6 +358,7 @@ export default function HannaChatIntegrated() {
   const togglePin = async (session: ChatSession) => { if (!currentUser) return; const pinned = session.pinnedBy?.includes(currentUser.uid); await updateDoc(doc(db, 'hanna_chats', session.id), { pinnedBy: pinned ? (session.pinnedBy || []).filter(id => id !== currentUser.uid) : [...(session.pinnedBy || []), currentUser.uid] }); };
   const renameChat = async (session: ChatSession) => { const next = window.prompt('Rename conversation', session.title); if (next?.trim()) await updateDoc(doc(db, 'hanna_chats', session.id), { title: next.trim().slice(0, 80) }); };
   const toggleChatFlag = async (session: ChatSession, field: 'archived' | 'addedToHome') => { await updateDoc(doc(db, 'hanna_chats', session.id), { [field]: !session[field] }); };
+  const addToTeams = async (session: ChatSession) => { const teamId = window.prompt('Enter the Liv Teams ID or name'); if (teamId?.trim()) { await updateDoc(doc(db, 'hanna_chats', session.id), { teamIds: [...(session.teamIds || []), teamId.trim()] }); toast.success('Conversation added to Liv Teams.'); } };
   const shareChat = async (session: ChatSession, external: boolean) => { const link = `${window.location.origin}/features/hanna-ai?session=${session.id}`; if (external && navigator.share) await navigator.share({ title: session.title, text: 'A Gemini AI conversation', url: link }); else { await navigator.clipboard.writeText(link); toast.success('Share link copied to clipboard.'); } };
 
   return <>
@@ -319,8 +380,9 @@ export default function HannaChatIntegrated() {
 
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-[#c4c7c5]" />
-            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Recent chats" className="w-full rounded-full border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#131314] py-2 pl-9 pr-3 text-xs outline-none focus:border-[#4285F4]" />
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={showArchivedSessions ? 'Search archived chats' : 'Recent chats'} className="w-full rounded-full border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#131314] py-2 pl-9 pr-3 text-xs outline-none focus:border-[#4285F4]" />
           </div>
+          <button type="button" onClick={() => { setShowArchivedSessions(value => !value); setOpenSessionActions(null); }} className={`flex w-full items-center justify-between rounded-full border px-3 py-2 text-left text-xs transition ${showArchivedSessions ? 'border-[#4285F4]/50 bg-blue-500/10 text-[#4285F4]' : 'border-transparent text-slate-500 hover:bg-slate-200/60 dark:hover:bg-white/5'}`}><span className="flex items-center gap-2"><Archive className="h-3.5 w-3.5" />{showArchivedSessions ? 'Back to active chats' : 'Archived chats'}</span>{archivedSessionCount > 0 && <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] dark:bg-white/10">{archivedSessionCount}</span>}</button>
         </div>
 
         {/* Conversation List */}
@@ -340,6 +402,9 @@ export default function HannaChatIntegrated() {
                   <button onClick={() => { void shareChat(session, false); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Share2 className="h-3.5 w-3.5" />Share</button>
                   <button onClick={() => { void togglePin(session); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Pin className="h-3.5 w-3.5" />{session.pinnedBy?.includes(currentUser?.uid || '') ? 'Unpin' : 'Pin'}</button>
                   <button onClick={() => { void renameChat(session); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Pencil className="h-3.5 w-3.5" />Rename</button>
+                  <button onClick={() => { void toggleChatFlag(session, 'addedToHome'); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Home className="h-3.5 w-3.5" />{session.addedToHome ? 'Remove from home' : 'Add to home'}</button>
+                  <button onClick={() => { void addToTeams(session); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><FolderPlus className="h-3.5 w-3.5" />Add to Liv Teams</button>
+                  <button onClick={() => { void toggleChatFlag(session, 'archived'); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Archive className="h-3.5 w-3.5" />{session.archived ? 'Restore chat' : 'Archive chat'}</button>
                   <button onClick={() => { void deleteChat(session.id); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"><Trash2 className="h-3.5 w-3.5" />Delete</button>
                 </div>
               )}
@@ -368,11 +433,12 @@ export default function HannaChatIntegrated() {
             <div className="flex items-center gap-2 min-w-0">
               <GeminiSparkle size={22} animating={isGenerating} />
               <span className="text-base font-medium tracking-tight text-slate-800 dark:text-[#e3e3e3]">Gemini</span>
-              <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-[#4285F4]">3.6 Flash</span>
+              <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-[#4285F4]">{SERVER_SUPPORTED_GEMINI_MODELS.find(model => model.id === selectedModelId)?.label || 'Gemini'}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <select aria-label="Gemini text model" value={selectedModelId} onChange={event => setSelectedModelId(event.target.value)} className="hidden max-w-[9rem] rounded-full border border-slate-200/80 bg-white px-2.5 py-1.5 text-[10px] font-medium text-slate-600 outline-none dark:border-white/10 dark:bg-[#1e1f20] dark:text-[#c4c7c5] sm:block">{SERVER_SUPPORTED_GEMINI_MODELS.map(model => <option key={model.id} value={model.id}>{model.label}</option>)}</select>
             <div className="relative">
               <button aria-expanded={showModeMenu} onClick={() => setShowModeMenu(v => !v)} className="flex items-center gap-2 rounded-full border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1e1f20] px-3.5 py-1.5 text-xs font-medium transition hover:border-[#4285F4]">
                 <selectedMode.icon className="h-3.5 w-3.5 text-[#4285F4]" />
@@ -587,6 +653,12 @@ export default function HannaChatIntegrated() {
                 </div>
               )}
 
+              {showPromptMenu && (
+                <div className="mb-2 grid grid-cols-1 gap-1 rounded-2xl border border-slate-200/80 bg-slate-50 p-2 dark:border-white/10 dark:bg-[#131314] sm:grid-cols-2">
+                  {HANNA_CREATION_ACTIONS.map(action => <button type="button" key={action.label} onClick={() => applyCreationPrompt(action.prompt, action.label === 'Create image' ? 'image' : action.label === 'Create slides' ? 'slides' : undefined)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-medium hover:bg-white dark:hover:bg-white/10"><action.icon className="h-4 w-4 text-[#4285F4]" />{action.label}</button>)}
+                </div>
+              )}
+              {uploading && <div className="mb-2 flex items-center gap-2 px-2 text-[11px] text-slate-500"><HannaActivityIndicator stage="planning" compact /><span>Uploading attachment…</span></div>}
               <textarea
                 ref={composerRef}
                 value={inputValue}
@@ -613,8 +685,14 @@ export default function HannaChatIntegrated() {
                   <button type="button" onClick={() => fileRef.current?.click()} className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:text-[#4285F4] hover:bg-slate-100 dark:hover:bg-white/5 transition" aria-label="Upload file">
                     <Plus className="h-5 w-5" />
                   </button>
-                  <button type="button" onClick={() => fileRef.current?.click()} className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:text-[#4285F4] hover:bg-slate-100 dark:hover:bg-white/5 transition" aria-label="Attach photo">
-                    <ImageIcon className="h-5 w-5" />
+                  <button type="button" onClick={() => setShowPromptMenu(value => !value)} className={`grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:text-[#4285F4] hover:bg-slate-100 dark:hover:bg-white/5 transition ${showPromptMenu ? 'bg-blue-500/10 text-[#4285F4]' : ''}`} aria-label="Creation tools">
+                    <Sparkles className="h-5 w-5" />
+                  </button>
+                  <button type="button" onClick={() => cameraRef.current?.click()} className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:text-[#4285F4] hover:bg-slate-100 dark:hover:bg-white/5 transition" aria-label="Take a photo">
+                    <Camera className="h-5 w-5" />
+                  </button>
+                  <button type="button" onClick={() => void searchImages()} disabled={isImageSearching || !inputValue.trim()} className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:text-[#4285F4] hover:bg-slate-100 dark:hover:bg-white/5 transition disabled:opacity-40" aria-label="Search images">
+                    {isImageSearching ? <RefreshCw className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
                   </button>
                   <button type="button" onClick={() => toast.info('Microphone voice input ready.')} className="grid h-9 w-9 place-items-center rounded-full text-slate-400 hover:text-[#4285F4] hover:bg-slate-100 dark:hover:bg-white/5 transition" aria-label="Voice input">
                     <Mic className="h-5 w-5" />
@@ -645,10 +723,13 @@ export default function HannaChatIntegrated() {
           </div>
           <button onClick={() => setIsSourceDrawerOpen(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {sources.length ? sources.map((source, index) => <SourceCard key={source.url} source={source} index={index} onOpen={openSource} />) : <div className="py-12 text-center text-xs text-slate-400">No external sources used in this answer.</div>}
-        </div>
+        {selectedSource ? <div className="border-b border-slate-200/80 p-4 dark:border-white/10"><button type="button" onClick={() => setSelectedSource(null)} className="mb-3 text-[10px] font-semibold text-[#4285F4]">← All sources</button><p className="text-sm font-semibold leading-snug">{selectedSource.title}</p><p className="mt-1 text-[10px] font-medium text-[#4285F4]">{domain(selectedSource.url)}</p>{selectedSource.citedText && <blockquote className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 dark:bg-white/5 dark:text-slate-300">“{selectedSource.citedText}”</blockquote>}<a href={selectedSource.url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#4285F4]">Open source <ExternalLink className="h-3.5 w-3.5" /></a></div> : <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {sources.length ? sources.map((source, index) => <SourceCard key={`${source.url}-${index}`} source={source} index={index} onOpen={openSource} />) : <div className="py-8 text-center text-xs text-slate-400">No external sources used in this answer.</div>}
+          {images.length > 0 && <div className="rounded-2xl border border-slate-200/80 p-3 dark:border-white/10"><div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[#4285F4]"><ImageIcon className="h-4 w-4" />Visual references</div><GeminiMediaGrid images={images} onPreview={setSelectedImage} /></div>}
+          {latestHannaMessage && <div className="rounded-2xl border border-slate-200/80 p-3 dark:border-white/10"><p className="mb-2 text-xs font-semibold">Save latest answer</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" disabled={!!artifactFormat} onClick={() => void exportLatestArtifact('pdf')}><FileDown className="mr-1 h-3.5 w-3.5" />{artifactFormat === 'pdf' ? 'Saving…' : 'PDF'}</Button><Button type="button" variant="outline" size="sm" disabled={!!artifactFormat} onClick={() => void exportLatestArtifact('docx')}><FileDown className="mr-1 h-3.5 w-3.5" />DOCX</Button><Button type="button" variant="outline" size="sm" disabled={!!artifactFormat} onClick={() => void exportLatestArtifact('pptx')}><Layers3 className="mr-1 h-3.5 w-3.5" />Slides</Button></div><div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[10px] text-slate-500">Template<select value={pptxTemplate} onChange={event => setPptxTemplate(event.target.value as HannaPptxTemplate)} className="mt-1 w-full rounded-lg border border-slate-200 bg-transparent p-1.5 text-[10px] dark:border-white/10"><option value="liverton">Liverton</option><option value="minimal">Minimal</option></select></label><label className="text-[10px] text-slate-500">Motion<select value={pptxAnimation} onChange={event => setPptxAnimation(event.target.value as HannaPptxAnimation)} className="mt-1 w-full rounded-lg border border-slate-200 bg-transparent p-1.5 text-[10px] dark:border-white/10"><option value="calm">Calm</option><option value="dynamic">Dynamic</option></select></label></div></div>}
+        </div>}
       </aside>
+      {selectedImage && <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Image preview" onClick={() => setSelectedImage(null)}><div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-white/15 bg-[#11151d] shadow-2xl" onClick={event => event.stopPropagation()}><button type="button" onClick={() => setSelectedImage(null)} className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white" aria-label="Close image preview"><X className="h-4 w-4" /></button><img src={selectedImage.url} alt={selectedImage.title} className="max-h-[70vh] w-full object-contain" /><div className="flex items-center justify-end gap-2 p-4"><Button type="button" variant="outline" size="sm" onClick={() => void handleDownloadImage(selectedImage)}><Download className="mr-1.5 h-3.5 w-3.5" />Save</Button><Button type="button" size="sm" onClick={() => void handleExportImage(selectedImage)}><Share2 className="mr-1.5 h-3.5 w-3.5" />Export</Button></div></div></div>}
     </div>
   </>;
 }
