@@ -2,27 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { Button } from '@/components/ui/button';
 import GeminiSparkle from '@/components/GeminiSparkle';
 import GeminiShimmerLoader from '@/components/GeminiShimmerLoader';
 import GeminiAudioPlayer from '@/components/GeminiAudioPlayer';
 import GeminiMediaGrid from '@/components/GeminiMediaGrid';
-import HannaActivityIndicator from '@/components/HannaActivityIndicator';
 import { HannaMarkdown } from '@/components/HannaMarkdown';
 import { SEO } from '@/components/SEO';
 import {
   streamHannaReply,
   isGeminiConfigured,
   generateSmartTitle,
-  exportHannaArtifact,
   generateHannaImage,
   type HannaAttachment,
-  type HannaArtifactFormat,
-  type HannaPptxTemplate,
-  type HannaPptxAnimation,
   type HannaMode,
 } from '@/lib/hannaGemini';
-import { researchWithHanna, searchImagesForHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
+import { researchWithHanna, type HannaSource, type HannaImageResult } from '@/lib/hannaResearch';
 import { IMAGE_CAPABLE_GEMINI_MODELS, SERVER_SUPPORTED_GEMINI_MODELS } from '@/lib/geminiModels';
 import { uploadToCloudinary, mapFileToCloudinaryType } from '@/services/cloudinaryService';
 import { filterHannaSessions } from '@/lib/hannaArchive';
@@ -31,10 +25,10 @@ import {
   updateDoc, where,
 } from 'firebase/firestore';
 import {
-  Archive, ArrowUpRight, BookOpen, Camera, Check, Code2, ChevronDown, ChevronLeft, ClipboardList, Copy, Download, ExternalLink, FileDown,
+  ArrowUpRight, BookOpen, Check, Code2, ChevronDown, ChevronLeft, ClipboardList, Copy,
   Globe2, Image as ImageIcon, Library, Menu, MessageSquare, Paperclip, Pin, Plus,
-  FolderPlus, Home, Layers3, MoreVertical, Pencil, RefreshCw, Search, Send, Share2, Sparkles, StopCircle, Trash2, X,
-  ThumbsUp, ThumbsDown, SlidersHorizontal, Mic, CheckCircle2,
+  MoreVertical, Pencil, Search, Send, Share2, Sparkles, StopCircle, Trash2, X,
+  ThumbsUp, ThumbsDown, SlidersHorizontal, Mic,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,7 +47,6 @@ const HANNA_MODE_OPTIONS: Array<{ value: HannaMode; label: string; description: 
   { value: 'studying', label: 'Studying', description: 'Learn step by step with practice.', icon: BookOpen },
   { value: 'deep_research', label: 'Deep research', description: 'Compare sources and synthesize evidence.', icon: Library },
   { value: 'coding', label: 'Coding', description: 'Plan, explain, and write clean code.', icon: Code2 },
-  { value: 'artifacts', label: 'Artifacts', description: 'Prepare polished documents, tables, and slides.', icon: Layers3 },
 ];
 
 const PROMPTS = [
@@ -62,13 +55,6 @@ const PROMPTS = [
   { icon: Library, label: 'Research the web', prompt: 'Research recent breakthroughs in renewable energy and summarize key sources.' },
   { icon: Sparkles, label: 'Create a study guide', prompt: 'Turn this topic into bullet revision notes, flashcards, and exam practice questions: ' },
 ];
-
-const HANNA_CREATION_ACTIONS = [
-  { label: 'Create slides', prompt: 'Create a clear educational slide deck about: ', icon: BookOpen },
-  { label: 'Create image', prompt: 'Create an educational visual diagram about: ', icon: ImageIcon },
-  { label: 'Create PDF', prompt: 'Create a polished PDF learning guide about: ', icon: FileDown },
-  { label: 'Create document', prompt: 'Create a well-structured learning document about: ', icon: FileDown },
-] as const;
 
 const ROLE_PROMPTS: Record<string, typeof PROMPTS> = {
   student: [
@@ -141,27 +127,21 @@ export default function HannaChatIntegrated() {
   const [streamingText, setStreamingText] = useState('');
   const [researchStage, setResearchStage] = useState<ResearchStage>('idle');
   const [hannaMode, setHannaMode] = useState<HannaMode>('web_search');
-  const [selectedModelId, setSelectedModelId] = useState(SERVER_SUPPORTED_GEMINI_MODELS[0]?.id || 'gemini-3.6-flash');
+  const [selectedModelId] = useState(SERVER_SUPPORTED_GEMINI_MODELS[0]?.id || 'gemini-3.6-flash');
   const [showModeMenu, setShowModeMenu] = useState(false);
   const [sources, setSources] = useState<HannaSource[]>([]);
-  const [images, setImages] = useState<HannaImageResult[]>([]);
-  const [selectedSource, setSelectedSource] = useState<HannaSource | null>(null);
-  const [selectedImage, setSelectedImage] = useState<HannaImageResult | null>(null);
+  const [, setImages] = useState<HannaImageResult[]>([]);
+  const [, setSelectedSource] = useState<HannaSource | null>(null);
+  const [, setSelectedImage] = useState<HannaImageResult | null>(null);
   const [openSessionActions, setOpenSessionActions] = useState<string | null>(null);
   const [isSourceDrawerOpen, setIsSourceDrawerOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [showArchivedSessions, setShowArchivedSessions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [attachments, setAttachments] = useState<HannaAttachment[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
   const [openModifyMenuId, setOpenModifyMenuId] = useState<string | null>(null);
-  const [showPromptMenu, setShowPromptMenu] = useState(false);
   const [pendingCreationAction, setPendingCreationAction] = useState<'image' | 'slides' | null>(null);
-  const [artifactFormat, setArtifactFormat] = useState<HannaArtifactFormat | null>(null);
-  const [pptxTemplate, setPptxTemplate] = useState<HannaPptxTemplate>('liverton');
-  const [pptxAnimation, setPptxAnimation] = useState<HannaPptxAnimation>('calm');
 
   const abortRef = useRef<AbortController | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -173,9 +153,7 @@ export default function HannaChatIntegrated() {
   const researchEnabled = hannaMode === 'web_search' || hannaMode === 'deep_research';
   const selectedMode = HANNA_MODE_OPTIONS.find(option => option.value === hannaMode) || HANNA_MODE_OPTIONS[0];
   const rolePrompts = ROLE_PROMPTS[userRole || 'student'] || PROMPTS;
-  const visibleSessions = useMemo(() => filterHannaSessions(sessions, showArchivedSessions, searchQuery, currentUser?.uid || ''), [sessions, searchQuery, currentUser, showArchivedSessions]);
-  const archivedSessionCount = useMemo(() => sessions.filter(session => session.archived).length, [sessions]);
-  const latestHannaMessage = [...messages].reverse().find(m => m.senderRole === 'hanna');
+  const visibleSessions = useMemo(() => filterHannaSessions(sessions, false, searchQuery, currentUser?.uid || ''), [sessions, searchQuery, currentUser]);
 
   useEffect(() => {
     if (!currentUser) { setSessionsLoaded(true); return; }
@@ -217,13 +195,12 @@ export default function HannaChatIntegrated() {
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []); event.target.value = ''; if (!currentUser) return;
-    setUploading(true);
     try {
       for (const file of files) {
         const url = await uploadToCloudinary(file, mapFileToCloudinaryType(file, file.name), { showErrorToast: false, userId: currentUser.uid, referenceId: currentChatId || 'gemini', purpose: file.type.startsWith('image/') ? 'hanna_image' : 'hanna_document' });
         setAttachments(prev => [...prev, { url, name: file.name, mimeType: file.type || 'application/octet-stream' }]);
       }
-    } catch { toast.error('Could not attach that file.'); } finally { setUploading(false); }
+    } catch { toast.error('Could not attach that file.'); }
   };
 
   const send = async (preset?: string) => {
@@ -273,7 +250,7 @@ export default function HannaChatIntegrated() {
     finally { setIsGenerating(false); setStreamingText(''); abortRef.current = null; }
   };
 
-  const modifyResponse = (msg: Message, type: 'shorter' | 'longer' | 'simpler' | 'casual' | 'professional') => {
+  const modifyResponse = (type: 'shorter' | 'longer' | 'simpler' | 'casual' | 'professional') => {
     setOpenModifyMenuId(null);
     const prompts: Record<string, string> = {
       shorter: 'Make the response above significantly more concise and brief.',
@@ -297,8 +274,7 @@ export default function HannaChatIntegrated() {
   const deleteChat = async (id: string) => { await deleteDoc(doc(db, 'hanna_chats', id)); if (id === currentChatId) newChat(); };
   const togglePin = async (session: ChatSession) => { if (!currentUser) return; const pinned = session.pinnedBy?.includes(currentUser.uid); await updateDoc(doc(db, 'hanna_chats', session.id), { pinnedBy: pinned ? (session.pinnedBy || []).filter(id => id !== currentUser.uid) : [...(session.pinnedBy || []), currentUser.uid] }); };
   const renameChat = async (session: ChatSession) => { const next = window.prompt('Rename conversation', session.title); if (next?.trim()) await updateDoc(doc(db, 'hanna_chats', session.id), { title: next.trim().slice(0, 80) }); };
-  const toggleChatFlag = async (session: ChatSession, field: 'archived' | 'addedToHome') => { await updateDoc(doc(db, 'hanna_chats', session.id), { [field]: !session[field] }); };
-  const shareChat = async (session: ChatSession, external: boolean) => { const link = `${window.location.origin}/features/hanna-ai?session=${session.id}`; if (external && navigator.share) await navigator.share({ title: session.title, text: 'A Gemini AI conversation', url: link }); else { await navigator.clipboard.writeText(link); toast.success('Share link copied to clipboard.'); } };
+  const shareChat = async (session: ChatSession) => { const link = `${window.location.origin}/features/hanna-ai?session=${session.id}`; if (navigator.share) await navigator.share({ title: session.title, text: 'A Gemini AI conversation', url: link }); else { await navigator.clipboard.writeText(link); toast.success('Share link copied to clipboard.'); } };
 
   return <>
     <SEO title="Google Gemini AI Interface" description="Google Gemini AI interface clone built with precision Material Design 3." noIndex />
@@ -337,7 +313,7 @@ export default function HannaChatIntegrated() {
               </button>
               {openSessionActions === session.id && (
                 <div className="absolute right-2 top-8 z-30 w-48 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1e1f20] p-1.5 shadow-xl">
-                  <button onClick={() => { void shareChat(session, false); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Share2 className="h-3.5 w-3.5" />Share</button>
+                  <button onClick={() => { void shareChat(session); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Share2 className="h-3.5 w-3.5" />Share</button>
                   <button onClick={() => { void togglePin(session); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Pin className="h-3.5 w-3.5" />{session.pinnedBy?.includes(currentUser?.uid || '') ? 'Unpin' : 'Pin'}</button>
                   <button onClick={() => { void renameChat(session); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-white/10"><Pencil className="h-3.5 w-3.5" />Rename</button>
                   <button onClick={() => { void deleteChat(session.id); setOpenSessionActions(null); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"><Trash2 className="h-3.5 w-3.5" />Delete</button>
@@ -500,7 +476,7 @@ export default function HannaChatIntegrated() {
 
                               <button
                                 type="button"
-                                onClick={() => void shareChat({ id: message.chatId, title: message.content.slice(0, 30) } as any, true)}
+                                onClick={() => void shareChat({ id: message.chatId, title: message.content.slice(0, 30) } as any)}
                                 className="rounded-full p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5 transition transform hover:scale-110"
                                 aria-label="Share response"
                               >
@@ -519,11 +495,11 @@ export default function HannaChatIntegrated() {
                                 </button>
                                 {openModifyMenuId === message.id && (
                                   <div className="absolute left-0 bottom-8 z-30 w-40 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1e1f20] p-1.5 shadow-2xl">
-                                    <button onClick={() => modifyResponse(message, 'shorter')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Shorter</button>
-                                    <button onClick={() => modifyResponse(message, 'longer')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Longer</button>
-                                    <button onClick={() => modifyResponse(message, 'simpler')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Simpler</button>
-                                    <button onClick={() => modifyResponse(message, 'casual')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Casual</button>
-                                    <button onClick={() => modifyResponse(message, 'professional')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Professional</button>
+                                    <button onClick={() => modifyResponse('shorter')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Shorter</button>
+                                    <button onClick={() => modifyResponse('longer')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Longer</button>
+                                    <button onClick={() => modifyResponse('simpler')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Simpler</button>
+                                    <button onClick={() => modifyResponse('casual')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Casual</button>
+                                    <button onClick={() => modifyResponse('professional')} className="w-full rounded-xl px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-white/10">Professional</button>
                                   </div>
                                 )}
                               </div>
