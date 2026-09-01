@@ -1364,3 +1364,71 @@ body {
 .liv-activity-summary .liv-list-row strong { font-size: 12px; }
 .liv-activity-summary .liv-list-row small { margin-top: 3px; color: var(--liv-muted); font-size: 10px; }
 .dark .liv-activity-summary .liv-list-row { background: var(--workspace-surface, #2a2c2e); border-color: var(--workspace-line, rgba(255,255,255,.12)); }
+
+/* Gemini-aligned ecosystem layer: shared across authenticated Liverton areas. */
+.liv-gemini-shell {
+  --liv-gemini-blue: #4285f4;
+  --liv-gemini-purple: #9b51e0;
+  background:
+    radial-gradient(circle at 86% -8%, rgba(66, 133, 244, .10), transparent 28%),
+    radial-gradient(circle at 8% 18%, rgba(155, 81, 224, .07), transparent 22%),
+    var(--liv-canvas);
+}
+.dark .liv-gemini-shell {
+  background:
+    radial-gradient(circle at 86% -8%, rgba(66, 133, 244, .14), transparent 28%),
+    radial-gradient(circle at 8% 18%, rgba(155, 81, 224, .10), transparent 22%),
+    var(--liv-dark-bg);
+}
+.liv-gemini-shell .liv-sidebar,
+.liv-gemini-shell .liv-mobile-nav,
+.liv-gemini-shell .liv-mobile-sheet {
+  border-color: rgba(66, 133, 244, .16);
+}
+.liv-gemini-shell .liv-sidebar-brand strong,
+.liv-gemini-shell .liv-page-header h1,
+.liv-gemini-shell .liv-section-head h2 {
+  letter-spacing: -.045em;
+}
+.liv-gemini-shell .liv-nav-item:hover,
+.liv-gemini-shell .liv-section-head button:hover {
+  color: var(--liv-gemini-blue);
+}
+.liv-gemini-shell .liv-nav-item.is-active {
+  background: linear-gradient(135deg, var(--liv-gemini-blue), var(--liv-gemini-purple));
+  box-shadow: 0 8px 20px rgba(66, 133, 244, .20);
+}
+.liv-gemini-shell .liv-card,
+.liv-gemini-shell .liv-hero-card {
+  border-color: rgba(66, 133, 244, .13);
+}
+.liv-gemini-shell .liv-card:hover {
+  border-color: rgba(66, 133, 244, .32);
+  box-shadow: 0 18px 38px rgba(66, 133, 244, .11);
+}
+.liv-gemini-shell .liv-button:not(.liv-button-light) {
+  background: linear-gradient(135deg, var(--liv-gemini-blue), var(--liv-gemini-purple));
+  box-shadow: 0 10px 24px rgba(66, 133, 244, .20);
+}
+.liv-gemini-shell .liv-button:not(.liv-button-light):hover {
+  box-shadow: 0 14px 28px rgba(66, 133, 244, .28);
+}
+.liv-gemini-shell input:focus,
+.liv-gemini-shell textarea:focus,
+.liv-gemini-shell select:focus,
+.liv-gemini-shell button:focus-visible,
+.liv-gemini-shell a:focus-visible {
+  outline: 2px solid rgba(66, 133, 244, .55);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .liv-gemini-shell .liv-main { padding: 18px 16px 88px; }
+  .liv-gemini-shell .liv-page-header { margin-bottom: 20px; }
+  .liv-gemini-shell .liv-card { border-radius: 20px; padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .liv-gemini-shell .liv-card:hover { transform: none; }
+}
+.dark .liv-gemini-shell .liv-mobile-nav,
+.dark .liv-gemini-shell .liv-mobile-sheet { background-color: rgba(30, 31, 32, .94); }
+.dark .liv-gemini-shell .liv-card { background-color: rgba(30, 31, 32, .84); }

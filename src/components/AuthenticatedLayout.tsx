@@ -24,7 +24,7 @@ export default function AuthenticatedLayout(props: { children?: React.ReactNode 
   const isDashboardPage = /^\/(?:dashboard|student\/dashboard|teacher\/dashboard|parent\/dashboard|school-admin\/dashboard|admin\/dashboard)\/?$/.test(location.pathname);
 
   return (
-    <div className="liv-shell">
+    <div className="liv-shell liv-gemini-shell">
       {isAuthenticated && (
         <>
           <div className="hidden lg:block">
