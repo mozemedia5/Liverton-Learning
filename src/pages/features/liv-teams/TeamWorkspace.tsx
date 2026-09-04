@@ -655,9 +655,9 @@ export default function TeamWorkspace() {
             <TeamLogo name={team.name} logoUrl={team.logoUrl} size="xl" />
           </div>
 
-          <div className="space-y-1.5 min-w-0 md:pl-28">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl md:text-2xl font-bold truncate">{team.name}</h1>
+          <div className="space-y-1.5 min-w-0 pl-20 sm:pl-24 md:pl-28">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h1 className="text-xl md:text-2xl font-bold truncate shrink max-w-full">{team.name}</h1>
               <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 capitalize">
                 {team.category}
               </Badge>

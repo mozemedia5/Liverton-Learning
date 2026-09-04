@@ -92,7 +92,9 @@ export default function Chat() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Voice recording state
-  const [isRecording] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   
   // Profile pictures cache
   const [profilePictures, setProfilePictures] = useState<Record<string, string>>({});
@@ -450,8 +452,76 @@ export default function Chat() {
     }
   };
 
-  const handleVoiceInput = () => {
-    toast.info('Voice input is not supported in this browser environment.');
+  const handleVoiceInput = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast.error('Audio recording is not supported in this browser.');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (audioBlob.size < 100) return;
+
+        const file = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+        setUploadingFile(true);
+        setUploadProgress(0);
+
+        try {
+          const downloadURL = await uploadChatFile(
+            file,
+            selectedChat?.id || 'general',
+            (progress) => setUploadProgress(progress.progress)
+          );
+
+          if (selectedChat && currentUser && userData) {
+            await sendMessageWithFile(
+              selectedChat.id,
+              currentUser.uid,
+              userData.fullName || 'Me',
+              'Voice Note.webm',
+              downloadURL,
+              'Voice Note',
+              'audio'
+            );
+            toast.success('Voice note sent!');
+          }
+        } catch {
+          toast.error('Failed to send voice note');
+        } finally {
+          setUploadingFile(false);
+          setUploadProgress(0);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast.info('Recording voice note... Click mic again to send.', { duration: 4000 });
+    } catch {
+      toast.error('Microphone access denied or unavailable.');
+      setIsRecording(false);
+    }
   };
 
   // Group messages by date
@@ -793,7 +863,7 @@ export default function Chat() {
               </div>
             )}
 
-            {/* Message Input */}
+            {/* Message Input - Static at bottom & responsive auto-resizing */}
             <footer className="sticky bottom-0 z-20 shrink-0 p-3 sm:p-4 bg-white/95 dark:bg-[#080a0f]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10">
               <form 
                 onSubmit={handleSendMessage}

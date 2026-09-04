@@ -238,6 +238,7 @@ export async function createCourse(
   const normalizedPrice = Number(courseData.price || 0);
   const newCourse = {
     ...courseData,
+    status: courseData.status || 'active',
     price: Number.isFinite(normalizedPrice) ? normalizedPrice : 0,
     currency: String(courseData.currency || 'UGX').toUpperCase(),
     isFree: courseData.isFree ?? normalizedPrice <= 0,

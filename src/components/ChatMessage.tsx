@@ -179,7 +179,7 @@ export function ChatMessage({
       >
         <div className="relative max-w-[85%] sm:max-w-md lg:max-w-lg">
           <div
-            className={`${bgColor} ${textColor} rounded-2xl px-4 py-2.5 break-words shadow-sm hover:shadow-md transition-all duration-200 ${isCurrentUser ? 'cursor-pointer' : ''}`}
+            className={`${bgColor} ${textColor} rounded-2xl p-2.5 sm:p-3 break-words shadow-sm hover:shadow-md transition-all duration-200 ${isCurrentUser ? 'cursor-pointer' : ''}`}
             style={{
               fontSize: `${fontSize}px`,
               fontStyle: fontStyle as any,

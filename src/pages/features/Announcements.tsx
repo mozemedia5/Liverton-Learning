@@ -435,49 +435,47 @@ export default function Announcements() {
                           )}
                         </div>
 
-                        {/* Admin / Sender Moderation Controls */}
-                        {(isAdmin || currentUser?.uid === notif.senderId) && (
-                          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-                            {isAdmin && (
-                              notif.isHidden ? (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleUnhide(notif)}
-                                  className="text-emerald-600 hover:text-emerald-700 h-7 text-xs px-2"
-                                >
-                                  <Eye className="w-3.5 h-3.5 mr-1" />
-                                  Unhide
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setSelectedNotification(notif);
-                                    setShowHideDialog(true);
-                                  }}
-                                  className="text-amber-600 hover:text-amber-700 h-7 text-xs px-2"
-                                >
-                                  <EyeOff className="w-3.5 h-3.5 mr-1" />
-                                  Hide
-                                </Button>
-                              )
-                            )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setSelectedNotification(notif);
-                                setShowDeleteDialog(true);
-                              }}
-                              className="text-red-500 hover:text-red-600 h-7 text-xs px-2 ml-auto"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
-                        )}
+                        {/* Notification Action Controls - Clear/Delete for any user, Moderation for Admins */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                          {isAdmin && (
+                            notif.isHidden ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUnhide(notif)}
+                                className="text-emerald-600 hover:text-emerald-700 h-7 text-xs px-2"
+                              >
+                                <Eye className="w-3.5 h-3.5 mr-1" />
+                                Unhide
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedNotification(notif);
+                                  setShowHideDialog(true);
+                                }}
+                                className="text-amber-600 hover:text-amber-700 h-7 text-xs px-2"
+                              >
+                                <EyeOff className="w-3.5 h-3.5 mr-1" />
+                                Hide
+                              </Button>
+                            )
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedNotification(notif);
+                              setShowDeleteDialog(true);
+                            }}
+                            className="text-red-500 hover:text-red-600 h-7 text-xs px-2 ml-auto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            Clear
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
