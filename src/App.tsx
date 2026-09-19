@@ -90,6 +90,7 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import PWADebug from '@/pages/PWADebug';
 
 import './App.css';
+import './gemini-theme.css';
 
 /**
  * ProtectedRoute Component

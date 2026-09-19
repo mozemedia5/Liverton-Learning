@@ -1,0 +1,1035 @@
+/*
+ * Liverton Gemini visual system
+ *
+ * This layer intentionally sits after the legacy app styles so every surface,
+ * navigation shell, card and conversational feature can share one palette.
+ */
+:root {
+  --gm-bg: #f0f4f9;
+  --gm-surface: #ffffff;
+  --gm-surface-container: #eef1f5;
+  --gm-surface-container-high: #e5e9ef;
+  --gm-surface-strong: #dfe4eb;
+  --gm-ink: #1f1f1f;
+  --gm-ink-soft: #444746;
+  --gm-ink-muted: #6f7478;
+  --gm-outline: rgba(31, 31, 31, 0.12);
+  --gm-outline-strong: rgba(31, 31, 31, 0.18);
+  --gm-accent: #4285f4;
+  --gm-accent-2: #9b51e0;
+  --gm-accent-3: #e91e63;
+  --gm-accent-gradient: linear-gradient(74deg, #4285f4 0%, #9b51e0 52%, #e91e63 100%);
+  --gm-accent-soft: linear-gradient(135deg, rgba(66, 133, 244, 0.14), rgba(155, 81, 224, 0.12) 52%, rgba(233, 30, 99, 0.1));
+  --gm-focus: rgba(66, 133, 244, 0.3);
+  --gm-radius-sm: 12px;
+  --gm-radius-md: 18px;
+  --gm-radius-lg: 24px;
+  --gm-radius-xl: 32px;
+  --gm-shadow-1: 0 1px 2px rgba(31, 31, 31, 0.04), 0 5px 18px rgba(31, 31, 31, 0.05);
+  --gm-shadow-2: 0 18px 48px rgba(31, 31, 31, 0.1);
+  --gm-ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Tailwind/shadcn HSL bridge */
+  --background: 210 33% 96%;
+  --foreground: 0 0% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 12%;
+  --primary: 217 89% 61%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 24% 92%;
+  --secondary-foreground: 0 0% 12%;
+  --muted: 214 24% 92%;
+  --muted-foreground: 153 4% 28%;
+  --accent: 214 24% 92%;
+  --accent-foreground: 0 0% 12%;
+  --border: 216 18% 86%;
+  --input: 216 18% 86%;
+  --ring: 217 89% 61%;
+  --radius: 1.25rem;
+  --sidebar-background: 214 24% 94%;
+  --sidebar-foreground: 153 4% 28%;
+  --sidebar-primary: 217 89% 61%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 24% 90%;
+  --sidebar-accent-foreground: 0 0% 12%;
+  --sidebar-border: 216 18% 86%;
+  --sidebar-ring: 217 89% 61%;
+}
+
+.dark {
+  --gm-bg: #131314;
+  --gm-surface: #1e1f20;
+  --gm-surface-container: #2d2e31;
+  --gm-surface-container-high: #35363a;
+  --gm-surface-strong: #3b3c40;
+  --gm-ink: #e3e3e3;
+  --gm-ink-soft: #c4c7c5;
+  --gm-ink-muted: #9aa0a6;
+  --gm-outline: rgba(255, 255, 255, 0.1);
+  --gm-outline-strong: rgba(255, 255, 255, 0.16);
+  --gm-focus: rgba(66, 133, 244, 0.42);
+
+  --background: 240 2% 8%;
+  --foreground: 0 0% 89%;
+  --card: 220 2% 12%;
+  --card-foreground: 0 0% 89%;
+  --popover: 220 2% 12%;
+  --popover-foreground: 0 0% 89%;
+  --primary: 217 89% 61%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 2% 18%;
+  --secondary-foreground: 0 0% 89%;
+  --muted: 210 2% 18%;
+  --muted-foreground: 153 4% 78%;
+  --accent: 210 2% 18%;
+  --accent-foreground: 0 0% 89%;
+  --border: 210 2% 22%;
+  --input: 210 2% 22%;
+  --ring: 217 89% 61%;
+  --sidebar-background: 220 2% 12%;
+  --sidebar-foreground: 153 4% 78%;
+  --sidebar-primary: 217 89% 61%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 210 2% 18%;
+  --sidebar-accent-foreground: 0 0% 89%;
+  --sidebar-border: 210 2% 22%;
+  --sidebar-ring: 217 89% 61%;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background: var(--gm-bg);
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+  font-family: Inter, "Google Sans", "Google Sans Text", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+}
+
+*,
+*::before,
+*::after {
+  border-color: var(--gm-outline);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"] {
+  font: inherit;
+}
+
+button:active:not(:disabled),
+[role="button"]:active {
+  transform: scale(0.98);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--gm-accent) !important;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(66, 133, 244, 0.26);
+  color: var(--gm-ink);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gm-surface-strong);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gm-ink-muted);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Shared primitives: flatten the older glass/emerald system into Material 3 surfaces. */
+.bg-background { background-color: var(--gm-bg) !important; }
+.bg-card, .bg-white, .dark .dark\:bg-gray-900, .dark .dark\:bg-gray-800 { background-color: var(--gm-surface) !important; }
+.text-foreground, .text-black, .dark .dark\:text-white { color: var(--gm-ink) !important; }
+.text-muted-foreground, .text-gray-500, .text-gray-400, .text-slate-400, .text-slate-500 { color: var(--gm-ink-muted) !important; }
+.border-border, .border-gray-200, .border-gray-300, .border-slate-200, .border-gray-100 { border-color: var(--gm-outline) !important; }
+
+/* Normalize common legacy accent utilities without changing component logic. */
+[class*="bg-emerald-"], [class*="bg-green-"], [class*="bg-lime-"], [class*="bg-purple-"], [class*="bg-violet-"], [class*="bg-indigo-"], [class*="bg-blue-"] {
+  background-color: var(--gm-surface-container) !important;
+}
+[class*="text-emerald-"], [class*="text-green-"], [class*="text-lime-"], [class*="text-purple-"], [class*="text-violet-"], [class*="text-indigo-"], [class*="text-blue-"] {
+  color: var(--gm-ink-soft) !important;
+}
+[class*="border-emerald-"], [class*="border-green-"], [class*="border-lime-"], [class*="border-purple-"], [class*="border-violet-"], [class*="border-indigo-"], [class*="border-blue-"] {
+  border-color: var(--gm-outline) !important;
+}
+
+/* Re-introduce the Gemini spectrum only where it communicates AI or primary action. */
+.gm-gradient,
+.gradient-text,
+.text-gradient-emerald,
+.liv-gemini-gradient,
+.gemini-gradient {
+  background-image: var(--gm-accent-gradient) !important;
+}
+
+.gm-gradient-text,
+.gradient-text,
+.text-gradient-emerald {
+  background-image: var(--gm-accent-gradient) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.gm-ai-surface {
+  background: var(--gm-accent-soft) !important;
+  border: 1px solid var(--gm-outline) !important;
+}
+
+/* Authenticated application shell */
+.liv-shell,
+.liv-page,
+.liv-main {
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+}
+
+.liv-sidebar {
+  width: 280px !important;
+  padding: 20px 14px 16px !important;
+  background: var(--gm-surface) !important;
+  border-right: 1px solid var(--gm-outline) !important;
+  box-shadow: none !important;
+}
+
+.liv-sidebar.is-collapsed {
+  width: 88px !important;
+}
+
+.liv-main {
+  padding-left: 312px !important;
+  padding-top: 28px !important;
+  padding-right: 28px !important;
+}
+
+.liv-main.liv-main-collapsed {
+  padding-left: 120px !important;
+}
+
+.liv-main-fullscreen {
+  padding: 0 0 0 280px !important;
+}
+
+.liv-sidebar-brand,
+.liv-workspace,
+.liv-user-card,
+.liv-logout,
+.liv-nav-item,
+.liv-collapse,
+.liv-button,
+.liv-card,
+.liv-list-row,
+.liv-chip,
+.liv-stat-icon {
+  border-radius: var(--gm-radius-md) !important;
+}
+
+.liv-brand-mark {
+  border-radius: 14px !important;
+  background: var(--gm-accent-gradient) !important;
+}
+
+.liv-sidebar-brand strong,
+.liv-title,
+.liv-section-head h2,
+.liv-hero-card h2,
+.liv-stat-value {
+  font-family: Inter, "Google Sans", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: -0.035em !important;
+}
+
+.liv-sidebar-brand span,
+.liv-nav-label,
+.liv-subtitle,
+.liv-eyebrow,
+.liv-stat-note,
+.liv-row-end,
+.liv-list-row p {
+  color: var(--gm-ink-muted) !important;
+}
+
+.liv-nav-item {
+  color: var(--gm-ink-soft) !important;
+  background: transparent !important;
+  transition: background-color 180ms var(--gm-ease), color 180ms var(--gm-ease), transform 180ms var(--gm-ease) !important;
+}
+
+.liv-nav-item:hover,
+.liv-nav-item.is-active,
+.liv-user-card:hover,
+.liv-logout:hover {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.liv-nav-item.is-active {
+  border: 1px solid var(--gm-outline) !important;
+}
+
+.liv-nav-badge {
+  color: #ffffff !important;
+  background: var(--gm-accent-gradient) !important;
+}
+
+.liv-workspace,
+.liv-card,
+.liv-list-row,
+.liv-stat-icon,
+.liv-chip {
+  background: var(--gm-surface) !important;
+  border: 1px solid var(--gm-outline) !important;
+  box-shadow: var(--gm-shadow-1) !important;
+}
+
+.liv-card:hover {
+  box-shadow: var(--gm-shadow-1) !important;
+  transform: translateY(-1px) !important;
+}
+
+.liv-button {
+  min-height: 44px;
+  border: 0 !important;
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 22px rgba(66, 133, 244, 0.2) !important;
+}
+
+.liv-button-light,
+.liv-button-quiet {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+  border: 1px solid var(--gm-outline) !important;
+  box-shadow: none !important;
+}
+
+.liv-hero-card {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+  border: 1px solid var(--gm-outline) !important;
+  box-shadow: none !important;
+}
+
+.liv-hero-card::after {
+  background: var(--gm-accent-gradient) !important;
+  opacity: 0.18 !important;
+}
+
+.liv-hero-card p { color: var(--gm-ink-soft) !important; }
+.liv-hero-card .liv-eyebrow { color: var(--gm-accent) !important; }
+
+/* Shared shadcn primitives */
+[data-slot="button"] {
+  border-radius: 999px;
+  transition: background-color 180ms var(--gm-ease), border-color 180ms var(--gm-ease), color 180ms var(--gm-ease), transform 160ms var(--gm-ease), box-shadow 180ms var(--gm-ease);
+}
+
+[data-slot="button"][data-variant="default"] {
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+}
+
+[data-slot="button"][data-variant="outline"] {
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  border-color: var(--gm-outline-strong) !important;
+  box-shadow: none !important;
+}
+
+[data-slot="button"][data-variant="secondary"],
+[data-slot="button"][data-variant="ghost"]:hover {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+}
+
+[data-slot="input"],
+input,
+textarea,
+select {
+  border-color: var(--gm-outline-strong) !important;
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  box-shadow: none !important;
+}
+
+[data-slot="input"]:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--gm-accent) !important;
+  box-shadow: 0 0 0 3px var(--gm-focus) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--gm-ink-muted) !important;
+  opacity: 1;
+}
+
+.glass-card,
+[data-slot="card"] {
+  background: var(--gm-surface) !important;
+  border: 1px solid var(--gm-outline) !important;
+  border-radius: var(--gm-radius-lg) !important;
+  box-shadow: var(--gm-shadow-1) !important;
+  backdrop-filter: none !important;
+}
+
+/* Direct-message chat */
+.liv-chat-page,
+.liv-hanna-page {
+  min-height: 100dvh !important;
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+}
+
+.liv-chat-page .liv-chat-sidebar,
+.liv-chat-page .liv-chat-header,
+.liv-chat-page .liv-chat-composer,
+.liv-hanna-page .liv-hanna-sidebar,
+.liv-hanna-page .liv-hanna-header,
+.liv-hanna-page .liv-hanna-composer {
+  background: var(--gm-surface) !important;
+  border-color: var(--gm-outline) !important;
+  box-shadow: none !important;
+}
+
+.liv-chat-page .liv-chat-sidebar,
+.liv-hanna-page .liv-hanna-sidebar {
+  width: 300px !important;
+}
+
+.liv-chat-page .liv-chat-sidebar-header,
+.liv-hanna-page .liv-hanna-sidebar-header,
+.liv-hanna-page .liv-hanna-sidebar-footer {
+  background: var(--gm-surface) !important;
+  border-color: var(--gm-outline) !important;
+}
+
+.liv-chat-page .liv-chat-thread,
+.liv-chat-page .liv-chat-empty,
+.liv-hanna-page .liv-hanna-thread {
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+}
+
+.liv-chat-page .liv-chat-bubble-received,
+.liv-hanna-page .liv-hanna-bubble-assistant {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+  border: 1px solid var(--gm-outline) !important;
+  border-radius: var(--gm-radius-lg) !important;
+  box-shadow: none !important;
+}
+
+.liv-chat-page .liv-chat-bubble-sent,
+.liv-hanna-page .liv-hanna-bubble-user {
+  background: var(--gm-accent-soft) !important;
+  color: var(--gm-ink) !important;
+  border: 1px solid rgba(66, 133, 244, 0.24) !important;
+  border-radius: var(--gm-radius-lg) !important;
+  box-shadow: none !important;
+}
+
+.liv-chat-page .liv-chat-composer-form,
+.liv-hanna-page .liv-hanna-composer-form {
+  background: var(--gm-surface) !important;
+  border: 1px solid var(--gm-outline-strong) !important;
+  border-radius: var(--gm-radius-xl) !important;
+  box-shadow: var(--gm-shadow-2) !important;
+}
+
+.liv-chat-page .liv-chat-composer-form:focus-within,
+.liv-hanna-page .liv-hanna-composer-form:focus-within {
+  border-color: var(--gm-accent) !important;
+  box-shadow: 0 0 0 3px var(--gm-focus), var(--gm-shadow-2) !important;
+}
+
+.liv-chat-page .liv-chat-composer textarea,
+.liv-hanna-page .liv-hanna-composer textarea {
+  max-height: 200px !important;
+  color: var(--gm-ink) !important;
+}
+
+.liv-chat-page .liv-chat-empty > div:first-child,
+.liv-hanna-page .liv-hanna-empty-mark {
+  background: var(--gm-accent-soft) !important;
+  color: var(--gm-accent) !important;
+}
+
+/* Gemini AI icon and shimmer surfaces */
+.gemini-sparkle,
+.liv-gemini-sparkle,
+[class*="gemini-sparkle"] {
+  filter: drop-shadow(0 0 12px rgba(66, 133, 244, 0.22));
+}
+
+.gemini-shimmer,
+.liv-gemini-shimmer,
+[class*="shimmer"] {
+  background-image: linear-gradient(90deg, var(--gm-surface-container) 0%, rgba(66, 133, 244, 0.2) 35%, rgba(155, 81, 224, 0.18) 60%, var(--gm-surface-container) 100%) !important;
+  background-size: 220% 100% !important;
+}
+
+/* Landing and public/auth surfaces use the same restrained system. */
+.lp-page,
+.auth-page,
+.auth-shell,
+.auth-container {
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+}
+
+.lp-page .lp-nav,
+.lp-page .lp-pill,
+.lp-page .lp-role-tabs button,
+.lp-page .lp-product-card,
+.lp-page .lp-preview-shell,
+.lp-page .lp-stat-card,
+.lp-page .lp-module-row,
+.auth-card,
+.auth-form-card {
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  border-color: var(--gm-outline) !important;
+  box-shadow: var(--gm-shadow-1) !important;
+}
+
+.lp-page .lp-button-dark,
+.lp-page .lp-button,
+.auth-page button[type="submit"] {
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+}
+
+.lp-page .lp-button-quiet,
+.lp-page .lp-nav-login {
+  color: var(--gm-ink) !important;
+}
+
+.lp-page .lp-product-teams,
+.lp-page .lp-product-fund,
+.lp-page .lp-product-mart,
+.lp-page .lp-dashboard-section {
+  background: var(--gm-surface-container) !important;
+}
+
+/* Responsive shell and conversational layout. */
+@media (max-width: 1023px) {
+  .liv-main,
+  .liv-main.liv-main-collapsed,
+  .liv-main-fullscreen {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .liv-sidebar {
+    width: min(300px, 88vw) !important;
+    transform: translateX(-102%);
+  }
+
+  .liv-sidebar:not(.is-collapsed) { transform: translateX(0); }
+
+  .liv-chat-page .liv-chat-sidebar,
+  .liv-hanna-page .liv-hanna-sidebar {
+    width: min(320px, 88vw) !important;
+  }
+}
+
+@media (max-width: 767px) {
+  body { font-size: 15px; }
+
+  .liv-main,
+  .liv-main.liv-main-collapsed,
+  .liv-main-fullscreen {
+    padding: 16px 12px calc(88px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .liv-sidebar {
+    padding: 16px 12px !important;
+  }
+
+  .liv-mobile-nav {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    background: var(--gm-surface) !important;
+    border: 1px solid var(--gm-outline) !important;
+    box-shadow: var(--gm-shadow-2) !important;
+  }
+
+  .liv-mobile-nav button.is-active {
+    background: var(--gm-surface-container) !important;
+    color: var(--gm-ink) !important;
+  }
+
+  .liv-chat-page .liv-chat-sidebar,
+  .liv-hanna-page .liv-hanna-sidebar {
+    width: min(330px, 88vw) !important;
+  }
+
+  .liv-chat-page .liv-chat-header,
+  .liv-hanna-page .liv-hanna-header {
+    padding: 12px !important;
+  }
+
+  .liv-chat-page .liv-chat-composer,
+  .liv-hanna-page .liv-hanna-composer {
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .liv-chat-page .liv-chat-composer-form,
+  .liv-hanna-page .liv-hanna-composer-form {
+    border-radius: 24px !important;
+  }
+
+  .liv-chat-page .liv-chat-bubble-received,
+  .liv-chat-page .liv-chat-bubble-sent,
+  .liv-hanna-page .liv-hanna-bubble-assistant,
+  .liv-hanna-page .liv-hanna-bubble-user {
+    max-width: calc(100vw - 44px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* AI response content: readable paragraphs, quiet containers, and responsive rich media. */
+[class*="bg-red-"], [class*="bg-amber-"], [class*="bg-orange-"], [class*="bg-yellow-"], [class*="bg-pink-"] {
+  background-color: var(--gm-surface-container) !important;
+}
+[class*="text-red-"], [class*="text-amber-"], [class*="text-orange-"], [class*="text-yellow-"], [class*="text-pink-"] {
+  color: var(--gm-ink-soft) !important;
+}
+
+.liv-hanna-thread article {
+  animation: gm-message-in 180ms var(--gm-ease) both;
+}
+
+@keyframes gm-message-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.liv-hanna-thread p {
+  line-height: 1.7;
+}
+
+.liv-hanna-thread pre,
+.liv-hanna-thread code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.liv-hanna-thread pre {
+  overflow-x: auto;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--gm-outline);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+}
+
+.liv-hanna-thread :not(pre) > code {
+  padding: 0.15rem 0.38rem;
+  border-radius: 0.45rem;
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+}
+
+.liv-hanna-thread blockquote {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--gm-accent);
+  border-radius: 0 var(--gm-radius-sm) var(--gm-radius-sm) 0;
+  background: var(--gm-accent-soft);
+  color: var(--gm-ink-soft);
+}
+
+.liv-hanna-thread table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1rem 0;
+  border: 1px solid var(--gm-outline);
+  border-radius: var(--gm-radius-md);
+}
+
+.liv-hanna-thread th,
+.liv-hanna-thread td {
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--gm-outline);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.liv-hanna-thread th {
+  background: var(--gm-surface-container);
+  color: var(--gm-ink);
+  font-weight: 600;
+}
+
+.liv-hanna-thread tr:last-child td { border-bottom: 0; }
+
+.liv-hanna-thread img,
+.liv-hanna-thread video {
+  max-width: 100%;
+  border-radius: var(--gm-radius-lg);
+}
+
+.liv-hanna-thread a {
+  color: var(--gm-accent);
+  text-underline-offset: 3px;
+}
+
+.liv-hanna-composer {
+  background: linear-gradient(to top, var(--gm-bg) 0%, color-mix(in srgb, var(--gm-bg) 92%, transparent) 64%, transparent 100%) !important;
+}
+
+.liv-hanna-composer-form button:hover,
+.liv-hanna-thread button:hover {
+  background-color: var(--gm-surface-container) !important;
+}
+
+.liv-hanna-composer-form > textarea {
+  min-height: 2.25rem;
+}
+
+.liv-hanna-composer-form [aria-label="Send"] {
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+}
+
+.liv-hanna-composer-form [aria-label="Stop"] {
+  background: var(--gm-surface-container-high) !important;
+  color: var(--gm-ink) !important;
+}
+
+.gemini-media-grid,
+.gemini-image-wrapper,
+[class*="gemini-image"] {
+  overflow: hidden;
+  border: 1px solid var(--gm-outline) !important;
+  border-radius: var(--gm-radius-lg) !important;
+  background: var(--gm-surface-container) !important;
+}
+
+/* Dialogs and popovers inherit the same surface language. */
+[role="dialog"],
+[data-radix-popper-content-wrapper] > *,
+[data-slot="dialog-content"] {
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  border-color: var(--gm-outline) !important;
+  border-radius: var(--gm-radius-lg) !important;
+  box-shadow: var(--gm-shadow-2) !important;
+}
+
+@media (max-width: 480px) {
+  .liv-hanna-thread {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .liv-hanna-thread .mx-auto {
+    padding-bottom: 10rem;
+  }
+
+  .liv-hanna-composer-form {
+    padding: 10px !important;
+  }
+}
+
+/* Public landing conversion: keep the existing content and imagery, but remove the separate lime/peach/purple visual system. */
+.lp-page {
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+}
+
+.lp-page .lp-nav,
+.lp-page .lp-pill,
+.lp-page .lp-role-tabs button,
+.lp-page .lp-preview-shell,
+.lp-page .lp-stat-card,
+.lp-page .lp-module-row,
+.lp-page .lp-product-card,
+.lp-page .lp-quote-card,
+.lp-page .lp-faq-item,
+.lp-page .lp-install-banner {
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  border-color: var(--gm-outline) !important;
+  box-shadow: var(--gm-shadow-1) !important;
+}
+
+.lp-page .lp-nav,
+.lp-page .lp-dashboard-section,
+.lp-page .lp-footer {
+  border-color: var(--gm-outline) !important;
+}
+
+.lp-page .lp-logo,
+.lp-page .lp-nav-login,
+.lp-page .lp-nav-links a,
+.lp-page .lp-footer,
+.lp-page .lp-footer-links a,
+.lp-page .lp-hero h1,
+.lp-page .lp-role-heading h2,
+.lp-page .lp-products-heading h2,
+.lp-page .lp-dashboard-heading h2,
+.lp-page .lp-product-card h3,
+.lp-page .lp-hero-copy > p,
+.lp-page .lp-product-card p,
+.lp-page .lp-dashboard-heading p {
+  color: var(--gm-ink) !important;
+}
+
+.lp-page .lp-hero h1 em,
+.lp-page .lp-role-heading h2 em,
+.lp-page .lp-products-heading h2 em,
+.lp-page .lp-dashboard-heading h2 em {
+  background: var(--gm-accent-gradient) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.lp-page .lp-button-dark,
+.lp-page .lp-button,
+.lp-page .lp-nav-cta,
+.lp-page .lp-role-tabs button.active,
+.lp-page .lp-art-card-main {
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: 0 10px 26px rgba(66, 133, 244, 0.18) !important;
+}
+
+.lp-page .lp-button-quiet,
+.lp-page .lp-role-tabs button:not(.active),
+.lp-page .lp-search,
+.lp-page .lp-mini-link,
+.lp-page .lp-mini-profile small,
+.lp-page .lp-proof small,
+.lp-page .lp-overline,
+.lp-page .lp-pill,
+.lp-page .lp-stat-card span,
+.lp-page .lp-module-row small,
+.lp-page .lp-footer-copy {
+  color: var(--gm-ink-muted) !important;
+}
+
+.lp-page .lp-pill span,
+.lp-page .lp-overline,
+.lp-page .lp-banner-kicker,
+.lp-page .lp-stat-accent span,
+.lp-page .lp-mini-fund small {
+  color: var(--gm-accent) !important;
+}
+
+.lp-page .lp-pill span,
+.lp-page .lp-role-icon,
+.lp-page .lp-banner-orb,
+.lp-page .lp-module-icon,
+.lp-page .lp-notification,
+.lp-page .lp-stat-line,
+.lp-page .lp-mini-fund,
+.lp-page .lp-art-card-top,
+.lp-page .lp-art-card-bottom,
+.lp-page .lp-product-teams,
+.lp-page .lp-product-fund,
+.lp-page .lp-product-mart {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+}
+
+.lp-page .lp-brand-mark,
+.lp-page .lp-product-icon {
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+}
+
+.lp-page .lp-dashboard-section {
+  background: var(--gm-surface-container) !important;
+}
+
+.lp-page .lp-preview-sidebar {
+  background: var(--gm-surface-container) !important;
+  border-color: var(--gm-outline) !important;
+}
+
+.lp-page .lp-preview-main,
+.lp-page .lp-preview-grid,
+.lp-page .lp-preview-section {
+  color: var(--gm-ink) !important;
+}
+
+/* Auth conversion: the existing form and validation logic remain untouched. */
+.auth-page,
+.auth-shell,
+.auth-container,
+[class*="auth-page"] {
+  background: var(--gm-bg) !important;
+  color: var(--gm-ink) !important;
+}
+
+.auth-page::before,
+.auth-shell::before,
+.auth-container::before {
+  background: var(--gm-accent-soft) !important;
+  opacity: 1 !important;
+}
+
+.auth-page .auth-card,
+.auth-shell .auth-card,
+.auth-container .auth-card,
+.auth-card,
+.auth-form-card {
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  border: 1px solid var(--gm-outline) !important;
+  border-radius: var(--gm-radius-xl) !important;
+  box-shadow: var(--gm-shadow-2) !important;
+  backdrop-filter: none !important;
+}
+
+.auth-page input,
+.auth-shell input,
+.auth-container input,
+.auth-page textarea,
+.auth-shell textarea,
+.auth-container textarea {
+  background: var(--gm-surface-container) !important;
+  color: var(--gm-ink) !important;
+  border-color: var(--gm-outline) !important;
+  border-radius: var(--gm-radius-md) !important;
+}
+
+.auth-page button[type="submit"],
+.auth-shell button[type="submit"],
+.auth-container button[type="submit"] {
+  background: var(--gm-accent-gradient) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+}
+
+/* Notifications stay quiet and tonal; Gemini color is reserved for primary/AI emphasis. */
+.sonner-toast,
+.sonner-toast[data-type="success"],
+.sonner-toast[data-type="error"],
+.sonner-toast[data-type="warning"],
+.sonner-toast[data-type="info"],
+.sonner-toast[data-type="loading"] {
+  background: var(--gm-surface) !important;
+  color: var(--gm-ink) !important;
+  border: 1px solid var(--gm-outline) !important;
+  box-shadow: var(--gm-shadow-2) !important;
+}
+
+.sonner-toast .sonner-toast-text,
+.sonner-toast .sonner-toast-description,
+.sonner-toast svg,
+.sonner-close-button {
+  color: var(--gm-ink) !important;
+}
+
+.sonner-close-button {
+  background: var(--gm-surface-container) !important;
+}
+
+/* Keep explicitly labelled AI controls on-brand even when their legacy utility classes remain. */
+.liv-hanna-page [class*="text-blue-"],
+.liv-hanna-page [class*="text-purple-"],
+.liv-hanna-page [class*="text-violet-"],
+.liv-hanna-page [class*="text-[#4285F4]"],
+.liv-hanna-page [class*="text-[#9B51E0]"] {
+  color: var(--gm-accent) !important;
+}
+
+.liv-hanna-page [class*="bg-slate-"],
+.liv-hanna-page [class*="bg-zinc-"],
+.liv-hanna-page [class*="bg-gray-"],
+.liv-hanna-page [class*="bg-[#1e1f20]"],
+.liv-hanna-page [class*="bg-[#2d2e31]"] {
+  background-color: var(--gm-surface-container) !important;
+}
+
+.liv-hanna-page [class*="text-slate-"],
+.liv-hanna-page [class*="text-gray-"],
+.liv-hanna-page [class*="text-zinc-"],
+.liv-hanna-page [class*="text-[#e3e3e3]"],
+.liv-hanna-page [class*="text-[#c4c7c5]"] {
+  color: var(--gm-ink) !important;
+}
+
+.dark .liv-hanna-page [class*="text-slate-400"],
+.dark .liv-hanna-page [class*="text-gray-400"],
+.dark .liv-hanna-page [class*="text-[#c4c7c5]"] {
+  color: var(--gm-ink-muted) !important;
+}
+
+/* Legacy gradient utility names now resolve to the approved Gemini spectrum. */
+.gradient-emerald,
+.gradient-gold,
+.liv-gemini-gradient {
+  background: var(--gm-accent-gradient) !important;
+}

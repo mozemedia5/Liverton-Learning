@@ -363,10 +363,10 @@ export default function HannaChatIntegrated() {
 
   return <>
     <SEO title="Google Gemini AI Interface" description="Google Gemini AI interface clone built with precision Material Design 3." noIndex />
-    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-[#f0f4f9] dark:bg-[#131314] text-slate-900 dark:text-[#e3e3e3] font-sans">
+    <div className="liv-hanna-page liv-gemini-shell flex h-[100dvh] min-h-0 overflow-hidden bg-[#f0f4f9] dark:bg-[#131314] text-slate-900 dark:text-[#e3e3e3] font-sans">
 
       {/* 300px Collapsible Desktop Navigation Sidebar & Mobile Drawer Menu */}
-      <aside className={`${isHistoryOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} fixed inset-y-0 left-0 z-50 flex w-[300px] shrink-0 flex-col border-r border-slate-200/70 dark:border-white/10 bg-[#f0f4f9] dark:bg-[#1e1f20] transition-transform duration-300 lg:relative lg:z-20`}>
+      <aside className={`liv-hanna-sidebar ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} fixed inset-y-0 left-0 z-50 flex w-[300px] shrink-0 flex-col border-r border-slate-200/70 dark:border-white/10 bg-[#f0f4f9] dark:bg-[#1e1f20] transition-transform duration-300 lg:relative lg:z-20`}>
         <div className="p-4 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <button onClick={newChat} className="flex items-center gap-2.5 rounded-full bg-slate-200/70 dark:bg-[#2d2e31] px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-[#e3e3e3] hover:bg-slate-300/80 dark:hover:bg-[#37393e] transition">
@@ -423,9 +423,9 @@ export default function HannaChatIntegrated() {
       {isHistoryOpen && <button aria-label="Close overlay" onClick={() => setIsHistoryOpen(false)} className="fixed inset-0 z-40 bg-black/40 lg:hidden" />}
 
       {/* Main Chat Window */}
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f0f4f9] dark:bg-[#131314]">
+      <main className="liv-hanna-main relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f0f4f9] dark:bg-[#131314]">
         {/* Top Bar */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/60 dark:border-white/5 px-4 sm:px-6">
+        <header className="liv-hanna-header flex h-16 shrink-0 items-center justify-between border-b border-slate-200/60 dark:border-white/5 px-4 sm:px-6">
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => setIsHistoryOpen(true)} className="rounded-full p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 lg:hidden" aria-label="Open menu">
               <Menu className="h-5 w-5" />
@@ -466,7 +466,7 @@ export default function HannaChatIntegrated() {
         </header>
 
         {/* Chat Feed */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 scrollbar-thin">
+        <div ref={scrollRef} className="liv-hanna-thread flex-1 overflow-y-auto px-4 sm:px-6 py-6 scrollbar-thin">
           <div className="mx-auto max-w-[768px] pb-32">
             {!messages.length && !isGenerating ? (
               <div className="flex min-h-[60vh] flex-col justify-center">
@@ -634,9 +634,9 @@ export default function HannaChatIntegrated() {
         </div>
 
         {/* Floating Pill Chat Input Box Anchored at Bottom Center */}
-        <footer className="fixed bottom-0 inset-x-0 z-20 p-3 sm:pb-6 pointer-events-none">
+        <footer className="liv-hanna-composer fixed bottom-0 inset-x-0 z-20 p-3 sm:pb-6 pointer-events-none">
           <div className="mx-auto max-w-[768px] w-full px-0 sm:px-4 pointer-events-auto">
-            <form onSubmit={e => { e.preventDefault(); void send(); }} className="relative flex flex-col rounded-[32px] border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1e1f20] p-3 shadow-xl transition focus-within:border-[#4285F4]/70">
+            <form onSubmit={e => { e.preventDefault(); void send(); }} className="liv-hanna-composer-form relative flex flex-col rounded-[32px] border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#1e1f20] p-3 shadow-xl transition focus-within:border-[#4285F4]/70">
               <input ref={fileRef} type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx" className="hidden" onChange={handleFile} />
               <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
 
