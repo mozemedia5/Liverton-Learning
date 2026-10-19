@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SavingsTransaction, ProjectFundingRequest, MarketplaceItem, TeamPoll, TeamAnnouncement } from '@/types/livTeams';
-import { logTeamActivity } from './livTeamsCoreService';
+import { getTeamById, logTeamActivity } from './livTeamsCoreService';
 
 /**
  * Savings Transactions (Contribution/Withdrawals)
@@ -326,6 +326,11 @@ export async function voteInTeamPoll(teamId: string, pollId: string, optionId: s
  */
 export async function createTeamAnnouncement(teamId: string, title: string, content: string, senderId: string, senderName: string): Promise<string> {
   try {
+    const team = await getTeamById(teamId);
+    if (!team) throw new Error('Team not found');
+    if (!team.members.some(member => member.userId === senderId)) {
+      throw new Error('Only team members can post announcements');
+    }
     const ref = collection(db, 'teams', teamId, 'announcements');
     const finalAnn = {
       teamId,
@@ -338,6 +343,25 @@ export async function createTeamAnnouncement(teamId: string, title: string, cont
 
     const docRef = await addDoc(ref, finalAnn);
     await logTeamActivity(teamId, senderId, senderName, 'posted team announcement', title);
+    const targetUsers = Array.from(new Set(
+      (team.memberIds?.length ? team.memberIds : team.members.map(member => member.userId)).filter(Boolean)
+    ));
+    if (targetUsers.length > 0) {
+      await addDoc(collection(db, 'notifications'), {
+        title: `New announcement in ${team.name}`,
+        body: `${senderName}: ${title}`,
+        content,
+        type: 'announcement',
+        notificationType: 'team_announcement',
+        teamId,
+        targetUsers,
+        targetAudience: [],
+        link: `/features/liv-teams/workspace/${teamId}?tab=announcements`,
+        senderId,
+        sender: senderName,
+        createdAt: Timestamp.now(),
+      });
+    }
     return docRef.id;
   } catch (error) {
     console.error('Error creating team announcement:', error);

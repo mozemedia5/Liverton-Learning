@@ -247,8 +247,9 @@ export async function uploadToCloudinary(
       xhr.send(formData);
     });
 
-    // Track asset in Firestore asynchronously without blocking upload resolution
-    trackAssetInFirestore(data, file, type, options);
+    // Track asset asynchronously without turning a successful upload into a
+    // chat failure when tracking is denied or temporarily unavailable.
+    void trackAssetInFirestore(data, file, type, options);
 
     return data.secure_url;
   } catch (error) {

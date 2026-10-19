@@ -18,7 +18,7 @@ import {
   addTeamMessageReply,
   togglePinTeamMessage
 } from '@/services/livTeamsChatService';
-import { uploadToCloudinary, type CloudinaryUploadType } from '@/services/cloudinaryService';
+import { mapFileToCloudinaryType, uploadToCloudinary } from '@/services/cloudinaryService';
 import type { TeamMessage, TeamMessageReply, TeamRole } from '@/types/livTeams';
 import { LivLoader } from './livTeamsUi';
 import TeamAttachmentViewer from '@/components/TeamAttachmentViewer';
@@ -132,24 +132,22 @@ export default function TeamWorkspaceChat({ teamId, teamName, teamRole }: ChatPr
       else if (mime.startsWith('video/')) kind = 'video';
       else if (mime.startsWith('audio/')) kind = 'audio';
 
-      let presetType: CloudinaryUploadType = 'document';
+      const presetType = mapFileToCloudinaryType(file, file.name, true);
       let purpose = 'chat_document';
 
       if (kind === 'image') {
-        presetType = 'image';
         purpose = 'chat_image';
       } else if (kind === 'video') {
-        presetType = 'course_video'; // Force chat videos to Courses/Video preset
         purpose = 'chat_video'; // Temporary chat video subject to 7-day deletion policy
       } else if (kind === 'audio') {
-        presetType = 'audio';
         purpose = 'chat_audio';
       }
 
       const url = await uploadToCloudinary(file, presetType, {
         userId: currentUser.uid,
         referenceId: teamId,
-        purpose
+        purpose,
+        showErrorToast: false
       });
 
       const messageType: TeamMessage['type'] =

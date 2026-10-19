@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ import {
   Users, Calendar, FileText, Landmark, MessageSquare, TrendingUp,
   ArrowLeft, Trophy, CalendarDays, Wallet, Activity, Trash2, Bot,
   Shield, Loader2, LogIn, LogOut, Pencil, Lock, LayoutGrid, Megaphone,
-  Globe, UserPlus, Copy, Share2
+  Globe, UserPlus, Copy, Share2, MoreVertical
 } from 'lucide-react';
 
 import {
@@ -650,12 +651,12 @@ export default function TeamWorkspace() {
           </Badge>
         </div>
 
-        <div className="p-4 md:p-6 pt-14 relative flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="absolute left-4 md:left-6 -top-10 rounded-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-950 shadow-xl overflow-hidden flex-shrink-0 z-10">
-            <TeamLogo name={team.name} logoUrl={team.logoUrl} size="xl" />
-          </div>
-
-          <div className="space-y-1.5 min-w-0 md:pl-28">
+        <div className="p-4 md:p-6 flex flex-col md:flex-row md:items-start justify-between gap-5">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="rounded-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-950 shadow-xl overflow-hidden flex-shrink-0">
+              <TeamLogo name={team.name} logoUrl={team.logoUrl} size="xl" />
+            </div>
+          <div className="space-y-1.5 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl md:text-2xl font-bold truncate">{team.name}</h1>
               <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 capitalize">
@@ -670,6 +671,7 @@ export default function TeamWorkspace() {
               <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {team.members.length}{team.maxMembers ? `/${team.maxMembers}` : ''} members</span>
               <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> {team.country || 'Global'}</span>
             </div>
+          </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -722,20 +724,35 @@ export default function TeamWorkspace() {
         </Card>
       )}
 
-      {/* Workspace tabs */}
+      {/* Workspace navigation lives in the upper-right menu so no tab strip or
+          entry overlay can cover the team header/content. */}
       <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="space-y-6">
-        <TabsList className="flex w-full justify-start overflow-x-auto gap-1 bg-transparent p-0 h-auto scrollbar-none">
-          {workspaceTabs.map(tab => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              disabled={tab.locked}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 border border-transparent data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md disabled:opacity-50"
-            >
-              {tab.locked ? <Lock className="w-3.5 h-3.5" /> : tab.icon} {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="outline" size="sm" className="rounded-lg" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="rounded-lg" aria-label="Open team navigation">
+                <MoreVertical className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{team.name} navigation</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {workspaceTabs.map(tab => (
+                <DropdownMenuItem
+                  key={tab.value}
+                  disabled={tab.locked}
+                  onSelect={() => setActiveWorkspaceTab(tab.value)}
+                  className={activeWorkspaceTab === tab.value ? 'bg-emerald-500/10 text-emerald-600' : ''}
+                >
+                  {tab.locked ? <Lock className="w-4 h-4" /> : tab.icon} {tab.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* ============================ DASHBOARD ============================ */}
         <TabsContent value="dashboard" className="outline-none space-y-6">
