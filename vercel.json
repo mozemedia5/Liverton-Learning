@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/send-otp", "destination": "/api/auth?action=send-otp" },
     { "source": "/api/verify-otp", "destination": "/api/auth?action=verify-otp" },
